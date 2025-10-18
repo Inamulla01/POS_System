@@ -8,15 +8,10 @@ import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import javax.swing.JOptionPane;
 
-/**
- *
- * @author moham
- */
+
 public class LogIn extends javax.swing.JFrame {
 
-    /**
-     * Creates new form LogIn
-     */
+
     public LogIn() {
         initComponents();
         init();

@@ -2,93 +2,201 @@ package lk.com.pos.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import java.awt.Color;
-import java.awt.Dimension;
-import javax.swing.BorderFactory;
-import javax.swing.JFrame;
+import java.awt.*;
+import javax.swing.*;
 import lk.com.pos.util.AppIconUtil;
 
+/**
+ * HomeScreen with ChatGPT-like sliding sidebar.
+ *
+ * NOTE: This file omits initComponents() — keep your generated initComponents()
+ * in the class. This code will re-parent the panels produced by initComponents()
+ * into a BorderLayout so the sidebar can resize reliably.
+ */
 public class HomeScreen extends javax.swing.JFrame {
 
-    private boolean isMenuCollapsed = false; // track sidebar state
+    // --- animation / sizes
+    private boolean isMenuCollapsed = false;
+    private final int expandedWidth = 230;
+    private final int collapsedWidth = 70;
+    private final int animationDelayMs = 8;   // timer delay (ms)
+    private final int animationStepPx = 8;    // pixels per tick
+    private Timer animationTimer;
 
     public HomeScreen() {
-        initComponents();
-        init();
+        initComponents(); // your GUI builder method (keep it)
+        init();           // our initialization
     }
 
-    public void init() {
+    private void init() {
+        // apply app icon and maximize
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-        // Setup icons
-        FlatSVGIcon dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
-        dashboardBtn.setIcon(dashboardIcon);
-        FlatSVGIcon posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
-        posBtn.setIcon(posIcon);
-        FlatSVGIcon supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
-        supplierBtn.setIcon(supplierIcon);
-        FlatSVGIcon salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
-        salesBtn.setIcon(salesIcon);
-        FlatSVGIcon creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
-        creditBtn.setIcon(creditIcon);
-        FlatSVGIcon stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
-        stockBtn.setIcon(stockIcon);
-        FlatSVGIcon menuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 22, 22);
-        menuBtn.setIcon(menuIcon);
-        FlatSVGIcon signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
-        signOutIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#FF0000")));
-        signOutBtn.setIcon(signOutIcon);
+        // ---------- Set icons ----------
+        dashboardBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27));
+        posBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28));
+        supplierBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20));
+        salesBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23));
+        creditBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20));
+        stockBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20));
+        menuBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/menu.svg", 22, 22));
+        signOutBtn.setIcon(new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20));
+        signOutBtn.setForeground(Color.RED);
 
-        // Border adjustments
-        dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
-        posBtn.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
-        supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
-        salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
-        creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
-        stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
-        signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
-        menuBtn.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
+        // ---------- Button common tweaks ----------
+        JButton[] allButtons = { menuBtn, dashboardBtn, posBtn, supplierBtn, salesBtn, creditBtn, stockBtn, signOutBtn };
+        for (JButton b : allButtons) {
+            b.setFocusPainted(false);
+            b.setContentAreaFilled(false);
+            b.setOpaque(false);
+            b.setBorderPainted(false);
+            b.setHorizontalAlignment(SwingConstants.LEADING);
+            b.setIconTextGap(8);
+            b.setPreferredSize(new Dimension(expandedWidth - 20, 40)); // height consistent
+        }
 
-        // Add menu toggle
-        menuBtn.addActionListener(e -> toggleMenu());
+        // Keep initial texts as in your original design
+        dashboardBtn.setText(" Dashboard");
+        posBtn.setText(" POS");
+        supplierBtn.setText(" Supplier");
+        salesBtn.setText(" Sales");
+        creditBtn.setText(" Credit Customers");
+        stockBtn.setText(" Stocks");
+        signOutBtn.setText(" Sign Out");
+
+        // ---------- RE-PARENT into BorderLayout for reliable resizing ----------
+        // Remove generated layout constraints and use BorderLayout so we can change width easily.
+        // We assume initComponents set up `nevPenal`, `menuPenal`, and `jScrollPane1` already.
+        // We'll clear nevPenal and add menuPenal to WEST and jScrollPane1 to CENTER.
+        nevPenal.removeAll();
+        nevPenal.setLayout(new BorderLayout());
+        // Make sure menuPenal has initial preferred size (expanded by default)
+        menuPenal.setPreferredSize(new Dimension(expandedWidth, menuPenal.getHeight()));
+        menuPenal.setMinimumSize(new Dimension(collapsedWidth, 0));
+        menuPenal.setMaximumSize(new Dimension(expandedWidth, Integer.MAX_VALUE));
+
+        nevPenal.add(menuPenal, BorderLayout.WEST);
+        nevPenal.add(jScrollPane1, BorderLayout.CENTER);
+        nevPenal.revalidate();
+        nevPenal.repaint();
+
+        // ---------- Menu button action: toggle with animation ----------
+        menuBtn.addActionListener(e -> toggleMenuAnimated());
+
+        // Ensure initial GUI is laid out
+        SwingUtilities.invokeLater(() -> {
+            menuPenal.revalidate();
+            menuPenal.repaint();
+            nevPenal.revalidate();
+            nevPenal.repaint();
+        });
     }
 
-    // Toggle sidebar collapse/expand
-    private void toggleMenu() {
-        if (!isMenuCollapsed) {
-            // Collapse menu
-            dashboardBtn.setText("");
-            posBtn.setText("");
-            supplierBtn.setText("");
-            salesBtn.setText("");
-            creditBtn.setText("");
-            stockBtn.setText("");
-            signOutBtn.setText("");
+    /**
+     * Animate sidebar sliding in/out. While collapsing the labels disappear quickly
+     * and icons center; while expanding labels reappear after animation.
+     */
+    private void toggleMenuAnimated() {
+        // prevent overlapping animations
+        if (animationTimer != null && animationTimer.isRunning()) return;
 
-            menuPenal.setPreferredSize(new Dimension(70, menuPenal.getHeight())); // shrink
-            menuPenal.revalidate();
-            menuPenal.repaint();
+        final int startWidth = menuPenal.getWidth();
+        final int targetWidth = isMenuCollapsed ? expandedWidth : collapsedWidth;
+        final int direction = (targetWidth > startWidth) ? 1 : -1; // 1 expand, -1 collapse
+        // If collapsing, hide text immediately to avoid layout flicker; icons will center during animation.
+        if (!isMenuCollapsed) prepareForCollapsedState();
 
-            isMenuCollapsed = true;
-        } else {
-            // Expand menu
-            dashboardBtn.setText(" Dashboard");
-            posBtn.setText(" POS");
-            supplierBtn.setText(" Supplier");
-            salesBtn.setText(" Sales");
-            creditBtn.setText(" Credit Customers");
-            stockBtn.setText(" Stocks");
-            signOutBtn.setText(" Sign Out");
+        animationTimer = new Timer(animationDelayMs, null);
+        animationTimer.addActionListener(evt -> {
+            int current = menuPenal.getWidth();
+            int next = current + animationStepPx * direction;
 
-            menuPenal.setPreferredSize(new Dimension(230, menuPenal.getHeight())); // expand
-            menuPenal.revalidate();
-            menuPenal.repaint();
+            // clamp
+            if ((direction > 0 && next >= targetWidth) || (direction < 0 && next <= targetWidth)) {
+                next = targetWidth;
+            }
 
-            isMenuCollapsed = false;
+            // apply new width
+            menuPenal.setPreferredSize(new Dimension(next, menuPenal.getHeight()));
+            menuPenal.setMinimumSize(new Dimension(next, 0));
+            menuPenal.setMaximumSize(new Dimension(next, Integer.MAX_VALUE));
+            nevPenal.revalidate();
+            nevPenal.repaint();
+
+            // finished
+            if (next == targetWidth) {
+                ((Timer) evt.getSource()).stop();
+                isMenuCollapsed = !isMenuCollapsed;
+                if (isMenuCollapsed) {
+                    // fully collapsed: center icons
+                    centerButtonIcons();
+                } else {
+                    // fully expanded: restore text and left alignment
+                    restoreExpandedState();
+                }
+            }
+        });
+        animationTimer.start();
+    }
+
+    /** Prepare quick immediate changes for collapsing to avoid label flicker */
+    private void prepareForCollapsedState() {
+        // remove text (instant)
+        dashboardBtn.setText("");
+        posBtn.setText("");
+        supplierBtn.setText("");
+        salesBtn.setText("");
+        creditBtn.setText("");
+        stockBtn.setText("");
+        signOutBtn.setText("");
+
+        // set buttons to have minimal preferred width so they shrink nicely
+        JButton[] btns = { dashboardBtn, posBtn, supplierBtn, salesBtn, creditBtn, stockBtn, signOutBtn, menuBtn };
+        for (JButton b : btns) {
+            b.setPreferredSize(new Dimension(collapsedWidth - 10, 48)); // square-ish for icons
+            // center icons
+            b.setHorizontalAlignment(SwingConstants.LEADING);
+            b.setHorizontalTextPosition(SwingConstants.LEADING);
         }
     }
 
+    /** When fully collapsed, center icons and shrink button widths to icon size */
+    private void centerButtonIcons() {
+        JButton[] btns = { dashboardBtn, posBtn, supplierBtn, salesBtn, creditBtn, stockBtn, signOutBtn, menuBtn };
+        for (JButton b : btns) {
+            b.setHorizontalAlignment(SwingConstants.LEADING);
+            b.setHorizontalTextPosition(SwingConstants.LEADING);
+            // tighten preferred size to icon-only width
+            int iconSize = 48; // button height
+            b.setPreferredSize(new Dimension(collapsedWidth - 8, iconSize));
+        }
+        menuPenal.revalidate();
+        menuPenal.repaint();
+    }
+
+    /** Restore buttons to expanded look (icon + text, left aligned) */
+    private void restoreExpandedState() {
+        // restore text
+        dashboardBtn.setText(" Dashboard");
+        posBtn.setText(" POS");
+        supplierBtn.setText(" Supplier");
+        salesBtn.setText(" Sales");
+        creditBtn.setText(" Credit Customers");
+        stockBtn.setText(" Stocks");
+        signOutBtn.setText(" Sign Out");
+
+        // restore alignment and sizes
+        JButton[] btns = { dashboardBtn, posBtn, supplierBtn, salesBtn, creditBtn, stockBtn, signOutBtn, menuBtn };
+        for (JButton b : btns) {
+            b.setHorizontalAlignment(SwingConstants.LEADING);
+            b.setHorizontalTextPosition(SwingConstants.RIGHT);
+            b.setPreferredSize(new Dimension(expandedWidth - 20, 40));
+        }
+        menuPenal.setPreferredSize(new Dimension(expandedWidth, menuPenal.getHeight()));
+        menuPenal.revalidate();
+        menuPenal.repaint();
+    }
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -106,13 +214,14 @@ public class HomeScreen extends javax.swing.JFrame {
         menuBtn = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         cardPanel = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Home Screen");
 
-        nevPenal.setBackground(new java.awt.Color(255, 255, 255));
+        nevPenal.setBackground(new java.awt.Color(255, 51, 51));
 
-        menuPenal.setBackground(new java.awt.Color(255, 255, 255));
+        menuPenal.setBackground(new java.awt.Color(255, 204, 204));
         menuPenal.setPreferredSize(new java.awt.Dimension(0, 0));
 
         dashboardBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
@@ -215,7 +324,7 @@ public class HomeScreen extends javax.swing.JFrame {
         menuPenalLayout.setVerticalGroup(
             menuPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(menuPenalLayout.createSequentialGroup()
-                .addGap(63, 63, 63)
+                .addGap(76, 76, 76)
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(dashboardBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -239,17 +348,27 @@ public class HomeScreen extends javax.swing.JFrame {
         jScrollPane1.setAlignmentX(0.0F);
         jScrollPane1.setAlignmentY(0.0F);
 
-        cardPanel.setBackground(new java.awt.Color(255, 255, 255));
+        cardPanel.setBackground(new java.awt.Color(153, 153, 255));
+
+        jLabel1.setBackground(new java.awt.Color(255, 51, 204));
+        jLabel1.setText("jLabel1");
+        jLabel1.setOpaque(true);
 
         javax.swing.GroupLayout cardPanelLayout = new javax.swing.GroupLayout(cardPanel);
         cardPanel.setLayout(cardPanelLayout);
         cardPanelLayout.setHorizontalGroup(
             cardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 892, Short.MAX_VALUE)
+            .addGroup(cardPanelLayout.createSequentialGroup()
+                .addGap(18, 18, 18)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 223, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(651, Short.MAX_VALUE))
         );
         cardPanelLayout.setVerticalGroup(
             cardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 547, Short.MAX_VALUE)
+            .addGroup(cardPanelLayout.createSequentialGroup()
+                .addGap(18, 18, 18)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 285, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(252, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(cardPanel);
@@ -261,14 +380,15 @@ public class HomeScreen extends javax.swing.JFrame {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, nevPenalLayout.createSequentialGroup()
                 .addComponent(menuPenal, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 837, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 837, Short.MAX_VALUE))
         );
         nevPenalLayout.setVerticalGroup(
             nevPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(nevPenalLayout.createSequentialGroup()
-                .addGap(67, 67, 67)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 534, Short.MAX_VALUE))
-            .addComponent(menuPenal, javax.swing.GroupLayout.DEFAULT_SIZE, 601, Short.MAX_VALUE)
+            .addComponent(menuPenal, javax.swing.GroupLayout.DEFAULT_SIZE, 628, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, nevPenalLayout.createSequentialGroup()
+                .addContainerGap(67, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 555, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -279,7 +399,7 @@ public class HomeScreen extends javax.swing.JFrame {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(nevPenal, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(nevPenal, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
         pack();
@@ -308,6 +428,7 @@ public class HomeScreen extends javax.swing.JFrame {
     private javax.swing.JPanel cardPanel;
     private javax.swing.JButton creditBtn;
     private javax.swing.JButton dashboardBtn;
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JButton menuBtn;
     private javax.swing.JPanel menuPenal;

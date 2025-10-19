@@ -6,34 +6,72 @@ package lk.com.pos.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import javax.swing.JButton;
 import javax.swing.JOptionPane;
 
-
 public class LogIn extends javax.swing.JFrame {
-
 
     public LogIn() {
         initComponents();
         init();
     }
-    
-    public void init(){
+
+    public void init() {
         try {
             FlatSVGIcon loginImage = new FlatSVGIcon("lk/com/pos/img/login.svg", 300, 300);
             logInImg.setIcon(loginImage);
-
         } catch (Exception e) {
-             JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Image load error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-                try {
+
+        try {
             FlatSVGIcon userImage = new FlatSVGIcon("lk/com/pos/icon/user.svg", 90, 90);
             userIcon.setIcon(userImage);
-
         } catch (Exception e) {
-             JOptionPane.showMessageDialog(this, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Image load error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+
+        // Gradient button styling (NetBeans-safe)
+        loginBtn.setContentAreaFilled(false);
+        loginBtn.setFocusPainted(false);
+        loginBtn.setBorderPainted(false);
+        loginBtn.setForeground(Color.WHITE);
+        loginBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        loginBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+// Override paint behavior using BasicButtonUI
+        loginBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, javax.swing.JComponent c) {
+                Graphics2D g2 = (Graphics2D) g;
+                int w = c.getWidth();
+                int h = c.getHeight();
+
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Gradient colors
+                Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
+                Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
+
+                // Draw gradient
+                GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, w, h, 10, 10);
+
+                // Draw button text
+                super.paint(g, c);
+            }
+        });
+
     }
-    
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -45,7 +83,7 @@ public class LogIn extends javax.swing.JFrame {
         jTextField1 = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
         jPasswordField1 = new javax.swing.JPasswordField();
-        jButton1 = new javax.swing.JButton();
+        loginBtn = new javax.swing.JButton();
         userIcon = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
 
@@ -69,10 +107,10 @@ public class LogIn extends javax.swing.JFrame {
         jPasswordField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jPasswordField1.setPreferredSize(new java.awt.Dimension(64, 30));
 
-        jButton1.setBackground(new java.awt.Color(115, 230, 203));
-        jButton1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jButton1.setText("Log-in");
-        jButton1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        loginBtn.setBackground(new java.awt.Color(115, 230, 203));
+        loginBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        loginBtn.setText("Log-in");
+        loginBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
 
         userIcon.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
 
@@ -93,7 +131,7 @@ public class LogIn extends javax.swing.JFrame {
                     .addComponent(jLabel2)
                     .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jPasswordField1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(loginBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(userIcon, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(28, Short.MAX_VALUE))
             .addGroup(jPanel1Layout.createSequentialGroup()
@@ -122,7 +160,7 @@ public class LogIn extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jPasswordField1, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(loginBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(72, 72, 72))))
         );
 
@@ -154,7 +192,6 @@ public class LogIn extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
@@ -163,6 +200,7 @@ public class LogIn extends javax.swing.JFrame {
     private javax.swing.JPasswordField jPasswordField1;
     private javax.swing.JTextField jTextField1;
     private javax.swing.JLabel logInImg;
+    private javax.swing.JButton loginBtn;
     private javax.swing.JLabel userIcon;
     // End of variables declaration//GEN-END:variables
 }

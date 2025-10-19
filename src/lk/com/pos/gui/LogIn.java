@@ -63,7 +63,7 @@ public class LogIn extends javax.swing.JFrame {
                 // Draw gradient
                 GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
                 g2.setPaint(gp);
-                g2.fillRoundRect(0, 0, w, h, 10, 10);
+                g2.fillRoundRect(0, 0, w, h, 8, 8);
 
                 // Draw button text
                 super.paint(g, c);
@@ -99,13 +99,25 @@ public class LogIn extends javax.swing.JFrame {
         jLabel1.setText("User Name");
 
         jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        jTextField1.setToolTipText("");
         jTextField1.setPreferredSize(new java.awt.Dimension(64, 30));
+        jTextField1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextField1ActionPerformed(evt);
+            }
+        });
 
         jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jLabel2.setText("Password");
 
         jPasswordField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        jPasswordField1.setToolTipText("");
         jPasswordField1.setPreferredSize(new java.awt.Dimension(64, 30));
+        jPasswordField1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jPasswordField1ActionPerformed(evt);
+            }
+        });
 
         loginBtn.setBackground(new java.awt.Color(115, 230, 203));
         loginBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
@@ -159,7 +171,7 @@ public class LogIn extends javax.swing.JFrame {
                         .addComponent(jLabel2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jPasswordField1, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(loginBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(72, 72, 72))))
         );
@@ -178,6 +190,14 @@ public class LogIn extends javax.swing.JFrame {
         pack();
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
+
+    private void jPasswordField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jPasswordField1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jPasswordField1ActionPerformed
+
+    private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField1ActionPerformed
 
     /**
      * @param args the command line arguments

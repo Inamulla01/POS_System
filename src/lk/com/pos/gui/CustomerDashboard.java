@@ -14,25 +14,30 @@ import lk.com.pos.panel.CustomerManagement;
  *
  * @author Hirun
  */
+
 public class CustomerDashboard extends javax.swing.JFrame {
 
-    private CustomerManagement customerManagement;
-    
+    private static CustomerManagement customerManagement;
+
     public CustomerDashboard() {
         initComponents();
         loadPanel();
     }
 
-    
-    public void loadPanel(){
-        
-         // Create the CustomerManagement panel
+    public void loadPanel() {
+
+        // Create the CustomerManagement panel
         customerManagement = new CustomerManagement();
 
-        getContentPane().setLayout(new BorderLayout());
-        getContentPane().add(customerManagement, BorderLayout.CENTER);
+        panel.setLayout(new java.awt.BorderLayout());
+        panel.add(customerManagement, BorderLayout.CENTER);
+
+        revalidate();
+        repaint();
     }
     
+
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -50,18 +55,20 @@ public class CustomerDashboard extends javax.swing.JFrame {
         panel.setLayout(panelLayout);
         panelLayout.setHorizontalGroup(
             panelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 758, Short.MAX_VALUE)
+            .addGap(0, 1153, Short.MAX_VALUE)
         );
         panelLayout.setVerticalGroup(
             panelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 489, Short.MAX_VALUE)
+            .addGap(0, 713, Short.MAX_VALUE)
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(panel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(panel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -75,16 +82,17 @@ public class CustomerDashboard extends javax.swing.JFrame {
      * @param args the command line arguments
      */
     public static void main(String args[]) {
-        
-        FlatLightLaf.setup();
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new CustomerDashboard().setVisible(true);
-            }
-        });
-    }
 
+    FlatLightLaf.setup();
+    /* Create and display the form */
+    java.awt.EventQueue.invokeLater(new Runnable() {
+        @Override
+        public void run() {
+            new CustomerDashboard().setVisible(true);
+        }
+    });
+
+    }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JPanel panel;
     // End of variables declaration//GEN-END:variables

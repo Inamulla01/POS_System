@@ -102,8 +102,6 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addContainerGap(25, Short.MAX_VALUE))
         );
 
-        jTextField1.setText("jTextField1");
-
         jButton1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jButton1.setText("Add Product");
         jButton1.addActionListener(new java.awt.event.ActionListener() {
@@ -118,11 +116,11 @@ public class ProductManagement extends javax.swing.JPanel {
 
         jPanel5.setBackground(new java.awt.Color(255, 255, 255));
 
-        jLabel19.setFont(new java.awt.Font("Nunito SemiBold", 1, 24)); // NOI18N
+        jLabel19.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel19.setText("Product Name :");
 
         jLabel4.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel4.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel4.setForeground(new java.awt.Color(102, 102, 102));
         jLabel4.setText("Supplier : Wellness Co");
 
         jSeparator2.setForeground(new java.awt.Color(0, 0, 0));
@@ -146,7 +144,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel15.setText("Brand");
 
         jLabel20.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel20.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel20.setForeground(new java.awt.Color(102, 102, 102));
         jLabel20.setText("Nature's Best");
 
         javax.swing.GroupLayout jPanel9Layout = new javax.swing.GroupLayout(jPanel9);
@@ -158,7 +156,7 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addGroup(jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel15)
                     .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel9Layout.setVerticalGroup(
             jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -177,7 +175,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel21.setText("Category");
 
         jLabel26.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel26.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel26.setForeground(new java.awt.Color(102, 102, 102));
         jLabel26.setText("Beverages");
 
         javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
@@ -189,7 +187,7 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addGroup(jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel26, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel8Layout.setVerticalGroup(
             jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -208,7 +206,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel27.setText("Quantity");
 
         jLabel28.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel28.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel28.setForeground(new java.awt.Color(102, 102, 102));
         jLabel28.setText("10");
 
         javax.swing.GroupLayout jPanel10Layout = new javax.swing.GroupLayout(jPanel10);
@@ -220,7 +218,7 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addGroup(jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel27)
                     .addComponent(jLabel28, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel10Layout.setVerticalGroup(
             jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -239,7 +237,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel29.setText("Expiry Date");
 
         jLabel30.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel30.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel30.setForeground(new java.awt.Color(102, 102, 102));
         jLabel30.setText("2025-12-20");
 
         javax.swing.GroupLayout jPanel11Layout = new javax.swing.GroupLayout(jPanel11);
@@ -251,7 +249,7 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addGroup(jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel29)
                     .addComponent(jLabel30, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel11Layout.setVerticalGroup(
             jPanel11Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -270,7 +268,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel31.setText("Batch No");
 
         jLabel32.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel32.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel32.setForeground(new java.awt.Color(102, 102, 102));
         jLabel32.setText("BCH01");
 
         javax.swing.GroupLayout jPanel12Layout = new javax.swing.GroupLayout(jPanel12);
@@ -282,7 +280,7 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addGroup(jPanel12Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel31)
                     .addComponent(jLabel32, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel12Layout.setVerticalGroup(
             jPanel12Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -301,7 +299,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jPanel13.setLayout(jPanel13Layout);
         jPanel13Layout.setHorizontalGroup(
             jPanel13Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 189, Short.MAX_VALUE)
+            .addGap(0, 177, Short.MAX_VALUE)
         );
         jPanel13Layout.setVerticalGroup(
             jPanel13Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -316,7 +314,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel33.setText("Barcode");
 
         jLabel34.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel34.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel34.setForeground(new java.awt.Color(102, 102, 102));
         jLabel34.setText("4563258745");
 
         javax.swing.GroupLayout jPanel14Layout = new javax.swing.GroupLayout(jPanel14);
@@ -328,7 +326,7 @@ public class ProductManagement extends javax.swing.JPanel {
                 .addGroup(jPanel14Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel33)
                     .addComponent(jLabel34, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel14Layout.setVerticalGroup(
             jPanel14Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -347,7 +345,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jPanel15.setLayout(jPanel15Layout);
         jPanel15Layout.setHorizontalGroup(
             jPanel15Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 189, Short.MAX_VALUE)
+            .addGap(0, 177, Short.MAX_VALUE)
         );
         jPanel15Layout.setVerticalGroup(
             jPanel15Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -358,12 +356,12 @@ public class ProductManagement extends javax.swing.JPanel {
 
         jSeparator3.setForeground(new java.awt.Color(0, 0, 0));
 
-        jPanel16.setLayout(new java.awt.GridLayout());
+        jPanel16.setLayout(new java.awt.GridLayout(1, 0));
 
         jPanel19.setBackground(new java.awt.Color(204, 255, 255));
 
         jLabel35.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel35.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel35.setForeground(new java.awt.Color(102, 102, 102));
         jLabel35.setText("Rs.40000");
 
         jLabel36.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
@@ -398,7 +396,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel37.setText("Last Price");
 
         jLabel38.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel38.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel38.setForeground(new java.awt.Color(102, 102, 102));
         jLabel38.setText("Rs.40000");
 
         javax.swing.GroupLayout jPanel18Layout = new javax.swing.GroupLayout(jPanel18);
@@ -430,7 +428,7 @@ public class ProductManagement extends javax.swing.JPanel {
         jLabel39.setText("Selling Price");
 
         jLabel40.setFont(new java.awt.Font("Segoe UI", 0, 16)); // NOI18N
-        jLabel40.setForeground(new java.awt.Color(153, 153, 153));
+        jLabel40.setForeground(new java.awt.Color(102, 102, 102));
         jLabel40.setText("Rs.40000");
 
         javax.swing.GroupLayout jPanel17Layout = new javax.swing.GroupLayout(jPanel17);
@@ -475,7 +473,7 @@ public class ProductManagement extends javax.swing.JPanel {
                         .addComponent(deleteBtn))
                     .addGroup(jPanel5Layout.createSequentialGroup()
                         .addComponent(jLabel4)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 30, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jButton7)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jButton8)))
@@ -512,14 +510,14 @@ public class ProductManagement extends javax.swing.JPanel {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(490, Short.MAX_VALUE))
+                .addContainerGap(550, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addGap(29, 29, 29)
                 .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(194, Short.MAX_VALUE))
+                .addContainerGap(74, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(jPanel2);
@@ -532,10 +530,10 @@ public class ProductManagement extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 453, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 289, Short.MAX_VALUE)
                         .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 146, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap())
         );

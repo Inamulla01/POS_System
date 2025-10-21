@@ -8,7 +8,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
-import lk.com.pos.panel.posPanel;
+import lk.com.pos.panel.PosPanel;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
@@ -31,7 +31,7 @@ public class HomeScreen extends JFrame {
 
     // Panels for card layout
     private DashboardPanel dashboardPanel;
-    private posPanel posPanel;
+    private PosPanel posPanel;
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
     private CustomerManagement customerManagementPanel;
@@ -123,7 +123,7 @@ public class HomeScreen extends JFrame {
 
         // Initialize panels
         this.dashboardPanel = new DashboardPanel();
-        this.posPanel = new posPanel();
+        this.posPanel = new PosPanel();
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerManagement();

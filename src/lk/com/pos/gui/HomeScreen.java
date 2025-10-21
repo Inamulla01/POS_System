@@ -8,7 +8,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
-import lk.com.pos.panel.PosPanel;
+import lk.com.pos.panel.posPanel;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
@@ -31,7 +31,7 @@ public class HomeScreen extends JFrame {
 
     // Panels for card layout
     private DashboardPanel dashboardPanel;
-    private PosPanel posPanel;
+    private posPanel posPanel;
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
     private CustomerManagement customerManagementPanel;
@@ -123,7 +123,7 @@ public class HomeScreen extends JFrame {
 
         // Initialize panels
         this.dashboardPanel = new DashboardPanel();
-        this.posPanel = new PosPanel();
+        this.posPanel = new posPanel();
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerManagement();
@@ -440,7 +440,7 @@ public class HomeScreen extends JFrame {
         );
         navPanelLayout.setVerticalGroup(
             navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 75, Short.MAX_VALUE)
+            .addGap(0, 51, Short.MAX_VALUE)
         );
 
         sidePenal.setBackground(new java.awt.Color(255, 255, 255));

@@ -2,11 +2,16 @@ package lk.com.pos.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import lk.com.pos.panel.CustomerManagement;
+import lk.com.pos.panel.DashboardPanel;
+import lk.com.pos.panel.POSPanel;
+import lk.com.pos.panel.ProductPanel;
+import lk.com.pos.panel.SalesPanel;
+import lk.com.pos.panel.SupplierPanel;
 
 public class HomeScreen extends JFrame {
 
@@ -23,8 +28,29 @@ public class HomeScreen extends JFrame {
     private int animationTargetWidth;
     private boolean animationOpening;
 
+    // Panels for card layout
+    private DashboardPanel dashboardPanel;
+    private POSPanel posPanel;
+    private SupplierPanel supplierPanel;
+    private SalesPanel salesPanel;
+    private CustomerManagement customerManagementPanel;
+    private ProductPanel productPanel;
+    private CardLayout contentPanelLayout;
+
+    // Current active button
+    private JButton activeButton = null;
+    private Color activeTopColor = new Color(0x12B5A6);
+    private Color activeBottomColor = new Color(0x0893B0);
+    private Color normalTextColor = Color.BLACK;
+    private Color hoverTop = new Color(0x12B5A6);
+    private Color hoverBottom = new Color(0x0893B0);
+
+    // Track hover state for each button
+    private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
+
     public HomeScreen() {
-        initComponents(); // Your generated GUI code here
+        initComponents();
+        loadPanels();
         init();
         initSidebarSlider();
     }
@@ -42,10 +68,15 @@ public class HomeScreen extends JFrame {
         menuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 22, 22);
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
 
-        // Normal and hover colors
-        Color normalTextColor = Color.BLACK;
-        Color hoverTop = new Color(0x12B5A6);
-        Color hoverBottom = new Color(0x0893B0);
+        // Initialize hover states
+        buttonHoverStates.put(dashboardBtn, false);
+        buttonHoverStates.put(posBtn, false);
+        buttonHoverStates.put(supplierBtn, false);
+        buttonHoverStates.put(salesBtn, false);
+        buttonHoverStates.put(creditBtn, false);
+        buttonHoverStates.put(stockBtn, false);
+        buttonHoverStates.put(menuBtn, false);
+        buttonHoverStates.put(signOutBtn, false);
 
         // Setup hover buttons
         setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
@@ -75,9 +106,148 @@ public class HomeScreen extends JFrame {
         sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_EXPANDED, sidePenal.getPreferredSize().height));
         penal1.revalidate();
         penal1.repaint();
+
+        // Set dashboard as default active button
+        setActiveButton(dashboardBtn);
+        showDashboardPanel();
+    }
+
+    private void loadPanels() {
+        // Initialize CardLayout
+        this.contentPanelLayout = new CardLayout();
+        cardPanel.setLayout(contentPanelLayout);
+
+        // Initialize panels
+        this.dashboardPanel = new DashboardPanel();
+        this.posPanel = new POSPanel();
+        this.supplierPanel = new SupplierPanel();
+        this.salesPanel = new SalesPanel();
+        this.customerManagementPanel = new CustomerManagement();
+        this.productPanel = new ProductPanel();
+
+        // Add panels to card layout
+        this.cardPanel.add(dashboardPanel, "dashboard_panel");
+        this.cardPanel.add(posPanel, "pos_panel");
+        this.cardPanel.add(supplierPanel, "supplier_panel");
+        this.cardPanel.add(salesPanel, "sales_panel");
+        this.cardPanel.add(customerManagementPanel, "customer_management_panel");
+        this.cardPanel.add(productPanel, "product_panel");
+
+        SwingUtilities.updateComponentTreeUI(cardPanel);
+    }
+
+    private void setActiveButton(JButton button) {
+        // Reset all buttons to normal first
+        resetAllButtonsToNormal();
+        
+        // Set new active button
+        activeButton = button;
+        setButtonToActive(button);
+    }
+
+    private void resetAllButtonsToNormal() {
+        resetButtonToNormal(dashboardBtn);
+        resetButtonToNormal(posBtn);
+        resetButtonToNormal(supplierBtn);
+        resetButtonToNormal(salesBtn);
+        resetButtonToNormal(creditBtn);
+        resetButtonToNormal(stockBtn);
+        resetButtonToNormal(menuBtn);
+        resetButtonToNormal(signOutBtn);
+    }
+
+    private void resetButtonToNormal(JButton button) {
+        button.setForeground(normalTextColor);
+        // Reset icon color
+        FlatSVGIcon icon = getButtonIcon(button);
+        if (icon != null) {
+            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                @Override
+                public Color filter(Color color) {
+                    return normalTextColor;
+                }
+            });
+        }
+        buttonHoverStates.put(button, false);
+        button.repaint();
+    }
+
+    private void setButtonToActive(JButton button) {
+        button.setForeground(Color.WHITE);
+        // Set icon color to white
+        FlatSVGIcon icon = getButtonIcon(button);
+        if (icon != null) {
+            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                @Override
+                public Color filter(Color color) {
+                    return Color.WHITE;
+                }
+            });
+        }
+        button.repaint();
+    }
+
+    private FlatSVGIcon getButtonIcon(JButton button) {
+        if (button == dashboardBtn) {
+            return dashboardIcon;
+        }
+        if (button == posBtn) {
+            return posIcon;
+        }
+        if (button == supplierBtn) {
+            return supplierIcon;
+        }
+        if (button == salesBtn) {
+            return salesIcon;
+        }
+        if (button == creditBtn) {
+            return creditIcon;
+        }
+        if (button == stockBtn) {
+            return stockIcon;
+        }
+        if (button == menuBtn) {
+            return menuIcon;
+        }
+        if (button == signOutBtn) {
+            return signOutIcon;
+        }
+        return null;
+    }
+
+    // Panel display methods
+    private void showDashboardPanel() {
+        contentPanelLayout.show(cardPanel, "dashboard_panel");
+        setActiveButton(dashboardBtn);
+    }
+
+    private void showPOSPanel() {
+        contentPanelLayout.show(cardPanel, "pos_panel");
+        setActiveButton(posBtn);
+    }
+
+    private void showSupplierPanel() {
+        contentPanelLayout.show(cardPanel, "supplier_panel");
+        setActiveButton(supplierBtn);
+    }
+
+    private void showSalesPanel() {
+        contentPanelLayout.show(cardPanel, "sales_panel");
+        setActiveButton(salesBtn);
+    }
+
+    private void showCustomerManagementPanel() {
+        contentPanelLayout.show(cardPanel, "customer_management_panel");
+        setActiveButton(creditBtn);
+    }
+
+    private void showProductPanel() {
+        contentPanelLayout.show(cardPanel, "product_panel");
+        setActiveButton(stockBtn);
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
+        // Set initial state
         icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
             @Override
             public Color filter(Color color) {
@@ -93,37 +263,7 @@ public class HomeScreen extends JFrame {
         button.setForeground(normalTextColor);
         button.setOpaque(true);
 
-        final boolean[] hover = {false};
-
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                hover[0] = true;
-                button.setForeground(Color.WHITE);
-                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return Color.WHITE;
-                    }
-                });
-                button.repaint();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                hover[0] = false;
-                button.setForeground(normalTextColor);
-                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return normalTextColor;
-                    }
-                });
-                button.repaint();
-            }
-        });
-
-        // Custom UI for gradient background
+        // Custom UI for gradient background with hover support
         button.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
@@ -132,13 +272,60 @@ public class HomeScreen extends JFrame {
                 int h = c.getHeight();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                Color top = hover[0] ? hoverTopColor : Color.WHITE;
-                Color bottom = hover[0] ? hoverBottomColor : Color.WHITE;
+                Color top, bottom;
+
+                if (button == activeButton) {
+                    // Active state - always show gradient
+                    top = activeTopColor;
+                    bottom = activeBottomColor;
+                } else if (Boolean.TRUE.equals(buttonHoverStates.get(button))) {
+                    // Hover state - show hover gradient
+                    top = hoverTopColor;
+                    bottom = hoverBottomColor;
+                } else {
+                    // Normal state - white background
+                    top = Color.WHITE;
+                    bottom = Color.WHITE;
+                }
 
                 g2.setPaint(new GradientPaint(0, 0, top, w, 0, bottom));
                 g2.fillRect(0, 0, w, h);
 
+                // Paint the button content
                 super.paint(g, c);
+            }
+        });
+
+        // Mouse listener for hover effects
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (button != activeButton) {
+                    buttonHoverStates.put(button, true);
+                    button.setForeground(Color.WHITE);
+                    icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return Color.WHITE;
+                        }
+                    });
+                    button.repaint();
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (button != activeButton) {
+                    buttonHoverStates.put(button, false);
+                    button.setForeground(normalTextColor);
+                    icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return normalTextColor;
+                        }
+                    });
+                    button.repaint();
+                }
             }
         });
     }
@@ -189,9 +376,7 @@ public class HomeScreen extends JFrame {
         } else {
             logo.setIcon(new FlatSVGIcon("lk/com/pos/img/pos_small_logo_1.svg", 52, 50));
         }
-
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -261,6 +446,11 @@ public class HomeScreen extends JFrame {
         dashboardBtn.setIconTextGap(3);
         dashboardBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
         dashboardBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        dashboardBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                dashboardBtnActionPerformed(evt);
+            }
+        });
 
         posBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         posBtn.setText(" POS");
@@ -270,6 +460,11 @@ public class HomeScreen extends JFrame {
         posBtn.setIconTextGap(3);
         posBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
         posBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        posBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                posBtnActionPerformed(evt);
+            }
+        });
 
         supplierBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         supplierBtn.setText(" Supplier");
@@ -293,6 +488,11 @@ public class HomeScreen extends JFrame {
         salesBtn.setIconTextGap(3);
         salesBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
         salesBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        salesBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                salesBtnActionPerformed(evt);
+            }
+        });
 
         creditBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         creditBtn.setText(" Credit Custemers");
@@ -302,6 +502,11 @@ public class HomeScreen extends JFrame {
         creditBtn.setIconTextGap(3);
         creditBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
         creditBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        creditBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                creditBtnActionPerformed(evt);
+            }
+        });
 
         stockBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         stockBtn.setText(" Stocks");
@@ -311,6 +516,11 @@ public class HomeScreen extends JFrame {
         stockBtn.setIconTextGap(3);
         stockBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
         stockBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        stockBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                stockBtnActionPerformed(evt);
+            }
+        });
 
         signOutBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         signOutBtn.setForeground(new java.awt.Color(255, 0, 0));
@@ -401,31 +611,57 @@ public class HomeScreen extends JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void supplierBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_supplierBtnActionPerformed
-        // TODO add your handling code here:
+
+        showSupplierPanel();
     }//GEN-LAST:event_supplierBtnActionPerformed
 
     private void menuBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuBtnActionPerformed
-            if (slideTimer.isRunning()) {
-                // If animation already running, ignore repeated clicks
-                return;
-            }
+        if (slideTimer.isRunning()) {
+            // If animation already running, ignore repeated clicks
+            return;
+        }
 
-            if (isSidebarExpanded) {
-                // start collapsing
-                animationOpening = false;
-                animationTargetWidth = SIDEBAR_WIDTH_COLLAPSED;
-                // Hide text immediately so icons remain centered while shrinking
-                setButtonTextVisible(false);
-            } else {
-                // start expanding
-                animationOpening = true;
-                animationTargetWidth = SIDEBAR_WIDTH_EXPANDED;
-                // We will show text after fully expanded (in timer stop)
-            }
+        if (isSidebarExpanded) {
+            // start collapsing
+            animationOpening = false;
+            animationTargetWidth = SIDEBAR_WIDTH_COLLAPSED;
+            // Hide text immediately so icons remain centered while shrinking
+            setButtonTextVisible(false);
+        } else {
+            // start expanding
+            animationOpening = true;
+            animationTargetWidth = SIDEBAR_WIDTH_EXPANDED;
+            // We will show text after fully expanded (in timer stop)
+        }
 
-            slideTimer.start();
+        slideTimer.start();
 
     }//GEN-LAST:event_menuBtnActionPerformed
+
+    private void stockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockBtnActionPerformed
+        showProductPanel();
+
+    }//GEN-LAST:event_stockBtnActionPerformed
+
+    private void salesBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_salesBtnActionPerformed
+        showSalesPanel();
+
+    }//GEN-LAST:event_salesBtnActionPerformed
+
+    private void creditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditBtnActionPerformed
+        showCustomerManagementPanel();
+
+    }//GEN-LAST:event_creditBtnActionPerformed
+
+    private void posBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_posBtnActionPerformed
+        showPOSPanel();
+
+    }//GEN-LAST:event_posBtnActionPerformed
+
+    private void dashboardBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_dashboardBtnActionPerformed
+        showDashboardPanel();
+
+    }//GEN-LAST:event_dashboardBtnActionPerformed
 
     /**
      * @param args the command line arguments

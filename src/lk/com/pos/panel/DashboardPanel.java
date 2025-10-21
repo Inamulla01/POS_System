@@ -8,12 +8,12 @@ package lk.com.pos.panel;
  *
  * @author moham
  */
-public class Dashboard extends javax.swing.JPanel {
+public class DashboardPanel extends javax.swing.JPanel {
 
     /**
      * Creates new form Dashboard
      */
-    public Dashboard() {
+    public DashboardPanel() {
         initComponents();
     }
 

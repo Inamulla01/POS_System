@@ -206,6 +206,9 @@
                   <Dimension value="[75, 40]"/>
                 </Property>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="dashboardBtnActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="posBtn">
               <Properties>
@@ -228,6 +231,9 @@
                   <Dimension value="[75, 40]"/>
                 </Property>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="posBtnActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="supplierBtn">
               <Properties>
@@ -275,6 +281,9 @@
                   <Dimension value="[75, 40]"/>
                 </Property>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="salesBtnActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="creditBtn">
               <Properties>
@@ -297,6 +306,9 @@
                   <Dimension value="[75, 40]"/>
                 </Property>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="creditBtnActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="stockBtn">
               <Properties>
@@ -319,6 +331,9 @@
                   <Dimension value="[75, 40]"/>
                 </Property>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="stockBtnActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="signOutBtn">
               <Properties>

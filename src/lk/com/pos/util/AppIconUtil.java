@@ -13,7 +13,7 @@ public class AppIconUtil {
     
     static {
         try {
-            URL iconPath = AppIconUtil.class.getResource("/lk/com/dfw/img/logo.png");
+            URL iconPath = AppIconUtil.class.getResource("/lk/com/pos/img/logo.png");
             ImageIcon icon = new ImageIcon(iconPath);
             AppIconUtil.appIcon = icon.getImage();
         } catch (NullPointerException e) {

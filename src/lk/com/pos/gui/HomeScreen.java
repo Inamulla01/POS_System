@@ -12,6 +12,7 @@ import lk.com.pos.panel.posPanel;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
+import lk.com.pos.util.AppIconUtil;
 
 public class HomeScreen extends JFrame {
 
@@ -44,6 +45,8 @@ public class HomeScreen extends JFrame {
     private Color normalTextColor = Color.BLACK;
     private Color hoverTop = new Color(0x12B5A6);
     private Color hoverBottom = new Color(0x0893B0);
+    private Color signOutHoverTop = new Color(255, 0, 0);
+    private Color signOutHoverBottom = new Color(200, 0, 0);
 
     // Track hover state for each button
     private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
@@ -56,6 +59,7 @@ public class HomeScreen extends JFrame {
     }
 
     private void init() {
+        AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         // Load icons
@@ -68,7 +72,7 @@ public class HomeScreen extends JFrame {
         menuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 22, 22);
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
 
-        // Initialize hover states
+        // Initialize hover states for all buttons
         buttonHoverStates.put(dashboardBtn, false);
         buttonHoverStates.put(posBtn, false);
         buttonHoverStates.put(supplierBtn, false);
@@ -78,7 +82,7 @@ public class HomeScreen extends JFrame {
         buttonHoverStates.put(menuBtn, false);
         buttonHoverStates.put(signOutBtn, false);
 
-        // Setup hover buttons
+        // Setup hover buttons for navigation buttons
         setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
@@ -87,8 +91,8 @@ public class HomeScreen extends JFrame {
         setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(menuBtn, menuIcon, normalTextColor, hoverTop, hoverBottom);
 
-        // Sign Out button: red gradient
-        setupHoverButton(signOutBtn, signOutIcon, Color.RED, new Color(255, 0, 0), new Color(200, 0, 0));
+        // Setup sign out button with red gradient
+        setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
         // Logo setup
         updateLogo();
@@ -137,12 +141,14 @@ public class HomeScreen extends JFrame {
     }
 
     private void setActiveButton(JButton button) {
-        // Reset all buttons to normal first
+        // Reset all navigation buttons to normal first
         resetAllButtonsToNormal();
         
-        // Set new active button
-        activeButton = button;
-        setButtonToActive(button);
+        // Set new active button (only if it's not sign out button)
+        if (button != signOutBtn) {
+            activeButton = button;
+            setButtonToActive(button);
+        }
     }
 
     private void resetAllButtonsToNormal() {
@@ -157,22 +163,36 @@ public class HomeScreen extends JFrame {
     }
 
     private void resetButtonToNormal(JButton button) {
-        button.setForeground(normalTextColor);
-        // Reset icon color
-        FlatSVGIcon icon = getButtonIcon(button);
-        if (icon != null) {
-            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                @Override
-                public Color filter(Color color) {
-                    return normalTextColor;
-                }
-            });
+        if (button == signOutBtn) {
+            button.setForeground(Color.RED);
+            FlatSVGIcon icon = getButtonIcon(button);
+            if (icon != null) {
+                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return Color.RED;
+                    }
+                });
+            }
+        } else {
+            button.setForeground(normalTextColor);
+            FlatSVGIcon icon = getButtonIcon(button);
+            if (icon != null) {
+                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return normalTextColor;
+                    }
+                });
+            }
         }
         buttonHoverStates.put(button, false);
         button.repaint();
     }
 
     private void setButtonToActive(JButton button) {
+        if (button == signOutBtn) return; // Skip sign out button
+        
         button.setForeground(Color.WHITE);
         // Set icon color to white
         FlatSVGIcon icon = getButtonIcon(button);
@@ -274,8 +294,8 @@ public class HomeScreen extends JFrame {
 
                 Color top, bottom;
 
-                if (button == activeButton) {
-                    // Active state - always show gradient
+                if (button == activeButton && button != signOutBtn) {
+                    // Active state - always show gradient (except for sign out)
                     top = activeTopColor;
                     bottom = activeBottomColor;
                 } else if (Boolean.TRUE.equals(buttonHoverStates.get(button))) {
@@ -300,7 +320,7 @@ public class HomeScreen extends JFrame {
         button.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
-                if (button != activeButton) {
+                if (button != activeButton || button == signOutBtn) {
                     buttonHoverStates.put(button, true);
                     button.setForeground(Color.WHITE);
                     icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
@@ -315,7 +335,7 @@ public class HomeScreen extends JFrame {
 
             @Override
             public void mouseExited(MouseEvent e) {
-                if (button != activeButton) {
+                if (button != activeButton || button == signOutBtn) {
                     buttonHoverStates.put(button, false);
                     button.setForeground(normalTextColor);
                     icon.setColorFilter(new FlatSVGIcon.ColorFilter() {

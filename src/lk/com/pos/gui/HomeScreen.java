@@ -23,9 +23,8 @@ public class HomeScreen extends JFrame {
     private int animationTargetWidth;
     private boolean animationOpening;
 
-
     public HomeScreen() {
-        initComponents();
+        initComponents(); // Your generated GUI code here
         init();
         initSidebarSlider();
     }
@@ -59,6 +58,9 @@ public class HomeScreen extends JFrame {
 
         // Sign Out button: red gradient
         setupHoverButton(signOutBtn, signOutIcon, Color.RED, new Color(255, 0, 0), new Color(200, 0, 0));
+
+        // Logo setup
+        updateLogo();
 
         // Padding for alignment
         dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
@@ -100,7 +102,7 @@ public class HomeScreen extends JFrame {
                 button.setForeground(Color.WHITE);
                 icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                     @Override
-                    public Color filter(Color c) {
+                    public Color filter(Color color) {
                         return Color.WHITE;
                     }
                 });
@@ -113,7 +115,7 @@ public class HomeScreen extends JFrame {
                 button.setForeground(normalTextColor);
                 icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                     @Override
-                    public Color filter(Color c) {
+                    public Color filter(Color color) {
                         return normalTextColor;
                     }
                 });
@@ -134,7 +136,7 @@ public class HomeScreen extends JFrame {
                 Color bottom = hover[0] ? hoverBottomColor : Color.WHITE;
 
                 g2.setPaint(new GradientPaint(0, 0, top, w, 0, bottom));
-                g2.fillRoundRect(0, 0, w, h, 0, 0);
+                g2.fillRect(0, 0, w, h);
 
                 super.paint(g, c);
             }
@@ -154,6 +156,7 @@ public class HomeScreen extends JFrame {
                     slideTimer.stop();
                     isSidebarExpanded = true;
                     setButtonTextVisible(true);
+                    updateLogo();
                 }
             } else {
                 if (currentWidth > animationTargetWidth) {
@@ -164,6 +167,7 @@ public class HomeScreen extends JFrame {
                 } else {
                     slideTimer.stop();
                     isSidebarExpanded = false;
+                    updateLogo();
                 }
             }
         });
@@ -179,6 +183,15 @@ public class HomeScreen extends JFrame {
         signOutBtn.setText(visible ? " Sign Out" : "");
     }
 
+    private void updateLogo() {
+        if (isSidebarExpanded) {
+            logo.setIcon(new FlatSVGIcon("lk/com/pos/img/pos_big_logo.svg", 200, 67));
+        } else {
+            logo.setIcon(new FlatSVGIcon("lk/com/pos/img/pos_small_logo_1.svg", 52, 50));
+        }
+
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -186,7 +199,6 @@ public class HomeScreen extends JFrame {
         penal1 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         cardPanel = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
         navPanel = new javax.swing.JPanel();
         sidePenal = new javax.swing.JPanel();
         menuBtn = new javax.swing.JButton();
@@ -197,6 +209,7 @@ public class HomeScreen extends JFrame {
         creditBtn = new javax.swing.JButton();
         stockBtn = new javax.swing.JButton();
         signOutBtn = new javax.swing.JButton();
+        logo = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Home Screen");
@@ -209,28 +222,7 @@ public class HomeScreen extends JFrame {
         jScrollPane1.setAlignmentY(0.0F);
 
         cardPanel.setBackground(new java.awt.Color(153, 153, 255));
-
-        jLabel1.setBackground(new java.awt.Color(255, 51, 204));
-        jLabel1.setText("jLabel1");
-        jLabel1.setOpaque(true);
-
-        javax.swing.GroupLayout cardPanelLayout = new javax.swing.GroupLayout(cardPanel);
-        cardPanel.setLayout(cardPanelLayout);
-        cardPanelLayout.setHorizontalGroup(
-            cardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(cardPanelLayout.createSequentialGroup()
-                .addGap(18, 18, 18)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 223, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(651, Short.MAX_VALUE))
-        );
-        cardPanelLayout.setVerticalGroup(
-            cardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(cardPanelLayout.createSequentialGroup()
-                .addGap(18, 18, 18)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 285, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(275, Short.MAX_VALUE))
-        );
-
+        cardPanel.setLayout(new java.awt.CardLayout());
         jScrollPane1.setViewportView(cardPanel);
 
         navPanel.setBackground(new java.awt.Color(153, 255, 153));
@@ -344,11 +336,17 @@ public class HomeScreen extends JFrame {
             .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(signOutBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(menuBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, sidePenalLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 211, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
             sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(sidePenalLayout.createSequentialGroup()
-                .addGap(85, 85, 85)
+                .addContainerGap()
+                .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 67, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(dashboardBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -364,7 +362,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(stockBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(20, 20, 20))
+                .addGap(17, 17, 17))
         );
 
         javax.swing.GroupLayout penal1Layout = new javax.swing.GroupLayout(penal1);
@@ -426,6 +424,7 @@ public class HomeScreen extends JFrame {
             }
 
             slideTimer.start();
+
     }//GEN-LAST:event_menuBtnActionPerformed
 
     /**
@@ -446,8 +445,8 @@ public class HomeScreen extends JFrame {
     private javax.swing.JPanel cardPanel;
     private javax.swing.JButton creditBtn;
     private javax.swing.JButton dashboardBtn;
-    private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JLabel logo;
     private javax.swing.JButton menuBtn;
     private javax.swing.JPanel navPanel;
     private javax.swing.JPanel penal1;

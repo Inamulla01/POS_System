@@ -8,12 +8,12 @@ package lk.com.pos.panel;
  *
  * @author moham
  */
-public class Reports extends javax.swing.JPanel {
+public class Suppler extends javax.swing.JPanel {
 
     /**
-     * Creates new form Reports
+     * Creates new form Suppler
      */
-    public Reports() {
+    public Suppler() {
         initComponents();
     }
 

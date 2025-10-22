@@ -23,8 +23,8 @@ import lk.com.pos.util.AppIconUtil;
 public class HomeScreen extends JFrame {
 
     // Icons
-    private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon, calculatorIcon;
-    private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon; // New icons for nav bar
+    private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
+    private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon; // New icons for nav bar
 
     // Sidebar animation
     private static final int SIDEBAR_WIDTH_EXPANDED = 230;
@@ -69,87 +69,85 @@ public class HomeScreen extends JFrame {
         initSidebarSlider();
     }
 
-    private void init() {
-        AppIconUtil.applyIcon(this);
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
+   private void init() {
+    AppIconUtil.applyIcon(this);
+    setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-        // Initialize sidebar icons
-        dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
-        posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
-        supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
-        salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
-        creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
-        stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
-        menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
-        signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
-        calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 20, 20); // New calculator icon
+    // Initialize sidebar icons
+    dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
+    posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
+    supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
+    salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
+    creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
+    stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
+    menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
+    signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
+    calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 20, 20); // New calculator icon
 
-        // Initialize navigation bar icons
-        navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
-        navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
-        navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 25, 25);
-        navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
+    // Initialize navigation bar icons
+    navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
+    navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
+    navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 25, 25);
+    navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
 
-        // Set navigation bar icons with hover effects
-        setupNavButton(menuBtn, navMenuIcon);
-        setupNavButton(bellBtn, navBellIcon);
-        setupNavButton(profileBtn, navProfileIcon);
-        setupNavButton(keyBtn, navKeyIcon);
+    // Set navigation bar icons with hover effects - EXACTLY LIKE OTHER BUTTONS
+    setupNavButton(menuBtn, navMenuIcon);
+    setupNavButton(bellBtn, navBellIcon);
+    setupNavButton(profileBtn, navProfileIcon);
+    setupNavButton(keyBtn, navKeyIcon);
+    setupNavButton(calBtn, calculatorIcon); // Same as other nav buttons
 
-        // Track hover states
-        buttonHoverStates.put(dashboardBtn, false);
-        buttonHoverStates.put(posBtn, false);
-        buttonHoverStates.put(supplierBtn, false);
-        buttonHoverStates.put(salesBtn, false);
-        buttonHoverStates.put(creditBtn, false);
-        buttonHoverStates.put(stockBtn, false);
-        buttonHoverStates.put(calBtn, false);
-        buttonHoverStates.put(signOutBtn, false);
+    // Track hover states
+    buttonHoverStates.put(dashboardBtn, false);
+    buttonHoverStates.put(posBtn, false);
+    buttonHoverStates.put(supplierBtn, false);
+    buttonHoverStates.put(salesBtn, false);
+    buttonHoverStates.put(creditBtn, false);
+    buttonHoverStates.put(stockBtn, false);
+    buttonHoverStates.put(calBtn, false);
+    buttonHoverStates.put(signOutBtn, false);
 
-        // Setup hover buttons for all except menu button
-        setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(salesBtn, salesIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(creditBtn, creditIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
+    // Setup hover buttons for sidebar
+    setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
+    setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
+    setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
+    setupHoverButton(salesBtn, salesIcon, normalTextColor, hoverTop, hoverBottom);
+    setupHoverButton(creditBtn, creditIcon, normalTextColor, hoverTop, hoverBottom);
+    setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
+    setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
-        // Setup calculator button (previously menu button functionality)
-        setupCalculatorButton();
+    // Rest of your init method remains the same...
+    // Setup menu button for sidebar expand/collapse
+    setupMenuButtonForSidebar();
 
-        // Setup menu button for sidebar expand/collapse
-        setupMenuButtonForSidebar();
+    // Logo setup
+    updateLogo();
 
-        // Logo setup
-        updateLogo();
+    // Button padding
+    dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+    posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+    supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+    salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+    creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+    stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+    signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
 
-        // Button padding
-        dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-        posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-        supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+    // Set sidebar collapsed at startup
+    isSidebarExpanded = false;
+    sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_COLLAPSED, sidePenal.getPreferredSize().height));
+    setButtonTextVisible(false); // hide text since collapsed
+    updateLogo();
+    penal1.revalidate();
+    penal1.repaint();
 
-        // Set sidebar collapsed at startup
-        isSidebarExpanded = false;
-        sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_COLLAPSED, sidePenal.getPreferredSize().height));
-        setButtonTextVisible(false); // hide text since collapsed
-        updateLogo();
-        penal1.revalidate();
-        penal1.repaint();
+    // Initialize and start clock timer
+    timeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+    startClockTimer();
 
-        // Initialize and start clock timer
-        timeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-        startClockTimer();
-
-        // Set dashboard as default active button
-        setActiveButton(dashboardBtn);
-        showDashboardPanel();
-    }
-
+    // Set dashboard as default active button
+    setActiveButton(dashboardBtn);
+    showDashboardPanel();
+}
     private void startClockTimer() {
         // Update time immediately
         updateTimeLabel();
@@ -210,54 +208,6 @@ public class HomeScreen extends JFrame {
                     }
                 });
                 button.repaint();
-            }
-        });
-    }
-
-    private void setupCalculatorButton() {
-        // Initial icon color for calculator
-        calculatorIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-            @Override
-            public Color filter(Color color) {
-                return normalTextColor; // black by default
-            }
-        });
-        calBtn.setIcon(calculatorIcon);
-        calBtn.setContentAreaFilled(false);
-        calBtn.setFocusPainted(false);
-        calBtn.setBorderPainted(false);
-        calBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        calBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        calBtn.setForeground(normalTextColor);
-        calBtn.setOpaque(true);
-
-        // Track hover state
-        buttonHoverStates.put(calBtn, false);
-
-        // Mouse listener to change icon color on hover
-        calBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                buttonHoverStates.put(calBtn, true);
-                calculatorIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return hoverTop; // green color on hover
-                    }
-                });
-                calBtn.repaint();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                buttonHoverStates.put(calBtn, false);
-                calculatorIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return normalTextColor; // back to black
-                    }
-                });
-                calBtn.repaint();
             }
         });
     }
@@ -744,7 +694,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(time)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(bellBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)

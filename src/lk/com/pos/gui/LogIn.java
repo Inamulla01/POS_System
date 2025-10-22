@@ -15,6 +15,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
+import lk.com.pos.util.AppIconUtil;
 
 public class LogIn extends javax.swing.JFrame {
 
@@ -24,6 +25,7 @@ public class LogIn extends javax.swing.JFrame {
     }
 
     public void init() {
+        AppIconUtil.applyIcon(this);
         try {
             FlatSVGIcon loginImage = new FlatSVGIcon("lk/com/pos/img/login.svg", 300, 300);
             logInImg.setIcon(loginImage);
@@ -91,6 +93,8 @@ public class LogIn extends javax.swing.JFrame {
         jLabel3.setText("User Name");
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("LogIn Page");
+        setFocusTraversalPolicyProvider(true);
         setResizable(false);
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));

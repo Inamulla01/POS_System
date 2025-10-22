@@ -8,12 +8,12 @@ package lk.com.pos.panel;
  *
  * @author moham
  */
-public class InventoryManagement extends javax.swing.JPanel {
+public class SupplierPanel extends javax.swing.JPanel {
 
     /**
-     * Creates new form InventoryManagement
+     * Creates new form Suppler
      */
-    public InventoryManagement() {
+    public SupplierPanel() {
         initComponents();
     }
 

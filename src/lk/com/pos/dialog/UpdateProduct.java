@@ -8,12 +8,12 @@ package lk.com.pos.dialog;
  *
  * @author pasin
  */
-public class AddNewProduct extends javax.swing.JDialog {
+public class UpdateProduct extends javax.swing.JDialog {
 
     /**
-     * Creates new form AddNewProduct1
+     * Creates new form UpdateProduct
      */
-    public AddNewProduct(java.awt.Frame parent, boolean modal) {
+    public UpdateProduct(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
     }
@@ -59,7 +59,7 @@ public class AddNewProduct extends javax.swing.JDialog {
 
         jLabel1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel1.setForeground(new java.awt.Color(8, 147, 176));
-        jLabel1.setText("Add New Product");
+        jLabel1.setText("Update Product");
 
         jSeparator1.setForeground(new java.awt.Color(0, 137, 176));
 
@@ -207,7 +207,7 @@ public class AddNewProduct extends javax.swing.JDialog {
     }//GEN-LAST:event_cancelBtnActionPerformed
 
     private void addBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addBtnActionPerformed
-        
+
     }//GEN-LAST:event_addBtnActionPerformed
 
     /**
@@ -227,21 +227,20 @@ public class AddNewProduct extends javax.swing.JDialog {
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(AddNewProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(AddNewProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(AddNewProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(AddNewProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateProduct.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
-        //</editor-fold>
         //</editor-fold>
 
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                AddNewProduct dialog = new AddNewProduct(new javax.swing.JFrame(), true);
+                UpdateProduct dialog = new UpdateProduct(new javax.swing.JFrame(), true);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {

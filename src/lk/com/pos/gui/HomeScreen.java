@@ -69,7 +69,7 @@ public class HomeScreen extends JFrame {
         initSidebarSlider();
     }
 
-   private void init() {
+private void init() {
     AppIconUtil.applyIcon(this);
     setExtendedState(JFrame.MAXIMIZED_BOTH);
 
@@ -82,12 +82,12 @@ public class HomeScreen extends JFrame {
     stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
     menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
     signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
-    calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 20, 20); // New calculator icon
+    calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24); // New calculator icon
 
     // Initialize navigation bar icons
     navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
     navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
-    navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 25, 25);
+    navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 26, 26);
     navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
 
     // Set navigation bar icons with hover effects - EXACTLY LIKE OTHER BUTTONS
@@ -95,7 +95,8 @@ public class HomeScreen extends JFrame {
     setupNavButton(bellBtn, navBellIcon);
     setupNavButton(profileBtn, navProfileIcon);
     setupNavButton(keyBtn, navKeyIcon);
-    setupNavButton(calBtn, calculatorIcon); // Same as other nav buttons
+    setupNavButton(calBtn, calculatorIcon);
+
 
     // Track hover states
     buttonHoverStates.put(dashboardBtn, false);
@@ -116,7 +117,6 @@ public class HomeScreen extends JFrame {
     setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
     setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
-    // Rest of your init method remains the same...
     // Setup menu button for sidebar expand/collapse
     setupMenuButtonForSidebar();
 
@@ -172,45 +172,49 @@ public class HomeScreen extends JFrame {
     }
 
     private void setupNavButton(JButton button, FlatSVGIcon icon) {
-        // Set initial icon with default color
-        icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-            @Override
-            public Color filter(Color color) {
-                return new Color(0x666666); // Gray color for nav icons
-            }
-        });
-        button.setIcon(icon);
-        button.setContentAreaFilled(false);
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        button.setOpaque(false);
+    // Set initial icon with default color
+    icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+        @Override
+        public Color filter(Color color) {
+            return new Color(0x666666); // Gray color for nav icons
+        }
+    });
+    
+    // Center the icon in the button
+    button.setIcon(icon);
+    button.setHorizontalAlignment(SwingConstants.CENTER); // Center horizontally
+    button.setVerticalAlignment(SwingConstants.CENTER);   // Center vertically
+    button.setContentAreaFilled(false);
+    button.setFocusPainted(false);
+    button.setBorderPainted(false);
+    button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    button.setOpaque(false);
 
-        // Add hover effect
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return new Color(0x12B5A6); // Green color on hover
-                    }
-                });
-                button.repaint();
-            }
+    // Add hover effect
+    button.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                @Override
+                public Color filter(Color color) {
+                    return new Color(0x12B5A6); // Green color on hover
+                }
+            });
+            button.repaint();
+        }
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return new Color(0x666666); // Back to gray
-                    }
-                });
-                button.repaint();
-            }
-        });
-    }
+        @Override
+        public void mouseExited(MouseEvent e) {
+            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                @Override
+                public Color filter(Color color) {
+                    return new Color(0x666666); // Back to gray
+                }
+            });
+            button.repaint();
+        }
+    });
+}
 
     private void setupMenuButtonForSidebar() {
         // Initial icon color for menu button (sidebar control)
@@ -363,9 +367,6 @@ public class HomeScreen extends JFrame {
         }
         if (button == stockBtn) {
             return stockIcon;
-        }
-        if (button == calBtn) {
-            return calculatorIcon;
         }
         if (button == signOutBtn) {
             return signOutIcon;
@@ -612,6 +613,7 @@ public class HomeScreen extends JFrame {
 
         calBtn.setBackground(new java.awt.Color(102, 0, 255));
         calBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        calBtn.setForeground(new java.awt.Color(204, 204, 204));
         calBtn.setBorder(null);
         calBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         calBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -666,7 +668,7 @@ public class HomeScreen extends JFrame {
             }
         });
 
-        time.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        time.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
         time.setText("2024/10.20 10.25.30");
 
         keyBtn.setBackground(new java.awt.Color(102, 0, 255));
@@ -691,14 +693,14 @@ public class HomeScreen extends JFrame {
                 .addContainerGap()
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(time)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(bellBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(time)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(profileBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );

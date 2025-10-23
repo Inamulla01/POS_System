@@ -13,9 +13,15 @@ import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.sql.Connection;
+import java.sql.SQLException;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
+import lk.com.pos.connection.MySQL;
 import lk.com.pos.util.AppIconUtil;
+import raven.toast.Notifications;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
 public class LogIn extends javax.swing.JFrame {
 
@@ -82,9 +88,9 @@ public class LogIn extends javax.swing.JFrame {
         jPanel1 = new javax.swing.JPanel();
         logInImg = new javax.swing.JLabel();
         jLabel1 = new javax.swing.JLabel();
-        jTextField1 = new javax.swing.JTextField();
+        userName = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
-        jPasswordField1 = new javax.swing.JPasswordField();
+        password = new javax.swing.JPasswordField();
         loginBtn = new javax.swing.JButton();
         userIcon = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
@@ -102,24 +108,24 @@ public class LogIn extends javax.swing.JFrame {
         jLabel1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jLabel1.setText("User Name");
 
-        jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jTextField1.setToolTipText("");
-        jTextField1.setPreferredSize(new java.awt.Dimension(64, 30));
-        jTextField1.addActionListener(new java.awt.event.ActionListener() {
+        userName.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        userName.setToolTipText("");
+        userName.setPreferredSize(new java.awt.Dimension(64, 30));
+        userName.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jTextField1ActionPerformed(evt);
+                userNameActionPerformed(evt);
             }
         });
 
         jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jLabel2.setText("Password");
 
-        jPasswordField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jPasswordField1.setToolTipText("");
-        jPasswordField1.setPreferredSize(new java.awt.Dimension(64, 30));
-        jPasswordField1.addActionListener(new java.awt.event.ActionListener() {
+        password.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        password.setToolTipText("");
+        password.setPreferredSize(new java.awt.Dimension(64, 30));
+        password.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jPasswordField1ActionPerformed(evt);
+                passwordActionPerformed(evt);
             }
         });
 
@@ -127,6 +133,11 @@ public class LogIn extends javax.swing.JFrame {
         loginBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         loginBtn.setText("Log-in");
         loginBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        loginBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                loginBtnActionPerformed(evt);
+            }
+        });
 
         userIcon.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
 
@@ -145,8 +156,8 @@ public class LogIn extends javax.swing.JFrame {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(jLabel1)
                     .addComponent(jLabel2)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jPasswordField1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(userName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(password, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(loginBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(userIcon, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(28, Short.MAX_VALUE))
@@ -170,11 +181,11 @@ public class LogIn extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jLabel1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(userName, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jLabel2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jPasswordField1, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(password, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(loginBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(72, 72, 72))))
@@ -195,13 +206,54 @@ public class LogIn extends javax.swing.JFrame {
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jPasswordField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jPasswordField1ActionPerformed
+    private void passwordActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_passwordActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_jPasswordField1ActionPerformed
+    }//GEN-LAST:event_passwordActionPerformed
 
-    private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
+    private void userNameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_userNameActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_jTextField1ActionPerformed
+    }//GEN-LAST:event_userNameActionPerformed
+
+    private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
+        // TODO add your handling code here:
+        String username = userName.getText();
+        String password = String.valueOf(this.password.getPassword());
+
+        System.out.println(username);
+        System.out.println(password);
+
+        if (username.isEmpty() || password.isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
+            return;
+
+        } 
+        try {
+            Connection con = MySQL.getConnection();
+            String sql = "SELECT role_id FROM user WHERE name=? AND password=?";
+            PreparedStatement pst = con.prepareStatement(sql);
+            pst.setString(1, username);
+            pst.setString(2, password);
+            ResultSet rs = pst.executeQuery();
+            
+            if (rs.next()) {
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successfull");
+                
+                this.dispose();
+                new HomeScreen().setVisible(true);
+                
+            } else {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
+            }
+            
+        } catch (SQLException e) {
+             JOptionPane.showMessageDialog(this,
+                    "Unexpected error: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            
+        }
+
+    }//GEN-LAST:event_loginBtnActionPerformed
 
     /**
      * @param args the command line arguments
@@ -221,10 +273,10 @@ public class LogIn extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JPasswordField jPasswordField1;
-    private javax.swing.JTextField jTextField1;
     private javax.swing.JLabel logInImg;
     private javax.swing.JButton loginBtn;
+    private javax.swing.JPasswordField password;
     private javax.swing.JLabel userIcon;
+    private javax.swing.JTextField userName;
     // End of variables declaration//GEN-END:variables
 }

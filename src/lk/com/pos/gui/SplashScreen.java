@@ -5,7 +5,8 @@
 package lk.com.pos.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
-
+import javax.swing.Timer;
+import lk.com.pos.gui.LogIn;
 /**
  *
  * @author moham
@@ -15,8 +16,20 @@ public class SplashScreen extends javax.swing.JFrame {
     /**
      * Creates new form SplashScreen
      */
+    
+    
     public SplashScreen() {
         initComponents();
+         // --- Timer to close splash after 8.126 seconds ---
+        int splashDuration = 8900; // milliseconds
+        Timer timer = new Timer(splashDuration, e -> {
+            // Close splash
+            dispose();
+            // Open login frame
+            new LogIn().setVisible(true);
+        });
+        timer.setRepeats(false); // run only once
+        timer.start();
     }
 
     /**
@@ -31,9 +44,9 @@ public class SplashScreen extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setUndecorated(true);
 
-        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/lk/com/pos/img/splashOptimized.gif"))); // NOI18N
-        jLabel1.setLabelFor(jLabel1);
+        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/lk/com/pos/img/splashsEzvif-ezgif.com-optimize.gif"))); // NOI18N
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);

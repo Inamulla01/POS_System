@@ -22,6 +22,7 @@ import lk.com.pos.util.AppIconUtil;
 import raven.toast.Notifications;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import lk.com.pos.session.Session;
 
 public class LogIn extends javax.swing.JFrame {
 
@@ -215,9 +216,8 @@ public class LogIn extends javax.swing.JFrame {
     }//GEN-LAST:event_userNameActionPerformed
 
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
-        // TODO add your handling code here:
-        String username = userName.getText();
-        String password = String.valueOf(this.password.getPassword());
+        String username = userName.getText().trim();
+        String password = String.valueOf(this.password.getPassword()).trim();
 
         System.out.println(username);
         System.out.println(password);
@@ -225,32 +225,44 @@ public class LogIn extends javax.swing.JFrame {
         if (username.isEmpty() || password.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
             return;
+        }
 
-        } 
         try {
             Connection con = MySQL.getConnection();
-            String sql = "SELECT role_id FROM user WHERE name=? AND password=?";
+            String sql = "SELECT u.user_id, u.name, r.role_name "
+                    + "FROM user u "
+                    + "INNER JOIN role r ON u.role_id = r.role_id "
+                    + "WHERE u.name = ? AND u.password = ?";
             PreparedStatement pst = con.prepareStatement(sql);
             pst.setString(1, username);
             pst.setString(2, password);
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next()) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successfull");
-                
+                int userId = rs.getInt("user_id");
+                String roleName = rs.getString("role_name");
+
+                // Store session data
+                Session.getInstance().setSession(userId, roleName);
+
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successful");
+
                 this.dispose();
                 new HomeScreen().setVisible(true);
-                
+
             } else {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
             }
-            
+
+            rs.close();
+            pst.close();
+            con.close();
+
         } catch (SQLException e) {
-             JOptionPane.showMessageDialog(this,
+            JOptionPane.showMessageDialog(this,
                     "Unexpected error: " + e.getMessage(),
                     "Error",
                     JOptionPane.ERROR_MESSAGE);
-            
         }
 
     }//GEN-LAST:event_loginBtnActionPerformed

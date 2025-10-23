@@ -12,21 +12,28 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import lk.com.pos.connection.MySQL;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.posPanel;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
+import lk.com.pos.session.Session;
 import lk.com.pos.util.AppIconUtil;
 
 public class HomeScreen extends JFrame {
 
+    int userId = Session.getInstance().getUserId();
+    String roleName = Session.getInstance().getRoleName();
+
     // Icons
     private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
-    private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon; // New icons for nav bar
+    private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon;
 
     // Sidebar animation
     private static final int SIDEBAR_WIDTH_EXPANDED = 230;
@@ -61,9 +68,11 @@ public class HomeScreen extends JFrame {
     private Color signOutHoverTop = new Color(255, 0, 0);
     private Color signOutHoverBottom = new Color(200, 0, 0);
 
+    private JLabel notificationBadge;
+    private JPopupMenu notificationPopup;
+
     // Track hover state for each button
     private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
-
 
     public HomeScreen() {
         initComponents();
@@ -75,7 +84,15 @@ public class HomeScreen extends JFrame {
     private void init() {
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-
+        try {
+            ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + userId);
+            if (rs.next()) {
+                helloLabel.setText("Hello, " + rs.getString("name") + " (" + roleName + ")");
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        
         // Initialize sidebar icons
         dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
         posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
@@ -85,7 +102,7 @@ public class HomeScreen extends JFrame {
         stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
         menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
-        calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24); // New calculator icon
+        calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24);
 
         // Initialize navigation bar icons
         navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
@@ -93,7 +110,7 @@ public class HomeScreen extends JFrame {
         navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 26, 26);
         navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
 
-        // Set navigation bar icons with hover effects - EXACTLY LIKE OTHER BUTTONS
+        // Set navigation bar icons with hover effects
         setupNavButtonWithHoverText(menuBtn, navMenuIcon, "Toggle Sidebar");
         setupNavButtonWithHoverText(bellBtn, navBellIcon, "Notifications");
         setupNavButtonWithHoverText(profileBtn, navProfileIcon, "User Profile");
@@ -137,7 +154,7 @@ public class HomeScreen extends JFrame {
         // Set sidebar collapsed at startup
         isSidebarExpanded = false;
         sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_COLLAPSED, sidePenal.getPreferredSize().height));
-        setButtonTextVisible(false); // hide text since collapsed
+        setButtonTextVisible(false);
         updateLogo();
         penal1.revalidate();
         penal1.repaint();
@@ -149,13 +166,293 @@ public class HomeScreen extends JFrame {
         // Set dashboard as default active button
         setActiveButton(dashboardBtn);
         showDashboardPanel();
+        
+        // Setup notification system
+        setupNotificationSystem();
+        loadUnreadNotifications();
+        new Timer(30000, e -> loadUnreadNotifications()).start();
+    }
+
+    private void setupNotificationSystem() {
+        notificationPopup = new JPopupMenu();
+        notificationPopup.setFocusable(false);
+        
+        notificationBadge = new JLabel();
+        notificationBadge.setOpaque(true);
+        notificationBadge.setBackground(Color.RED);
+        notificationBadge.setForeground(Color.WHITE);
+        notificationBadge.setFont(new Font("Arial", Font.BOLD, 11));
+        notificationBadge.setHorizontalAlignment(SwingConstants.CENTER);
+        notificationBadge.setPreferredSize(new Dimension(18, 18));
+        notificationBadge.setVisible(false);
+
+        // Position badge on top-right of bell button
+        bellBtn.setLayout(new BorderLayout());
+        JPanel badgePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        badgePanel.setOpaque(false);
+        badgePanel.add(notificationBadge);
+        bellBtn.add(badgePanel, BorderLayout.NORTH);
+
+        // Add click event to show/hide notifications
+        bellBtn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (notificationPopup.isVisible()) {
+                    notificationPopup.setVisible(false);
+                } else {
+                    showNotifications();
+                }
+            }
+        });
+
+        // Add window focus listener to close when clicking outside
+        addWindowFocusListener(new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent e) {
+                if (notificationPopup.isVisible()) {
+                    notificationPopup.setVisible(false);
+                }
+            }
+        });
+    }
+
+    private void loadUnreadNotifications() {
+        try {
+            ResultSet rs = MySQL.executeSearch(
+                    "SELECT n.id, m.massage, mt.msg_type, n.create_at "
+                    + "FROM notifocation n "
+                    + "JOIN massage m ON n.massage_id = m.massage_id "
+                    + "JOIN msg_type mt ON n.msg_type_id = mt.msg_type_id "
+                    + "WHERE n.is_read = 1 "
+                    + "ORDER BY n.create_at DESC"
+            );
+
+            notificationPopup.removeAll();
+            int count = 0;
+            boolean firstItem = true;
+
+            // Create header panel with title and close button
+            JPanel headerPanel = new JPanel(new BorderLayout());
+            headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
+            headerPanel.setBackground(new Color(0xF8F9FA));
+            
+            // Title
+            JLabel titleLabel = new JLabel("Notifications");
+            titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+            titleLabel.setForeground(new Color(0x333333));
+            
+            // Close button
+            FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 16, 16);
+            closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                @Override
+                public Color filter(Color color) {
+                    return new Color(0x666666);
+                }
+            });
+            
+            JButton closeButton = new JButton(closeIcon);
+            closeButton.setContentAreaFilled(false);
+            closeButton.setBorderPainted(false);
+            closeButton.setFocusPainted(false);
+            closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            closeButton.setToolTipText("Close");
+            closeButton.addActionListener(e -> notificationPopup.setVisible(false));
+            
+            // Add hover effect to close button
+            closeButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return new Color(0xFF0000);
+                        }
+                    });
+                    closeButton.repaint();
+                }
+                
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return new Color(0x666666);
+                        }
+                    });
+                    closeButton.repaint();
+                }
+            });
+
+            headerPanel.add(titleLabel, BorderLayout.WEST);
+            headerPanel.add(closeButton, BorderLayout.EAST);
+            
+            notificationPopup.add(headerPanel);
+            
+            // Add separator after header
+            JSeparator headerSeparator = new JSeparator();
+            headerSeparator.setForeground(new Color(0xDDDDDD));
+            notificationPopup.add(headerSeparator);
+
+            while (rs.next()) {
+                count++;
+                String message = rs.getString("massage");
+                String type = rs.getString("msg_type").toLowerCase();
+                String time = rs.getString("create_at");
+
+                // Add separator between notifications
+                if (!firstItem) {
+                    JSeparator separator = new JSeparator();
+                    separator.setForeground(new Color(0xDDDDDD));
+                    notificationPopup.add(separator);
+                }
+                firstItem = false;
+
+                // Select icon based on type
+                FlatSVGIcon icon;
+                switch (type) {
+                    case "success":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
+                        break;
+                    case "warning":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/warning.svg", 18, 18);
+                        break;
+                    default:
+                        icon = new FlatSVGIcon("lk/com/pos/icon/info.svg", 18, 18);
+                        break;
+                }
+
+                // Create notification item
+                JPanel notifItem = new JPanel(new BorderLayout(8, 0));
+                notifItem.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+                notifItem.setBackground(Color.WHITE);
+                notifItem.setPreferredSize(new Dimension(300, 40));
+
+                // Icon on the left
+                JLabel iconLabel = new JLabel(icon);
+                notifItem.add(iconLabel, BorderLayout.WEST);
+
+                // Message and time in the center
+                JPanel textPanel = new JPanel(new BorderLayout());
+                textPanel.setOpaque(false);
+
+                JLabel msgLabel = new JLabel("<html><div style='width: 220px;'>" + message + "</div></html>");
+                msgLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+
+                // Format time
+                String formattedTime = formatNotificationTime(time);
+                JLabel timeLabel = new JLabel(formattedTime);
+                timeLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
+                timeLabel.setForeground(Color.GRAY);
+
+                textPanel.add(msgLabel, BorderLayout.CENTER);
+                textPanel.add(timeLabel, BorderLayout.SOUTH);
+
+                notifItem.add(textPanel, BorderLayout.CENTER);
+
+                // Make panel clickable to mark as read
+                notifItem.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                final int notifId = rs.getInt("id");
+                notifItem.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        markNotificationAsRead(notifId);
+                        notificationPopup.setVisible(false);
+                    }
+
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        notifItem.setBackground(new Color(0xF0F8FF));
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        notifItem.setBackground(Color.WHITE);
+                    }
+                });
+
+                notificationPopup.add(notifItem);
+            }
+
+            // Handle empty notifications
+            if (count == 0) {
+                JLabel emptyLabel = new JLabel("No new notifications");
+                emptyLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 12));
+                emptyLabel.setBorder(BorderFactory.createEmptyBorder(20, 12, 20, 12));
+                emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                emptyLabel.setForeground(new Color(0x666666));
+                notificationPopup.add(emptyLabel);
+            }
+
+            // Show badge with count
+            if (count > 0) {
+                notificationBadge.setText(String.valueOf(count));
+                notificationBadge.setVisible(true);
+            } else {
+                notificationBadge.setVisible(false);
+            }
+
+            // Refresh popup
+            notificationPopup.revalidate();
+            notificationPopup.repaint();
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error loading notifications: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void showNotifications() {
+        loadUnreadNotifications();
+        
+        Point buttonLoc = bellBtn.getLocationOnScreen();
+        int x = buttonLoc.x - (notificationPopup.getPreferredSize().width - bellBtn.getWidth()) / 2;
+        int y = buttonLoc.y + bellBtn.getHeight();
+        
+        notificationPopup.setLocation(x, y);
+        notificationPopup.setVisible(true);
+        requestFocus();
+    }
+
+    private void markNotificationAsRead(int id) {
+        try {
+            MySQL.executeIUD("UPDATE notifocation SET is_read = 0 WHERE id = " + id);
+            loadUnreadNotifications();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error updating notification: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String formatNotificationTime(String dbTime) {
+        try {
+            if (dbTime == null || dbTime.trim().isEmpty()) {
+                return "Unknown time";
+            }
+            
+            SimpleDateFormat dbFormat;
+            if (dbTime.contains("T")) {
+                dbFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            } else if (dbTime.contains("-")) {
+                dbFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            } else {
+                return dbTime;
+            }
+            
+            SimpleDateFormat displayFormat = new SimpleDateFormat("MMM dd, HH:mm");
+            Date date = dbFormat.parse(dbTime);
+            return displayFormat.format(date);
+            
+        } catch (Exception e) {
+            System.out.println("Error formatting time: " + dbTime + " - " + e.getMessage());
+            if (dbTime != null && dbTime.length() > 16) {
+                return dbTime.substring(5, 16);
+            }
+            return dbTime;
+        }
     }
 
     private void startClockTimer() {
-        // Update time immediately
         updateTimeLabel();
-
-        // Create timer that updates every second (1000 milliseconds)
         clockTimer = new Timer(1000, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -166,11 +463,8 @@ public class HomeScreen extends JFrame {
     }
 
     private void updateTimeLabel() {
-        // Get current date and time
         Date now = new Date();
         String currentTime = timeFormat.format(now);
-
-        // Update the label text
         time.setText(currentTime);
     }
 
@@ -632,7 +926,7 @@ public class HomeScreen extends JFrame {
             robot.keyRelease(keyCode);
         }
     }
- 
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -647,6 +941,7 @@ public class HomeScreen extends JFrame {
         profileBtn = new javax.swing.JButton();
         time = new javax.swing.JLabel();
         keyBtn = new javax.swing.JButton();
+        helloLabel = new javax.swing.JLabel();
         sidePenal = new javax.swing.JPanel();
         dashboardBtn = new javax.swing.JButton();
         posBtn = new javax.swing.JButton();
@@ -750,6 +1045,9 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        helloLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        helloLabel.setCursor(new java.awt.Cursor(java.awt.Cursor.TEXT_CURSOR));
+
         javax.swing.GroupLayout navPanelLayout = new javax.swing.GroupLayout(navPanel);
         navPanel.setLayout(navPanelLayout);
         navPanelLayout.setHorizontalGroup(
@@ -757,6 +1055,8 @@ public class HomeScreen extends JFrame {
             .addGroup(navPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(helloLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -773,15 +1073,19 @@ public class HomeScreen extends JFrame {
             navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(navPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                        .addComponent(profileBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(bellBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(calBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(time, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(keyBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(helloLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(navPanelLayout.createSequentialGroup()
+                        .addGroup(navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(profileBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(bellBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(calBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(time, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(keyBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addContainerGap())
         );
 
         sidePenal.setBackground(new java.awt.Color(255, 255, 255));
@@ -960,106 +1264,112 @@ public class HomeScreen extends JFrame {
     }//GEN-LAST:event_supplierBtnActionPerformed
 
     private void calBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_calBtnActionPerformed
-try {
-        boolean calculatorOpened = false;
-        
         try {
-            Process process = Runtime.getRuntime().exec("calc.exe");
-            if (process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
-                if (process.exitValue() == 0) {
+            boolean calculatorOpened = false;
+
+            try {
+                Process process = Runtime.getRuntime().exec("calc.exe");
+                if (process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                    if (process.exitValue() == 0) {
+                        calculatorOpened = true;
+                    }
+                } else {
                     calculatorOpened = true;
                 }
-            } else {
-                calculatorOpened = true;
+            } catch (Exception e) {
             }
-        } catch (Exception e) {}
 
-        if (!calculatorOpened) {
-            try {
-                String[] powerShellCommands = {
-                    "powershell -Command \"Start-Process calc -WindowStyle Normal\"",
-                    "powershell -Command \"Start-Process 'C:\\Windows\\System32\\calc.exe'\"",
-                };
-                
-                for (String cmd : powerShellCommands) {
-                    try {
-                        Process process = Runtime.getRuntime().exec(cmd);
-                        if (process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+            if (!calculatorOpened) {
+                try {
+                    String[] powerShellCommands = {
+                        "powershell -Command \"Start-Process calc -WindowStyle Normal\"",
+                        "powershell -Command \"Start-Process 'C:\\Windows\\System32\\calc.exe'\"",};
+
+                    for (String cmd : powerShellCommands) {
+                        try {
+                            Process process = Runtime.getRuntime().exec(cmd);
+                            if (process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                                calculatorOpened = true;
+                                break;
+                            }
+                        } catch (Exception e) {
+                            continue;
+                        }
+                    }
+                } catch (Exception e) {
+                }
+            }
+
+            if (!calculatorOpened) {
+                try {
+                    String[] cmdCommands = {
+                        "cmd /c start calc",
+                        "cmd /c start C:\\Windows\\System32\\calc.exe",
+                        "start calc.exe"
+                    };
+
+                    for (String cmd : cmdCommands) {
+                        try {
+                            Process process = Runtime.getRuntime().exec(cmd);
+                            Thread.sleep(1000);
                             calculatorOpened = true;
                             break;
+                        } catch (Exception e) {
+                            continue;
                         }
-                    } catch (Exception e) {
-                        continue;
                     }
+                } catch (Exception e) {
                 }
-            } catch (Exception e) {}
-        }
+            }
 
-        if (!calculatorOpened) {
-            try {
-                String[] cmdCommands = {
-                    "cmd /c start calc",
-                    "cmd /c start C:\\Windows\\System32\\calc.exe",
-                    "start calc.exe"
-                };
-                
-                for (String cmd : cmdCommands) {
-                    try {
-                        Process process = Runtime.getRuntime().exec(cmd);
-                        Thread.sleep(1000);
-                        calculatorOpened = true;
-                        break;
-                    } catch (Exception e) {
-                        continue;
-                    }
-                }
-            } catch (Exception e) {}
-        }
-
-        if (!calculatorOpened) {
-            try {
-                ProcessBuilder pb = new ProcessBuilder("calc.exe");
-                pb.redirectErrorStream(true);
-                Process process = pb.start();
-                Thread.sleep(1500);
-                if (process.isAlive()) {
-                    calculatorOpened = true;
-                }
-            } catch (Exception e) {}
-        }
-
-        if (!calculatorOpened) {
-            try {
-                Robot robot = new Robot();
-                robot.keyPress(KeyEvent.VK_WINDOWS);
-                robot.keyPress(KeyEvent.VK_R);
-                robot.keyRelease(KeyEvent.VK_R);
-                robot.keyRelease(KeyEvent.VK_WINDOWS);
-                Thread.sleep(500);
-                typeString(robot, "calc");
-                Thread.sleep(300);
-                robot.keyPress(KeyEvent.VK_ENTER);
-                robot.keyRelease(KeyEvent.VK_ENTER);
-                calculatorOpened = true;
-            } catch (Exception e) {}
-        }
-
-        if (!calculatorOpened) {
-            try {
-                String systemRoot = System.getenv("SystemRoot");
-                String calcPath = systemRoot + "\\System32\\calc.exe";
-                File calcFile = new File(calcPath);
-                if (calcFile.exists()) {
-                    Process process = Runtime.getRuntime().exec("\"" + calcPath + "\"");
-                    Thread.sleep(2000);
+            if (!calculatorOpened) {
+                try {
+                    ProcessBuilder pb = new ProcessBuilder("calc.exe");
+                    pb.redirectErrorStream(true);
+                    Process process = pb.start();
+                    Thread.sleep(1500);
                     if (process.isAlive()) {
                         calculatorOpened = true;
                     }
+                } catch (Exception e) {
                 }
-            } catch (Exception e) {}
-        }
+            }
 
-    } catch (Exception ex) {}
+            if (!calculatorOpened) {
+                try {
+                    Robot robot = new Robot();
+                    robot.keyPress(KeyEvent.VK_WINDOWS);
+                    robot.keyPress(KeyEvent.VK_R);
+                    robot.keyRelease(KeyEvent.VK_R);
+                    robot.keyRelease(KeyEvent.VK_WINDOWS);
+                    Thread.sleep(500);
+                    typeString(robot, "calc");
+                    Thread.sleep(300);
+                    robot.keyPress(KeyEvent.VK_ENTER);
+                    robot.keyRelease(KeyEvent.VK_ENTER);
+                    calculatorOpened = true;
+                } catch (Exception e) {
+                }
+            }
+
+            if (!calculatorOpened) {
+                try {
+                    String systemRoot = System.getenv("SystemRoot");
+                    String calcPath = systemRoot + "\\System32\\calc.exe";
+                    File calcFile = new File(calcPath);
+                    if (calcFile.exists()) {
+                        Process process = Runtime.getRuntime().exec("\"" + calcPath + "\"");
+                        Thread.sleep(2000);
+                        if (process.isAlive()) {
+                            calculatorOpened = true;
+                        }
+                    }
+                } catch (Exception e) {
+                }
+            }
+
+        } catch (Exception ex) {
+        }
     }//GEN-LAST:event_calBtnActionPerformed
 
     private void stockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockBtnActionPerformed
@@ -1142,6 +1452,7 @@ try {
     private javax.swing.JPanel cardPanel;
     private javax.swing.JButton creditBtn;
     private javax.swing.JButton dashboardBtn;
+    private javax.swing.JLabel helloLabel;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JButton keyBtn;
     private javax.swing.JLabel logo;

@@ -9,6 +9,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -62,6 +64,7 @@ public class HomeScreen extends JFrame {
     // Track hover state for each button
     private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
 
+
     public HomeScreen() {
         initComponents();
         loadPanels();
@@ -69,85 +72,85 @@ public class HomeScreen extends JFrame {
         initSidebarSlider();
     }
 
-private void init() {
-    AppIconUtil.applyIcon(this);
-    setExtendedState(JFrame.MAXIMIZED_BOTH);
+    private void init() {
+        AppIconUtil.applyIcon(this);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-    // Initialize sidebar icons
-    dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
-    posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
-    supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
-    salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
-    creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
-    stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
-    menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
-    signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
-    calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24); // New calculator icon
+        // Initialize sidebar icons
+        dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
+        posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
+        supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
+        salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
+        creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
+        stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
+        menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
+        signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
+        calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24); // New calculator icon
 
-    // Initialize navigation bar icons
-    navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
-    navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
-    navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 26, 26);
-    navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
+        // Initialize navigation bar icons
+        navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
+        navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
+        navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 26, 26);
+        navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
 
-    // Set navigation bar icons with hover effects - EXACTLY LIKE OTHER BUTTONS
-    setupNavButton(menuBtn, navMenuIcon);
-    setupNavButton(bellBtn, navBellIcon);
-    setupNavButton(profileBtn, navProfileIcon);
-    setupNavButton(keyBtn, navKeyIcon);
-    setupNavButton(calBtn, calculatorIcon);
+        // Set navigation bar icons with hover effects - EXACTLY LIKE OTHER BUTTONS
+        setupNavButtonWithHoverText(menuBtn, navMenuIcon, "Toggle Sidebar");
+        setupNavButtonWithHoverText(bellBtn, navBellIcon, "Notifications");
+        setupNavButtonWithHoverText(profileBtn, navProfileIcon, "User Profile");
+        setupNavButtonWithHoverText(keyBtn, navKeyIcon, "Virtual Keyboard");
+        setupNavButtonWithHoverText(calBtn, calculatorIcon, "Calculator");
 
+        // Track hover states
+        buttonHoverStates.put(dashboardBtn, false);
+        buttonHoverStates.put(posBtn, false);
+        buttonHoverStates.put(supplierBtn, false);
+        buttonHoverStates.put(salesBtn, false);
+        buttonHoverStates.put(creditBtn, false);
+        buttonHoverStates.put(stockBtn, false);
+        buttonHoverStates.put(calBtn, false);
+        buttonHoverStates.put(signOutBtn, false);
 
-    // Track hover states
-    buttonHoverStates.put(dashboardBtn, false);
-    buttonHoverStates.put(posBtn, false);
-    buttonHoverStates.put(supplierBtn, false);
-    buttonHoverStates.put(salesBtn, false);
-    buttonHoverStates.put(creditBtn, false);
-    buttonHoverStates.put(stockBtn, false);
-    buttonHoverStates.put(calBtn, false);
-    buttonHoverStates.put(signOutBtn, false);
+        // Setup hover buttons for sidebar
+        setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(salesBtn, salesIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(creditBtn, creditIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
-    // Setup hover buttons for sidebar
-    setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
-    setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
-    setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
-    setupHoverButton(salesBtn, salesIcon, normalTextColor, hoverTop, hoverBottom);
-    setupHoverButton(creditBtn, creditIcon, normalTextColor, hoverTop, hoverBottom);
-    setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
-    setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
+        // Setup menu button for sidebar expand/collapse
+        setupMenuButtonForSidebar();
 
-    // Setup menu button for sidebar expand/collapse
-    setupMenuButtonForSidebar();
+        // Logo setup
+        updateLogo();
 
-    // Logo setup
-    updateLogo();
+        // Button padding
+        dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+        posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+        supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
 
-    // Button padding
-    dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-    posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-    supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-    salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-    creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-    stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-    signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        // Set sidebar collapsed at startup
+        isSidebarExpanded = false;
+        sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_COLLAPSED, sidePenal.getPreferredSize().height));
+        setButtonTextVisible(false); // hide text since collapsed
+        updateLogo();
+        penal1.revalidate();
+        penal1.repaint();
 
-    // Set sidebar collapsed at startup
-    isSidebarExpanded = false;
-    sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_COLLAPSED, sidePenal.getPreferredSize().height));
-    setButtonTextVisible(false); // hide text since collapsed
-    updateLogo();
-    penal1.revalidate();
-    penal1.repaint();
+        // Initialize and start clock timer
+        timeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        startClockTimer();
 
-    // Initialize and start clock timer
-    timeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-    startClockTimer();
+        // Set dashboard as default active button
+        setActiveButton(dashboardBtn);
+        showDashboardPanel();
+    }
 
-    // Set dashboard as default active button
-    setActiveButton(dashboardBtn);
-    showDashboardPanel();
-}
     private void startClockTimer() {
         // Update time immediately
         updateTimeLabel();
@@ -171,50 +174,107 @@ private void init() {
         time.setText(currentTime);
     }
 
-    private void setupNavButton(JButton button, FlatSVGIcon icon) {
-    // Set initial icon with default color
-    icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-        @Override
-        public Color filter(Color color) {
-            return new Color(0x666666); // Gray color for nav icons
-        }
-    });
-    
-    // Center the icon in the button
-    button.setIcon(icon);
-    button.setHorizontalAlignment(SwingConstants.CENTER); // Center horizontally
-    button.setVerticalAlignment(SwingConstants.CENTER);   // Center vertically
-    button.setContentAreaFilled(false);
-    button.setFocusPainted(false);
-    button.setBorderPainted(false);
-    button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-    button.setOpaque(false);
+    private void setupNavButtonWithHoverText(JButton button, FlatSVGIcon icon, String hoverText) {
+        // Set initial icon with default color
+        icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return new Color(0x666666); // Gray color for nav icons
+            }
+        });
 
-    // Add hover effect
-    button.addMouseListener(new MouseAdapter() {
-        @Override
-        public void mouseEntered(MouseEvent e) {
-            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                @Override
-                public Color filter(Color color) {
-                    return new Color(0x12B5A6); // Green color on hover
-                }
-            });
-            button.repaint();
-        }
+        // Center the icon in the button
+        button.setIcon(icon);
+        button.setText(""); // No text initially
+        button.setHorizontalAlignment(SwingConstants.CENTER);
+        button.setVerticalAlignment(SwingConstants.CENTER);
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        button.setOpaque(false);
 
-        @Override
-        public void mouseExited(MouseEvent e) {
-            icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                @Override
-                public Color filter(Color color) {
-                    return new Color(0x666666); // Back to gray
+        // Create a custom tooltip that appears instantly on hover
+        button.addMouseListener(new MouseAdapter() {
+            private JWindow hoverWindow;
+            private JLabel hoverLabel;
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                // Change icon color on hover
+                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0x12B5A6); // Green color on hover
+                    }
+                });
+                button.repaint();
+
+                // Create and show hover text window
+                showHoverText(button, hoverText);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                // Reset icon color
+                icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0x666666); // Back to gray
+                    }
+                });
+                button.repaint();
+
+                // Hide hover text
+                hideHoverText();
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                hideHoverText();
+            }
+
+            private void showHoverText(JButton button, String text) {
+                if (hoverWindow != null) {
+                    hoverWindow.dispose();
                 }
-            });
-            button.repaint();
-        }
-    });
-}
+
+                // Create a transparent window for the hover text
+                hoverWindow = new JWindow();
+                hoverWindow.setFocusableWindowState(false);
+                hoverWindow.setBackground(new Color(0, 0, 0, 0));
+
+                // Create the hover label
+                hoverLabel = new JLabel(text);
+                hoverLabel.setFont(new Font("Nunitu SemiBold", Font.PLAIN, 11));
+                hoverLabel.setForeground(Color.WHITE);
+                hoverLabel.setBackground(new Color(0x333333));
+                hoverLabel.setOpaque(true);
+                hoverLabel.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(0x666666)),
+                        BorderFactory.createEmptyBorder(4, 8, 4, 8)
+                ));
+
+                hoverWindow.add(hoverLabel);
+                hoverWindow.pack();
+
+                // Position the hover text BELOW the button
+                Point buttonLoc = button.getLocationOnScreen();
+                int x = buttonLoc.x + (button.getWidth() - hoverWindow.getWidth()) / 2;
+                int y = buttonLoc.y + button.getHeight() + 5; // Position below the button
+
+                hoverWindow.setLocation(x, y);
+                hoverWindow.setVisible(true);
+            }
+
+            private void hideHoverText() {
+                if (hoverWindow != null) {
+                    hoverWindow.dispose();
+                    hoverWindow = null;
+                }
+            }
+        });
+    }
 
     private void setupMenuButtonForSidebar() {
         // Initial icon color for menu button (sidebar control)
@@ -572,7 +632,7 @@ private void init() {
             robot.keyRelease(keyCode);
         }
     }
-
+ 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -599,6 +659,11 @@ private void init() {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Home Screen");
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowActivated(java.awt.event.WindowEvent evt) {
+                formWindowActivated(evt);
+            }
+        });
 
         penal1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -702,7 +767,7 @@ private void init() {
                 .addComponent(time)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(profileBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+                .addGap(30, 30, 30))
         );
         navPanelLayout.setVerticalGroup(
             navPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -862,7 +927,7 @@ private void init() {
                 .addComponent(sidePenal, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(penal1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 831, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 792, Short.MAX_VALUE)
                     .addComponent(navPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
         );
         penal1Layout.setVerticalGroup(
@@ -895,137 +960,126 @@ private void init() {
     }//GEN-LAST:event_supplierBtnActionPerformed
 
     private void calBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_calBtnActionPerformed
+try {
+        boolean calculatorOpened = false;
+        
         try {
-            boolean calculatorOpened = false;
-
-            try {
-                Process process = Runtime.getRuntime().exec("calc.exe");
-                if (process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
-                    if (process.exitValue() == 0) {
-                        calculatorOpened = true;
-                    }
-                } else {
+            Process process = Runtime.getRuntime().exec("calc.exe");
+            if (process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                if (process.exitValue() == 0) {
                     calculatorOpened = true;
                 }
-            } catch (Exception e) {
+            } else {
+                calculatorOpened = true;
             }
+        } catch (Exception e) {}
 
-            if (!calculatorOpened) {
-                try {
-                    String[] powerShellCommands = {
-                        "powershell -Command \"Start-Process calc -WindowStyle Normal\"",
-                        "powershell -Command \"Start-Process 'C:\\Windows\\System32\\calc.exe'\"",};
-
-                    for (String cmd : powerShellCommands) {
-                        try {
-                            Process process = Runtime.getRuntime().exec(cmd);
-                            if (process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
-                                calculatorOpened = true;
-                                break;
-                            }
-                        } catch (Exception e) {
-                            continue;
-                        }
-                    }
-                } catch (Exception e) {
-                }
-            }
-
-            if (!calculatorOpened) {
-                try {
-                    String[] cmdCommands = {
-                        "cmd /c start calc",
-                        "cmd /c start C:\\Windows\\System32\\calc.exe",
-                        "start calc.exe"
-                    };
-
-                    for (String cmd : cmdCommands) {
-                        try {
-                            Process process = Runtime.getRuntime().exec(cmd);
-                            Thread.sleep(1000);
+        if (!calculatorOpened) {
+            try {
+                String[] powerShellCommands = {
+                    "powershell -Command \"Start-Process calc -WindowStyle Normal\"",
+                    "powershell -Command \"Start-Process 'C:\\Windows\\System32\\calc.exe'\"",
+                };
+                
+                for (String cmd : powerShellCommands) {
+                    try {
+                        Process process = Runtime.getRuntime().exec(cmd);
+                        if (process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
                             calculatorOpened = true;
                             break;
-                        } catch (Exception e) {
-                            continue;
                         }
+                    } catch (Exception e) {
+                        continue;
                     }
-                } catch (Exception e) {
                 }
-            }
+            } catch (Exception e) {}
+        }
 
-            if (!calculatorOpened) {
-                try {
-                    ProcessBuilder pb = new ProcessBuilder("calc.exe");
-                    pb.redirectErrorStream(true);
-                    Process process = pb.start();
-                    Thread.sleep(1500);
+        if (!calculatorOpened) {
+            try {
+                String[] cmdCommands = {
+                    "cmd /c start calc",
+                    "cmd /c start C:\\Windows\\System32\\calc.exe",
+                    "start calc.exe"
+                };
+                
+                for (String cmd : cmdCommands) {
+                    try {
+                        Process process = Runtime.getRuntime().exec(cmd);
+                        Thread.sleep(1000);
+                        calculatorOpened = true;
+                        break;
+                    } catch (Exception e) {
+                        continue;
+                    }
+                }
+            } catch (Exception e) {}
+        }
+
+        if (!calculatorOpened) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder("calc.exe");
+                pb.redirectErrorStream(true);
+                Process process = pb.start();
+                Thread.sleep(1500);
+                if (process.isAlive()) {
+                    calculatorOpened = true;
+                }
+            } catch (Exception e) {}
+        }
+
+        if (!calculatorOpened) {
+            try {
+                Robot robot = new Robot();
+                robot.keyPress(KeyEvent.VK_WINDOWS);
+                robot.keyPress(KeyEvent.VK_R);
+                robot.keyRelease(KeyEvent.VK_R);
+                robot.keyRelease(KeyEvent.VK_WINDOWS);
+                Thread.sleep(500);
+                typeString(robot, "calc");
+                Thread.sleep(300);
+                robot.keyPress(KeyEvent.VK_ENTER);
+                robot.keyRelease(KeyEvent.VK_ENTER);
+                calculatorOpened = true;
+            } catch (Exception e) {}
+        }
+
+        if (!calculatorOpened) {
+            try {
+                String systemRoot = System.getenv("SystemRoot");
+                String calcPath = systemRoot + "\\System32\\calc.exe";
+                File calcFile = new File(calcPath);
+                if (calcFile.exists()) {
+                    Process process = Runtime.getRuntime().exec("\"" + calcPath + "\"");
+                    Thread.sleep(2000);
                     if (process.isAlive()) {
                         calculatorOpened = true;
                     }
-                } catch (Exception e) {
                 }
-            }
-
-            if (!calculatorOpened) {
-                try {
-                    Robot robot = new Robot();
-                    robot.keyPress(KeyEvent.VK_WINDOWS);
-                    robot.keyPress(KeyEvent.VK_R);
-                    robot.keyRelease(KeyEvent.VK_R);
-                    robot.keyRelease(KeyEvent.VK_WINDOWS);
-                    Thread.sleep(500);
-                    typeString(robot, "calc");
-                    Thread.sleep(300);
-                    robot.keyPress(KeyEvent.VK_ENTER);
-                    robot.keyRelease(KeyEvent.VK_ENTER);
-                    calculatorOpened = true;
-                } catch (Exception e) {
-                }
-            }
-
-            if (!calculatorOpened) {
-                try {
-                    String systemRoot = System.getenv("SystemRoot");
-                    String calcPath = systemRoot + "\\System32\\calc.exe";
-                    File calcFile = new File(calcPath);
-                    if (calcFile.exists()) {
-                        Process process = Runtime.getRuntime().exec("\"" + calcPath + "\"");
-                        Thread.sleep(2000);
-                        if (process.isAlive()) {
-                            calculatorOpened = true;
-                        }
-                    }
-                } catch (Exception e) {
-                }
-            }
-
-        } catch (Exception ex) {
+            } catch (Exception e) {}
         }
+
+    } catch (Exception ex) {}
     }//GEN-LAST:event_calBtnActionPerformed
 
     private void stockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockBtnActionPerformed
         showProductPanel();
-
     }//GEN-LAST:event_stockBtnActionPerformed
 
     private void salesBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_salesBtnActionPerformed
         showSalesPanel();
-
     }//GEN-LAST:event_salesBtnActionPerformed
 
     private void creditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditBtnActionPerformed
         showCustomerManagementPanel();
-
     }//GEN-LAST:event_creditBtnActionPerformed
 
     private void posBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_posBtnActionPerformed
         showPOSPanel();
-
     }//GEN-LAST:event_posBtnActionPerformed
 
     private void dashboardBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_dashboardBtnActionPerformed
         showDashboardPanel();
-
     }//GEN-LAST:event_dashboardBtnActionPerformed
 
     private void menuBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_menuBtnActionPerformed
@@ -1063,6 +1117,10 @@ private void init() {
     private void keyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_keyBtnActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_keyBtnActionPerformed
+
+    private void formWindowActivated(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowActivated
+        // TODO add your handling code here:
+    }//GEN-LAST:event_formWindowActivated
 
     /**
      * @param args the command line arguments

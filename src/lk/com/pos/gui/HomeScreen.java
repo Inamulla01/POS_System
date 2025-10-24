@@ -92,7 +92,7 @@ public class HomeScreen extends JFrame {
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-        
+
         // Initialize sidebar icons
         dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
         posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
@@ -166,24 +166,46 @@ public class HomeScreen extends JFrame {
         // Set dashboard as default active button
         setActiveButton(dashboardBtn);
         showDashboardPanel();
-        
-        // Setup notification system
+
         setupNotificationSystem();
         loadUnreadNotifications();
-        new Timer(30000, e -> loadUnreadNotifications()).start();
+
+// Timer for notifications - will silently fail if connection issues
+        new Timer(30000, e -> {
+            try {
+                loadUnreadNotifications();
+            } catch (Exception ex) {
+                // Silently ignore timer errors
+            }
+        }).start();
     }
 
     private void setupNotificationSystem() {
         notificationPopup = new JPopupMenu();
         notificationPopup.setFocusable(false);
-        
-        notificationBadge = new JLabel();
-        notificationBadge.setOpaque(true);
-        notificationBadge.setBackground(Color.RED);
+
+        notificationBadge = new JLabel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Draw rounded background
+                g2.setColor(Color.RED);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+
+                g2.dispose();
+
+                // Paint text
+                super.paintComponent(g);
+            }
+        };
+
+        notificationBadge.setOpaque(false);
         notificationBadge.setForeground(Color.WHITE);
         notificationBadge.setFont(new Font("Arial", Font.BOLD, 11));
         notificationBadge.setHorizontalAlignment(SwingConstants.CENTER);
-        notificationBadge.setPreferredSize(new Dimension(18, 18));
+        notificationBadge.setPreferredSize(new Dimension(18, 18)); // Make it larger
         notificationBadge.setVisible(false);
 
         // Position badge on top-right of bell button
@@ -235,12 +257,12 @@ public class HomeScreen extends JFrame {
             JPanel headerPanel = new JPanel(new BorderLayout());
             headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
             headerPanel.setBackground(new Color(0xF8F9FA));
-            
+
             // Title
             JLabel titleLabel = new JLabel("Notifications");
             titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
             titleLabel.setForeground(new Color(0x333333));
-            
+
             // Close button
             FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 16, 16);
             closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
@@ -249,7 +271,7 @@ public class HomeScreen extends JFrame {
                     return new Color(0x666666);
                 }
             });
-            
+
             JButton closeButton = new JButton(closeIcon);
             closeButton.setContentAreaFilled(false);
             closeButton.setBorderPainted(false);
@@ -257,7 +279,7 @@ public class HomeScreen extends JFrame {
             closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             closeButton.setToolTipText("Close");
             closeButton.addActionListener(e -> notificationPopup.setVisible(false));
-            
+
             // Add hover effect to close button
             closeButton.addMouseListener(new MouseAdapter() {
                 @Override
@@ -270,7 +292,7 @@ public class HomeScreen extends JFrame {
                     });
                     closeButton.repaint();
                 }
-                
+
                 @Override
                 public void mouseExited(MouseEvent e) {
                     closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
@@ -285,15 +307,15 @@ public class HomeScreen extends JFrame {
 
             headerPanel.add(titleLabel, BorderLayout.WEST);
             headerPanel.add(closeButton, BorderLayout.EAST);
-            
+
             notificationPopup.add(headerPanel);
-            
+
             // Add separator after header
             JSeparator headerSeparator = new JSeparator();
             headerSeparator.setForeground(new Color(0xDDDDDD));
             notificationPopup.add(headerSeparator);
 
-            while (rs.next()) {
+            while (rs != null && rs.next()) {
                 count++;
                 String message = rs.getString("massage");
                 String type = rs.getString("msg_type").toLowerCase();
@@ -325,7 +347,7 @@ public class HomeScreen extends JFrame {
                 JPanel notifItem = new JPanel(new BorderLayout(8, 0));
                 notifItem.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
                 notifItem.setBackground(Color.WHITE);
-                notifItem.setPreferredSize(new Dimension(300, 40));
+                notifItem.setPreferredSize(new Dimension(450, 40));
 
                 // Icon on the left
                 JLabel iconLabel = new JLabel(icon);
@@ -335,7 +357,7 @@ public class HomeScreen extends JFrame {
                 JPanel textPanel = new JPanel(new BorderLayout());
                 textPanel.setOpaque(false);
 
-                JLabel msgLabel = new JLabel("<html><div style='width: 220px;'>" + message + "</div></html>");
+                JLabel msgLabel = new JLabel("<html><div style='width: 400px;'>" + message + "</div></html>");
                 msgLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
 
                 // Format time
@@ -377,7 +399,7 @@ public class HomeScreen extends JFrame {
             if (count == 0) {
                 JLabel emptyLabel = new JLabel("No new notifications");
                 emptyLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 12));
-                emptyLabel.setBorder(BorderFactory.createEmptyBorder(20, 12, 20, 12));
+                emptyLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 55));
                 emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
                 emptyLabel.setForeground(new Color(0x666666));
                 notificationPopup.add(emptyLabel);
@@ -396,18 +418,20 @@ public class HomeScreen extends JFrame {
             notificationPopup.repaint();
 
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, "Error loading notifications: " + e.getMessage());
-            e.printStackTrace();
+            // Silently handle the error - don't show any message to user
+            System.out.println("Notifications temporarily unavailable");
+            // Hide badge if there's an error
+            notificationBadge.setVisible(false);
         }
     }
 
     private void showNotifications() {
         loadUnreadNotifications();
-        
+
         Point buttonLoc = bellBtn.getLocationOnScreen();
         int x = buttonLoc.x - (notificationPopup.getPreferredSize().width - bellBtn.getWidth()) / 2;
         int y = buttonLoc.y + bellBtn.getHeight();
-        
+
         notificationPopup.setLocation(x, y);
         notificationPopup.setVisible(true);
         requestFocus();
@@ -418,8 +442,8 @@ public class HomeScreen extends JFrame {
             MySQL.executeIUD("UPDATE notifocation SET is_read = 0 WHERE id = " + id);
             loadUnreadNotifications();
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error updating notification: " + e.getMessage());
-            e.printStackTrace();
+            // Silently handle the error - don't show any message to user
+            System.out.println("Could not mark notification as read");
         }
     }
 
@@ -428,7 +452,7 @@ public class HomeScreen extends JFrame {
             if (dbTime == null || dbTime.trim().isEmpty()) {
                 return "Unknown time";
             }
-            
+
             SimpleDateFormat dbFormat;
             if (dbTime.contains("T")) {
                 dbFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
@@ -437,11 +461,11 @@ public class HomeScreen extends JFrame {
             } else {
                 return dbTime;
             }
-            
+
             SimpleDateFormat displayFormat = new SimpleDateFormat("MMM dd, HH:mm");
             Date date = dbFormat.parse(dbTime);
             return displayFormat.format(date);
-            
+
         } catch (Exception e) {
             System.out.println("Error formatting time: " + dbTime + " - " + e.getMessage());
             if (dbTime != null && dbTime.length() > 16) {

@@ -216,54 +216,55 @@ public class LogIn extends javax.swing.JFrame {
     }//GEN-LAST:event_userNameActionPerformed
 
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
-        String username = userName.getText().trim();
-        String password = String.valueOf(this.password.getPassword()).trim();
+    String username = userName.getText().trim();
+    String password = String.valueOf(this.password.getPassword()).trim();
 
-        System.out.println(username);
-        System.out.println(password);
+    System.out.println(username);
+    System.out.println(password);
 
-        if (username.isEmpty() || password.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
-            return;
+    if (username.isEmpty() || password.isEmpty()) {
+        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
+        return;
+    }
+
+    try {
+        Connection con = MySQL.getConnection();
+        String sql = "SELECT u.user_id, u.name, r.role_name "
+                + "FROM user u "
+                + "INNER JOIN role r ON u.role_id = r.role_id "
+                + "WHERE u.name = ? AND u.password = ?";
+        PreparedStatement pst = con.prepareStatement(sql);
+        pst.setString(1, username);
+        pst.setString(2, password);
+        ResultSet rs = pst.executeQuery();
+
+        if (rs.next()) {
+            int userId = rs.getInt("user_id");
+            String roleName = rs.getString("role_name");
+
+            // Store session data
+            Session.getInstance().setSession(userId, roleName);
+
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successful");
+
+            this.dispose();
+            new HomeScreen().setVisible(true);
+
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
         }
 
-        try {
-            Connection con = MySQL.getConnection();
-            String sql = "SELECT u.user_id, u.name, r.role_name "
-                    + "FROM user u "
-                    + "INNER JOIN role r ON u.role_id = r.role_id "
-                    + "WHERE u.name = ? AND u.password = ?";
-            PreparedStatement pst = con.prepareStatement(sql);
-            pst.setString(1, username);
-            pst.setString(2, password);
-            ResultSet rs = pst.executeQuery();
+        // ONLY close ResultSet and PreparedStatement, NOT the Connection
+        rs.close();
+        pst.close();
+        // DON'T close the connection: con.close();
 
-            if (rs.next()) {
-                int userId = rs.getInt("user_id");
-                String roleName = rs.getString("role_name");
-
-                // Store session data
-                Session.getInstance().setSession(userId, roleName);
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successful");
-
-                this.dispose();
-                new HomeScreen().setVisible(true);
-
-            } else {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
-            }
-
-            rs.close();
-            pst.close();
-            con.close();
-
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Unexpected error: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this,
+                "Unexpected error: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+    }
 
     }//GEN-LAST:event_loginBtnActionPerformed
 

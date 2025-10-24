@@ -10,10 +10,13 @@ public class MySQL {
     private static final String DATABASE = "pos_system";
     private static final String USERNAME = "root";
     private static final String PASSWORD = "Inamulla2005#";
-//    InAaM@109149 = HASAN
     private static Connection connection;
 
     static {
+        initializeConnection();
+    }
+
+    private static void initializeConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
             connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/" + DATABASE, USERNAME, PASSWORD);
@@ -23,19 +26,27 @@ public class MySQL {
     }
 
     public static Connection getConnection() {
+        try {
+            // Check if connection is still valid
+            if (connection == null || connection.isClosed() || !connection.isValid(2)) {
+                initializeConnection(); // Reconnect if needed
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            initializeConnection(); // Reconnect on error
+        }
         return connection;
     }
 
     public static ResultSet executeSearch(String query) throws SQLException {
-        return connection.createStatement().executeQuery(query);
+        return getConnection().createStatement().executeQuery(query);
     }
 
     public static void executeIUD(String query) {
         try {
-            connection.createStatement().executeUpdate(query);
+            getConnection().createStatement().executeUpdate(query);
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-
 }

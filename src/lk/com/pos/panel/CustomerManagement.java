@@ -5,6 +5,12 @@
 package lk.com.pos.panel;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import javax.swing.BorderFactory;
+import javax.swing.border.EmptyBorder;
 
 /**
  *
@@ -17,19 +23,104 @@ public class CustomerManagement extends javax.swing.JPanel {
      */
     public CustomerManagement() {
         initComponents();
-        FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 22, 22);
+        FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 18, 18);
         editButton.setIcon(blueEdit);
-        FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 22, 22);
+        FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
         deleteButton.setIcon(redDelete);
         FlatSVGIcon telephone = new FlatSVGIcon("lk/com/pos/icon/telephone.svg", 30, 30);
         this.telephone.setIcon(telephone);
-        FlatSVGIcon address = new FlatSVGIcon("lk/com/pos/icon/address.svg", 20, 20);
+        FlatSVGIcon address = new FlatSVGIcon("lk/com/pos/icon/address.svg", 18, 18);
         this.address.setIcon(address);
-        FlatSVGIcon date = new FlatSVGIcon("lk/com/pos/icon/date.svg", 20, 20);
+        FlatSVGIcon date = new FlatSVGIcon("lk/com/pos/icon/newdate.svg", 18, 18);
         this.date.setIcon(date);
-        FlatSVGIcon loan = new FlatSVGIcon("lk/com/pos/icon/money-bag.svg", 20, 20);
+        FlatSVGIcon loan = new FlatSVGIcon("lk/com/pos/icon/newmoney-bag2.svg", 19, 19);
         this.loan.setIcon(loan);
+        FlatSVGIcon addCustomer = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 18, 18);
+        this.addCustomerButton.setIcon(addCustomer);
+        
+        removeButtonBorders();
+        setupHoverEffects();
+        
     }
+    
+    private void removeButtonBorders() {
+        // Remove borders and make transparent
+        editButton.setBorderPainted(false);
+        editButton.setContentAreaFilled(false);
+        editButton.setFocusPainted(false);
+        
+        deleteButton.setBorderPainted(false);
+        deleteButton.setContentAreaFilled(false);
+        deleteButton.setFocusPainted(false);
+        
+        telephone.setBorderPainted(false);
+        telephone.setContentAreaFilled(false);
+        telephone.setFocusPainted(false);
+        
+        address.setBorderPainted(false);
+        address.setContentAreaFilled(false);
+        address.setFocusPainted(false);
+        
+        date.setBorderPainted(false);
+        date.setContentAreaFilled(false);
+        date.setFocusPainted(false);
+        
+        loan.setBorderPainted(false);
+        loan.setContentAreaFilled(false);
+        loan.setFocusPainted(false);
+    }
+    
+    
+    private void setupHoverEffects() {
+        // Add border hover effects to customer card
+        jPanel2.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                jPanel2.setBackground(new Color(240, 245, 255)); // Light blue background
+                jPanel2.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                // Add subtle border on hover
+                jPanel2.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(200, 220, 255), 1),
+                    new EmptyBorder(11, 11, 11, 11)
+                ));
+            }
+            
+            @Override
+            public void mouseExited(MouseEvent e) {
+                jPanel2.setBackground(Color.WHITE);
+                jPanel2.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+                // Remove border on exit
+                jPanel2.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(220, 220, 220), 1),
+                    new EmptyBorder(11, 11, 11, 11)
+                ));
+            }
+        });
+        
+        // Add hover effects to action buttons
+        setupButtonHoverEffect(editButton, new Color(240, 248, 255));
+        setupButtonHoverEffect(deleteButton, new Color(255, 240, 240));
+        setupButtonHoverEffect(addCustomerButton, new Color(105, 220, 193));
+    }
+    
+    private void setupButtonHoverEffect(javax.swing.JButton button, Color hoverColor) {
+        final Color originalColor = button.getBackground();
+        
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setBackground(hoverColor);
+                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+            
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(originalColor);
+                button.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+        });
+    }
+    
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -54,10 +145,8 @@ public class CustomerManagement extends javax.swing.JPanel {
         jLabel6 = new javax.swing.JLabel();
         jLabel7 = new javax.swing.JLabel();
         jLabel8 = new javax.swing.JLabel();
-        jLabel9 = new javax.swing.JLabel();
         editButton = new javax.swing.JButton();
         deleteButton = new javax.swing.JButton();
-        jLabel10 = new javax.swing.JLabel();
         telephone = new javax.swing.JButton();
         address = new javax.swing.JButton();
         date = new javax.swing.JButton();
@@ -85,10 +174,9 @@ public class CustomerManagement extends javax.swing.JPanel {
         });
 
         jPanel2.setBackground(new java.awt.Color(255, 255, 255));
-        jPanel2.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
 
         jLabel1.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        jLabel1.setText("Nimal  Jayarathne");
+        jLabel1.setText("Nimal   Jayarathne");
 
         jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
 
@@ -104,12 +192,9 @@ public class CustomerManagement extends javax.swing.JPanel {
         jLabel8.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
         jLabel8.setText("10000");
 
-        jLabel9.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        jLabel9.setForeground(new java.awt.Color(0, 204, 51));
-        jLabel9.setText("Active");
-
         editButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         editButton.setBorder(null);
+        editButton.setPreferredSize(new java.awt.Dimension(25, 25));
         editButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 editButtonActionPerformed(evt);
@@ -118,97 +203,88 @@ public class CustomerManagement extends javax.swing.JPanel {
 
         deleteButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         deleteButton.setBorder(null);
-
-        jLabel10.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        jLabel10.setForeground(new java.awt.Color(255, 0, 0));
-        jLabel10.setText("Deactive");
+        deleteButton.setPreferredSize(new java.awt.Dimension(25, 25));
+        deleteButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                deleteButtonActionPerformed(evt);
+            }
+        });
 
         telephone.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         telephone.setBorder(null);
+        telephone.setPreferredSize(new java.awt.Dimension(25, 25));
 
         address.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         address.setBorder(null);
+        address.setPreferredSize(new java.awt.Dimension(25, 25));
 
         date.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         date.setBorder(null);
+        date.setPreferredSize(new java.awt.Dimension(25, 25));
 
         loan.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         loan.setBorder(null);
+        loan.setPreferredSize(new java.awt.Dimension(25, 25));
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addGap(17, 17, 17)
+                .addGap(15, 15, 15)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                                 .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(loan, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(telephone, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(telephone, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(loan, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLabel7)
                             .addComponent(jLabel5)
-                            .addComponent(jLabel6)))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel1)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGap(17, 17, 17)
-                                .addComponent(jLabel9)
-                                .addGap(18, 18, 18)
-                                .addComponent(jLabel10)))
-                        .addGap(24, 24, 24)
-                        .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+                            .addComponent(jLabel6)
+                            .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(12, 12, 12)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jLabel1)
-                                .addGap(0, 9, Short.MAX_VALUE)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(jLabel9)
-                                    .addComponent(jLabel10)))))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(12, 12, 12)
-                        .addComponent(jLabel2)))
-                .addGap(18, 18, 18)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(telephone, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel6))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jLabel5)
-                    .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addComponent(jLabel1)
+                    .addComponent(jLabel2)
+                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                        .addComponent(deleteButton, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(editButton, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(telephone, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(date, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel7, javax.swing.GroupLayout.Alignment.TRAILING))
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel8, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(15, 15, 15)
-                        .addComponent(jLabel8))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(loan, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap())
+                        .addComponent(loan, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addGap(12, 12, 12))
         );
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -216,16 +292,16 @@ public class CustomerManagement extends javax.swing.JPanel {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(15, 15, 15)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(15, 15, 15)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 484, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 725, Short.MAX_VALUE)
-                        .addComponent(addCustomerButton, javax.swing.GroupLayout.PREFERRED_SIZE, 147, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(273, 273, 273))))
+                        .addGap(35, 35, 35)
+                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 619, Short.MAX_VALUE)
+                .addComponent(addCustomerButton, javax.swing.GroupLayout.PREFERRED_SIZE, 156, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(92, 92, 92))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -235,11 +311,11 @@ public class CustomerManagement extends javax.swing.JPanel {
                         .addGap(32, 32, 32)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(20, 20, 20)
+                        .addGap(23, 23, 23)
                         .addComponent(addCustomerButton, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(101, 101, 101)
                 .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(621, Short.MAX_VALUE))
+                .addContainerGap(407, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(jPanel1);
@@ -248,13 +324,11 @@ public class CustomerManagement extends javax.swing.JPanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 1022, Short.MAX_VALUE)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 1309, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 1025, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 235, Short.MAX_VALUE))
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 530, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -266,6 +340,10 @@ public class CustomerManagement extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_editButtonActionPerformed
 
+    private void deleteButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteButtonActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_deleteButtonActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addCustomerButton;
@@ -274,13 +352,11 @@ public class CustomerManagement extends javax.swing.JPanel {
     private javax.swing.JButton deleteButton;
     private javax.swing.JButton editButton;
     private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
-    private javax.swing.JLabel jLabel9;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;

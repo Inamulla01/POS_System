@@ -12,9 +12,12 @@ import java.awt.Font;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.sql.Connection;
 import java.sql.SQLException;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
 import lk.com.pos.connection.MySQL;
@@ -26,6 +29,11 @@ import lk.com.pos.session.Session;
 
 public class LogIn extends javax.swing.JFrame {
 
+    // ---------------- PASSWORD TOGGLE ----------------
+    private boolean passwordVisible = false;
+    private Icon eyeOpenIcon;
+    private Icon eyeClosedIcon;
+
     public LogIn() {
         initComponents();
         init();
@@ -33,6 +41,30 @@ public class LogIn extends javax.swing.JFrame {
 
     public void init() {
         AppIconUtil.applyIcon(this);
+
+        // Load eye icons
+        try {
+            ImageIcon eyeOpen = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-open.png"));
+            ImageIcon eyeClosed = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-closed.png"));
+
+            // Resize icons
+            int iconSize = 20;
+            eyeOpenIcon = new ImageIcon(eyeOpen.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+            eyeClosedIcon = new ImageIcon(eyeClosed.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+
+            // Set initial icon
+            passwordEyeButton.setIcon(eyeClosedIcon);
+
+            // Remove button borders and background
+            passwordEyeButton.setBorderPainted(false);
+            passwordEyeButton.setContentAreaFilled(false);
+            passwordEyeButton.setFocusPainted(false);
+            passwordEyeButton.setText("");
+
+        } catch (Exception e) {
+            System.out.println("Eye icons not found, using default button");
+        }
+
         try {
             FlatSVGIcon loginImage = new FlatSVGIcon("lk/com/pos/img/login.svg", 300, 300);
             logInImg.setIcon(loginImage);
@@ -55,7 +87,7 @@ public class LogIn extends javax.swing.JFrame {
         loginBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         loginBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-// Override paint behavior using BasicButtonUI
+        // Override paint behavior using BasicButtonUI
         loginBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
             @Override
             public void paint(Graphics g, javax.swing.JComponent c) {
@@ -81,6 +113,39 @@ public class LogIn extends javax.swing.JFrame {
 
     }
 
+    // ---------------- PASSWORD TOGGLE METHOD ----------------
+    private void togglePasswordVisibility() {
+        if (passwordVisible) {
+            password.setEchoChar('•');
+            passwordEyeButton.setIcon(eyeClosedIcon);
+        } else {
+            password.setEchoChar((char) 0);
+            passwordEyeButton.setIcon(eyeOpenIcon);
+        }
+        passwordVisible = !passwordVisible;
+    }
+
+    // ---------------- PASSWORD HASHING METHOD ----------------
+    private String hashPassword(String password) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Password encryption error: " + e.getMessage());
+            return password; // fallback
+        }
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -95,6 +160,7 @@ public class LogIn extends javax.swing.JFrame {
         loginBtn = new javax.swing.JButton();
         userIcon = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
+        passwordEyeButton = new javax.swing.JButton();
 
         jLabel3.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jLabel3.setText("User Name");
@@ -107,7 +173,7 @@ public class LogIn extends javax.swing.JFrame {
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jLabel1.setText("User Name");
+        jLabel1.setText("User Name *");
 
         userName.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         userName.setToolTipText("");
@@ -119,7 +185,7 @@ public class LogIn extends javax.swing.JFrame {
         });
 
         jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jLabel2.setText("Password");
+        jLabel2.setText("Password *");
 
         password.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         password.setToolTipText("");
@@ -146,6 +212,13 @@ public class LogIn extends javax.swing.JFrame {
         jLabel4.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel4.setText("Copyright © 2025 Avinam Global. All rights reserved.");
 
+        passwordEyeButton.setText("buttom");
+        passwordEyeButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                passwordEyeButtonActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -158,9 +231,12 @@ public class LogIn extends javax.swing.JFrame {
                     .addComponent(jLabel1)
                     .addComponent(jLabel2)
                     .addComponent(userName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(password, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(loginBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(userIcon, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(userIcon, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(password, javax.swing.GroupLayout.PREFERRED_SIZE, 225, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap(28, Short.MAX_VALUE))
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
@@ -186,7 +262,9 @@ public class LogIn extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jLabel2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(password, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(password, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(loginBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(72, 72, 72))))
@@ -217,10 +295,9 @@ public class LogIn extends javax.swing.JFrame {
 
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
         String username = userName.getText().trim();
-        String password = String.valueOf(this.password.getPassword()).trim();
+        String passwordText = String.valueOf(this.password.getPassword()).trim();
 
-
-        if (username.isEmpty() || password.isEmpty()) {
+        if (username.isEmpty() || passwordText.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
             return;
         }
@@ -233,6 +310,9 @@ public class LogIn extends javax.swing.JFrame {
         PreparedStatement pstNotification = null;
 
         try {
+            // Hash the password before comparing
+            String hashedPassword = hashPassword(passwordText);
+
             con = MySQL.getConnection();
             String sql = "SELECT u.user_id, u.name, r.role_name "
                     + "FROM user u "
@@ -240,7 +320,7 @@ public class LogIn extends javax.swing.JFrame {
                     + "WHERE u.name = ? AND u.password = ?";
             pst = con.prepareStatement(sql);
             pst.setString(1, username);
-            pst.setString(2, password);
+            pst.setString(2, hashedPassword); // Use hashed password
             rs = pst.executeQuery();
 
             if (rs.next()) {
@@ -328,6 +408,10 @@ public class LogIn extends javax.swing.JFrame {
 
     }//GEN-LAST:event_loginBtnActionPerformed
 
+    private void passwordEyeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_passwordEyeButtonActionPerformed
+        togglePasswordVisibility();
+    }//GEN-LAST:event_passwordEyeButtonActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -349,6 +433,7 @@ public class LogIn extends javax.swing.JFrame {
     private javax.swing.JLabel logInImg;
     private javax.swing.JButton loginBtn;
     private javax.swing.JPasswordField password;
+    private javax.swing.JButton passwordEyeButton;
     private javax.swing.JLabel userIcon;
     private javax.swing.JTextField userName;
     // End of variables declaration//GEN-END:variables

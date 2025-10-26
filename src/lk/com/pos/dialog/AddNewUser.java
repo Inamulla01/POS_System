@@ -3,11 +3,12 @@ package lk.com.pos.dialog;
 import com.formdev.flatlaf.FlatLightLaf;
 import lk.com.pos.validation.Validater;
 import lk.com.pos.connection.MySQL;
-import java.sql.ResultSet;
-import javax.swing.*;
+import java.awt.Image;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.ResultSet;
 import java.util.Vector;
+import javax.swing.*;
 import raven.toast.Notifications;
 
 public class AddNewUser extends javax.swing.JDialog {
@@ -16,20 +17,37 @@ public class AddNewUser extends javax.swing.JDialog {
     private boolean passwordVisible = false;
     private boolean confirmPasswordVisible = false;
 
-    private final Icon eyeOpenIcon = new ImageIcon(getClass().getResource("/lk/com/pos/icons/eye-open.png"));
-    private final Icon eyeClosedIcon = new ImageIcon(getClass().getResource("/lk/com/pos/icons/eye-closed.png"));
+    private Icon eyeOpenIcon;
+    private Icon eyeClosedIcon;
 
-    // ---------------- CONSTRUCTOR ----------------
     public AddNewUser(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents(); // NetBeans-generated
 
         loadUserRoles();
 
-        // Initialize eye buttons
+        // Load icons
+        ImageIcon eyeOpen = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-open.png"));
+        ImageIcon eyeClosed = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-closed.png"));
+
+        // Resize icons
+        int iconSize = 20;
+        eyeOpenIcon = new ImageIcon(eyeOpen.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+        eyeClosedIcon = new ImageIcon(eyeClosed.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+
+        // Set initial icons
         passwordEyeButton.setIcon(eyeClosedIcon);
         confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+
+        // Remove button borders and background
+        passwordEyeButton.setBorderPainted(false);
+        passwordEyeButton.setContentAreaFilled(false);
+        passwordEyeButton.setFocusPainted(false);
         passwordEyeButton.setText("");
+
+        confirmPasswordEyeButton.setBorderPainted(false);
+        confirmPasswordEyeButton.setContentAreaFilled(false);
+        confirmPasswordEyeButton.setFocusPainted(false);
         confirmPasswordEyeButton.setText("");
 
         // Add toggle listeners
@@ -82,7 +100,6 @@ public class AddNewUser extends javax.swing.JDialog {
     }
 
     private boolean validateInputs() {
-        // Format username
         String rawUsername = userNameField.getText().trim();
         String formattedUsername = formatUsername(rawUsername);
         if (!rawUsername.equals(formattedUsername)) {
@@ -197,9 +214,7 @@ public class AddNewUser extends javax.swing.JDialog {
 
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                     "User '" + formattedUsername + "' added successfully!");
-
             clearForm();
-
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving user: " + e.getMessage());
@@ -230,6 +245,7 @@ public class AddNewUser extends javax.swing.JDialog {
         passwordEyeButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("Add New User");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -311,16 +327,14 @@ public class AddNewUser extends javax.swing.JDialog {
                             .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                             .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(passwordField, javax.swing.GroupLayout.DEFAULT_SIZE, 317, Short.MAX_VALUE)
-                                .addComponent(confirmPasswordField))
-                            .addGap(18, 18, 18)
+                        .addGroup(jPanel1Layout.createSequentialGroup()
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(passwordEyeButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addGroup(jPanel1Layout.createSequentialGroup()
-                                    .addGap(0, 0, Short.MAX_VALUE)
-                                    .addComponent(confirmPasswordEyeButton))))))
+                                .addComponent(passwordField)
+                                .addComponent(confirmPasswordField))
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                                .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                 .addGap(22, 22, 22))
         );
         jPanel1Layout.setVerticalGroup(
@@ -329,18 +343,17 @@ public class AddNewUser extends javax.swing.JDialog {
                 .addGap(22, 22, 22)
                 .addComponent(jLabel1)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(userNameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(userNameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(passwordField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(confirmPasswordField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(passwordField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(confirmPasswordField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(userRoleCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)

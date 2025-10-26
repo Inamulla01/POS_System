@@ -23,6 +23,7 @@ import javax.swing.event.PopupMenuListener;
 import javax.swing.plaf.basic.BasicMenuItemUI;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewUser;
+import lk.com.pos.dialog.EditProfile;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.posPanel;
@@ -1290,10 +1291,10 @@ public class HomeScreen extends JFrame {
     }
 
     private void editProfile() {
-        // TODO: Implement edit profile functionality
-        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Edit Profile feature coming soon!");
-        System.out.println("Edit Profile clicked");
-
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        EditProfile dialog = new EditProfile(parentFrame, true, userId);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
         // Close the popup
         if (profilePopup != null) {
             profilePopup.setVisible(false);

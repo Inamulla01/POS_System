@@ -9,6 +9,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -16,6 +17,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import javax.swing.event.MouseInputListener;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.plaf.basic.BasicMenuItemUI;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
@@ -69,6 +74,8 @@ public class HomeScreen extends JFrame {
     private Color signOutHoverTop = new Color(255, 0, 0);
     private Color signOutHoverBottom = new Color(200, 0, 0);
 
+    private JPopupMenu profilePopup;
+
     private JLabel notificationBadge;
     private JPopupMenu notificationPopup;
 
@@ -77,14 +84,16 @@ public class HomeScreen extends JFrame {
 
     public HomeScreen() {
 
+        initComponents();
+
         if (!hasValidSession()) {
             redirectToLogin();
             return;
         }
-        initComponents();
         loadPanels();
         init();
         initSidebarSlider();
+
     }
 
     private boolean hasValidSession() {
@@ -99,12 +108,15 @@ public class HomeScreen extends JFrame {
     }
 
     private void redirectToLogin() {
-        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Session expired! Please login again.");
-
+        // Dispose current frame first
         this.dispose();
 
-        java.awt.EventQueue.invokeLater(() -> {
-            new LogIn().setVisible(true);
+        // Create login screen and show notification there
+        SwingUtilities.invokeLater(() -> {
+            LogIn login = new LogIn();
+            login.setVisible(true);
+            // Show notification on the login screen
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Session expired! Please login again.");
         });
     }
 
@@ -146,8 +158,10 @@ public class HomeScreen extends JFrame {
         setupNavButtonWithHoverText(menuBtn, navMenuIcon, "Toggle Sidebar");
         setupNavButtonWithHoverText(bellBtn, navBellIcon, "Notifications");
         setupNavButtonWithHoverText(profileBtn, navProfileIcon, "User Profile");
-        setupNavButtonWithHoverText(keyBtn, navKeyIcon, "Virtual Keyboard");
+        setupNavButtonWithHoverText(keyBtn, navKeyIcon, "Shortcuts");
         setupNavButtonWithHoverText(calBtn, calculatorIcon, "Calculator");
+
+        setupProfileDropdown();
 
         // Track hover states
         buttonHoverStates.put(dashboardBtn, false);
@@ -198,11 +212,10 @@ public class HomeScreen extends JFrame {
         // Set dashboard as default active button
         setActiveButton(dashboardBtn);
         showDashboardPanel();
-
+        updateShortcutIconVisibility();
         setupNotificationSystem();
         loadUnreadNotifications();
 
-// Timer for notifications - will silently fail if connection issues
         new Timer(30000, e -> {
             try {
                 loadUnreadNotifications();
@@ -222,14 +235,9 @@ public class HomeScreen extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                // Draw rounded background
                 g2.setColor(Color.RED);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
-
                 g2.dispose();
-
-                // Paint text
                 super.paintComponent(g);
             }
         };
@@ -238,7 +246,7 @@ public class HomeScreen extends JFrame {
         notificationBadge.setForeground(Color.WHITE);
         notificationBadge.setFont(new Font("Arial", Font.BOLD, 11));
         notificationBadge.setHorizontalAlignment(SwingConstants.CENTER);
-        notificationBadge.setPreferredSize(new Dimension(18, 18)); // Make it larger
+        notificationBadge.setPreferredSize(new Dimension(18, 18));
         notificationBadge.setVisible(false);
 
         // Position badge on top-right of bell button
@@ -248,24 +256,28 @@ public class HomeScreen extends JFrame {
         badgePanel.add(notificationBadge);
         bellBtn.add(badgePanel, BorderLayout.NORTH);
 
-        // Add click event to show/hide notifications
+        // 🔔 Toggle popup
         bellBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (notificationPopup.isVisible()) {
                     notificationPopup.setVisible(false);
+                    // ✅ Mark as read when popup closes
+                    markAllNotificationsAsRead();
                 } else {
                     showNotifications();
                 }
             }
         });
 
-        // Add window focus listener to close when clicking outside
+        // 🪟 Close popup when window loses focus
         addWindowFocusListener(new WindowAdapter() {
             @Override
             public void windowLostFocus(WindowEvent e) {
                 if (notificationPopup.isVisible()) {
                     notificationPopup.setVisible(false);
+                    // ✅ Mark as read when popup closes
+                    markAllNotificationsAsRead();
                 }
             }
         });
@@ -311,7 +323,11 @@ public class HomeScreen extends JFrame {
             closeButton.setFocusPainted(false);
             closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             closeButton.setToolTipText("Close");
-            closeButton.addActionListener(e -> notificationPopup.setVisible(false));
+            closeButton.addActionListener(e -> {
+                notificationPopup.setVisible(false);
+                // ✅ Mark all as read when ❌ is clicked
+                markAllNotificationsAsRead();
+            });
 
             // Add hover effect to close button
             closeButton.addMouseListener(new MouseAdapter() {
@@ -459,6 +475,74 @@ public class HomeScreen extends JFrame {
     private void showNotifications() {
         loadUnreadNotifications();
 
+        notificationPopup.removeAll();
+
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
+        headerPanel.setBackground(new Color(0xF8F9FA));
+
+        JLabel titleLabel = new JLabel("Notifications");
+        titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        titleLabel.setForeground(new Color(0x333333));
+
+        // ❌ Close icon
+        final FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 16, 16);
+        closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return new Color(0x666666);
+            }
+        });
+
+        JButton closeButton = new JButton(closeIcon);
+        closeButton.setContentAreaFilled(false);
+        closeButton.setBorderPainted(false);
+        closeButton.setFocusPainted(false);
+        closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        closeButton.setToolTipText("Close");
+
+        // Hover effect
+        closeButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return Color.RED;
+                    }
+                });
+                closeButton.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0x666666);
+                    }
+                });
+                closeButton.repaint();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                notificationPopup.setVisible(false);
+                // ✅ Mark as read when ❌ clicked
+                markAllNotificationsAsRead();
+            }
+        });
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(closeButton, BorderLayout.EAST);
+
+        notificationPopup.add(headerPanel);
+        notificationPopup.add(new JSeparator());
+
+        // Load notifications list
+        loadUnreadNotifications();
+
+        // Show popup
         Point buttonLoc = bellBtn.getLocationOnScreen();
         int x = buttonLoc.x - (notificationPopup.getPreferredSize().width - bellBtn.getWidth()) / 2;
         int y = buttonLoc.y + bellBtn.getHeight();
@@ -466,6 +550,15 @@ public class HomeScreen extends JFrame {
         notificationPopup.setLocation(x, y);
         notificationPopup.setVisible(true);
         requestFocus();
+    }
+
+    private void markAllNotificationsAsRead() {
+        try {
+            MySQL.executeIUD("UPDATE notifocation SET is_read = 0 WHERE is_read = 1");
+            loadUnreadNotifications();
+        } catch (Exception e) {
+            System.err.println("Error marking notifications as read: " + e.getMessage());
+        }
     }
 
     private void markNotificationAsRead(int id) {
@@ -696,6 +789,7 @@ public class HomeScreen extends JFrame {
         if (button != signOutBtn) {
             activeButton = button;
             setButtonToActive(button);
+            updateShortcutIconVisibility();
         }
     }
 
@@ -781,35 +875,40 @@ public class HomeScreen extends JFrame {
         return null;
     }
 
-    // Panel display methods
     private void showDashboardPanel() {
         contentPanelLayout.show(cardPanel, "dashboard_panel");
         setActiveButton(dashboardBtn);
+        updateShortcutIconVisibility();
     }
 
     private void showPOSPanel() {
         contentPanelLayout.show(cardPanel, "pos_panel");
         setActiveButton(posBtn);
+        updateShortcutIconVisibility();
     }
 
     private void showSupplierPanel() {
         contentPanelLayout.show(cardPanel, "supplier_panel");
         setActiveButton(supplierBtn);
+        updateShortcutIconVisibility();
     }
 
     private void showSalesPanel() {
         contentPanelLayout.show(cardPanel, "sales_panel");
         setActiveButton(salesBtn);
+        updateShortcutIconVisibility();
     }
 
     private void showCustomerManagementPanel() {
         contentPanelLayout.show(cardPanel, "customer_management_panel");
         setActiveButton(creditBtn);
+        updateShortcutIconVisibility();
     }
 
     private void showProductPanel() {
         contentPanelLayout.show(cardPanel, "product_panel");
         setActiveButton(stockBtn);
+        updateShortcutIconVisibility();
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -954,6 +1053,22 @@ public class HomeScreen extends JFrame {
         }
     }
 
+    private void updateShortcutIconVisibility() {
+        // Show shortcut icon only when POS panel is active, hide otherwise
+        boolean isPOSPanelActive = (activeButton == posBtn);
+        keyBtn.setVisible(isPOSPanelActive);
+
+        // Also adjust the layout spacing when icon is hidden
+        if (!isPOSPanelActive) {
+            keyBtn.setPreferredSize(new Dimension(0, 40));
+        } else {
+            keyBtn.setPreferredSize(new Dimension(75, 40));
+        }
+
+        navPanel.revalidate();
+        navPanel.repaint();
+    }
+
     private void updateMenuIcon(boolean sidebarOpening) {
         try {
             if (sidebarOpening) {
@@ -977,6 +1092,210 @@ public class HomeScreen extends JFrame {
             }
             robot.keyPress(keyCode);
             robot.keyRelease(keyCode);
+        }
+    }
+
+    private void setupProfileDropdown() {
+        profilePopup = new JPopupMenu();
+        profilePopup.setFocusable(false);
+
+        // Create menu items
+        JMenuItem addUserItem = new JMenuItem("Add New User");
+        JMenuItem editProfileItem = new JMenuItem("Edit Profile");
+
+        // Set fonts and styles
+        Font menuFont = new Font("Nunito SemiBold", Font.PLAIN, 13);
+        addUserItem.setFont(menuFont);
+        editProfileItem.setFont(menuFont);
+
+        // Set icons for menu items
+        FlatSVGIcon addUserIcon = new FlatSVGIcon("lk/com/pos/icon/user-add.svg", 16, 16);
+        FlatSVGIcon editProfileIcon = new FlatSVGIcon("lk/com/pos/icon/user-edit.svg", 16, 16);
+
+        // Set initial icon colors
+        addUserIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return new Color(0x666666);
+            }
+        });
+        editProfileIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return new Color(0x666666);
+            }
+        });
+
+        addUserItem.setIcon(addUserIcon);
+        editProfileItem.setIcon(editProfileIcon);
+
+        // Set initial backgrounds and make sure they're opaque
+        addUserItem.setBackground(Color.WHITE);
+        editProfileItem.setBackground(Color.WHITE);
+        addUserItem.setForeground(Color.BLACK);
+        editProfileItem.setForeground(Color.BLACK);
+        addUserItem.setOpaque(true);
+        editProfileItem.setOpaque(true);
+
+        // FIXED: Use a single MouseAdapter instance for both items to track state properly
+        MouseAdapter menuItemHoverHandler = new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                JMenuItem item = (JMenuItem) e.getSource();
+                // Force set colors directly
+                item.setBackground(new Color(0xE8F4FD));
+                item.setForeground(new Color(0x12B5A6));
+
+                // Update icon color
+                Icon icon = item.getIcon();
+                if (icon instanceof FlatSVGIcon) {
+                    FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
+                    svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return new Color(0x12B5A6);
+                        }
+                    });
+                }
+                item.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                JMenuItem item = (JMenuItem) e.getSource();
+                // Force reset colors directly
+                item.setBackground(Color.WHITE);
+                item.setForeground(Color.BLACK);
+
+                // Reset icon color
+                Icon icon = item.getIcon();
+                if (icon instanceof FlatSVGIcon) {
+                    FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
+                    svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return new Color(0x666666);
+                        }
+                    });
+                }
+                item.repaint();
+            }
+        };
+
+        // Add hover listeners to both items
+        addUserItem.addMouseListener(menuItemHoverHandler);
+        editProfileItem.addMouseListener(menuItemHoverHandler);
+
+        // Add action listeners
+        addUserItem.addActionListener(e -> {
+            addNewUser();
+        });
+
+        editProfileItem.addActionListener(e -> {
+            editProfile();
+        });
+
+        // Add items to popup menu
+        profilePopup.add(addUserItem);
+        profilePopup.add(editProfileItem);
+
+        // Setup profile button to toggle popup on click
+        profileBtn.addActionListener(e -> toggleProfilePopup());
+
+        // FIXED: Add proper popup listener to reset everything when popup opens
+        profilePopup.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                // Reset ALL properties when popup opens
+                resetAllMenuItemsCompletely();
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                // Reset ALL properties when popup closes
+                resetAllMenuItemsCompletely();
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+                resetAllMenuItemsCompletely();
+            }
+        });
+    }
+
+// FIXED: Completely reset all menu item properties
+    private void resetAllMenuItemsCompletely() {
+        for (Component comp : profilePopup.getComponents()) {
+            if (comp instanceof JMenuItem) {
+                JMenuItem item = (JMenuItem) comp;
+
+                // Reset background and foreground
+                item.setBackground(Color.WHITE);
+                item.setForeground(Color.BLACK);
+
+                // Reset icon color
+                Icon icon = item.getIcon();
+                if (icon instanceof FlatSVGIcon) {
+                    FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
+                    svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                        @Override
+                        public Color filter(Color color) {
+                            return new Color(0x666666);
+                        }
+                    });
+                }
+
+                // Force repaint
+                item.repaint();
+            }
+        }
+    }
+
+    private void toggleProfilePopup() {
+        if (profilePopup != null) {
+            if (profilePopup.isVisible()) {
+                profilePopup.setVisible(false);
+            } else {
+                showProfilePopup();
+            }
+        }
+    }
+
+    private void showProfilePopup() {
+        if (profilePopup != null) {
+            // Reset everything before showing
+            resetAllMenuItemsCompletely();
+
+            // Calculate position relative to the profile button
+            Point buttonLoc = profileBtn.getLocationOnScreen();
+            int x = buttonLoc.x - (profilePopup.getPreferredSize().width - profileBtn.getWidth()) / 2;
+            int y = buttonLoc.y + profileBtn.getHeight();
+
+            profilePopup.setLocation(x, y);
+            profilePopup.setVisible(true);
+            profilePopup.setInvoker(profileBtn);
+        }
+    }
+
+    private void addNewUser() {
+        // TODO: Implement add new user functionality
+        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Add New User feature coming soon!");
+        System.out.println("Add New User clicked");
+
+        // Close the popup
+        if (profilePopup != null) {
+            profilePopup.setVisible(false);
+        }
+    }
+
+    private void editProfile() {
+        // TODO: Implement edit profile functionality
+        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Edit Profile feature coming soon!");
+        System.out.println("Edit Profile clicked");
+
+        // Close the popup
+        if (profilePopup != null) {
+            profilePopup.setVisible(false);
         }
     }
 
@@ -1493,106 +1812,104 @@ public class HomeScreen extends JFrame {
 
         Session session = Session.getInstance();
 
-    if (session.getUserId() == 0 || session.getRoleName() == null) {
-        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No active session found! You are not logged in.");
-        return;
-    }
-
-    int option = JOptionPane.showConfirmDialog(
-            this,
-            "Are you sure you want to log out, " + session.getRoleName() + "?",
-            "Confirm Logout",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE
-    );
-
-    if (option == JOptionPane.YES_OPTION) {
-        try {
-            // Get user details for logout message
-            String userName = "";
-            String roleName = session.getRoleName();
-            
-            // Get username from database
-            ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + session.getUserId());
-            if (rs.next()) {
-                userName = rs.getString("name");
-            }
-            rs.close();
-            
-            // Create logout success message with username and role
-            String logoutMessage = userName + "(" + roleName + ") logged out successfully";
-            int massageId = 0;
-
-            // Check if message already exists in massage table
-            ResultSet checkRs = MySQL.executeSearch("SELECT massage_id FROM massage WHERE massage = '" + logoutMessage + "'");
-            if (checkRs.next()) {
-                // Message exists, get the existing massage_id
-                massageId = checkRs.getInt("massage_id");
-               
-            } else {
-                // Message doesn't exist, insert new message
-                MySQL.executeIUD("INSERT INTO massage (massage) VALUES ('" + logoutMessage + "')");
-                
-                // Get the generated massage_id
-                ResultSet generatedRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as new_id");
-                if (generatedRs.next()) {
-                    massageId = generatedRs.getInt("new_id");
-                    
-                }
-                generatedRs.close();
-            }
-            checkRs.close();
-
-            // Insert into notifocation table
-            if (massageId > 0) {
-                MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, " + massageId + ")");
-                
-            }
-
-            // Clear session
-            session.clear();
-
-            // Stop timers
-            if (clockTimer != null && clockTimer.isRunning()) {
-                clockTimer.stop();
-            }
-
-            // Show success message
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
-
-            // Close current window
-            this.dispose();
-
-            // Exit application
-            System.exit(0);
-
-        } catch (SQLException e) {
-
-            
-
-            e.printStackTrace();
-            
-            // Clear session even if notification fails
-            session.clear();
-            
-            // Stop timers
-            if (clockTimer != null && clockTimer.isRunning()) {
-                clockTimer.stop();
-            }
-            
-            // Show success message
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
-
-            // Close current window
-            this.dispose();
-
-            // Exit application
-            System.exit(0);
+        if (session.getUserId() == 0 || session.getRoleName() == null) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No active session found! You are not logged in.");
+            return;
         }
-    } else {
-        // User cancelled logout
-        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Logout cancelled.");
-    }
+
+        int option = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to log out, " + session.getRoleName() + "?",
+                "Confirm Logout",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (option == JOptionPane.YES_OPTION) {
+            try {
+                // Get user details for logout message
+                String userName = "";
+                String roleName = session.getRoleName();
+
+                // Get username from database
+                ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + session.getUserId());
+                if (rs.next()) {
+                    userName = rs.getString("name");
+                }
+                rs.close();
+
+                // Create logout success message with username and role
+                String logoutMessage = userName + "(" + roleName + ") logged out successfully";
+                int massageId = 0;
+
+                // Check if message already exists in massage table
+                ResultSet checkRs = MySQL.executeSearch("SELECT massage_id FROM massage WHERE massage = '" + logoutMessage + "'");
+                if (checkRs.next()) {
+                    // Message exists, get the existing massage_id
+                    massageId = checkRs.getInt("massage_id");
+
+                } else {
+                    // Message doesn't exist, insert new message
+                    MySQL.executeIUD("INSERT INTO massage (massage) VALUES ('" + logoutMessage + "')");
+
+                    // Get the generated massage_id
+                    ResultSet generatedRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as new_id");
+                    if (generatedRs.next()) {
+                        massageId = generatedRs.getInt("new_id");
+
+                    }
+                    generatedRs.close();
+                }
+                checkRs.close();
+
+                // Insert into notifocation table
+                if (massageId > 0) {
+                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, " + massageId + ")");
+
+                }
+
+                // Clear session
+                session.clear();
+
+                // Stop timers
+                if (clockTimer != null && clockTimer.isRunning()) {
+                    clockTimer.stop();
+                }
+
+                // Show success message
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
+
+                // Close current window
+                this.dispose();
+
+                // Exit application
+                System.exit(0);
+
+            } catch (SQLException e) {
+
+                e.printStackTrace();
+
+                // Clear session even if notification fails
+                session.clear();
+
+                // Stop timers
+                if (clockTimer != null && clockTimer.isRunning()) {
+                    clockTimer.stop();
+                }
+
+                // Show success message
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
+
+                // Close current window
+                this.dispose();
+
+                // Exit application
+                System.exit(0);
+            }
+        } else {
+            // User cancelled logout
+            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Logout cancelled.");
+        }
     }//GEN-LAST:event_signOutBtnActionPerformed
 
     /**
@@ -1604,7 +1921,14 @@ public class HomeScreen extends JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new HomeScreen().setVisible(true);
+                Session session = Session.getInstance();
+                if (session.getUserId() == 0 || session.getRoleName() == null) {
+                    // Session invalid, go directly to login
+                    new LogIn().setVisible(true);
+                } else {
+                    // Session valid, create HomeScreen
+                    new HomeScreen().setVisible(true);
+                }
             }
         });
     }

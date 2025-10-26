@@ -22,6 +22,7 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.plaf.basic.BasicMenuItemUI;
 import lk.com.pos.connection.MySQL;
+import lk.com.pos.dialog.AddNewUser;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.posPanel;
@@ -1278,11 +1279,11 @@ public class HomeScreen extends JFrame {
     }
 
     private void addNewUser() {
-        // TODO: Implement add new user functionality
-        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Add New User feature coming soon!");
-        System.out.println("Add New User clicked");
-
-        // Close the popup
+// From your main form or any other component
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        AddNewUser dialog = new AddNewUser(parentFrame, true);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
         if (profilePopup != null) {
             profilePopup.setVisible(false);
         }

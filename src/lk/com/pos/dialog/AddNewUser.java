@@ -4,238 +4,121 @@ import com.formdev.flatlaf.FlatLightLaf;
 import lk.com.pos.validation.Validater;
 import lk.com.pos.connection.MySQL;
 import java.sql.ResultSet;
-import javax.swing.JOptionPane;
+import javax.swing.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import javax.swing.DefaultComboBoxModel;
 import java.util.Vector;
 import raven.toast.Notifications;
-import javax.swing.ImageIcon;
-import java.awt.Image;
 
-/**
- *
- * @author moham
- */
 public class AddNewUser extends javax.swing.JDialog {
 
-    // Track password visibility state
-    private boolean isPasswordVisible = false;
-    private boolean isConfirmPasswordVisible = false;
-    
-    // Store scaled icons
-    private ImageIcon eyeClosedIcon;
-    private ImageIcon eyeOpenIcon;
+    // ---------------- PASSWORD TOGGLE ----------------
+    private boolean passwordVisible = false;
+    private boolean confirmPasswordVisible = false;
 
-    /**
-     * Creates new form AddNewUser
-     */
+    private final Icon eyeOpenIcon = new ImageIcon(getClass().getResource("/lk/com/pos/icons/eye-open.png"));
+    private final Icon eyeClosedIcon = new ImageIcon(getClass().getResource("/lk/com/pos/icons/eye-closed.png"));
+
+    // ---------------- CONSTRUCTOR ----------------
     public AddNewUser(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
-        initComponents();
+        initComponents(); // NetBeans-generated
+
         loadUserRoles();
-        loadIcons();
-        setupPasswordToggleButtons();
-    }
 
-    /**
-     * Load and prepare icons
-     */
-    private void loadIcons() {
-        try {
-            // Try loading PNG icons first (recommended)
-            java.net.URL eyeClosedUrl = getClass().getResource("/lk/com/pos/icon/eye-closed.png");
-            java.net.URL eyeOpenUrl = getClass().getResource("/lk/com/pos/icon/eye-open.png");
-            
-            // If PNG not found, try SVG
-            if (eyeClosedUrl == null) {
-                eyeClosedUrl = getClass().getResource("/lk/com/pos/icon/eye-closed.svg");
-            }
-            if (eyeOpenUrl == null) {
-                eyeOpenUrl = getClass().getResource("/lk/com/pos/icon/eye-open.svg");
-            }
-            
-            if (eyeClosedUrl != null && eyeOpenUrl != null) {
-                // Load and scale icons
-                ImageIcon originalClosed = new ImageIcon(eyeClosedUrl);
-                ImageIcon originalOpen = new ImageIcon(eyeOpenUrl);
-                
-                // Scale to 20x20
-                Image scaledClosed = originalClosed.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
-                Image scaledOpen = originalOpen.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
-                
-                eyeClosedIcon = new ImageIcon(scaledClosed);
-                eyeOpenIcon = new ImageIcon(scaledOpen);
-                
-                System.out.println("Icons loaded successfully from: " + eyeClosedUrl);
-            } else {
-                System.out.println("Icon files not found. Using fallback.");
-                createFallbackIcons();
-            }
-        } catch (Exception e) {
-            System.out.println("Error loading icons: " + e.getMessage());
-            e.printStackTrace();
-            createFallbackIcons();
-        }
-    }
-    
-    /**
-     * Create simple fallback icons if files not found
-     */
-    private void createFallbackIcons() {
-        // Create simple icons programmatically
-        int size = 20;
-        
-        // Eye closed icon (simple circle)
-        java.awt.image.BufferedImage closedImg = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-        java.awt.Graphics2D g2d = closedImg.createGraphics();
-        g2d.setColor(java.awt.Color.GRAY);
-        g2d.fillOval(2, 2, 16, 16);
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.fillOval(7, 7, 6, 6);
-        g2d.dispose();
-        eyeClosedIcon = new ImageIcon(closedImg);
-        
-        // Eye open icon (simple circle with line)
-        java.awt.image.BufferedImage openImg = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-        g2d = openImg.createGraphics();
-        g2d.setColor(java.awt.Color.GRAY);
-        g2d.fillOval(2, 2, 16, 16);
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.fillOval(7, 7, 6, 6);
-        g2d.setColor(java.awt.Color.RED);
-        g2d.setStroke(new java.awt.BasicStroke(2));
-        g2d.drawLine(2, 18, 18, 2);
-        g2d.dispose();
-        eyeOpenIcon = new ImageIcon(openImg);
-    }
-
-    /**
-     * Setup password toggle buttons with icons and styling
-     */
-    private void setupPasswordToggleButtons() {
-        // Setup password eye button
+        // Initialize eye buttons
         passwordEyeButton.setIcon(eyeClosedIcon);
-        passwordEyeButton.setText("");
-        passwordEyeButton.setBorderPainted(false);
-        passwordEyeButton.setContentAreaFilled(false);
-        passwordEyeButton.setFocusPainted(false);
-        passwordEyeButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        passwordEyeButton.setToolTipText("Show/Hide Password");
-
-        // Setup confirm password eye button
         confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+        passwordEyeButton.setText("");
         confirmPasswordEyeButton.setText("");
-        confirmPasswordEyeButton.setBorderPainted(false);
-        confirmPasswordEyeButton.setContentAreaFilled(false);
-        confirmPasswordEyeButton.setFocusPainted(false);
-        confirmPasswordEyeButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        confirmPasswordEyeButton.setToolTipText("Show/Hide Password");
+
+        // Add toggle listeners
+        passwordEyeButton.addActionListener(evt -> togglePasswordVisibility());
+        confirmPasswordEyeButton.addActionListener(evt -> toggleConfirmPasswordVisibility());
     }
 
-    /**
-     * Toggle password visibility
-     */
+    // ---------------- PASSWORD TOGGLE METHODS ----------------
     private void togglePasswordVisibility() {
-        isPasswordVisible = !isPasswordVisible;
-        if (isPasswordVisible) {
-            passwordField.setEchoChar((char) 0); // Show password
-            passwordEyeButton.setIcon(eyeOpenIcon);
-        } else {
-            passwordField.setEchoChar('•'); // Hide password
+        if (passwordVisible) {
+            passwordField.setEchoChar('•');
             passwordEyeButton.setIcon(eyeClosedIcon);
-        }
-    }
-
-    /**
-     * Toggle confirm password visibility
-     */
-    private void toggleConfirmPasswordVisibility() {
-        isConfirmPasswordVisible = !isConfirmPasswordVisible;
-        if (isConfirmPasswordVisible) {
-            confirmPasswordField.setEchoChar((char) 0); // Show password
-            confirmPasswordEyeButton.setIcon(eyeOpenIcon);
         } else {
-            confirmPasswordField.setEchoChar('•'); // Hide password
-            confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+            passwordField.setEchoChar((char) 0);
+            passwordEyeButton.setIcon(eyeOpenIcon);
         }
+        passwordVisible = !passwordVisible;
     }
 
-    /**
-     * Load user roles into the combo box from database using your preferred
-     * structure
-     */
+    private void toggleConfirmPasswordVisibility() {
+        if (confirmPasswordVisible) {
+            confirmPasswordField.setEchoChar('•');
+            confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+        } else {
+            confirmPasswordField.setEchoChar((char) 0);
+            confirmPasswordEyeButton.setIcon(eyeOpenIcon);
+        }
+        confirmPasswordVisible = !confirmPasswordVisible;
+    }
+
+    // ---------------- DATABASE & VALIDATION ----------------
     private void loadUserRoles() {
         try {
             ResultSet rs = MySQL.executeSearch("SELECT * FROM role");
-            Vector<String> userRoles = new Vector();
+            Vector<String> userRoles = new Vector<>();
             userRoles.add("Select User Role");
-
             while (rs.next()) {
-                String roleName = rs.getString("role_name");
-                userRoles.add(roleName);
+                userRoles.add(rs.getString("role_name"));
             }
-
-            DefaultComboBoxModel dcm = new DefaultComboBoxModel(userRoles);
+            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(userRoles);
             userRoleCombo.setModel(dcm);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error loading user roles: " + e.getMessage());
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error loading user roles: " + e.getMessage());
         }
     }
 
-    /**
-     * Validate and format username - remove spaces and convert to lowercase
-     */
     private String formatUsername(String username) {
-        // Remove all spaces and convert to lowercase
         return username.replaceAll("\\s+", "").toLowerCase();
     }
 
-    /**
-     * Validate all input fields
-     */
     private boolean validateInputs() {
-        // Get and format username
+        // Format username
         String rawUsername = userNameField.getText().trim();
         String formattedUsername = formatUsername(rawUsername);
-
-        // Set the formatted username back to the field
         if (!rawUsername.equals(formattedUsername)) {
             userNameField.setText(formattedUsername);
         }
 
-        // Validate username
         if (!Validater.isInputFieldValid(formattedUsername)) {
             userNameField.requestFocus();
             return false;
         }
 
-        // Check if username already exists
         if (isUsernameExists(formattedUsername)) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Username '" + formattedUsername + "' already exists! Please choose a different username.");
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Username '" + formattedUsername + "' already exists! Please choose a different username.");
             userNameField.requestFocus();
             userNameField.selectAll();
             return false;
         }
 
-        // Validate password
         String password = new String(passwordField.getPassword());
         if (!Validater.isPasswordValid(password)) {
             passwordField.requestFocus();
             return false;
         }
 
-        // Validate confirm password
         String confirmPassword = new String(confirmPasswordField.getPassword());
         if (!password.equals(confirmPassword)) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Password and Confirm Password do not match!");
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Password and Confirm Password do not match!");
             confirmPasswordField.requestFocus();
             return false;
         }
 
-        // Validate user role selection
         if (userRoleCombo.getSelectedIndex() == 0) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a user role");
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please select a user role");
             userRoleCombo.requestFocus();
             return false;
         }
@@ -243,41 +126,32 @@ public class AddNewUser extends javax.swing.JDialog {
         return true;
     }
 
-    /**
-     * Check if username already exists in database
-     */
     private boolean isUsernameExists(String username) {
         try {
-            String query = "SELECT COUNT(*) as count FROM user WHERE name = '" + username + "'";
-            ResultSet rs = MySQL.executeSearch(query);
+            ResultSet rs = MySQL.executeSearch("SELECT COUNT(*) as count FROM user WHERE name='" + username + "'");
             if (rs.next()) {
                 return rs.getInt("count") > 0;
             }
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error checking username: " + e.getMessage());
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error checking username: " + e.getMessage());
         }
         return false;
     }
 
-    /**
-     * Get role_id from role_name
-     */
     private int getRoleId(String roleName) {
         try {
-            String query = "SELECT role_id FROM role WHERE role_name = '" + roleName + "'";
-            ResultSet rs = MySQL.executeSearch(query);
+            ResultSet rs = MySQL.executeSearch("SELECT role_id FROM role WHERE role_name='" + roleName + "'");
             if (rs.next()) {
                 return rs.getInt("role_id");
             }
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error getting role ID: " + e.getMessage());
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error getting role ID: " + e.getMessage());
         }
         return -1;
     }
 
-    /**
-     * Hash password for security
-     */
     private String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -285,78 +159,59 @@ public class AddNewUser extends javax.swing.JDialog {
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
+                if (hex.length() == 1) hexString.append('0');
                 hexString.append(hex);
             }
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Password encryption error: " + e.getMessage());
-            return password; // Fallback to plain text (not recommended for production)
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Password encryption error: " + e.getMessage());
+            return password; // fallback
         }
     }
 
-    /**
-     * Save new user to database
-     */
     private void saveUser() {
         try {
-            String rawUsername = userNameField.getText().trim();
-            String formattedUsername = formatUsername(rawUsername);
+            String formattedUsername = formatUsername(userNameField.getText().trim());
             String password = new String(passwordField.getPassword());
             String roleName = userRoleCombo.getSelectedItem().toString();
             int roleId = getRoleId(roleName);
 
             if (roleId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid role selected!");
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Invalid role selected!");
                 return;
             }
 
-            // Double check if username exists (in case of race condition)
             if (isUsernameExists(formattedUsername)) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Username '" + formattedUsername + "' already exists! Please choose a different username.");
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                        "Username '" + formattedUsername + "' already exists! Please choose a different username.");
                 userNameField.requestFocus();
                 userNameField.selectAll();
                 return;
             }
 
-            // Hash the password
             String hashedPassword = hashPassword(password);
+            MySQL.executeIUD("INSERT INTO user (name, password, role_id) VALUES ('"
+                    + formattedUsername + "', '" + hashedPassword + "', " + roleId + ")");
 
-            // Insert into database
-            String query = "INSERT INTO user (name, password, role_id) VALUES ('"
-                    + formattedUsername + "', '" + hashedPassword + "', " + roleId + ")";
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                    "User '" + formattedUsername + "' added successfully!");
 
-            MySQL.executeIUD(query);
-
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "User '" + formattedUsername + "' added successfully!");
-
-            // Clear form
             clearForm();
 
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving user: " + e.getMessage());
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error saving user: " + e.getMessage());
         }
     }
 
-    /**
-     * Clear all form fields
-     */
     private void clearForm() {
         userNameField.setText("");
         passwordField.setText("");
         confirmPasswordField.setText("");
         userRoleCombo.setSelectedIndex(0);
         userNameField.requestFocus();
-        
-        // Reset password visibility
-        isPasswordVisible = false;
-        isConfirmPasswordVisible = false;
-        passwordField.setEchoChar('•');
-        confirmPasswordField.setEchoChar('•');
-        passwordEyeButton.setIcon(eyeClosedIcon);
-        confirmPasswordEyeButton.setIcon(eyeClosedIcon);
     }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -423,12 +278,14 @@ public class AddNewUser extends javax.swing.JDialog {
             }
         });
 
+        confirmPasswordEyeButton.setText("botton");
         confirmPasswordEyeButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 confirmPasswordEyeButtonActionPerformed(evt);
             }
         });
 
+        passwordEyeButton.setText("buttom");
         passwordEyeButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 passwordEyeButtonActionPerformed(evt);
@@ -455,13 +312,15 @@ public class AddNewUser extends javax.swing.JDialog {
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                             .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(confirmPasswordField, javax.swing.GroupLayout.DEFAULT_SIZE, 367, Short.MAX_VALUE)
-                                .addComponent(passwordField))
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(passwordField, javax.swing.GroupLayout.DEFAULT_SIZE, 317, Short.MAX_VALUE)
+                                .addComponent(confirmPasswordField))
+                            .addGap(18, 18, 18)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                                .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)))))
+                                .addComponent(passwordEyeButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addGroup(jPanel1Layout.createSequentialGroup()
+                                    .addGap(0, 0, Short.MAX_VALUE)
+                                    .addComponent(confirmPasswordEyeButton))))))
                 .addGap(22, 22, 22))
         );
         jPanel1Layout.setVerticalGroup(
@@ -525,11 +384,11 @@ public class AddNewUser extends javax.swing.JDialog {
     }//GEN-LAST:event_confirmPasswordFieldActionPerformed
 
     private void passwordEyeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_passwordEyeButtonActionPerformed
-       togglePasswordVisibility();
+
     }//GEN-LAST:event_passwordEyeButtonActionPerformed
 
     private void confirmPasswordEyeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_confirmPasswordEyeButtonActionPerformed
-        toggleConfirmPasswordVisibility();
+
     }//GEN-LAST:event_confirmPasswordEyeButtonActionPerformed
 
     /**

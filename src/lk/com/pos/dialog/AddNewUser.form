@@ -61,14 +61,17 @@
                               <Component id="addBtn" min="-2" pref="110" max="-2" attributes="0"/>
                           </Group>
                           <Group type="102" alignment="0" attributes="0">
-                              <Group type="103" groupAlignment="1" max="-2" attributes="0">
-                                  <Component id="confirmPasswordField" pref="367" max="32767" attributes="0"/>
-                                  <Component id="passwordField" max="32767" attributes="0"/>
+                              <Group type="103" groupAlignment="0" max="-2" attributes="0">
+                                  <Component id="passwordField" pref="317" max="32767" attributes="0"/>
+                                  <Component id="confirmPasswordField" max="32767" attributes="0"/>
                               </Group>
-                              <EmptySpace max="-2" attributes="0"/>
+                              <EmptySpace type="separate" max="-2" attributes="0"/>
                               <Group type="103" groupAlignment="0" attributes="0">
-                                  <Component id="passwordEyeButton" pref="0" max="32767" attributes="0"/>
-                                  <Component id="confirmPasswordEyeButton" pref="0" max="32767" attributes="0"/>
+                                  <Component id="passwordEyeButton" max="32767" attributes="0"/>
+                                  <Group type="102" attributes="0">
+                                      <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
+                                      <Component id="confirmPasswordEyeButton" min="-2" max="-2" attributes="0"/>
+                                  </Group>
                               </Group>
                           </Group>
                       </Group>
@@ -225,11 +228,17 @@
           </Events>
         </Component>
         <Component class="javax.swing.JButton" name="confirmPasswordEyeButton">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="botton"/>
+          </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="confirmPasswordEyeButtonActionPerformed"/>
           </Events>
         </Component>
         <Component class="javax.swing.JButton" name="passwordEyeButton">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="buttom"/>
+          </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="passwordEyeButtonActionPerformed"/>
           </Events>

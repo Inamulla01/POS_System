@@ -12,9 +12,9 @@ import lk.com.pos.dialog.AddNewProduct1;
 import lk.com.pos.dialog.PrintProductLabel;
 
 
-public class ProductPanel1 extends javax.swing.JPanel {
+public class ProductPanel extends javax.swing.JPanel {
 
-    public ProductPanel1() {
+    public ProductPanel() {
         initComponents();
 
         // FIXED: Ensure scroll pane is properly configured

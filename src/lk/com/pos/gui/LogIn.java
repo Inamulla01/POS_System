@@ -12,11 +12,27 @@ import java.awt.Font;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
+import java.sql.Connection;
+import java.sql.SQLException;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
+import lk.com.pos.connection.MySQL;
+import lk.com.pos.util.AppIconUtil;
+import raven.toast.Notifications;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import lk.com.pos.session.Session;
 
 public class LogIn extends javax.swing.JFrame {
+
+    // ---------------- PASSWORD TOGGLE ----------------
+    private boolean passwordVisible = false;
+    private Icon eyeOpenIcon;
+    private Icon eyeClosedIcon;
 
     public LogIn() {
         initComponents();
@@ -24,6 +40,31 @@ public class LogIn extends javax.swing.JFrame {
     }
 
     public void init() {
+        AppIconUtil.applyIcon(this);
+
+        // Load eye icons
+        try {
+            ImageIcon eyeOpen = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-open.png"));
+            ImageIcon eyeClosed = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-closed.png"));
+
+            // Resize icons
+            int iconSize = 20;
+            eyeOpenIcon = new ImageIcon(eyeOpen.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+            eyeClosedIcon = new ImageIcon(eyeClosed.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+
+            // Set initial icon
+            passwordEyeButton.setIcon(eyeClosedIcon);
+
+            // Remove button borders and background
+            passwordEyeButton.setBorderPainted(false);
+            passwordEyeButton.setContentAreaFilled(false);
+            passwordEyeButton.setFocusPainted(false);
+            passwordEyeButton.setText("");
+
+        } catch (Exception e) {
+            System.out.println("Eye icons not found, using default button");
+        }
+
         try {
             FlatSVGIcon loginImage = new FlatSVGIcon("lk/com/pos/img/login.svg", 300, 300);
             logInImg.setIcon(loginImage);
@@ -46,7 +87,7 @@ public class LogIn extends javax.swing.JFrame {
         loginBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
         loginBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-// Override paint behavior using BasicButtonUI
+        // Override paint behavior using BasicButtonUI
         loginBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
             @Override
             public void paint(Graphics g, javax.swing.JComponent c) {
@@ -63,13 +104,46 @@ public class LogIn extends javax.swing.JFrame {
                 // Draw gradient
                 GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
                 g2.setPaint(gp);
-                g2.fillRoundRect(0, 0, w, h, 8, 8);
+                g2.fillRoundRect(0, 0, w, h, 5, 5);
 
                 // Draw button text
                 super.paint(g, c);
             }
         });
 
+    }
+
+    // ---------------- PASSWORD TOGGLE METHOD ----------------
+    private void togglePasswordVisibility() {
+        if (passwordVisible) {
+            password.setEchoChar('•');
+            passwordEyeButton.setIcon(eyeClosedIcon);
+        } else {
+            password.setEchoChar((char) 0);
+            passwordEyeButton.setIcon(eyeOpenIcon);
+        }
+        passwordVisible = !passwordVisible;
+    }
+
+    // ---------------- PASSWORD HASHING METHOD ----------------
+    private String hashPassword(String password) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Password encryption error: " + e.getMessage());
+            return password; // fallback
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -80,42 +154,45 @@ public class LogIn extends javax.swing.JFrame {
         jPanel1 = new javax.swing.JPanel();
         logInImg = new javax.swing.JLabel();
         jLabel1 = new javax.swing.JLabel();
-        jTextField1 = new javax.swing.JTextField();
+        userName = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
-        jPasswordField1 = new javax.swing.JPasswordField();
+        password = new javax.swing.JPasswordField();
         loginBtn = new javax.swing.JButton();
         userIcon = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
+        passwordEyeButton = new javax.swing.JButton();
 
         jLabel3.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jLabel3.setText("User Name");
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("LogIn Page");
+        setFocusTraversalPolicyProvider(true);
         setResizable(false);
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jLabel1.setText("User Name");
+        jLabel1.setText("User Name *");
 
-        jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jTextField1.setToolTipText("");
-        jTextField1.setPreferredSize(new java.awt.Dimension(64, 30));
-        jTextField1.addActionListener(new java.awt.event.ActionListener() {
+        userName.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        userName.setToolTipText("");
+        userName.setPreferredSize(new java.awt.Dimension(64, 30));
+        userName.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jTextField1ActionPerformed(evt);
+                userNameActionPerformed(evt);
             }
         });
 
         jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jLabel2.setText("Password");
+        jLabel2.setText("Password *");
 
-        jPasswordField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jPasswordField1.setToolTipText("");
-        jPasswordField1.setPreferredSize(new java.awt.Dimension(64, 30));
-        jPasswordField1.addActionListener(new java.awt.event.ActionListener() {
+        password.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        password.setToolTipText("");
+        password.setPreferredSize(new java.awt.Dimension(64, 30));
+        password.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jPasswordField1ActionPerformed(evt);
+                passwordActionPerformed(evt);
             }
         });
 
@@ -123,12 +200,24 @@ public class LogIn extends javax.swing.JFrame {
         loginBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         loginBtn.setText("Log-in");
         loginBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        loginBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                loginBtnActionPerformed(evt);
+            }
+        });
 
         userIcon.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
 
         jLabel4.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jLabel4.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel4.setText("Copyright © 2025 Avinam Global. All rights reserved.");
+
+        passwordEyeButton.setText("buttom");
+        passwordEyeButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                passwordEyeButtonActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -141,10 +230,13 @@ public class LogIn extends javax.swing.JFrame {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(jLabel1)
                     .addComponent(jLabel2)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jPasswordField1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(userName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(loginBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(userIcon, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(userIcon, javax.swing.GroupLayout.PREFERRED_SIZE, 256, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(password, javax.swing.GroupLayout.PREFERRED_SIZE, 225, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap(28, Short.MAX_VALUE))
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
@@ -166,11 +258,13 @@ public class LogIn extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jLabel1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(userName, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jLabel2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jPasswordField1, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(password, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(passwordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(loginBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(72, 72, 72))))
@@ -191,13 +285,132 @@ public class LogIn extends javax.swing.JFrame {
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jPasswordField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jPasswordField1ActionPerformed
+    private void passwordActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_passwordActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_jPasswordField1ActionPerformed
+    }//GEN-LAST:event_passwordActionPerformed
 
-    private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
+    private void userNameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_userNameActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_jTextField1ActionPerformed
+    }//GEN-LAST:event_userNameActionPerformed
+
+    private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
+        String username = userName.getText().trim();
+        String passwordText = String.valueOf(this.password.getPassword()).trim();
+
+        if (username.isEmpty() || passwordText.isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
+            return;
+        }
+
+        Connection con = null;
+        PreparedStatement pst = null;
+        ResultSet rs = null;
+        PreparedStatement pstCheckMessage = null;
+        PreparedStatement pstInsertMessage = null;
+        PreparedStatement pstNotification = null;
+
+        try {
+            // Hash the password before comparing
+            String hashedPassword = hashPassword(passwordText);
+
+            con = MySQL.getConnection();
+            String sql = "SELECT u.user_id, u.name, r.role_name "
+                    + "FROM user u "
+                    + "INNER JOIN role r ON u.role_id = r.role_id "
+                    + "WHERE u.name = ? AND u.password = ?";
+            pst = con.prepareStatement(sql);
+            pst.setString(1, username);
+            pst.setString(2, hashedPassword); // Use hashed password
+            rs = pst.executeQuery();
+
+            if (rs.next()) {
+                int userId = rs.getInt("user_id");
+                String roleName = rs.getString("role_name");
+                String userName = rs.getString("name");
+
+                // Store session data
+                Session.getInstance().setSession(userId, roleName);
+
+                // Create login success message with username and role
+                String loginMessage = userName + "(" + roleName + ") logged in successfully";
+                int massageId = 0;
+
+                // Check if message already exists
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstCheckMessage = con.prepareStatement(checkMessageSql);
+                pstCheckMessage.setString(1, loginMessage);
+                ResultSet rsMessage = pstCheckMessage.executeQuery();
+
+                if (rsMessage.next()) {
+                    // Message exists, get the existing massage_id
+                    massageId = rsMessage.getInt("massage_id");
+                } else {
+                    // Message doesn't exist, insert new message
+                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                    pstInsertMessage = con.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                    pstInsertMessage.setString(1, loginMessage);
+                    pstInsertMessage.executeUpdate();
+
+                    // Get the generated massage_id
+                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        massageId = generatedKeys.getInt(1);
+                    }
+                    generatedKeys.close();
+                }
+                rsMessage.close();
+
+                // Insert into notification table
+                if (massageId > 0) {
+                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, ?)";
+                    pstNotification = con.prepareStatement(notificationSql);
+                    pstNotification.setInt(1, massageId);
+                    pstNotification.executeUpdate();
+                }
+
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successful");
+
+                this.dispose();
+                new HomeScreen().setVisible(true);
+
+            } else {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Unexpected error: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        } finally {
+            // Close all resources
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pst != null) {
+                    pst.close();
+                }
+                if (pstCheckMessage != null) {
+                    pstCheckMessage.close();
+                }
+                if (pstInsertMessage != null) {
+                    pstInsertMessage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+                // DON'T close the connection here to keep it in pool
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }//GEN-LAST:event_loginBtnActionPerformed
+
+    private void passwordEyeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_passwordEyeButtonActionPerformed
+        togglePasswordVisibility();
+    }//GEN-LAST:event_passwordEyeButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -217,10 +430,11 @@ public class LogIn extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JPasswordField jPasswordField1;
-    private javax.swing.JTextField jTextField1;
     private javax.swing.JLabel logInImg;
     private javax.swing.JButton loginBtn;
+    private javax.swing.JPasswordField password;
+    private javax.swing.JButton passwordEyeButton;
     private javax.swing.JLabel userIcon;
+    private javax.swing.JTextField userName;
     // End of variables declaration//GEN-END:variables
 }

@@ -1,12 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package lk.com.pos.session;
 
 public class Session {
     private static Session instance;
-    private String email;
+    private int userId;
+    private String roleName;
 
     private Session() {}
 
@@ -17,16 +14,21 @@ public class Session {
         return instance;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-
+    public void setSession(int userId, String roleName) {
+        this.userId = userId;
+        this.roleName = roleName;
     }
 
-    public String getEmail() {
-        return email;
+    public int getUserId() {
+        return userId;
+    }
+
+    public String getRoleName() {
+        return roleName;
     }
 
     public void clear() {
-        email = null;
+        userId = 0;
+        roleName = null;
     }
 }

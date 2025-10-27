@@ -4,32 +4,228 @@
  */
 package lk.com.pos.dialog;
 
+import lk.com.pos.connection.MySQL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Date;
+import raven.toast.Notifications;
+
 /**
  *
  * @author Hirun
  */
 public class UpdateCustomer extends javax.swing.JDialog {
 
+    private int customerId;
+    
     /**
      * Creates new form UpdateCustomer
      */
     public UpdateCustomer(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
+        setLocationRelativeTo(parent);
     }
+    
+    // Constructor with customer ID to load data
+    public UpdateCustomer(java.awt.Frame parent, boolean modal, int customerId) {
+        super(parent, modal);
+        this.customerId = customerId;
+        initComponents();
+        setLocationRelativeTo(parent);
+        loadCustomerData();
+    }
+    
+    private void loadCustomerData() {
+        try {
+            Connection conn = MySQL.getConnection();
+            String sql = "SELECT * FROM credit_customer WHERE customer_id = ?";
+            PreparedStatement pst = conn.prepareStatement(sql);
+            pst.setInt(1, customerId);
+            ResultSet rs = pst.executeQuery();
+            
+            if (rs.next()) {
+                jTextField1.setText(rs.getString("customer_name"));
+                jTextField2.setText(rs.getString("customer_phone_no"));
+                jTextField3.setText(rs.getString("customer_address"));
+                jTextField4.setText(String.valueOf(rs.getDouble("customer_amount_due")));
+                
+                // Handle null credit price
+                double creditPrice = rs.getDouble("credit_price");
+                if (!rs.wasNull()) {
+                    jTextField5.setText(String.valueOf(creditPrice));
+                } else {
+                    jTextField5.setText("0");
+                }
+                
+                jTextField6.setText(rs.getString("nic"));
+                jDateChooser3.setDate(rs.getDate("credit_date"));
+                jDateChooser2.setDate(rs.getDate("final_date"));
+            }
+            
+            rs.close();
+            pst.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error loading customer data: " + e.getMessage());
+        }
+    }
+    
+    private boolean isValidSriLankanMobile(String mobile) {
+        // Remove any spaces or dashes
+        String cleanedMobile = mobile.replaceAll("[\\s-]", "");
+        
+        // Use your exact regex pattern for Sri Lankan mobile validation
+        if (!cleanedMobile.matches("^(0{1})(7{1})([0|1|2|4|5|6|7|8]{1})([0-9]{7})$")) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please enter a valid Sri Lankan mobile number (10 digits starting with 07)");
+            return false;
+        }
+        return true;
+    }
+    
+    private boolean isCustomerNameExists(String name) {
+        try {
+            Connection conn = MySQL.getConnection();
+            String sql = "SELECT COUNT(*) FROM credit_customer WHERE customer_name = ? AND customer_id != ?";
+            PreparedStatement pst = conn.prepareStatement(sql);
+            pst.setString(1, name);
+            pst.setInt(2, customerId);
+            ResultSet rs = pst.executeQuery();
+            
+            if (rs.next() && rs.getInt(1) > 0) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                        "Customer name already exists!");
+                return true;
+            }
+            
+            rs.close();
+            pst.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    private boolean isValidAmount(String amount) {
+        try {
+            double amt = Double.parseDouble(amount);
+            if (amt < 0) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                        "Amount cannot be negative!");
+                return false;
+            }
+            return true;
+        } catch (NumberFormatException e) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please enter a valid amount!");
+            return false;
+        }
+    }
+    
+    private void updateCustomer() {
+        String name = jTextField1.getText().trim();
+        String mobile = jTextField2.getText().trim();
+        String address = jTextField3.getText().trim();
+        String amountDue = jTextField4.getText().trim();
+        String creditPrice = jTextField5.getText().trim();
+        Date creditGivenDate = jDateChooser3.getDate();
+        Date finalDate = jDateChooser2.getDate();
 
-    /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
-     */
+        // Basic validation
+        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty() || amountDue.isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please fill all required fields!");
+            return;
+        }
+
+        // Validate dates
+        if (creditGivenDate == null || finalDate == null) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please select both dates!");
+            return;
+        }
+
+        // Validate Sri Lankan mobile number
+        if (!isValidSriLankanMobile(mobile)) {
+            jTextField2.requestFocus();
+            return;
+        }
+
+        // Check if customer name already exists (excluding current customer)
+        if (isCustomerNameExists(name)) {
+            jTextField1.requestFocus();
+            return;
+        }
+
+        // Validate amounts
+        if (!isValidAmount(amountDue)) {
+            jTextField4.requestFocus();
+            return;
+        }
+
+        // Validate credit price
+        if (!creditPrice.isEmpty() && !isValidAmount(creditPrice)) {
+            jTextField5.requestFocus();
+            return;
+        }
+
+        // Check if final date is after credit given date
+        if (finalDate.before(creditGivenDate)) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Final date must be after credit given date!");
+            jDateChooser2.requestFocus();
+            return;
+        }
+
+        try {
+            Connection conn = MySQL.getConnection();
+            String sql = "UPDATE credit_customer SET customer_name = ?, customer_phone_no = ?, customer_address = ?, customer_amount_due = ?, credit_price = ?, credit_date = ?, final_date = ? WHERE customer_id = ?";
+            
+            PreparedStatement pst = conn.prepareStatement(sql);
+            pst.setString(1, name);
+            pst.setString(2, mobile);
+            pst.setString(3, address);
+            pst.setDouble(4, Double.parseDouble(amountDue));
+            
+            // Handle credit price
+            if (creditPrice.isEmpty()) {
+                pst.setNull(5, java.sql.Types.DOUBLE);
+            } else {
+                pst.setDouble(5, Double.parseDouble(creditPrice));
+            }
+            
+            pst.setDate(6, new java.sql.Date(creditGivenDate.getTime()));
+            pst.setDate(7, new java.sql.Date(finalDate.getTime()));
+            pst.setInt(8, customerId);
+            
+            int rowsAffected = pst.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                    "Customer updated successfully!");
+                this.dispose(); // Close the dialog after successful update
+            } else {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Failed to update customer!");
+            }
+            
+            pst.close();
+            
+        } catch (NumberFormatException | SQLException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Database error: " + e.getMessage());
+        }
+    }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
         buttonGroup1 = new javax.swing.ButtonGroup();
         jPanel1 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
         jTextField1 = new javax.swing.JTextField();
         jTextField2 = new javax.swing.JTextField();
         jTextField3 = new javax.swing.JTextField();
@@ -37,18 +233,16 @@ public class UpdateCustomer extends javax.swing.JDialog {
         jDateChooser2 = new com.toedter.calendar.JDateChooser();
         jButton2 = new javax.swing.JButton();
         jButton1 = new javax.swing.JButton();
-        jSeparator1 = new javax.swing.JSeparator();
+        jDateChooser3 = new com.toedter.calendar.JDateChooser();
+        jTextField5 = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
-        jRadioButton1 = new javax.swing.JRadioButton();
-        jRadioButton2 = new javax.swing.JRadioButton();
+        jSeparator2 = new javax.swing.JSeparator();
+        jTextField6 = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setResizable(false);
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
-
-        jLabel1.setFont(new java.awt.Font("Nunito SemiBold", 1, 18)); // NOI18N
-        jLabel1.setText("Update Customer");
 
         jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
         jTextField1.setText("Nimal Jayarathne");
@@ -83,6 +277,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
         });
 
         jDateChooser2.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Final Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        jDateChooser2.setOpaque(false);
         jDateChooser2.setPreferredSize(new java.awt.Dimension(106, 40));
 
         jButton2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
@@ -95,33 +290,39 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
         jButton1.setBackground(new java.awt.Color(115, 230, 203));
         jButton1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jButton1.setText("Add Customer");
+        jButton1.setText("Update");
         jButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton1ActionPerformed(evt);
             }
         });
 
-        jSeparator1.setBackground(new java.awt.Color(0, 0, 0));
-        jSeparator1.setForeground(new java.awt.Color(0, 0, 0));
-        jSeparator1.setFont(new java.awt.Font("Segoe UI", 1, 18)); // NOI18N
+        jDateChooser3.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Credit Given *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        jDateChooser3.setOpaque(false);
+        jDateChooser3.setPreferredSize(new java.awt.Dimension(106, 40));
 
-        jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        jLabel2.setText("Status");
-
-        jRadioButton1.setFont(new java.awt.Font("Nunito SemiBold", 0, 13)); // NOI18N
-        jRadioButton1.setText("Active");
-        jRadioButton1.addActionListener(new java.awt.event.ActionListener() {
+        jTextField5.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        jTextField5.setText("10000");
+        jTextField5.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Credit Price *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        jTextField5.setPreferredSize(new java.awt.Dimension(64, 40));
+        jTextField5.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jRadioButton1ActionPerformed(evt);
+                jTextField5ActionPerformed(evt);
             }
         });
 
-        jRadioButton2.setFont(new java.awt.Font("Nunito SemiBold", 0, 13)); // NOI18N
-        jRadioButton2.setText("Inactive");
-        jRadioButton2.addActionListener(new java.awt.event.ActionListener() {
+        jLabel2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
+        jLabel2.setForeground(new java.awt.Color(8, 147, 176));
+        jLabel2.setText("Edit Customer");
+
+        jSeparator2.setForeground(new java.awt.Color(0, 137, 176));
+
+        jTextField6.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        jTextField6.setText("200530100534");
+        jTextField6.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "NIC  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        jTextField6.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jRadioButton2ActionPerformed(evt);
+                jTextField6ActionPerformed(evt);
             }
         });
 
@@ -130,74 +331,70 @@ public class UpdateCustomer extends javax.swing.JDialog {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(18, 18, 18)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 186, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap()
+                .addGap(21, 21, 21)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 192, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jTextField2))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                .addGap(0, 0, Short.MAX_VALUE)
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jTextField3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 436, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                        .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 94, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 147, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 425, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addGroup(jPanel1Layout.createSequentialGroup()
-                                        .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 197, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 216, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addGap(0, 0, Short.MAX_VALUE)))
-                        .addContainerGap())
+                        .addComponent(jLabel2)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(6, 6, 6)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jRadioButton1)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                                .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 218, Short.MAX_VALUE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jRadioButton2))
-                            .addComponent(jLabel2))
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                                .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 216, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(jTextField3)
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(jTextField4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jDateChooser3, javax.swing.GroupLayout.DEFAULT_SIZE, 216, Short.MAX_VALUE))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jTextField5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addGroup(jPanel1Layout.createSequentialGroup()
+                                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                                .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 94, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                                .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                            .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 218, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addGap(0, 0, Short.MAX_VALUE))))
+                            .addComponent(jTextField6, javax.swing.GroupLayout.Alignment.LEADING))
+                        .addGap(21, 21, 21))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 5, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(5, 5, 5)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 47, Short.MAX_VALUE)
-                    .addComponent(jTextField4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(24, 24, 24)
                 .addComponent(jLabel2)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(3, 3, 3)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jTextField6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jRadioButton1)
-                    .addComponent(jRadioButton2))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jDateChooser3, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap())
+                .addGap(21, 21, 21))
         );
+
+        jDateChooser3.getAccessibleContext().setAccessibleName("Loan Date *");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -222,24 +419,24 @@ public class UpdateCustomer extends javax.swing.JDialog {
     }//GEN-LAST:event_jTextField3ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        // TODO add your handling code here:
+       this.dispose();
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        // TODO add your handling code here:
+        updateCustomer();
     }//GEN-LAST:event_jButton1ActionPerformed
-
-    private void jRadioButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton1ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jRadioButton1ActionPerformed
-
-    private void jRadioButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton2ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jRadioButton2ActionPerformed
 
     private void jTextField4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField4ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_jTextField4ActionPerformed
+
+    private void jTextField5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField5ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField5ActionPerformed
+
+    private void jTextField6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField6ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField6ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -288,15 +485,15 @@ public class UpdateCustomer extends javax.swing.JDialog {
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private com.toedter.calendar.JDateChooser jDateChooser2;
-    private javax.swing.JLabel jLabel1;
+    private com.toedter.calendar.JDateChooser jDateChooser3;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JRadioButton jRadioButton1;
-    private javax.swing.JRadioButton jRadioButton2;
-    private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JSeparator jSeparator2;
     private javax.swing.JTextField jTextField1;
     private javax.swing.JTextField jTextField2;
     private javax.swing.JTextField jTextField3;
     private javax.swing.JTextField jTextField4;
+    private javax.swing.JTextField jTextField5;
+    private javax.swing.JTextField jTextField6;
     // End of variables declaration//GEN-END:variables
 }

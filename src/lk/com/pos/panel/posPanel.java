@@ -147,7 +147,7 @@ class RoundBorder extends javax.swing.border.AbstractBorder {
     }
 }
 
-public class POSPanel2 extends javax.swing.JPanel implements CartListener {
+public class posPanel extends javax.swing.JPanel implements CartListener {
     
     @Override
     public void onCartUpdated(double total, int itemCount) {
@@ -170,7 +170,7 @@ public class POSPanel2 extends javax.swing.JPanel implements CartListener {
 
     private PosCartPanel posCartPanel;
     
-    public POSPanel2() {
+    public posPanel() {
         initComponents();
         init();
         // Use invokeLater to ensure component is fully laid out before loading products

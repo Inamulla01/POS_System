@@ -4,6 +4,10 @@
  */
 package lk.com.pos.panel;
 
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+import lk.com.pos.dialog.AddSupplier;
+
 /**
  *
  * @author HP
@@ -76,6 +80,11 @@ public class SupplierPanel extends javax.swing.JPanel {
         jButton1.setBackground(new java.awt.Color(204, 204, 204));
         jButton1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
         jButton1.setText("Add Supplier");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
 
         jPanel2.setBackground(new java.awt.Color(204, 255, 255));
 
@@ -166,6 +175,13 @@ public class SupplierPanel extends javax.swing.JPanel {
                 .addGap(0, 209, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        AddSupplier dialog = new AddSupplier(parentFrame, true);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
+    }//GEN-LAST:event_jButton1ActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

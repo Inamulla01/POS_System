@@ -9,7 +9,7 @@ public class MySQL {
 
     private static final String DATABASE = "POS_System";
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "Inamulla2005#";
+    private static final String PASSWORD = "Pasindu@2005";
     private static Connection connection;
 
     static {

@@ -9,7 +9,7 @@ import java.awt.event.MouseEvent;
 import lk.com.pos.panel.CustomerManagement;
 import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.POSPanel2;
-import lk.com.pos.panel.ProductPanel;
+import lk.com.pos.panel.ProductPanel1;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
 import lk.com.pos.util.AppIconUtil;
@@ -35,7 +35,7 @@ public class HomeScreen extends JFrame {
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
     private CustomerManagement customerManagementPanel;
-    private ProductPanel productPanel;
+    private ProductPanel1 productPanel;
     private CardLayout contentPanelLayout;
 
     // Current active button
@@ -127,7 +127,7 @@ public class HomeScreen extends JFrame {
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerManagement();
-        this.productPanel = new ProductPanel();
+        this.productPanel = new ProductPanel1();
 
         // Add panels to card layout
         this.cardPanel.add(dashboardPanel, "dashboard_panel");

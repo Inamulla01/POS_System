@@ -1,4 +1,4 @@
-package classbutton1;
+package lk.com.pos.privateclasses;
 
 import java.awt.*;
 import javax.swing.*;

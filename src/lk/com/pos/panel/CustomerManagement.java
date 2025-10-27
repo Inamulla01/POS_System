@@ -1,10 +1,11 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JPanel.java to edit this template
- */
 package lk.com.pos.panel;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import lk.com.pos.privateclasses.RoundedPanel;
 
 /**
  *
@@ -17,18 +18,127 @@ public class CustomerManagement extends javax.swing.JPanel {
      */
     public CustomerManagement() {
         initComponents();
-        FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 22, 22);
+        
+        // Load icons
+        loadIcons();
+        
+        // Configure the rounded panel
+        configureRoundedPanel();
+        
+        // Remove button borders
+        removeButtonBorders();
+        
+        // Setup hover effects
+        setupHoverEffects();
+    }
+    
+    private void loadIcons() {
+        FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 20, 20);
         editButton.setIcon(blueEdit);
-        FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 22, 22);
+        
+        FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 20, 20);
         deleteButton.setIcon(redDelete);
-        FlatSVGIcon telephone = new FlatSVGIcon("lk/com/pos/icon/telephone.svg", 30, 30);
-        this.telephone.setIcon(telephone);
+        
+        FlatSVGIcon telephone = new FlatSVGIcon("lk/com/pos/icon/telephone.svg", 20, 20);
+        telephone1.setIcon(telephone);
+        
         FlatSVGIcon address = new FlatSVGIcon("lk/com/pos/icon/address.svg", 20, 20);
-        this.address.setIcon(address);
+        address1.setIcon(address);
+        
         FlatSVGIcon date = new FlatSVGIcon("lk/com/pos/icon/date.svg", 20, 20);
-        this.date.setIcon(date);
+        date1.setIcon(date);
+        
         FlatSVGIcon loan = new FlatSVGIcon("lk/com/pos/icon/money-bag.svg", 20, 20);
-        this.loan.setIcon(loan);
+        loan1.setIcon(loan);
+    }
+    
+    private void configureRoundedPanel() {
+        // Configure the rounded panel appearance
+        roundedPanel1.setCornerRadius(12);
+        roundedPanel1.setBackgroundColor(Color.WHITE);
+        // No border - just rounded corners
+        roundedPanel1.setBorderThickness(0);
+    }
+    
+    private void removeButtonBorders() {
+        // Edit and Delete buttons (icon only, circular style)
+        editButton.setBorderPainted(false);
+        editButton.setContentAreaFilled(false);
+        editButton.setFocusPainted(false);
+        editButton.setBackground(new Color(59, 130, 246));
+        editButton.setOpaque(false);
+
+        deleteButton.setBorderPainted(false);
+        deleteButton.setContentAreaFilled(false);
+        deleteButton.setFocusPainted(false);
+        deleteButton.setBackground(new Color(239, 68, 68));
+        deleteButton.setOpaque(false);
+
+        // Icon buttons (non-clickable, just decorative)
+        telephone1.setBorderPainted(false);
+        telephone1.setContentAreaFilled(false);
+        telephone1.setFocusPainted(false);
+        telephone1.setEnabled(false);
+
+        address1.setBorderPainted(false);
+        address1.setContentAreaFilled(false);
+        address1.setFocusPainted(false);
+        address1.setEnabled(false);
+
+        date1.setBorderPainted(false);
+        date1.setContentAreaFilled(false);
+        date1.setFocusPainted(false);
+        date1.setEnabled(false);
+
+        loan1.setBorderPainted(false);
+        loan1.setContentAreaFilled(false);
+        loan1.setFocusPainted(false);
+        loan1.setEnabled(false);
+    }
+    
+    private void setupHoverEffects() {
+        // Card hover effect
+        roundedPanel1.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                roundedPanel1.setBackgroundColor(new Color(248, 250, 252));
+                roundedPanel1.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                roundedPanel1.setBackgroundColor(Color.WHITE);
+                roundedPanel1.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+        });
+
+        // Edit button hover effect (blue)
+        setupButtonHoverEffect(editButton, new Color(59, 130, 246), new Color(37, 99, 235));
+        
+        // Delete button hover effect (red)
+        setupButtonHoverEffect(deleteButton, new Color(239, 68, 68), new Color(220, 38, 38));
+        
+        // Add Customer button hover effect (green)
+        setupButtonHoverEffect(addCustomerButton, new Color(115, 230, 203), new Color(16, 185, 129));
+    }
+    
+    private void setupButtonHoverEffect(javax.swing.JButton button, Color normalColor, Color hoverColor) {
+        button.setBackground(normalColor);
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (button.isEnabled()) {
+                    button.setBackground(hoverColor);
+                    button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(normalColor);
+                button.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+        });
     }
 
     /**
@@ -47,21 +157,20 @@ public class CustomerManagement extends javax.swing.JPanel {
         jPanel1 = new javax.swing.JPanel();
         jTextField1 = new javax.swing.JTextField();
         addCustomerButton = new javax.swing.JButton();
-        jPanel2 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
-        jLabel2 = new javax.swing.JLabel();
-        jLabel5 = new javax.swing.JLabel();
-        jLabel6 = new javax.swing.JLabel();
-        jLabel7 = new javax.swing.JLabel();
-        jLabel8 = new javax.swing.JLabel();
-        jLabel9 = new javax.swing.JLabel();
+        roundedPanel1 = new lk.com.pos.privateclasses.RoundedPanel();
+        jLabel3 = new javax.swing.JLabel();
+        jLabel11 = new javax.swing.JLabel();
+        jLabel12 = new javax.swing.JLabel();
+        jLabel13 = new javax.swing.JLabel();
+        telephone1 = new javax.swing.JButton();
+        address1 = new javax.swing.JButton();
+        jLabel14 = new javax.swing.JLabel();
+        date1 = new javax.swing.JButton();
+        jLabel15 = new javax.swing.JLabel();
+        loan1 = new javax.swing.JButton();
+        jLabel16 = new javax.swing.JLabel();
         editButton = new javax.swing.JButton();
         deleteButton = new javax.swing.JButton();
-        jLabel10 = new javax.swing.JLabel();
-        telephone = new javax.swing.JButton();
-        address = new javax.swing.JButton();
-        date = new javax.swing.JButton();
-        loan = new javax.swing.JButton();
 
         jMenu1.setText("File");
         jMenuBar1.add(jMenu1);
@@ -84,29 +193,40 @@ public class CustomerManagement extends javax.swing.JPanel {
             }
         });
 
-        jPanel2.setBackground(new java.awt.Color(255, 255, 255));
-        jPanel2.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        jLabel3.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        jLabel3.setText("Nimal  Jayarathne");
 
-        jLabel1.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        jLabel1.setText("Nimal  Jayarathne");
+        jLabel11.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        jLabel11.setForeground(new java.awt.Color(255, 0, 0));
+        jLabel11.setText("Deactive");
 
-        jLabel2.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        jLabel12.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        jLabel12.setForeground(new java.awt.Color(0, 204, 51));
+        jLabel12.setText("Active");
 
-        jLabel5.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        jLabel5.setText("Colombo 8");
+        jLabel13.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        jLabel13.setText("0771234567");
 
-        jLabel6.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        jLabel6.setText("0771234567");
+        telephone1.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        telephone1.setBorder(null);
 
-        jLabel7.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        jLabel7.setText("05/12/2025");
+        address1.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        address1.setBorder(null);
 
-        jLabel8.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        jLabel8.setText("10000");
+        jLabel14.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        jLabel14.setText("Colombo 8");
 
-        jLabel9.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        jLabel9.setForeground(new java.awt.Color(0, 204, 51));
-        jLabel9.setText("Active");
+        date1.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        date1.setBorder(null);
+
+        jLabel15.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        jLabel15.setText("05/12/2025");
+
+        loan1.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
+        loan1.setBorder(null);
+
+        jLabel16.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        jLabel16.setText("10000");
 
         editButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         editButton.setBorder(null);
@@ -119,96 +239,78 @@ public class CustomerManagement extends javax.swing.JPanel {
         deleteButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
         deleteButton.setBorder(null);
 
-        jLabel10.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        jLabel10.setForeground(new java.awt.Color(255, 0, 0));
-        jLabel10.setText("Deactive");
-
-        telephone.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        telephone.setBorder(null);
-
-        address.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        address.setBorder(null);
-
-        date.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        date.setBorder(null);
-
-        loan.setFont(new java.awt.Font("Nunito SemiBold", 0, 12)); // NOI18N
-        loan.setBorder(null);
-
-        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
-        jPanel2.setLayout(jPanel2Layout);
-        jPanel2Layout.setHorizontalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel2Layout.createSequentialGroup()
-                .addGap(17, 17, 17)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(loan, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(telephone, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel7)
-                            .addComponent(jLabel5)
-                            .addComponent(jLabel6)))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel1)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGap(17, 17, 17)
-                                .addComponent(jLabel9)
-                                .addGap(18, 18, 18)
-                                .addComponent(jLabel10)))
-                        .addGap(24, 24, 24)
-                        .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
-        );
-        jPanel2Layout.setVerticalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel2Layout.createSequentialGroup()
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jLabel1)
-                                .addGap(0, 9, Short.MAX_VALUE)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(jLabel9)
-                                    .addComponent(jLabel10)))))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(12, 12, 12)
-                        .addComponent(jLabel2)))
+        javax.swing.GroupLayout roundedPanel1Layout = new javax.swing.GroupLayout(roundedPanel1);
+        roundedPanel1.setLayout(roundedPanel1Layout);
+        roundedPanel1Layout.setHorizontalGroup(
+            roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, roundedPanel1Layout.createSequentialGroup()
+                .addContainerGap(36, Short.MAX_VALUE)
+                .addComponent(jLabel3)
                 .addGap(18, 18, 18)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(telephone, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel6))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jLabel5)
-                    .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(date, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel7, javax.swing.GroupLayout.Alignment.TRAILING))
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(15, 15, 15)
-                        .addComponent(jLabel8))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(loan, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap())
+                .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20))
+            .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(roundedPanel1Layout.createSequentialGroup()
+                    .addGap(38, 38, 38)
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(roundedPanel1Layout.createSequentialGroup()
+                            .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(address1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(date1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(loan1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(telephone1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel16, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(jLabel15)
+                                .addComponent(jLabel14)
+                                .addComponent(jLabel13)))
+                        .addGroup(roundedPanel1Layout.createSequentialGroup()
+                            .addGap(17, 17, 17)
+                            .addComponent(jLabel12)
+                            .addGap(18, 18, 18)
+                            .addComponent(jLabel11)))
+                    .addContainerGap(131, Short.MAX_VALUE)))
+        );
+        roundedPanel1Layout.setVerticalGroup(
+            roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(roundedPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jLabel3)
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(deleteButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(editButton, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(182, Short.MAX_VALUE))
+            .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(roundedPanel1Layout.createSequentialGroup()
+                    .addContainerGap(41, Short.MAX_VALUE)
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jLabel12)
+                        .addComponent(jLabel11))
+                    .addGap(18, 18, 18)
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(telephone1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jLabel13))
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(jLabel14)
+                        .addComponent(address1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(date1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jLabel15, javax.swing.GroupLayout.Alignment.TRAILING))
+                    .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(roundedPanel1Layout.createSequentialGroup()
+                            .addGap(15, 15, 15)
+                            .addComponent(jLabel16))
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, roundedPanel1Layout.createSequentialGroup()
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(loan1, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addContainerGap()))
         );
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -219,7 +321,7 @@ public class CustomerManagement extends javax.swing.JPanel {
                 .addGap(15, 15, 15)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(roundedPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -237,9 +339,9 @@ public class CustomerManagement extends javax.swing.JPanel {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGap(20, 20, 20)
                         .addComponent(addCustomerButton, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(101, 101, 101)
-                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(621, Short.MAX_VALUE))
+                .addGap(82, 82, 82)
+                .addComponent(roundedPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(645, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(jPanel1);
@@ -269,26 +371,25 @@ public class CustomerManagement extends javax.swing.JPanel {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addCustomerButton;
-    private javax.swing.JButton address;
-    private javax.swing.JButton date;
+    private javax.swing.JButton address1;
+    private javax.swing.JButton date1;
     private javax.swing.JButton deleteButton;
     private javax.swing.JButton editButton;
-    private javax.swing.JLabel jLabel1;
-    private javax.swing.JLabel jLabel10;
-    private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel5;
-    private javax.swing.JLabel jLabel6;
-    private javax.swing.JLabel jLabel7;
-    private javax.swing.JLabel jLabel8;
-    private javax.swing.JLabel jLabel9;
+    private javax.swing.JLabel jLabel11;
+    private javax.swing.JLabel jLabel12;
+    private javax.swing.JLabel jLabel13;
+    private javax.swing.JLabel jLabel14;
+    private javax.swing.JLabel jLabel15;
+    private javax.swing.JLabel jLabel16;
+    private javax.swing.JLabel jLabel3;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JPanel jPanel2;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextField jTextField1;
-    private javax.swing.JButton loan;
-    private javax.swing.JButton telephone;
+    private javax.swing.JButton loan1;
+    private lk.com.pos.privateclasses.RoundedPanel roundedPanel1;
+    private javax.swing.JButton telephone1;
     // End of variables declaration//GEN-END:variables
 }

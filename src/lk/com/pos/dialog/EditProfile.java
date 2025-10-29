@@ -54,9 +54,7 @@ public class EditProfile extends javax.swing.JDialog {
             // Load SVG icons for eye open and closed with gray color
             eyeOpenIcon = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 25, 25);
 
-            
             eyeClosedIcon = new FlatSVGIcon("lk/com/pos/icon/eye-closed.svg", 25, 25);
-
 
             // Set initial icons
             newPasswordEyeButton.setIcon(eyeClosedIcon);
@@ -89,10 +87,10 @@ public class EditProfile extends javax.swing.JDialog {
 
         // Initially hide password fields
         setPasswordFieldsVisible(false);
-        
+
         // Set initial focus
         userRoleCombo.requestFocus();
-        
+
         // Set default size to (456, 300) as you requested
         setSize(456, 300);
         setMinimumSize(new java.awt.Dimension(456, 300));
@@ -561,6 +559,7 @@ public class EditProfile extends javax.swing.JDialog {
                 break;
         }
     }
+// Replace your current button navigation methods with these:
 
     private void handleRightArrow(java.awt.Component source) {
         if (source == userNameField) {
@@ -571,7 +570,7 @@ public class EditProfile extends javax.swing.JDialog {
             if (newPasswordField.isVisible()) {
                 newPasswordField.requestFocusInWindow();
             } else {
-                addBtn.requestFocusInWindow();
+                cancelBtn.requestFocusInWindow(); // Go to first button
             }
         } else if (source == newPasswordField) {
             newPasswordEyeButton.requestFocusInWindow();
@@ -580,19 +579,19 @@ public class EditProfile extends javax.swing.JDialog {
         } else if (source == confirmPasswordField) {
             confirmPasswordEyeButton.requestFocusInWindow();
         } else if (source == confirmPasswordEyeButton) {
-            addBtn.requestFocusInWindow();
-        } else if (source == addBtn) {
-            clearFormBtn.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
-            cancelBtn.requestFocusInWindow();
+            cancelBtn.requestFocusInWindow(); // Go to first button
         } else if (source == cancelBtn) {
-            userNameField.requestFocusInWindow();
+            clearFormBtn.requestFocusInWindow(); // Cancel -> Clear Form
+        } else if (source == clearFormBtn) {
+            addBtn.requestFocusInWindow(); // Clear Form -> Update
+        } else if (source == addBtn) {
+            userNameField.requestFocusInWindow(); // Update -> back to start
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
         if (source == userNameField) {
-            cancelBtn.requestFocusInWindow();
+            addBtn.requestFocusInWindow(); // Back to last button
         } else if (source == userRoleCombo) {
             userNameField.requestFocusInWindow();
         } else if (source == PasswordBtn) {
@@ -605,16 +604,16 @@ public class EditProfile extends javax.swing.JDialog {
             newPasswordEyeButton.requestFocusInWindow();
         } else if (source == confirmPasswordEyeButton) {
             confirmPasswordField.requestFocusInWindow();
-        } else if (source == addBtn) {
+        } else if (source == cancelBtn) {
             if (confirmPasswordField.isVisible()) {
                 confirmPasswordEyeButton.requestFocusInWindow();
             } else {
                 PasswordBtn.requestFocusInWindow();
             }
         } else if (source == clearFormBtn) {
-            addBtn.requestFocusInWindow();
-        } else if (source == cancelBtn) {
-            clearFormBtn.requestFocusInWindow();
+            cancelBtn.requestFocusInWindow(); // Clear Form -> Cancel
+        } else if (source == addBtn) {
+            clearFormBtn.requestFocusInWindow(); // Update -> Clear Form
         }
     }
 
@@ -627,28 +626,28 @@ public class EditProfile extends javax.swing.JDialog {
             if (newPasswordField.isVisible()) {
                 newPasswordField.requestFocusInWindow();
             } else {
-                addBtn.requestFocusInWindow();
+                cancelBtn.requestFocusInWindow();
             }
         } else if (source == newPasswordField) {
             confirmPasswordField.requestFocusInWindow();
         } else if (source == newPasswordEyeButton) {
             confirmPasswordField.requestFocusInWindow();
         } else if (source == confirmPasswordField) {
-            addBtn.requestFocusInWindow();
+            cancelBtn.requestFocusInWindow();
         } else if (source == confirmPasswordEyeButton) {
-            addBtn.requestFocusInWindow();
-        } else if (source == addBtn) {
-            clearFormBtn.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
-            userNameField.requestFocusInWindow();
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            addBtn.requestFocusInWindow();
+        } else if (source == addBtn) {
+            userNameField.requestFocusInWindow(); // Back to top
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
         if (source == userNameField) {
-            cancelBtn.requestFocusInWindow();
+            addBtn.requestFocusInWindow(); // Back to bottom
         } else if (source == userRoleCombo) {
             userNameField.requestFocusInWindow();
         } else if (source == PasswordBtn) {
@@ -661,15 +660,15 @@ public class EditProfile extends javax.swing.JDialog {
             newPasswordField.requestFocusInWindow();
         } else if (source == confirmPasswordEyeButton) {
             newPasswordField.requestFocusInWindow();
-        } else if (source == addBtn) {
+        } else if (source == cancelBtn) {
             if (confirmPasswordField.isVisible()) {
-                confirmPasswordField.requestFocusInWindow();
+                confirmPasswordEyeButton.requestFocusInWindow();
             } else {
                 PasswordBtn.requestFocusInWindow();
             }
         } else if (source == clearFormBtn) {
-            addBtn.requestFocusInWindow();
-        } else if (source == cancelBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == addBtn) {
             clearFormBtn.requestFocusInWindow();
         }
     }
@@ -843,7 +842,7 @@ public class EditProfile extends javax.swing.JDialog {
             newPasswordField.setText("");
             confirmPasswordField.setText("");
         }
-        
+
         // Force UI update
         revalidate();
         repaint();
@@ -859,7 +858,7 @@ public class EditProfile extends javax.swing.JDialog {
         } else {
             setSize(456, 300); // Default height
         }
-        
+
         // Center the dialog after resizing
         setLocationRelativeTo(getParent());
     }

@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
- */
 package lk.com.pos.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
@@ -12,20 +8,22 @@ import java.awt.Font;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
+import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
 import java.sql.Connection;
 import java.sql.SQLException;
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JOptionPane;
+import javax.swing.KeyStroke;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.util.AppIconUtil;
 import raven.toast.Notifications;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import lk.com.pos.session.Session;
+import java.awt.event.KeyEvent;
 
 public class LogIn extends javax.swing.JFrame {
 
@@ -42,15 +40,11 @@ public class LogIn extends javax.swing.JFrame {
     public void init() {
         AppIconUtil.applyIcon(this);
 
-        // Load eye icons
+        // Load SVG eye icons
         try {
-            ImageIcon eyeOpen = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-open.png"));
-            ImageIcon eyeClosed = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-closed.png"));
-
-            // Resize icons
-            int iconSize = 20;
-            eyeOpenIcon = new ImageIcon(eyeOpen.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
-            eyeClosedIcon = new ImageIcon(eyeClosed.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+            // Load SVG icons for eye open and closed
+            eyeOpenIcon = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 25, 25);
+            eyeClosedIcon = new FlatSVGIcon("lk/com/pos/icon/eye-closed.svg", 25, 25);
 
             // Set initial icon
             passwordEyeButton.setIcon(eyeClosedIcon);
@@ -62,7 +56,9 @@ public class LogIn extends javax.swing.JFrame {
             passwordEyeButton.setText("");
 
         } catch (Exception e) {
-            System.out.println("Eye icons not found, using default button");
+            System.out.println("SVG eye icons not found: " + e.getMessage());
+            // Fallback to text if icons are not available
+            passwordEyeButton.setText("👁");
         }
 
         try {
@@ -84,7 +80,7 @@ public class LogIn extends javax.swing.JFrame {
         loginBtn.setFocusPainted(false);
         loginBtn.setBorderPainted(false);
         loginBtn.setForeground(Color.WHITE);
-        loginBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        loginBtn.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         loginBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         // Override paint behavior using BasicButtonUI
@@ -111,6 +107,253 @@ public class LogIn extends javax.swing.JFrame {
             }
         });
 
+        // Setup keyboard navigation
+        setupFocusTraversal();
+        setupButtonStyles();
+        
+        // Set initial focus
+        userName.requestFocus();
+    }
+
+    private void setupFocusTraversal() {
+        // Create focus traversal order
+        java.util.List<java.awt.Component> order = java.util.Arrays.asList(
+            userName,
+            password,
+            passwordEyeButton,
+            loginBtn
+        );
+
+        // Set focus traversal keys
+        setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
+        setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
+
+        // Add comprehensive key navigation
+        setupArrowKeyNavigation();
+        addEnterKeyNavigation();
+
+        // Add ESC key to close
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                System.exit(0);
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Setup tooltips
+        userName.setToolTipText("Type username and press ENTER to move to password field");
+        password.setToolTipText("Type password and press ENTER to move to eye button");
+        passwordEyeButton.setToolTipText("Press ENTER or SPACE to toggle password visibility");
+        loginBtn.setToolTipText("Press ENTER to login");
+    }
+
+    private void setupArrowKeyNavigation() {
+        // Add arrow key navigation to all components
+        userName.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, userName);
+            }
+        });
+
+        password.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, password);
+            }
+        });
+
+        passwordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, passwordEyeButton);
+            }
+        });
+
+        loginBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, loginBtn);
+            }
+        });
+    }
+
+    private void handleArrowNavigation(java.awt.event.KeyEvent evt, java.awt.Component source) {
+        switch (evt.getKeyCode()) {
+            case KeyEvent.VK_RIGHT:
+                handleRightArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_LEFT:
+                handleLeftArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_DOWN:
+                handleDownArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_UP:
+                handleUpArrow(source);
+                evt.consume();
+                break;
+        }
+    }
+
+    private void handleRightArrow(java.awt.Component source) {
+        if (source == userName) {
+            password.requestFocusInWindow();
+        } else if (source == password) {
+            passwordEyeButton.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            loginBtn.requestFocusInWindow();
+        } else if (source == loginBtn) {
+            userName.requestFocusInWindow();
+        }
+    }
+
+    private void handleLeftArrow(java.awt.Component source) {
+        if (source == userName) {
+            loginBtn.requestFocusInWindow();
+        } else if (source == password) {
+            userName.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            password.requestFocusInWindow();
+        } else if (source == loginBtn) {
+            passwordEyeButton.requestFocusInWindow();
+        }
+    }
+
+    private void handleDownArrow(java.awt.Component source) {
+        if (source == userName) {
+            password.requestFocusInWindow();
+        } else if (source == password) {
+            passwordEyeButton.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            loginBtn.requestFocusInWindow();
+        } else if (source == loginBtn) {
+            userName.requestFocusInWindow();
+        }
+    }
+
+    private void handleUpArrow(java.awt.Component source) {
+        if (source == userName) {
+            loginBtn.requestFocusInWindow();
+        } else if (source == password) {
+            userName.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            password.requestFocusInWindow();
+        } else if (source == loginBtn) {
+            passwordEyeButton.requestFocusInWindow();
+        }
+    }
+
+    private void addEnterKeyNavigation() {
+        // Map components to their next focus targets for Enter key
+        java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
+        enterNavigationMap.put(userName, password);
+        enterNavigationMap.put(password, passwordEyeButton);
+        enterNavigationMap.put(passwordEyeButton, loginBtn);
+        enterNavigationMap.put(loginBtn, userName);
+
+        // Add key listeners to all components
+        for (java.awt.Component component : enterNavigationMap.keySet()) {
+            component.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override
+                public void keyPressed(java.awt.event.KeyEvent evt) {
+                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                        java.awt.Component nextComponent = enterNavigationMap.get(component);
+                        if (nextComponent != null) {
+                            nextComponent.requestFocusInWindow();
+                        }
+                        evt.consume();
+                    }
+                }
+            });
+        }
+
+        // Special handling for password eye button - also trigger toggle on Enter
+        passwordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    togglePasswordVisibility();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_SPACE) {
+                    togglePasswordVisibility();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Special handling for login button - trigger login on Enter
+        loginBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    loginBtnActionPerformed(null);
+                    evt.consume();
+                }
+            }
+        });
+    }
+
+    private void setupButtonStyles() {
+        // Setup mouse listeners for eye button with SVG icon color change on hover/focus
+        passwordEyeButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                passwordEyeButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                // Change SVG icon color on hover
+                applyEyeButtonHoverEffect(true);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                applyEyeButtonHoverEffect(false);
+            }
+        });
+
+        // Setup focus listeners for eye button
+        passwordEyeButton.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                applyEyeButtonHoverEffect(true);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                applyEyeButtonHoverEffect(false);
+            }
+        });
+    }
+
+    private void applyEyeButtonHoverEffect(boolean active) {
+        try {
+            if (active) {
+                // Create blue tinted icons for hover/focus state
+                FlatSVGIcon eyeOpenHover = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 25, 25);
+                eyeOpenHover.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#0893B0")));
+                
+                FlatSVGIcon eyeClosedHover = new FlatSVGIcon("lk/com/pos/icon/eye-closed.svg", 25, 25);
+                eyeClosedHover.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#0893B0")));
+                
+                if (passwordVisible) {
+                    passwordEyeButton.setIcon(eyeOpenHover);
+                } else {
+                    passwordEyeButton.setIcon(eyeClosedHover);
+                }
+            } else {
+                // Reset to original icons
+                if (passwordVisible) {
+                    passwordEyeButton.setIcon(eyeOpenIcon);
+                } else {
+                    passwordEyeButton.setIcon(eyeClosedIcon);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error applying hover effect: " + e.getMessage());
+        }
     }
 
     // ---------------- PASSWORD TOGGLE METHOD ----------------
@@ -123,6 +366,11 @@ public class LogIn extends javax.swing.JFrame {
             passwordEyeButton.setIcon(eyeOpenIcon);
         }
         passwordVisible = !passwordVisible;
+        
+        // Re-apply hover effect if needed
+        if (passwordEyeButton.hasFocus()) {
+            applyEyeButtonHoverEffect(true);
+        }
     }
 
     // ---------------- PASSWORD HASHING METHOD ----------------

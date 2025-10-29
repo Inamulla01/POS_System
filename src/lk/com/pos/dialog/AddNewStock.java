@@ -2,7 +2,13 @@ package lk.com.pos.dialog;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
+import java.awt.RenderingHints;
 import lk.com.pos.connection.MySQL;
 
 import java.awt.event.KeyEvent;
@@ -13,6 +19,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
@@ -30,11 +37,6 @@ public class AddNewStock extends javax.swing.JDialog {
         initializeDialog();
         AutoCompleteDecorator.decorate(productNameCombo);
         AutoCompleteDecorator.decorate(SupplierCombo);
-        
-        FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 20, 20);
-        addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#CAF0F8")));
-        addNewProduct.setIcon(addIcon);
-
     }
 
     private void initializeDialog() {
@@ -73,11 +75,11 @@ public class AddNewStock extends javax.swing.JDialog {
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
-        quantityInput.setModel(new javax.swing.SpinnerNumberModel(1, 1, Integer.MAX_VALUE, 1));
+
         batchNoInput.setToolTipText("Batch number is auto-generated. Press F2 or Space to regenerate.");
         productNameCombo.setToolTipText("Use DOWN arrow to open dropdown, ENTER to select and move to next field");
         SupplierCombo.setToolTipText("Use DOWN arrow to open dropdown, ENTER to select and move to next field");
-        quantityInput.setToolTipText("Use UP/DOWN arrows to change quantity, ENTER to move to next field");
+        quantityInput.setToolTipText("Type quantity and press ENTER to move to next field");
         manufactureDate.setToolTipText("Type date in format dd/mm/yyyy then press ENTER");
         expriyDate.setToolTipText("Type date in format dd/mm/yyyy then press ENTER");
         addNewProduct.setToolTipText("Press ENTER to add new product, RIGHT arrow to go to add supplier");
@@ -91,8 +93,362 @@ public class AddNewStock extends javax.swing.JDialog {
         manufactureDate.getDateEditor().getUiComponent().setFocusable(true);
         expriyDate.getDateEditor().getUiComponent().setFocusable(true);
 
+        // Setup button styles with proper focus and hover effects
+        setupButtonStyles();
+
         // Setup proper date chooser navigation
         setupDateChooserNavigation();
+
+        // Set default quantity
+        quantityInput.setText("1");
+    }
+
+    private void setupGradientButton(JButton button) {
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setForeground(Color.decode("#0893B0"));
+        button.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, javax.swing.JComponent c) {
+                Graphics2D g2 = (Graphics2D) g;
+                int w = c.getWidth();
+                int h = c.getHeight();
+
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Check button state
+                boolean isHover = button.getModel().isRollover();
+                boolean isPressed = button.getModel().isPressed();
+                boolean isFocused = button.hasFocus();
+
+                // Default state - transparent with blue border
+                if (!isFocused && !isHover && !isPressed) {
+                    g2.setColor(new Color(0, 0, 0, 0)); // Transparent
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+
+                    // Draw border
+                    g2.setColor(Color.decode("#0893B0"));
+                    g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
+                } else {
+                    // Gradient colors for hover/focus/pressed state
+                    Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
+
+                    // Draw gradient
+                    GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
+                    g2.setPaint(gp);
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+                }
+
+                // Draw button text
+                super.paint(g, c);
+            }
+        });
+    }
+
+    private void applyGradientBackground(JButton button, boolean active) {
+        // This method is now redundant since the UI paints based on button state
+        button.repaint(); // Trigger repaint to show/hide gradient
+    }
+
+    private void setupButtonStyles() {
+        // Remove borders, backgrounds, and set hover effects for add buttons
+        addNewProduct.setBorderPainted(false);
+        addNewProduct.setContentAreaFilled(false);
+        addNewProduct.setFocusPainted(false);
+        addNewProduct.setOpaque(false);
+
+        addNewSupplier.setBorderPainted(false);
+        addNewSupplier.setContentAreaFilled(false);
+        addNewSupplier.setFocusPainted(false);
+        addNewSupplier.setOpaque(false);
+
+        // Create icons with original gray color for add buttons
+        FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+        addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+        addNewProduct.setIcon(addIcon);
+
+        FlatSVGIcon add1Icon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+        add1Icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+        addNewSupplier.setIcon(add1Icon);
+
+        // Setup gradient buttons
+        setupGradientButton(saveBtn);
+        setupGradientButton(clearFormBtn);
+        setupGradientButton(cancelBtn);
+
+        // Create icons with original blue color for action buttons
+        FlatSVGIcon add2Icon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+        add2Icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        saveBtn.setIcon(add2Icon);
+
+        FlatSVGIcon add3Icon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+        add3Icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        clearFormBtn.setIcon(add3Icon);
+
+        FlatSVGIcon add4Icon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+        add4Icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        cancelBtn.setIcon(add4Icon);
+
+        // Mouse listeners for saveBtn
+        saveBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                saveBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                saveBtn.setIcon(hoverIcon);
+                saveBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                saveBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                saveBtn.setIcon(normalIcon);
+                saveBtn.repaint();
+            }
+
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                saveBtn.setForeground(Color.WHITE);
+                FlatSVGIcon pressedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                pressedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                saveBtn.setIcon(pressedIcon);
+                saveBtn.repaint();
+            }
+
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                saveBtn.setForeground(Color.WHITE);
+                FlatSVGIcon releasedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                releasedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                saveBtn.setIcon(releasedIcon);
+                saveBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for clearFormBtn
+        clearFormBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(hoverIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                clearFormBtn.setIcon(normalIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon pressedIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                pressedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(pressedIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon releasedIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                releasedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(releasedIcon);
+                clearFormBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for cancelBtn
+        cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(hoverIcon);
+                cancelBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon pressedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                pressedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(pressedIcon);
+                cancelBtn.repaint();
+            }
+
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon releasedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                releasedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(releasedIcon);
+                cancelBtn.repaint();
+            }
+        });
+
+        // Focus listeners for saveBtn
+        saveBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                saveBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                saveBtn.setIcon(focusedIcon);
+                saveBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                saveBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                saveBtn.setIcon(normalIcon);
+                saveBtn.repaint();
+            }
+        });
+
+        // Focus listeners for clearFormBtn
+        clearFormBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(focusedIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                clearFormBtn.setIcon(normalIcon);
+                clearFormBtn.repaint();
+            }
+        });
+
+        // Focus listeners for cancelBtn
+        cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(focusedIcon);
+                cancelBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+
+        // Add mouse listeners for hover effects - gray background on hover, blue icon
+        addNewProduct.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0"))); // Blue
+                addNewProduct.setIcon(hoverIcon);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999"))); // Blue
+                addNewProduct.setIcon(normalIcon);
+            }
+
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon pressedIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+                pressedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0"))); // Blue
+                addNewProduct.setIcon(pressedIcon);
+            }
+
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon releasedIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+                releasedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999"))); // Blue
+                addNewProduct.setIcon(releasedIcon);
+            }
+        });
+
+        addNewSupplier.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0"))); // Blue
+                addNewSupplier.setIcon(hoverIcon);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+
+                // Keep blue icon color
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999"))); // Blue
+                addNewSupplier.setIcon(normalIcon);
+            }
+
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon pressedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+                pressedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0"))); // Blue
+                addNewSupplier.setIcon(pressedIcon);
+            }
+
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+
+                FlatSVGIcon releasedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+                releasedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999"))); // Blue
+                addNewSupplier.setIcon(releasedIcon);
+            }
+        });
+        // Add focus listeners to maintain blue icon color when focused
+        addNewProduct.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                // Keep blue icon color when focused
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0"))); // Blue
+                addNewProduct.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                // Keep blue icon color when focus lost
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999"))); // Blue
+                addNewProduct.setIcon(normalIcon);
+            }
+        });
+
+        addNewSupplier.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                // Keep blue icon color when focused
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0"))); // Blue
+                addNewSupplier.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                // Keep blue icon color when focus lost
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999"))); // Blue
+                addNewSupplier.setIcon(normalIcon);
+            }
+        });
     }
 
     private void setupDateChooserNavigation() {
@@ -105,16 +461,19 @@ public class AddNewStock extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    expriyDateEditor.requestFocus();
+                    expriyDateEditor.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    expriyDateEditor.requestFocus();
+                    expriyDateEditor.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    quantityInput.requestFocus();
+                    quantityInput.requestFocusInWindow();
                     evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_TAB) {
-                    expriyDateEditor.requestFocus();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    expriyDateEditor.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    quantityInput.requestFocusInWindow();
                     evt.consume();
                 }
             }
@@ -125,16 +484,19 @@ public class AddNewStock extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    saveBtn.requestFocus();
+                    saveBtn.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    saveBtn.requestFocus();
+                    saveBtn.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    manufactureDateEditor.requestFocus();
+                    manufactureDateEditor.requestFocusInWindow();
                     evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_TAB) {
-                    saveBtn.requestFocus();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    saveBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    manufactureDateEditor.requestFocusInWindow();
                     evt.consume();
                 }
             }
@@ -205,19 +567,19 @@ public class AddNewStock extends javax.swing.JDialog {
     }
 
     private void setupFocusTraversal() {
-        // Create focus traversal order - Product first, then Supplier, then others
+        // Create focus traversal order based on the image layout
         java.util.List<java.awt.Component> order = java.util.Arrays.asList(
                 productNameCombo,
-                addNewProduct, // Add product button
-                SupplierCombo, // Supplier comes after Product
-                addNewSupplier, // Add supplier button
+                addNewProduct,
+                SupplierCombo,
+                addNewSupplier,
                 purchasePrice,
                 lastPrice,
                 sellingPrice,
                 batchNoInput,
                 quantityInput,
-                manufactureDate.getDateEditor().getUiComponent(), // Focus on date editor, not the whole chooser
-                expriyDate.getDateEditor().getUiComponent(), // Focus on date editor, not the whole chooser
+                manufactureDate.getDateEditor().getUiComponent(),
+                expriyDate.getDateEditor().getUiComponent(),
                 saveBtn,
                 clearFormBtn,
                 cancelBtn
@@ -229,12 +591,263 @@ public class AddNewStock extends javax.swing.JDialog {
         setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
                 java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
 
-        // Add key listeners for Enter key navigation
+        // Add comprehensive key navigation
+        setupArrowKeyNavigation();
         addEnterKeyNavigation();
     }
 
+    private void setupArrowKeyNavigation() {
+        // Add arrow key navigation to all components
+        productNameCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, productNameCombo);
+            }
+        });
+
+        addNewProduct.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, addNewProduct);
+            }
+        });
+
+        SupplierCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, SupplierCombo);
+            }
+        });
+
+        addNewSupplier.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, addNewSupplier);
+            }
+        });
+
+        purchasePrice.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, purchasePrice);
+            }
+        });
+
+        lastPrice.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, lastPrice);
+            }
+        });
+
+        sellingPrice.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, sellingPrice);
+            }
+        });
+
+        batchNoInput.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, batchNoInput);
+            }
+        });
+
+        quantityInput.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, quantityInput);
+            }
+        });
+
+        manufactureDate.getDateEditor().getUiComponent().addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
+            }
+        });
+
+        expriyDate.getDateEditor().getUiComponent().addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, expriyDate.getDateEditor().getUiComponent());
+            }
+        });
+
+        saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, saveBtn);
+            }
+        });
+
+        clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, clearFormBtn);
+            }
+        });
+
+        cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, cancelBtn);
+            }
+        });
+    }
+
+    private void handleArrowNavigation(java.awt.event.KeyEvent evt, java.awt.Component source) {
+        switch (evt.getKeyCode()) {
+            case KeyEvent.VK_RIGHT:
+                handleRightArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_LEFT:
+                handleLeftArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_DOWN:
+                handleDownArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_UP:
+                handleUpArrow(source);
+                evt.consume();
+                break;
+        }
+    }
+
+    private void handleRightArrow(java.awt.Component source) {
+        if (source == productNameCombo) {
+            addNewProduct.requestFocusInWindow();
+        } else if (source == addNewProduct) {
+            SupplierCombo.requestFocusInWindow();
+        } else if (source == SupplierCombo) {
+            addNewSupplier.requestFocusInWindow();
+        } else if (source == addNewSupplier) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == purchasePrice) {
+            lastPrice.requestFocusInWindow();
+        } else if (source == lastPrice) {
+            sellingPrice.requestFocusInWindow();
+        } else if (source == sellingPrice) {
+            batchNoInput.requestFocusInWindow();
+        } else if (source == batchNoInput) {
+            quantityInput.requestFocusInWindow();
+        } else if (source == quantityInput) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
+            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
+            saveBtn.requestFocusInWindow();
+        } else if (source == saveBtn) {
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            productNameCombo.requestFocusInWindow();
+        }
+    }
+
+    private void handleLeftArrow(java.awt.Component source) {
+        if (source == productNameCombo) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == addNewProduct) {
+            productNameCombo.requestFocusInWindow();
+        } else if (source == SupplierCombo) {
+            addNewProduct.requestFocusInWindow();
+        } else if (source == addNewSupplier) {
+            SupplierCombo.requestFocusInWindow();
+        } else if (source == purchasePrice) {
+            addNewSupplier.requestFocusInWindow();
+        } else if (source == lastPrice) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == sellingPrice) {
+            lastPrice.requestFocusInWindow();
+        } else if (source == batchNoInput) {
+            sellingPrice.requestFocusInWindow();
+        } else if (source == quantityInput) {
+            batchNoInput.requestFocusInWindow();
+        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
+            quantityInput.requestFocusInWindow();
+        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == saveBtn) {
+            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            saveBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow();
+        }
+    }
+
+    private void handleDownArrow(java.awt.Component source) {
+        if (source == productNameCombo) {
+            SupplierCombo.requestFocusInWindow();
+        } else if (source == addNewProduct) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == SupplierCombo) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == addNewSupplier) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == purchasePrice) {
+            sellingPrice.requestFocusInWindow();
+        } else if (source == lastPrice) {
+            sellingPrice.requestFocusInWindow();
+        } else if (source == sellingPrice) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == batchNoInput) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == quantityInput) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
+            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
+            saveBtn.requestFocusInWindow();
+        } else if (source == saveBtn) {
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            productNameCombo.requestFocusInWindow();
+        }
+    }
+
+    private void handleUpArrow(java.awt.Component source) {
+        if (source == productNameCombo) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == addNewProduct) {
+            productNameCombo.requestFocusInWindow();
+        } else if (source == SupplierCombo) {
+            productNameCombo.requestFocusInWindow();
+        } else if (source == addNewSupplier) {
+            productNameCombo.requestFocusInWindow();
+        } else if (source == purchasePrice) {
+            SupplierCombo.requestFocusInWindow();
+        } else if (source == lastPrice) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == sellingPrice) {
+            purchasePrice.requestFocusInWindow();
+        } else if (source == batchNoInput) {
+            sellingPrice.requestFocusInWindow();
+        } else if (source == quantityInput) {
+            batchNoInput.requestFocusInWindow();
+        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
+            sellingPrice.requestFocusInWindow();
+        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == saveBtn) {
+            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            saveBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow();
+        }
+    }
+
     private void addEnterKeyNavigation() {
-        // Map components to their next focus targets
+        // Map components to their next focus targets for Enter key
         java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
         enterNavigationMap.put(productNameCombo, addNewProduct);
         enterNavigationMap.put(addNewProduct, SupplierCombo);
@@ -259,7 +872,7 @@ public class AddNewStock extends javax.swing.JDialog {
                     if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                         java.awt.Component nextComponent = enterNavigationMap.get(component);
                         if (nextComponent != null) {
-                            nextComponent.requestFocus();
+                            nextComponent.requestFocusInWindow();
                         }
                         evt.consume();
                     }
@@ -312,9 +925,15 @@ public class AddNewStock extends javax.swing.JDialog {
         }
 
         // Validate quantity
-        int quantity = (Integer) quantityInput.getValue();
-        if (quantity <= 0) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Quantity must be greater than 0");
+        try {
+            int quantity = Integer.parseInt(quantityInput.getText().trim());
+            if (quantity <= 0) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Quantity must be greater than 0");
+                quantityInput.requestFocus();
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter a valid quantity");
             quantityInput.requestFocus();
             return false;
         }
@@ -392,7 +1011,7 @@ public class AddNewStock extends javax.swing.JDialog {
 
             // Get values
             String batchNo = batchNoInput.getText().trim();
-            int quantity = (Integer) quantityInput.getValue();
+            int quantity = Integer.parseInt(quantityInput.getText().trim());
             double sellingPriceValue = Double.parseDouble(sellingPrice.getText().trim());
             double purchasePriceValue = Double.parseDouble(purchasePrice.getText().trim());
             double lastPriceValue = lastPrice.getText().trim().isEmpty() ? 0 : Double.parseDouble(lastPrice.getText().trim());
@@ -407,10 +1026,9 @@ public class AddNewStock extends javax.swing.JDialog {
             // Execute query
             MySQL.executeIUD(query);
 
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
             clearForm();
             generateBatchNumber();
-
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving stock: " + e.getMessage());
             e.printStackTrace();
@@ -423,7 +1041,7 @@ public class AddNewStock extends javax.swing.JDialog {
         purchasePrice.setText("");
         lastPrice.setText("");
         sellingPrice.setText("");
-        quantityInput.setValue(1);
+        quantityInput.setText("1");
         manufactureDate.setDate(null);
         expriyDate.setDate(null);
         productNameCombo.requestFocus();
@@ -439,7 +1057,6 @@ public class AddNewStock extends javax.swing.JDialog {
         purchasePrice = new javax.swing.JTextField();
         lastPrice = new javax.swing.JTextField();
         sellingPrice = new javax.swing.JTextField();
-        quantityInput = new javax.swing.JSpinner();
         manufactureDate = new com.toedter.calendar.JDateChooser();
         expriyDate = new com.toedter.calendar.JDateChooser();
         SupplierCombo = new javax.swing.JComboBox<>();
@@ -450,8 +1067,10 @@ public class AddNewStock extends javax.swing.JDialog {
         productNameCombo = new javax.swing.JComboBox<>();
         addNewSupplier = new javax.swing.JButton();
         addNewProduct = new javax.swing.JButton();
+        quantityInput = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("Add New Stock");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -482,14 +1101,6 @@ public class AddNewStock extends javax.swing.JDialog {
         sellingPrice.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 sellingPriceKeyPressed(evt);
-            }
-        });
-
-        quantityInput.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        quantityInput.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Quantity", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        quantityInput.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                quantityInputKeyPressed(evt);
             }
         });
 
@@ -526,7 +1137,9 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         cancelBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        cancelBtn.setText("Cancel");
+        cancelBtn.setForeground(new java.awt.Color(8, 147, 176));
+        cancelBtn.setText(" Cancel");
+        cancelBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         cancelBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 cancelBtnActionPerformed(evt);
@@ -539,7 +1152,9 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         saveBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        saveBtn.setText("Save");
+        saveBtn.setForeground(new java.awt.Color(8, 147, 176));
+        saveBtn.setText(" Save");
+        saveBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         saveBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 saveBtnActionPerformed(evt);
@@ -552,7 +1167,9 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         clearFormBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        clearFormBtn.setText("Clear Form");
+        clearFormBtn.setForeground(new java.awt.Color(8, 147, 176));
+        clearFormBtn.setText(" Clear Form");
+        clearFormBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         clearFormBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 clearFormBtnActionPerformed(evt);
@@ -590,6 +1207,9 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         addNewSupplier.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addNewSupplier.setForeground(new java.awt.Color(102, 102, 102));
+        addNewSupplier.setBorder(null);
+        addNewSupplier.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         addNewSupplier.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addNewSupplierActionPerformed(evt);
@@ -602,6 +1222,9 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         addNewProduct.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addNewProduct.setForeground(new java.awt.Color(153, 153, 153));
+        addNewProduct.setBorder(null);
+        addNewProduct.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         addNewProduct.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addNewProductActionPerformed(evt);
@@ -610,6 +1233,14 @@ public class AddNewStock extends javax.swing.JDialog {
         addNewProduct.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 addNewProductKeyPressed(evt);
+            }
+        });
+
+        quantityInput.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        quantityInput.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Quantity", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        quantityInput.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                quantityInputKeyPressed(evt);
             }
         });
 
@@ -627,26 +1258,20 @@ public class AddNewStock extends javax.swing.JDialog {
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(productNameCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 479, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(addNewProduct, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)))
+                                .addComponent(addNewProduct, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                         .addGap(0, 0, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 479, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                                 .addGroup(jPanel1Layout.createSequentialGroup()
-                                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 122, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                     .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                     .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(jPanel1Layout.createSequentialGroup()
-                                        .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 192, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, 208, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE))
                                     .addGroup(jPanel1Layout.createSequentialGroup()
                                         .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -656,7 +1281,13 @@ public class AddNewStock extends javax.swing.JDialog {
                                         .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
                                             .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
                                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                            .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE))))))
+                                            .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 192, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, 208, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(21, 21, 21))))
         );
         jPanel1Layout.setVerticalGroup(
@@ -684,8 +1315,8 @@ public class AddNewStock extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -695,7 +1326,7 @@ public class AddNewStock extends javax.swing.JDialog {
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(21, Short.MAX_VALUE))
+                .addContainerGap(27, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -728,7 +1359,7 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void productNameComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productNameComboActionPerformed
         if (productNameCombo.getSelectedIndex() > 0 && !productNameCombo.isPopupVisible()) {
-            addNewProduct.requestFocus(); // Now goes to add product button
+            addNewProduct.requestFocusInWindow();
         }
     }//GEN-LAST:event_productNameComboActionPerformed
 
@@ -738,23 +1369,21 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void SupplierComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SupplierComboActionPerformed
         if (SupplierCombo.getSelectedIndex() > 0 && !SupplierCombo.isPopupVisible()) {
-            addNewSupplier.requestFocus(); // Now goes to add supplier button
+            addNewSupplier.requestFocusInWindow();
         }
     }//GEN-LAST:event_SupplierComboActionPerformed
 
     private void addNewSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewSupplierActionPerformed
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-
         AddSupplier dialog = new AddSupplier(parentFrame, true);
         dialog.setLocationRelativeTo(parentFrame);
         dialog.setVisible(true);
-        loadSupplierCombo(); // Refresh supplier list after adding new one
+        loadSupplierCombo();
 
     }//GEN-LAST:event_addNewSupplierActionPerformed
 
     private void addNewProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewProductActionPerformed
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-
         AddNewProduct dialog = new AddNewProduct(parentFrame, true);
         dialog.setLocationRelativeTo(parentFrame);
         dialog.setVisible(true);
@@ -763,194 +1392,141 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void purchasePriceKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_purchasePriceKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            lastPrice.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            lastPrice.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            SupplierCombo.requestFocus();
+            lastPrice.requestFocusInWindow();
+        } else {
+            handleArrowNavigation(evt, purchasePrice);
         }
     }//GEN-LAST:event_purchasePriceKeyPressed
 
     private void lastPriceKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_lastPriceKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            sellingPrice.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            sellingPrice.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            purchasePrice.requestFocus();
+            sellingPrice.requestFocusInWindow();
+        } else {
+            handleArrowNavigation(evt, lastPrice);
         }
     }//GEN-LAST:event_lastPriceKeyPressed
 
     private void sellingPriceKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_sellingPriceKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            batchNoInput.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            batchNoInput.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            lastPrice.requestFocus();
+            batchNoInput.requestFocusInWindow();
+        } else {
+            handleArrowNavigation(evt, sellingPrice);
         }
     }//GEN-LAST:event_sellingPriceKeyPressed
 
-    private void quantityInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_quantityInputKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            // Decrease the quantity value
-            int currentValue = (Integer) quantityInput.getValue();
-            if (currentValue > 1) { // Assuming minimum quantity is 1
-                quantityInput.setValue(currentValue - 1);
-            }
-            evt.consume(); // Prevent moving to next field
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            // Increase the quantity value
-            int currentValue = (Integer) quantityInput.getValue();
-            quantityInput.setValue(currentValue + 1);
-            evt.consume(); // Prevent moving to previous field
-        }
-    }//GEN-LAST:event_quantityInputKeyPressed
-
     private void batchNoInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_batchNoInputKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            quantityInput.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            quantityInput.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            sellingPrice.requestFocus();
+            quantityInput.requestFocusInWindow();
         } else if (evt.getKeyCode() == KeyEvent.VK_F2 || evt.getKeyCode() == KeyEvent.VK_SPACE) {
             generateBatchNumber();
+        } else {
+            handleArrowNavigation(evt, batchNoInput);
         }
     }//GEN-LAST:event_batchNoInputKeyPressed
 
     private void manufactureDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_manufactureDateKeyPressed
-
+        handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
     }//GEN-LAST:event_manufactureDateKeyPressed
 
     private void expriyDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_expriyDateKeyPressed
-
+        handleArrowNavigation(evt, expriyDate.getDateEditor().getUiComponent());
     }//GEN-LAST:event_expriyDateKeyPressed
 
     private void saveBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_saveBtnKeyPressed
-            if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-        saveStock(); // This will save the data and then clear the form
-        
-    } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-        clearFormBtn.requestFocus();
-    } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-        expriyDate.getDateEditor().getUiComponent().requestFocus();
-    }
-
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            saveStock();
+        } else {
+            handleArrowNavigation(evt, saveBtn);
+        }
     }//GEN-LAST:event_saveBtnKeyPressed
 
     private void clearFormBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_clearFormBtnKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             clearForm();
             generateBatchNumber();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            cancelBtn.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            saveBtn.requestFocus();
+        } else {
+            handleArrowNavigation(evt, clearFormBtn);
         }
     }//GEN-LAST:event_clearFormBtnKeyPressed
 
     private void cancelBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cancelBtnKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             this.dispose();
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            productNameCombo.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            clearFormBtn.requestFocus();
         } else if (evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
             this.dispose();
+        } else {
+            handleArrowNavigation(evt, cancelBtn);
         }
     }//GEN-LAST:event_cancelBtnKeyPressed
 
     private void SupplierComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_SupplierComboKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            // If dropdown is open, ENTER should select and close it
             if (SupplierCombo.isPopupVisible()) {
                 SupplierCombo.setPopupVisible(false);
-                // After selecting, move to next field
-                addNewSupplier.requestFocus();
-            } else {
-                // If dropdown is closed, just move to next field
-                addNewSupplier.requestFocus();
             }
+            addNewSupplier.requestFocusInWindow();
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            // Only open dropdown if it's not already visible
             if (!SupplierCombo.isPopupVisible()) {
                 SupplierCombo.showPopup();
-                evt.consume(); // Prevent default behavior
+                evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            // Only move focus if dropdown is not visible
             if (!SupplierCombo.isPopupVisible()) {
-                addNewProduct.requestFocus();
+                addNewProduct.requestFocusInWindow();
                 evt.consume();
             }
-        } else if (evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            if (SupplierCombo.isPopupVisible()) {
-                SupplierCombo.setPopupVisible(false);
-                evt.consume();
-            }
+        } else {
+            handleArrowNavigation(evt, SupplierCombo);
         }
     }//GEN-LAST:event_SupplierComboKeyPressed
 
     private void productNameComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_productNameComboKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            // If dropdown is open, ENTER should select and close it
             if (productNameCombo.isPopupVisible()) {
                 productNameCombo.setPopupVisible(false);
-                // After selecting, move to next field
-                addNewProduct.requestFocus();
-            } else {
-                // If dropdown is closed, just move to next field
-                addNewProduct.requestFocus();
             }
+            addNewProduct.requestFocusInWindow();
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            // Only open dropdown if it's not already visible
             if (!productNameCombo.isPopupVisible()) {
                 productNameCombo.showPopup();
-                evt.consume(); // Prevent default behavior
+                evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            // Only move focus if dropdown is not visible
             if (!productNameCombo.isPopupVisible()) {
-                cancelBtn.requestFocus();
+                cancelBtn.requestFocusInWindow();
                 evt.consume();
             }
-        } else if (evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            if (productNameCombo.isPopupVisible()) {
-                productNameCombo.setPopupVisible(false);
-                evt.consume();
-            }
+        } else {
+            handleArrowNavigation(evt, productNameCombo);
         }
     }//GEN-LAST:event_productNameComboKeyPressed
 
     private void addNewProductKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewProductKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             addNewProductActionPerformed(null);
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            SupplierCombo.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            productNameCombo.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-            addNewSupplier.requestFocus();
+        } else {
+            handleArrowNavigation(evt, addNewProduct);
         }
     }//GEN-LAST:event_addNewProductKeyPressed
 
     private void addNewSupplierKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewSupplierKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             addNewSupplierActionPerformed(null);
-        } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            purchasePrice.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            productNameCombo.requestFocus();
-        } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-            addNewProduct.requestFocus();
+        } else {
+            handleArrowNavigation(evt, addNewSupplier);
         }
+
     }//GEN-LAST:event_addNewSupplierKeyPressed
+
+    private void quantityInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_quantityInputKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else {
+            handleArrowNavigation(evt, quantityInput);
+        }
+    }//GEN-LAST:event_quantityInputKeyPressed
 
     /**
      * @param args the command line arguments
@@ -1012,7 +1588,7 @@ public class AddNewStock extends javax.swing.JDialog {
     private com.toedter.calendar.JDateChooser manufactureDate;
     private javax.swing.JComboBox<String> productNameCombo;
     private javax.swing.JTextField purchasePrice;
-    private javax.swing.JSpinner quantityInput;
+    private javax.swing.JTextField quantityInput;
     private javax.swing.JButton saveBtn;
     private javax.swing.JTextField sellingPrice;
     // End of variables declaration//GEN-END:variables

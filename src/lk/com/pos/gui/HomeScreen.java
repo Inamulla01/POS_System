@@ -311,7 +311,7 @@ public class HomeScreen extends JFrame {
             titleLabel.setForeground(new Color(0x333333));
 
             // Close button
-            FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 16, 16);
+            FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 16, 16);
             closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                 @Override
                 public Color filter(Color color) {

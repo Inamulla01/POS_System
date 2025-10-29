@@ -1,15 +1,24 @@
 package lk.com.pos.dialog;
 
 import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.validation.Validater;
 import lk.com.pos.connection.MySQL;
-import java.awt.Image;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.KeyboardFocusManager;
+import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.util.Vector;
 import javax.swing.*;
+import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
 public class EditProfile extends javax.swing.JDialog {
@@ -17,7 +26,6 @@ public class EditProfile extends javax.swing.JDialog {
     // ---------------- PASSWORD TOGGLE ----------------
     private boolean newPasswordVisible = false;
     private boolean confirmPasswordVisible = false;
-
     private Icon eyeOpenIcon;
     private Icon eyeClosedIcon;
 
@@ -29,25 +37,34 @@ public class EditProfile extends javax.swing.JDialog {
         super(parent, modal);
         this.currentUserId = userId;
         initComponents();
+        initializeDialog();
+        AutoCompleteDecorator.decorate(userRoleCombo);
+    }
+
+    private void initializeDialog() {
+        // Center the dialog
         setLocationRelativeTo(getParent());
 
+        // Load user roles and user data
         loadUserRoles();
         loadUserData();
-        setupKeyboardNavigation();
-        setSize(456, 300);
 
-        // Load icons
-        ImageIcon eyeOpen = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-open.png"));
-        ImageIcon eyeClosed = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-closed.png"));
+        // Load SVG eye icons with #999999 color
+        try {
+            // Load SVG icons for eye open and closed with gray color
+            eyeOpenIcon = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 25, 25);
 
-        // Resize icons
-        int iconSize = 20;
-        eyeOpenIcon = new ImageIcon(eyeOpen.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
-        eyeClosedIcon = new ImageIcon(eyeClosed.getImage().getScaledInstance(iconSize, iconSize, Image.SCALE_SMOOTH));
+            
+            eyeClosedIcon = new FlatSVGIcon("lk/com/pos/icon/eye-closed.svg", 25, 25);
 
-        // Set initial icons
-        newPasswordEyeButton.setIcon(eyeClosedIcon);
-        confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+
+            // Set initial icons
+            newPasswordEyeButton.setIcon(eyeClosedIcon);
+            confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+
+        } catch (Exception e) {
+            System.out.println("SVG eye icons not found: " + e.getMessage());
+        }
 
         // Remove button borders and background
         newPasswordEyeButton.setBorderPainted(false);
@@ -60,9 +77,11 @@ public class EditProfile extends javax.swing.JDialog {
         confirmPasswordEyeButton.setFocusPainted(false);
         confirmPasswordEyeButton.setText("");
 
-        // Add toggle listeners
-        newPasswordEyeButton.addActionListener(evt -> toggleNewPasswordVisibility());
-        confirmPasswordEyeButton.addActionListener(evt -> toggleConfirmPasswordVisibility());
+        // Setup button styles
+        setupButtonStyles();
+
+        // Setup keyboard navigation
+        setupFocusTraversal();
 
         // Make username field non-editable
         userNameField.setEditable(false);
@@ -71,118 +90,653 @@ public class EditProfile extends javax.swing.JDialog {
         // Initially hide password fields
         setPasswordFieldsVisible(false);
         
-        // Set minimum size to prevent dialog from becoming too small
+        // Set initial focus
+        userRoleCombo.requestFocus();
+        
+        // Set default size to (456, 300) as you requested
+        setSize(456, 300);
         setMinimumSize(new java.awt.Dimension(456, 300));
     }
 
-    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
-    private void setupKeyboardNavigation() {
-        // Set up Enter key navigation between fields
+    private void setupGradientButton(JButton button) {
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setForeground(Color.decode("#0893B0"));
+        button.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, javax.swing.JComponent c) {
+                Graphics2D g2 = (Graphics2D) g;
+                int w = c.getWidth();
+                int h = c.getHeight();
+
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Check button state
+                boolean isHover = button.getModel().isRollover();
+                boolean isPressed = button.getModel().isPressed();
+                boolean isFocused = button.hasFocus();
+
+                // Default state - transparent with blue border
+                if (!isFocused && !isHover && !isPressed) {
+                    g2.setColor(new Color(0, 0, 0, 0)); // Transparent
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+
+                    // Draw border
+                    g2.setColor(Color.decode("#0893B0"));
+                    g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
+                } else {
+                    // Gradient colors for hover/focus/pressed state
+                    Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
+
+                    // Draw gradient
+                    GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
+                    g2.setPaint(gp);
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+                }
+
+                // Draw button text
+                super.paint(g, c);
+            }
+        });
+    }
+
+    private void setupButtonStyles() {
+        // Remove borders, backgrounds, and set hover effects for eye buttons
+        newPasswordEyeButton.setBorderPainted(false);
+        newPasswordEyeButton.setContentAreaFilled(false);
+        newPasswordEyeButton.setFocusPainted(false);
+        newPasswordEyeButton.setOpaque(false);
+
+        confirmPasswordEyeButton.setBorderPainted(false);
+        confirmPasswordEyeButton.setContentAreaFilled(false);
+        confirmPasswordEyeButton.setFocusPainted(false);
+        confirmPasswordEyeButton.setOpaque(false);
+
+        // Setup gradient buttons
+        setupGradientButton(addBtn);
+        setupGradientButton(cancelBtn);
+        setupGradientButton(PasswordBtn);
+        setupGradientButton(clearFormBtn);
+
+        // FIXED: Swap the icons as requested
+        // Cancel button gets CLEAR icon
+        FlatSVGIcon clearIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+        clearIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        cancelBtn.setIcon(clearIcon);
+
+        // Clear button gets CANCEL icon  
+        FlatSVGIcon cancelIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+        cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        clearFormBtn.setIcon(cancelIcon);
+
+        // Other buttons keep their original icons
+        FlatSVGIcon updateIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+        updateIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        addBtn.setIcon(updateIcon);
+
+        FlatSVGIcon passwordIcon = new FlatSVGIcon("lk/com/pos/icon/password.svg", 25, 25);
+        passwordIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        PasswordBtn.setIcon(passwordIcon);
+
+        // Setup mouse listeners for all buttons
+        setupButtonMouseListeners();
+        setupButtonFocusListeners();
+        setupEyeButtonStyles();
+    }
+
+    private void setupButtonMouseListeners() {
+        // Mouse listeners for addBtn (Update button)
+        addBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                addBtn.setIcon(hoverIcon);
+                addBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                addBtn.setIcon(normalIcon);
+                addBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for cancelBtn (Cancel button - now has CLEAR icon)
+        cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(hoverIcon);
+                cancelBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for PasswordBtn (Change Password button)
+        PasswordBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                PasswordBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/password.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                PasswordBtn.setIcon(hoverIcon);
+                PasswordBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                PasswordBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/password.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                PasswordBtn.setIcon(normalIcon);
+                PasswordBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for clearFormBtn (Clear Form button - now has CANCEL icon)
+        clearFormBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(hoverIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                clearFormBtn.setIcon(normalIcon);
+                clearFormBtn.repaint();
+            }
+        });
+    }
+
+    private void setupButtonFocusListeners() {
+        // Focus listeners for addBtn (Update button)
+        addBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                addBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                addBtn.setIcon(focusedIcon);
+                addBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                addBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                addBtn.setIcon(normalIcon);
+                addBtn.repaint();
+            }
+        });
+
+        // Focus listeners for cancelBtn (Cancel button - now has CLEAR icon)
+        cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(focusedIcon);
+                cancelBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+
+        // Focus listeners for PasswordBtn (Change Password button)
+        PasswordBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                PasswordBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/password.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                PasswordBtn.setIcon(focusedIcon);
+                PasswordBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                PasswordBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/password.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                PasswordBtn.setIcon(normalIcon);
+                PasswordBtn.repaint();
+            }
+        });
+
+        // Focus listeners for clearFormBtn (Clear Form button - now has CANCEL icon)
+        clearFormBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(focusedIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                clearFormBtn.setIcon(normalIcon);
+                clearFormBtn.repaint();
+            }
+        });
+    }
+
+    private void setupEyeButtonStyles() {
+        // Mouse listeners for eye buttons
+        newPasswordEyeButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                applyEyeButtonHoverEffect(newPasswordEyeButton, true);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                applyEyeButtonHoverEffect(newPasswordEyeButton, false);
+            }
+        });
+
+        confirmPasswordEyeButton.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                applyEyeButtonHoverEffect(confirmPasswordEyeButton, true);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                applyEyeButtonHoverEffect(confirmPasswordEyeButton, false);
+            }
+        });
+
+        // Focus listeners for eye buttons
+        newPasswordEyeButton.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                applyEyeButtonHoverEffect(newPasswordEyeButton, true);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                applyEyeButtonHoverEffect(newPasswordEyeButton, false);
+            }
+        });
+
+        confirmPasswordEyeButton.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                applyEyeButtonHoverEffect(confirmPasswordEyeButton, true);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                applyEyeButtonHoverEffect(confirmPasswordEyeButton, false);
+            }
+        });
+    }
+
+    private void applyEyeButtonHoverEffect(JButton button, boolean active) {
+        try {
+            if (active) {
+                // Create blue tinted icons for hover/focus state
+                FlatSVGIcon eyeIcon;
+                if (button == newPasswordEyeButton) {
+                    eyeIcon = new FlatSVGIcon("lk/com/pos/icon/" + (newPasswordVisible ? "eye-open.svg" : "eye-closed.svg"), 25, 25);
+                } else {
+                    eyeIcon = new FlatSVGIcon("lk/com/pos/icon/" + (confirmPasswordVisible ? "eye-open.svg" : "eye-closed.svg"), 25, 25);
+                }
+                eyeIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#0893B0")));
+                button.setIcon(eyeIcon);
+            } else {
+                // Reset to original gray icons (#999999)
+                if (button == newPasswordEyeButton) {
+                    button.setIcon(newPasswordVisible ? eyeOpenIcon : eyeClosedIcon);
+                } else {
+                    button.setIcon(confirmPasswordVisible ? eyeOpenIcon : eyeClosedIcon);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error applying hover effect: " + e.getMessage());
+        }
+    }
+
+    private void setupFocusTraversal() {
+        // Create focus traversal order
+        java.util.List<java.awt.Component> order = java.util.Arrays.asList(
+                userNameField,
+                userRoleCombo,
+                PasswordBtn,
+                newPasswordField,
+                newPasswordEyeButton,
+                confirmPasswordField,
+                confirmPasswordEyeButton,
+                addBtn,
+                clearFormBtn,
+                cancelBtn
+        );
+
+        // Set focus traversal keys
+        setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
+        setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
+                java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
+
+        // Add comprehensive key navigation
+        setupArrowKeyNavigation();
+        addEnterKeyNavigation();
+
+        // Add ESC key to close - GLOBAL ESC LISTENER
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                dispose();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Setup tooltips
+        userNameField.setToolTipText("Username (read-only)");
+        userRoleCombo.setToolTipText("Press DOWN arrow, SPACE or F4 to open dropdown, use UP/DOWN arrows to navigate, ENTER to select");
+        PasswordBtn.setToolTipText("Press ENTER or SPACE to toggle password fields visibility");
+        newPasswordField.setToolTipText("Type new password and press ENTER to move to next field");
+        confirmPasswordField.setToolTipText("Type confirm password and press ENTER to move to next field");
+        newPasswordEyeButton.setToolTipText("Press ENTER or SPACE to toggle password visibility");
+        confirmPasswordEyeButton.setToolTipText("Press ENTER or SPACE to toggle confirm password visibility");
+        addBtn.setToolTipText("Press ENTER to update profile");
+        clearFormBtn.setToolTipText("Press ENTER to clear form");
+        cancelBtn.setToolTipText("Press ENTER to cancel, ESC to close dialog");
+    }
+
+    private void setupArrowKeyNavigation() {
+        // Add arrow key navigation to all components
+        userNameField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, userNameField);
+            }
+        });
+
         userRoleCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                switch (evt.getKeyCode()) {
-                    case KeyEvent.VK_ENTER:
-                        // If combo box is not open, move to password button or update
-                        if (!userRoleCombo.isPopupVisible()) {
-                            if (newPasswordField.isVisible()) {
-                                newPasswordField.requestFocus();
-                            } else {
-                                PasswordBtn.requestFocus();
-                            }
-                        } else {
-                            // If combo box is open, select the item and close popup
-                            userRoleCombo.setPopupVisible(false);
-                        }
-                        evt.consume();
-                        break;
-                        
-                    case KeyEvent.VK_DOWN:
-                        if (!userRoleCombo.isPopupVisible()) {
-                            // Open the combo box dropdown when down arrow is pressed
-                            userRoleCombo.setPopupVisible(true);
-                            evt.consume();
-                        }
-                        // Let the default down arrow behavior work when popup is visible
-                        break;
-                        
-                    case KeyEvent.VK_UP:
-                        if (!userRoleCombo.isPopupVisible()) {
-                            // Let default up arrow behavior work
-                        }
-                        break;
-                        
-                    case KeyEvent.VK_ESCAPE:
-                        if (userRoleCombo.isPopupVisible()) {
-                            userRoleCombo.setPopupVisible(false);
-                            evt.consume();
-                        }
-                        break;
-                        
-                    case KeyEvent.VK_SPACE:
-                        if (!userRoleCombo.isPopupVisible()) {
-                            userRoleCombo.setPopupVisible(true);
-                            evt.consume();
-                        }
-                        break;
-                }
+                handleArrowNavigation(evt, userRoleCombo);
             }
         });
 
-        // Password button keyboard navigation
         PasswordBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    togglePasswordFields();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    if (newPasswordField.isVisible()) {
-                        newPasswordField.requestFocus();
-                    } else {
-                        addBtn.requestFocus();
-                    }
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    userRoleCombo.requestFocus();
-                    evt.consume();
-                }
+                handleArrowNavigation(evt, PasswordBtn);
             }
         });
 
-        // New password field keyboard navigation
         newPasswordField.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    confirmPasswordField.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    if (newPasswordField.isVisible()) {
-                        PasswordBtn.requestFocus();
-                    } else {
-                        userRoleCombo.requestFocus();
-                    }
-                    evt.consume();
-                }
+                handleArrowNavigation(evt, newPasswordField);
             }
         });
 
-        // Confirm password field keyboard navigation
+        newPasswordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, newPasswordEyeButton);
+            }
+        });
+
         confirmPasswordField.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    addBtn.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    newPasswordField.requestFocus();
+                handleArrowNavigation(evt, confirmPasswordField);
+            }
+        });
+
+        confirmPasswordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, confirmPasswordEyeButton);
+            }
+        });
+
+        addBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, addBtn);
+            }
+        });
+
+        clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, clearFormBtn);
+            }
+        });
+
+        cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, cancelBtn);
+            }
+        });
+    }
+
+    private void handleArrowNavigation(java.awt.event.KeyEvent evt, java.awt.Component source) {
+        switch (evt.getKeyCode()) {
+            case KeyEvent.VK_RIGHT:
+                handleRightArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_LEFT:
+                handleLeftArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_DOWN:
+                handleDownArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_UP:
+                handleUpArrow(source);
+                evt.consume();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                // ESC key closes the dialog from any component
+                dispose();
+                evt.consume();
+                break;
+        }
+    }
+
+    private void handleRightArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            PasswordBtn.requestFocusInWindow();
+        } else if (source == PasswordBtn) {
+            if (newPasswordField.isVisible()) {
+                newPasswordField.requestFocusInWindow();
+            } else {
+                addBtn.requestFocusInWindow();
+            }
+        } else if (source == newPasswordField) {
+            newPasswordEyeButton.requestFocusInWindow();
+        } else if (source == newPasswordEyeButton) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            confirmPasswordEyeButton.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            addBtn.requestFocusInWindow();
+        } else if (source == addBtn) {
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            userNameField.requestFocusInWindow();
+        }
+    }
+
+    private void handleLeftArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            userNameField.requestFocusInWindow();
+        } else if (source == PasswordBtn) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == newPasswordField) {
+            PasswordBtn.requestFocusInWindow();
+        } else if (source == newPasswordEyeButton) {
+            newPasswordField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            newPasswordEyeButton.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == addBtn) {
+            if (confirmPasswordField.isVisible()) {
+                confirmPasswordEyeButton.requestFocusInWindow();
+            } else {
+                PasswordBtn.requestFocusInWindow();
+            }
+        } else if (source == clearFormBtn) {
+            addBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow();
+        }
+    }
+
+    private void handleDownArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            PasswordBtn.requestFocusInWindow();
+        } else if (source == PasswordBtn) {
+            if (newPasswordField.isVisible()) {
+                newPasswordField.requestFocusInWindow();
+            } else {
+                addBtn.requestFocusInWindow();
+            }
+        } else if (source == newPasswordField) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == newPasswordEyeButton) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            addBtn.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            addBtn.requestFocusInWindow();
+        } else if (source == addBtn) {
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            userNameField.requestFocusInWindow();
+        }
+    }
+
+    private void handleUpArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            userNameField.requestFocusInWindow();
+        } else if (source == PasswordBtn) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == newPasswordField) {
+            PasswordBtn.requestFocusInWindow();
+        } else if (source == newPasswordEyeButton) {
+            PasswordBtn.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            newPasswordField.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            newPasswordField.requestFocusInWindow();
+        } else if (source == addBtn) {
+            if (confirmPasswordField.isVisible()) {
+                confirmPasswordField.requestFocusInWindow();
+            } else {
+                PasswordBtn.requestFocusInWindow();
+            }
+        } else if (source == clearFormBtn) {
+            addBtn.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow();
+        }
+    }
+
+    private void addEnterKeyNavigation() {
+        // Map components to their next focus targets for Enter key
+        java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
+        enterNavigationMap.put(userNameField, userRoleCombo);
+        enterNavigationMap.put(userRoleCombo, PasswordBtn);
+        enterNavigationMap.put(PasswordBtn, addBtn);
+        enterNavigationMap.put(newPasswordField, newPasswordEyeButton);
+        enterNavigationMap.put(newPasswordEyeButton, confirmPasswordField);
+        enterNavigationMap.put(confirmPasswordField, confirmPasswordEyeButton);
+        enterNavigationMap.put(confirmPasswordEyeButton, addBtn);
+        enterNavigationMap.put(addBtn, clearFormBtn);
+        enterNavigationMap.put(clearFormBtn, cancelBtn);
+        enterNavigationMap.put(cancelBtn, userNameField);
+
+        // Add key listeners to all components
+        for (java.awt.Component component : enterNavigationMap.keySet()) {
+            component.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override
+                public void keyPressed(java.awt.event.KeyEvent evt) {
+                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                        java.awt.Component nextComponent = enterNavigationMap.get(component);
+                        if (nextComponent != null) {
+                            nextComponent.requestFocusInWindow();
+                        }
+                        evt.consume();
+                    }
+                }
+            });
+        }
+
+        // Special handling for eye buttons - also trigger toggle on Enter and Space
+        newPasswordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_SPACE) {
+                    toggleNewPasswordVisibility();
                     evt.consume();
                 }
             }
         });
 
-        // Update button keyboard navigation
+        confirmPasswordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_SPACE) {
+                    toggleConfirmPasswordVisibility();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Special handling for PasswordBtn - toggle password fields on Enter and Space
+        PasswordBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_SPACE) {
+                    togglePasswordFields();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Special handling for action buttons
         addBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -191,74 +745,90 @@ public class EditProfile extends javax.swing.JDialog {
                         updateUser();
                     }
                     evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    if (confirmPasswordField.isVisible()) {
-                        confirmPasswordField.requestFocus();
-                    } else if (newPasswordField.isVisible()) {
-                        newPasswordField.requestFocus();
-                    } else {
-                        PasswordBtn.requestFocus();
-                    }
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    cancelBtn.requestFocus();
+                }
+            }
+        });
+
+        clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    clearForm();
                     evt.consume();
                 }
             }
         });
 
-        // Cancel button keyboard navigation
         cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     dispose();
                     evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    if (confirmPasswordField.isVisible()) {
-                        confirmPasswordField.requestFocus();
-                    } else if (newPasswordField.isVisible()) {
-                        newPasswordField.requestFocus();
-                    } else {
-                        PasswordBtn.requestFocus();
-                    }
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    addBtn.requestFocus();
-                    evt.consume();
                 }
             }
         });
 
-        // Also add focus listener to handle popup closing
-        userRoleCombo.addFocusListener(new java.awt.event.FocusAdapter() {
+        // Special handling for combo box with proper popup opening
+        userRoleCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                // Close popup when focus is lost
-                userRoleCombo.setPopupVisible(false);
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                switch (evt.getKeyCode()) {
+                    case KeyEvent.VK_DOWN:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            userRoleCombo.showPopup();
+                            evt.consume();
+                        }
+                        break;
+                    case KeyEvent.VK_UP:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            userRoleCombo.showPopup();
+                            evt.consume();
+                        }
+                        break;
+                    case KeyEvent.VK_SPACE:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            userRoleCombo.showPopup();
+                            evt.consume();
+                        }
+                        break;
+                    case KeyEvent.VK_F4:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            userRoleCombo.showPopup();
+                            evt.consume();
+                        }
+                        break;
+                    case KeyEvent.VK_ENTER:
+                        if (userRoleCombo.isPopupVisible()) {
+                            // Close popup and stay in combo box
+                            userRoleCombo.setPopupVisible(false);
+                            evt.consume();
+                        } else {
+                            // Move to next field only if popup is not visible
+                            PasswordBtn.requestFocusInWindow();
+                            evt.consume();
+                        }
+                        break;
+                }
             }
         });
 
-        // Set up Escape key to close dialog
-        getRootPane().registerKeyboardAction(
-            evt -> dispose(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
+        // Add mouse listener to combo box for better UX
+        userRoleCombo.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                userRoleCombo.showPopup();
+            }
+        });
 
-        // Set up Ctrl+Enter to update from anywhere
-        getRootPane().registerKeyboardAction(
-            evt -> {
-                if (validateInputs()) {
-                    updateUser();
+        // Add action listener to auto-move focus when item is selected
+        userRoleCombo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                // Auto-move to next field when an item is selected (but not the placeholder)
+                if (userRoleCombo.getSelectedIndex() > 0 && !userRoleCombo.isPopupVisible()) {
+                    PasswordBtn.requestFocusInWindow();
                 }
-            },
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
-        // Set initial focus
-        userRoleCombo.requestFocus();
+            }
+        });
     }
 
     // ---------------- PASSWORD FIELDS VISIBILITY ----------------
@@ -285,9 +855,45 @@ public class EditProfile extends javax.swing.JDialog {
 
         if (!currentlyVisible) {
             newPasswordField.requestFocus();
-            setSize(456, 420); // Increased height for password fields
+            setSize(456, 420); // Extended height for password fields
         } else {
-            setSize(456, 300); // Normal height
+            setSize(456, 300); // Default height
+        }
+        
+        // Center the dialog after resizing
+        setLocationRelativeTo(getParent());
+    }
+
+    // ---------------- PASSWORD TOGGLE METHODS ----------------
+    private void toggleNewPasswordVisibility() {
+        if (newPasswordVisible) {
+            newPasswordField.setEchoChar('•');
+            newPasswordEyeButton.setIcon(eyeClosedIcon);
+        } else {
+            newPasswordField.setEchoChar((char) 0);
+            newPasswordEyeButton.setIcon(eyeOpenIcon);
+        }
+        newPasswordVisible = !newPasswordVisible;
+
+        // Re-apply hover effect if needed
+        if (newPasswordEyeButton.hasFocus()) {
+            applyEyeButtonHoverEffect(newPasswordEyeButton, true);
+        }
+    }
+
+    private void toggleConfirmPasswordVisibility() {
+        if (confirmPasswordVisible) {
+            confirmPasswordField.setEchoChar('•');
+            confirmPasswordEyeButton.setIcon(eyeClosedIcon);
+        } else {
+            confirmPasswordField.setEchoChar((char) 0);
+            confirmPasswordEyeButton.setIcon(eyeOpenIcon);
+        }
+        confirmPasswordVisible = !confirmPasswordVisible;
+
+        // Re-apply hover effect if needed
+        if (confirmPasswordEyeButton.hasFocus()) {
+            applyEyeButtonHoverEffect(confirmPasswordEyeButton, true);
         }
     }
 
@@ -319,29 +925,6 @@ public class EditProfile extends javax.swing.JDialog {
                     "Error loading user data: " + e.getMessage());
             this.dispose();
         }
-    }
-
-    // ---------------- PASSWORD TOGGLE METHODS ----------------
-    private void toggleNewPasswordVisibility() {
-        if (newPasswordVisible) {
-            newPasswordField.setEchoChar('•');
-            newPasswordEyeButton.setIcon(eyeClosedIcon);
-        } else {
-            newPasswordField.setEchoChar((char) 0);
-            newPasswordEyeButton.setIcon(eyeOpenIcon);
-        }
-        newPasswordVisible = !newPasswordVisible;
-    }
-
-    private void toggleConfirmPasswordVisibility() {
-        if (confirmPasswordVisible) {
-            confirmPasswordField.setEchoChar('•');
-            confirmPasswordEyeButton.setIcon(eyeClosedIcon);
-        } else {
-            confirmPasswordField.setEchoChar((char) 0);
-            confirmPasswordEyeButton.setIcon(eyeOpenIcon);
-        }
-        confirmPasswordVisible = !confirmPasswordVisible;
     }
 
     // ---------------- DATABASE & VALIDATION ----------------
@@ -461,7 +1044,10 @@ public class EditProfile extends javax.swing.JDialog {
         newPasswordField.setText("");
         confirmPasswordField.setText("");
         userRoleCombo.setSelectedIndex(0);
+        loadUserData(); // Reload original user data
+        userRoleCombo.requestFocus();
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -478,6 +1064,7 @@ public class EditProfile extends javax.swing.JDialog {
         newPasswordField = new javax.swing.JPasswordField();
         newPasswordEyeButton = new javax.swing.JButton();
         PasswordBtn = new javax.swing.JButton();
+        clearFormBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Profile");
@@ -492,7 +1079,9 @@ public class EditProfile extends javax.swing.JDialog {
         jSeparator1.setForeground(new java.awt.Color(0, 137, 176));
 
         cancelBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        cancelBtn.setForeground(new java.awt.Color(8, 147, 176));
         cancelBtn.setText("Cancel");
+        cancelBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         cancelBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 cancelBtnActionPerformed(evt);
@@ -500,7 +1089,9 @@ public class EditProfile extends javax.swing.JDialog {
         });
 
         addBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        addBtn.setForeground(new java.awt.Color(8, 147, 176));
         addBtn.setText("Update");
+        addBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         addBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addBtnActionPerformed(evt);
@@ -545,10 +1136,27 @@ public class EditProfile extends javax.swing.JDialog {
         });
 
         PasswordBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        PasswordBtn.setForeground(new java.awt.Color(8, 147, 176));
         PasswordBtn.setText("Change Password");
+        PasswordBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         PasswordBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 PasswordBtnActionPerformed(evt);
+            }
+        });
+
+        clearFormBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        clearFormBtn.setForeground(new java.awt.Color(8, 147, 176));
+        clearFormBtn.setText("Clear Form");
+        clearFormBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        clearFormBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                clearFormBtnActionPerformed(evt);
+            }
+        });
+        clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                clearFormBtnKeyPressed(evt);
             }
         });
 
@@ -556,40 +1164,46 @@ public class EditProfile extends javax.swing.JDialog {
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+            .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap(18, Short.MAX_VALUE)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(PasswordBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 181, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 410, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(userNameField, javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(userRoleCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 410, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGap(33, 33, 33)
-                        .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(confirmPasswordField)
-                            .addComponent(newPasswordField))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(newPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 42, Short.MAX_VALUE)
-                            .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))))
-                .addGap(22, 22, 22))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 410, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addComponent(userNameField, javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(confirmPasswordField)
+                                    .addComponent(newPasswordField))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(newPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 42, Short.MAX_VALUE)
+                                    .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addGap(0, 0, Short.MAX_VALUE)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(userRoleCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 410, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                        .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 153, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(PasswordBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 209, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                        .addGap(22, 22, 22))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                .addGap(22, 22, 22)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(PasswordBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(14, 14, 14)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(PasswordBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel1))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -605,10 +1219,11 @@ public class EditProfile extends javax.swing.JDialog {
                     .addComponent(confirmPasswordField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(confirmPasswordEyeButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(23, Short.MAX_VALUE))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(cancelBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 45, Short.MAX_VALUE)
+                    .addComponent(addBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(clearFormBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(25, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -643,7 +1258,7 @@ public class EditProfile extends javax.swing.JDialog {
     }//GEN-LAST:event_confirmPasswordFieldActionPerformed
 
     private void confirmPasswordEyeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_confirmPasswordEyeButtonActionPerformed
-
+        toggleConfirmPasswordVisibility();
     }//GEN-LAST:event_confirmPasswordEyeButtonActionPerformed
 
     private void newPasswordFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newPasswordFieldActionPerformed
@@ -651,27 +1266,24 @@ public class EditProfile extends javax.swing.JDialog {
     }//GEN-LAST:event_newPasswordFieldActionPerformed
 
     private void newPasswordEyeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_newPasswordEyeButtonActionPerformed
-        // TODO add your handling code here:
+        toggleNewPasswordVisibility();
     }//GEN-LAST:event_newPasswordEyeButtonActionPerformed
 
     private void PasswordBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PasswordBtnActionPerformed
-        boolean currentlyVisible = newPasswordField.isVisible();
-        setPasswordFieldsVisible(!currentlyVisible);
-
-        // Update button text based on state
-        if (!currentlyVisible) {
-            newPasswordField.requestFocus();
-            
-            // Expand dialog to accommodate password fields
-            setSize(456, 420); // Increased height
-        } else {
-            
-            setSize(457, 300);
-        }
-        
-        // Center the dialog after resizing
-        
+        togglePasswordFields();
     }//GEN-LAST:event_PasswordBtnActionPerformed
+
+    private void clearFormBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearFormBtnActionPerformed
+        clearForm();
+    }//GEN-LAST:event_clearFormBtnActionPerformed
+
+    private void clearFormBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_clearFormBtnKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            clearForm();
+        } else {
+            handleArrowNavigation(evt, clearFormBtn);
+        }
+    }//GEN-LAST:event_clearFormBtnKeyPressed
 
     /**
      * @param args the command line arguments
@@ -723,6 +1335,7 @@ public class EditProfile extends javax.swing.JDialog {
     private javax.swing.JButton PasswordBtn;
     private javax.swing.JButton addBtn;
     private javax.swing.JButton cancelBtn;
+    private javax.swing.JButton clearFormBtn;
     private javax.swing.JButton confirmPasswordEyeButton;
     private javax.swing.JPasswordField confirmPasswordField;
     private javax.swing.JLabel jLabel1;

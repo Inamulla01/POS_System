@@ -7,7 +7,10 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.sql.ResultSet;
 import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import lk.com.pos.connection.MySQL;
+import lk.com.pos.dialog.AddNewProduct;
 import lk.com.pos.dialog.AddNewStock;
 import lk.com.pos.dialog.PrintProductLabel;
 
@@ -1304,9 +1307,11 @@ public class ProductPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_expiredRadioBtnActionPerformed
 
     private void addProductDialogActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addProductDialogActionPerformed
-        AddNewStock addProduct = new AddNewStock(null, true);
-        addProduct.setLocationRelativeTo(null);
-        addProduct.setVisible(true);
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+
+        AddNewStock dialog = new AddNewStock(parentFrame, true);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
 
     }//GEN-LAST:event_addProductDialogActionPerformed
 

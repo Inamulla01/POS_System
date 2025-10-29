@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatLightLaf;
 import lk.com.pos.validation.Validater;
 import lk.com.pos.connection.MySQL;
 import java.awt.Image;
+import java.awt.event.KeyEvent;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
@@ -25,6 +26,7 @@ public class AddNewUser extends javax.swing.JDialog {
         initComponents(); // NetBeans-generated
 
         loadUserRoles();
+        setupKeyboardNavigation();
 
         // Load icons
         ImageIcon eyeOpen = new ImageIcon(getClass().getResource("/lk/com/pos/icon/eye-open.png"));
@@ -53,6 +55,157 @@ public class AddNewUser extends javax.swing.JDialog {
         // Add toggle listeners
         passwordEyeButton.addActionListener(evt -> togglePasswordVisibility());
         confirmPasswordEyeButton.addActionListener(evt -> toggleConfirmPasswordVisibility());
+    }
+
+    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
+    private void setupKeyboardNavigation() {
+        // Set up Enter key navigation between fields
+        userNameField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    passwordField.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        passwordField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    confirmPasswordField.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    userNameField.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        confirmPasswordField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    userRoleCombo.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    passwordField.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Enhanced combo box keyboard navigation
+        userRoleCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                switch (evt.getKeyCode()) {
+                    case KeyEvent.VK_ENTER:
+                        // If combo box is not open, save user
+                        if (!userRoleCombo.isPopupVisible()) {
+                            if (validateInputs()) {
+                                saveUser();
+                            }
+                        } else {
+                            // If combo box is open, select the item and close popup
+                            userRoleCombo.setPopupVisible(false);
+                        }
+                        evt.consume();
+                        break;
+                        
+                    case KeyEvent.VK_UP:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            confirmPasswordField.requestFocus();
+                            evt.consume();
+                        }
+                        // Let the default up arrow behavior work when popup is visible
+                        break;
+                        
+                    case KeyEvent.VK_DOWN:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            // Open the combo box dropdown when down arrow is pressed
+                            userRoleCombo.setPopupVisible(true);
+                            evt.consume();
+                        }
+                        // Let the default down arrow behavior work when popup is visible
+                        break;
+                        
+                    case KeyEvent.VK_ESCAPE:
+                        if (userRoleCombo.isPopupVisible()) {
+                            userRoleCombo.setPopupVisible(false);
+                            evt.consume();
+                        }
+                        break;
+                        
+                    case KeyEvent.VK_SPACE:
+                        if (!userRoleCombo.isPopupVisible()) {
+                            userRoleCombo.setPopupVisible(true);
+                            evt.consume();
+                        }
+                        break;
+                }
+            }
+        });
+
+        // Also add focus listener to handle popup closing
+        userRoleCombo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                // Close popup when focus is lost
+                userRoleCombo.setPopupVisible(false);
+            }
+        });
+
+        // Set up keyboard shortcuts for buttons
+        addBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    if (validateInputs()) {
+                        saveUser();
+                    }
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    userRoleCombo.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    dispose();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    userRoleCombo.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Set up Escape key to close dialog
+        getRootPane().registerKeyboardAction(
+            evt -> dispose(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set up Ctrl+Enter to save from anywhere
+        getRootPane().registerKeyboardAction(
+            evt -> {
+                if (validateInputs()) {
+                    saveUser();
+                }
+            },
+            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set initial focus
+        userNameField.requestFocus();
     }
 
     // ---------------- PASSWORD TOGGLE METHODS ----------------

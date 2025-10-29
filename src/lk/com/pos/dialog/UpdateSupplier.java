@@ -8,6 +8,8 @@ import lk.com.pos.connection.MySQL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.awt.event.KeyEvent;
+import javax.swing.*;
 import raven.toast.Notifications;
 
 /**
@@ -25,6 +27,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         super(parent, modal);
         initComponents();
         setLocationRelativeTo(parent);
+        setupKeyboardNavigation();
     }
     
     // Constructor with supplier ID to load data
@@ -33,7 +36,118 @@ public class UpdateSupplier extends javax.swing.JDialog {
         this.supplierId = supplierId;
         initComponents();
         setLocationRelativeTo(parent);
+        setupKeyboardNavigation();
         loadSupplierData();
+    }
+    
+    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
+    private void setupKeyboardNavigation() {
+        // Set up Enter key navigation between fields
+        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField2.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        jTextField2.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField1.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        jTextField3.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField2.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        jTextField4.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jButton1.requestFocus(); // Update button
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Update button keyboard navigation
+        jButton1.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    updateSupplier();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    jButton2.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    jButton2.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Cancel button keyboard navigation
+        jButton2.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    dispose();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    jButton1.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    jButton1.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        // Set up Escape key to close dialog
+        getRootPane().registerKeyboardAction(
+            evt -> dispose(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set up Ctrl+Enter to update from anywhere
+        getRootPane().registerKeyboardAction(
+            evt -> updateSupplier(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set initial focus
+        jTextField1.requestFocus();
     }
     
     private void loadSupplierData() {
@@ -150,7 +264,6 @@ public class UpdateSupplier extends javax.swing.JDialog {
                     "Database error: " + e.getMessage());
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

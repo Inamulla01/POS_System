@@ -1306,8 +1306,6 @@ public class HomeScreen extends JFrame {
     private void initComponents() {
 
         penal1 = new javax.swing.JPanel();
-        jScrollPane1 = new javax.swing.JScrollPane();
-        cardPanel = new javax.swing.JPanel();
         navPanel = new javax.swing.JPanel();
         calBtn = new javax.swing.JButton();
         menuBtn = new javax.swing.JButton();
@@ -1325,6 +1323,7 @@ public class HomeScreen extends JFrame {
         stockBtn = new javax.swing.JButton();
         signOutBtn = new javax.swing.JButton();
         logo = new javax.swing.JLabel();
+        cardPanel = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Home Screen");
@@ -1335,15 +1334,6 @@ public class HomeScreen extends JFrame {
         });
 
         penal1.setBackground(new java.awt.Color(255, 255, 255));
-
-        jScrollPane1.setBorder(null);
-        jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        jScrollPane1.setAlignmentX(0.0F);
-        jScrollPane1.setAlignmentY(0.0F);
-
-        cardPanel.setBackground(new java.awt.Color(153, 153, 255));
-        cardPanel.setLayout(new java.awt.CardLayout());
-        jScrollPane1.setViewportView(cardPanel);
 
         calBtn.setBackground(new java.awt.Color(102, 0, 255));
         calBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
@@ -1431,7 +1421,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(helloLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1602,6 +1592,8 @@ public class HomeScreen extends JFrame {
                 .addGap(17, 17, 17))
         );
 
+        cardPanel.setLayout(new java.awt.CardLayout());
+
         javax.swing.GroupLayout penal1Layout = new javax.swing.GroupLayout(penal1);
         penal1.setLayout(penal1Layout);
         penal1Layout.setHorizontalGroup(
@@ -1610,15 +1602,15 @@ public class HomeScreen extends JFrame {
                 .addComponent(sidePenal, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(penal1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 792, Short.MAX_VALUE)
-                    .addComponent(navPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                    .addComponent(navPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(cardPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
         );
         penal1Layout.setVerticalGroup(
             penal1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
             .addGroup(penal1Layout.createSequentialGroup()
                 .addComponent(navPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1))
+                .addComponent(cardPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addComponent(sidePenal, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
 
@@ -1942,7 +1934,6 @@ public class HomeScreen extends JFrame {
     private javax.swing.JButton creditBtn;
     private javax.swing.JButton dashboardBtn;
     private javax.swing.JLabel helloLabel;
-    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JButton keyBtn;
     private javax.swing.JLabel logo;
     private javax.swing.JButton menuBtn;

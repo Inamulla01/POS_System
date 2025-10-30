@@ -18,15 +18,6 @@ import java.util.HashMap;
 import java.util.Map;
 import lk.com.pos.privateclasses.CartItem;
 import lk.com.pos.privateclasses.CartListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.AbstractDocument;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.DocumentFilter;
-import java.sql.ResultSet;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 
 public class PosCartPanel extends javax.swing.JPanel {
 
@@ -34,9 +25,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private static final Color TEXT_GRAY = new Color(102, 102, 102);
     private static final Color CARD_BG = new Color(255, 255, 255);
     private static final Color BORDER_COLOR = new Color(230, 230, 230);
-    private static final Color ERROR_COLOR = new Color(255, 102, 102);
-    private static final Color SUCCESS_COLOR = new Color(102, 204, 102);
-
+    
     private Map<String, CartItem> cartItems = new HashMap<>();
     private JLabel noProductsLabel;
     private CartListener cartListener;
@@ -45,231 +34,123 @@ public class PosCartPanel extends javax.swing.JPanel {
         initComponents();
         init();
     }
-
-    private void init() {
+    
+    private void init(){
         FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
         deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
+        
         jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
-        jPanel10.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
-        jScrollPane1.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
         jScrollPane1.getVerticalScrollBar().setBlockIncrement(80);
-         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
-        "track: #F5F5F5;" +
-        "thumb: #1CB5BB;" +
-        "width: 10"); 
-
-        this.putClientProperty(FlatClientProperties.STYLE, "arc:15");
-
-        jPanel1.setBorder(BorderFactory.createEmptyBorder(15, 18, 15, 18));
-
-        jPanel10.setLayout(new javax.swing.BoxLayout(jPanel10, javax.swing.BoxLayout.Y_AXIS));
-    jPanel10.setBackground(Color.WHITE);
+        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+                "track: #F5F5F5;"
+                + "thumb: #1CB5BB;"
+                + "width: 8");
+        
+       
+    this.putClientProperty(FlatClientProperties.STYLE, "arc:15");
     
-    // ✅ ADD: Center the panel inside scroll pane
-    jPanel10.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
-
+        
+        // Initialize cart item container
+        jPanel10.setLayout(new javax.swing.BoxLayout(jPanel10, javax.swing.BoxLayout.Y_AXIS));
+        jPanel10.setBackground(Color.WHITE);
+        
+        // Clear cart button action
         clearCartBtn.addActionListener(evt -> clearCart());
-
-        jTextField2.getDocument().addDocumentListener(new DocumentListener() {
-            public void changedUpdate(DocumentEvent e) {
-                updateBalance();
-            }
-
-            public void removeUpdate(DocumentEvent e) {
-                updateBalance();
-            }
-
-            public void insertUpdate(DocumentEvent e) {
-                updateBalance();
-            }
+        
+        // Amount received listener
+        jTextField2.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { updateTotals(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { updateTotals(); }
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { updateTotals(); }
         });
-
-        ((AbstractDocument) jTextField2.getDocument()).setDocumentFilter(new NumericDocumentFilter());
-
-        loadPaymentMethods();
-        loadCustomers();
-
-        paymentcombo.addActionListener(evt -> toggleCustomerCombo());
-        toggleCustomerCombo();
-
+        
+        // Show initial empty state
         showNoProductsMessage();
     }
-
-    private void loadPaymentMethods() {
-        try {
-            paymentcombo.removeAllItems();
-            paymentcombo.addItem("Select Payment Method");
-
-            Connection connection = lk.com.pos.connection.MySQL.getConnection();
-            String query = "SELECT * FROM payment_method ORDER BY payment_method_name ASC";
-            PreparedStatement pst = connection.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-
-            while (rs.next()) {
-                String paymentMethod = rs.getString("payment_method_name");
-                paymentcombo.addItem(paymentMethod);
-            }
-
-            rs.close();
-            pst.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error loading payment methods: " + e.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void loadCustomers() {
-        try {
-            coustomerCombo.removeAllItems();
-            coustomerCombo.addItem("Select Customer");
-
-            Connection connection = lk.com.pos.connection.MySQL.getConnection();
-            String query = "SELECT * FROM credit_customer ORDER BY customer_name ASC";
-            PreparedStatement pst = connection.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-
-            while (rs.next()) {
-                String customerName = rs.getString("customer_name");
-                String customerPhone = rs.getString("customer_phone_no");
-                coustomerCombo.addItem(customerName + " - " + customerPhone);
-            }
-
-            rs.close();
-            pst.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error loading customers: " + e.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void toggleCustomerCombo() {
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-
-        if (selectedPayment != null && selectedPayment.equalsIgnoreCase("Credit Payment")) {
-            coustomerCombo.setVisible(true);
-            jButton8.setVisible(true);
-            jButton9.setVisible(true);
-        } else {
-            coustomerCombo.setVisible(false);
-            jButton8.setVisible(false);
-            jButton9.setVisible(false);
-        }
-
-        revalidate();
-        repaint();
-    }
-
-    private class NumericDocumentFilter extends DocumentFilter {
-
-        @Override
-        public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
-                throws BadLocationException {
-            if (isValidNumber(string)) {
-                super.insertString(fb, offset, string, attr);
-            }
-        }
-
-        @Override
-        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
-                throws BadLocationException {
-            if (isValidNumber(text)) {
-                super.replace(fb, offset, length, text, attrs);
-            }
-        }
-
-        private boolean isValidNumber(String text) {
-            if (text == null || text.isEmpty()) {
-                return true;
-            }
-            return text.matches("[0-9.]*");
-        }
-    }
-
+    
+    // Set listener for communication with parent panel
     public void setCartListener(CartListener listener) {
         this.cartListener = listener;
     }
-
+    
+    // Add item to cart (called from POSPanel2)
     public void addToCart(int productId, String productName, String brandName,
-        String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) { // ✅ ADD lastPrice parameter
-
-    String cartKey = productId + "_" + batchNo;
-
-    if (cartItems.containsKey(cartKey)) {
-        CartItem item = cartItems.get(cartKey);
-
-        if (item.getQuantity() < item.getAvailableQty()) {
-            item.setQuantity(item.getQuantity() + 1);
-            updateCartPanel();
+            String batchNo, int qty, double sellingPrice, String barcode) {
+        
+        String cartKey = productId + "_" + batchNo;
+        
+        if (cartItems.containsKey(cartKey)) {
+            CartItem item = cartItems.get(cartKey);
+            
+            if (item.getQuantity() < item.getAvailableQty()) {
+                item.setQuantity(item.getQuantity() + 1);
+                updateCartPanel();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Cannot add more. Available stock: " + item.getAvailableQty(),
+                        "Stock Limit",
+                        JOptionPane.WARNING_MESSAGE);
+            }
         } else {
-            JOptionPane.showMessageDialog(this,
-                    "Cannot add more. Available stock: " + item.getAvailableQty(),
-                    "Stock Limit",
-                    JOptionPane.WARNING_MESSAGE);
+            CartItem newItem = new CartItem(productId, productName, brandName, 
+                                           batchNo, qty, sellingPrice, barcode);
+            cartItems.put(cartKey, newItem);
+            updateCartPanel();
         }
-    } else {
-        CartItem newItem = new CartItem(productId, productName, brandName,
-                batchNo, qty, sellingPrice, barcode, lastPrice); // ✅ PASS last_price
-        cartItems.put(cartKey, newItem);
-        updateCartPanel();
     }
-}
-
+    
+    // Show empty cart message
     private void showNoProductsMessage() {
         jPanel10.removeAll();
-
+        
         JPanel messagePanel = new JPanel(new java.awt.GridBagLayout());
         messagePanel.setBackground(Color.WHITE);
         messagePanel.setPreferredSize(new Dimension(jScrollPane1.getViewport().getWidth(), 300));
-
+        
         noProductsLabel = new JLabel("No products in cart");
         noProductsLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 16));
         noProductsLabel.setForeground(TEXT_GRAY);
-
+        
         messagePanel.add(noProductsLabel);
         jPanel10.add(messagePanel);
-
-        cartCount.setText("Cart (0)");
-
+        
+        cartCount.setText("Cart (00)");
+        
         jPanel10.revalidate();
         jPanel10.repaint();
-
+        
         updateTotals();
     }
-
+    
+    // Update cart display
     private void updateCartPanel() {
         jPanel10.removeAll();
-
+        
         if (cartItems.isEmpty()) {
             showNoProductsMessage();
             return;
         }
-
-        jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 18)));
-
+        
+        // Add each cart item
         for (CartItem item : cartItems.values()) {
             RoundedPanel cartCard = createCartItemPanel(item);
             jPanel10.add(cartCard);
-            jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(18, 18)));
+            jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 10)));
         }
-
+        
         cartCount.setText(String.format("Cart (%02d)", cartItems.size()));
-
+        
         jPanel10.revalidate();
         jPanel10.repaint();
-
+        
         updateTotals();
     }
-
+    
+    // Create cart item panel
     private RoundedPanel createCartItemPanel(CartItem item) {
+        // Use the RoundBorder class from POSPanel2
         class RoundBorder extends javax.swing.border.AbstractBorder {
-
             private Color color;
             private int thickness;
             private int radius;
@@ -296,26 +177,27 @@ public class PosCartPanel extends javax.swing.JPanel {
                 return new java.awt.Insets(thickness + 1, thickness + 1, thickness + 1, thickness + 1);
             }
         }
-
+        
         RoundedPanel card = new RoundedPanel(15);
         card.setBackground(CARD_BG);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
-        card.setPreferredSize(new Dimension(400, 160));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+        card.setPreferredSize(new Dimension(430, 140));
         card.setBorder(BorderFactory.createCompoundBorder(
                 new RoundBorder(BORDER_COLOR, 1, 15),
-                BorderFactory.createEmptyBorder(15, 10, 15, 10)
+                BorderFactory.createEmptyBorder(12, 15, 12, 15)
         ));
-        card.setLayout(new java.awt.BorderLayout(10, 10));
-
+        card.setLayout(new java.awt.BorderLayout(0, 8));
+        
         // Top panel - Product name and delete button
         JPanel topPanel = new JPanel(new java.awt.BorderLayout());
         topPanel.setOpaque(false);
-
+        
         JLabel lblName = new JLabel(item.getProductName() + " (" + item.getBrandName() + ")");
         lblName.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
         lblName.setForeground(new Color(40, 40, 40));
         topPanel.add(lblName, java.awt.BorderLayout.WEST);
-
+        
+        // Delete button
         JButton deleteBtn = new JButton();
         FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
         deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
@@ -325,21 +207,20 @@ public class PosCartPanel extends javax.swing.JPanel {
         deleteBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         deleteBtn.addActionListener(e -> removeFromCart(item.getKey()));
         topPanel.add(deleteBtn, java.awt.BorderLayout.EAST);
-
+        
         card.add(topPanel, java.awt.BorderLayout.NORTH);
-
-        // Middle panel - Quantity controls and discount per unit
-        JPanel middlePanel = new JPanel(new java.awt.BorderLayout(15, 0));
+        
+        // Middle panel - Quantity controls and discount
+        JPanel middlePanel = new JPanel(new java.awt.BorderLayout(10, 0));
         middlePanel.setOpaque(false);
-
+        
         // Quantity control
-        JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 10));
+        JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         qtyPanel.setOpaque(false);
-
+        
         JButton minusBtn = new JButton("-");
-        minusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
-        minusBtn.setPreferredSize(new Dimension(40, 35));
-        minusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        minusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 14));
+        minusBtn.setPreferredSize(new Dimension(35, 30));
         minusBtn.addActionListener(e -> {
             if (item.getQuantity() > 1) {
                 item.setQuantity(item.getQuantity() - 1);
@@ -347,17 +228,16 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
         qtyPanel.add(minusBtn);
-
+        
         JLabel qtyLabel = new JLabel(String.valueOf(item.getQuantity()));
-        qtyLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        qtyLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
         qtyLabel.setHorizontalAlignment(JLabel.CENTER);
-        qtyLabel.setPreferredSize(new Dimension(60, 35));
+        qtyLabel.setPreferredSize(new Dimension(70, 30));
         qtyPanel.add(qtyLabel);
-
+        
         JButton plusBtn = new JButton("+");
-        plusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
-        plusBtn.setPreferredSize(new Dimension(40, 35));
-        plusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        plusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 14));
+        plusBtn.setPreferredSize(new Dimension(35, 30));
         plusBtn.addActionListener(e -> {
             if (item.getQuantity() < item.getAvailableQty()) {
                 item.setQuantity(item.getQuantity() + 1);
@@ -370,328 +250,112 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
         qtyPanel.add(plusBtn);
-
+        
         middlePanel.add(qtyPanel, java.awt.BorderLayout.WEST);
-
-        // Discount input panel with label (Per Unit Discount)
-        JPanel discountContainer = new JPanel();
-        discountContainer.setLayout(new javax.swing.BoxLayout(discountContainer, javax.swing.BoxLayout.Y_AXIS));
-        discountContainer.setOpaque(false);
-
-        JLabel discountLabel = new JLabel("Discount (per unit)");
-        discountLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
-        discountLabel.setForeground(TEXT_GRAY);
-        discountLabel.setAlignmentX(java.awt.Component.RIGHT_ALIGNMENT);
-        discountContainer.add(discountLabel);
-
-        discountContainer.add(javax.swing.Box.createRigidArea(new Dimension(0, 3)));
-
-        // ✅ FIX: Show exactly what's stored (per-unit discount)
-        double perUnitDiscount = item.getDiscountPrice();
-
-        JTextField discountField = new JTextField(String.format("%.2f", perUnitDiscount));
-        discountField.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        
+        // Discount input
+        JTextField discountField = new JTextField(String.valueOf(item.getDiscountPrice()));
+        discountField.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
         discountField.setHorizontalAlignment(JTextField.RIGHT);
-        discountField.setPreferredSize(new Dimension(110, 35));
-        discountField.setMaximumSize(new Dimension(110, 35));
-        discountField.setAlignmentX(java.awt.Component.RIGHT_ALIGNMENT);
-
-        ((AbstractDocument) discountField.getDocument()).setDocumentFilter(new NumericDocumentFilter());
-
-        // Real-time discount validation
-        // Real-time discount validation with last_price
-discountField.getDocument().addDocumentListener(new DocumentListener() {
-    private void validateDiscount() {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                discountField.setForeground(Color.BLACK);
-                item.setDiscountPrice(0);
-                updateTotals();
-                return;
-            }
-
-            // User enters per-unit discount
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice(); // ✅ GET last_price from CartItem
-
-            // Calculate final price after discount
-            double finalPricePerUnit = unitPrice - discountInput;
-
-            if (discountInput < 0) {
-                discountField.setForeground(ERROR_COLOR);
-                discountField.setToolTipText("Discount cannot be negative");
-            } else if (discountInput > unitPrice) {
-                discountField.setForeground(ERROR_COLOR);
-                discountField.setToolTipText("Max discount per unit: Rs." + String.format("%.2f", unitPrice));
-            } else if (finalPricePerUnit < lastPrice) {
-                // ✅ Check if discounted price is below last_price
-                discountField.setForeground(ERROR_COLOR);
-                double maxAllowedDiscount = unitPrice - lastPrice;
-                discountField.setToolTipText(String.format(
-                    "Cannot go below last price! Purchase price (Rs.%.2f) < Last price (Rs.%.2f). Max discount: Rs.%.2f",
-                    finalPricePerUnit, lastPrice, maxAllowedDiscount
-                ));
-            } else {
-                discountField.setForeground(SUCCESS_COLOR);
-                double totalDiscount = discountInput * item.getQuantity();
-                discountField.setToolTipText(String.format("Total discount: Rs.%.2f (%.2f × %d)",
-                        totalDiscount, discountInput, item.getQuantity()));
-                item.setDiscountPrice(discountInput);
-                updateTotals();
-            }
-        } catch (NumberFormatException e) {
-            discountField.setForeground(ERROR_COLOR);
-            discountField.setToolTipText("Invalid number");
-        }
-    }
-
-    public void changedUpdate(DocumentEvent e) {
-        validateDiscount();
-    }
-
-    public void removeUpdate(DocumentEvent e) {
-        validateDiscount();
-    }
-
-    public void insertUpdate(DocumentEvent e) {
-        validateDiscount();
-    }
-});
-
-discountField.addFocusListener(new java.awt.event.FocusAdapter() {
-    @Override
-    public void focusGained(java.awt.event.FocusEvent evt) {
-        if (discountField.getText().trim().equals("0") || discountField.getText().trim().equals("0.00")) {
-            discountField.setText("");
-        }
-    }
-
-    @Override
-    public void focusLost(java.awt.event.FocusEvent evt) {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                item.setDiscountPrice(0);
-                discountField.setText("0");
-                updateTotals();
-                return;
-            }
-
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice(); // ✅ GET last_price
-            double finalPricePerUnit = unitPrice - discountInput;
-
-            if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                // Restore current value
-                discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-                discountField.setForeground(Color.BLACK);
-                
-                String message;
-                if (discountInput < 0) {
-                    message = "Discount cannot be negative";
-                } else if (discountInput > unitPrice) {
-                    message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
-                } else {
-                    double maxAllowedDiscount = unitPrice - lastPrice;
-                    message = String.format(
-                        "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                        finalPricePerUnit, lastPrice, maxAllowedDiscount
-                    );
+        discountField.setPreferredSize(new Dimension(120, 30));
+        discountField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                try {
+                    double discount = Double.parseDouble(discountField.getText());
+                    if (discount >= 0 && discount <= (item.getUnitPrice() * item.getQuantity())) {
+                        item.setDiscountPrice(discount);
+                        updateCartPanel();
+                    } else {
+                        discountField.setText(String.valueOf(item.getDiscountPrice()));
+                        JOptionPane.showMessageDialog(null,
+                                "Invalid discount amount",
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (NumberFormatException e) {
+                    discountField.setText(String.valueOf(item.getDiscountPrice()));
                 }
-                
-                JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-            } else {
-                item.setDiscountPrice(discountInput);
-                discountField.setText(String.format("%.2f", discountInput));
-                discountField.setForeground(Color.BLACK);
-                updateTotals();
             }
-        } catch (NumberFormatException e) {
-            discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-            discountField.setForeground(Color.BLACK);
-        }
-    }
-});
-
-// ENTER key handler with last_price validation
-discountField.getInputMap().put(javax.swing.KeyStroke.getKeyStroke("ENTER"), "applyDiscount");
-discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction() {
-    @Override
-    public void actionPerformed(java.awt.event.ActionEvent e) {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                item.setDiscountPrice(0);
-                discountField.setText("0.00");
-                updateTotals();
-                return;
-            }
-
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice(); // ✅ GET last_price
-            double finalPricePerUnit = unitPrice - discountInput;
-
-            if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                String message;
-                if (discountInput < 0) {
-                    message = "Discount cannot be negative";
-                } else if (discountInput > unitPrice) {
-                    message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
-                } else {
-                    double maxAllowedDiscount = unitPrice - lastPrice;
-                    message = String.format(
-                        "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                        finalPricePerUnit, lastPrice, maxAllowedDiscount
-                    );
-                }
-                
-                JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            item.setDiscountPrice(discountInput);
-            discountField.setText(String.format("%.2f", discountInput));
-            updateTotals();
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(null, "Invalid discount value.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-});
-
-        discountContainer.add(discountField);
-        middlePanel.add(discountContainer, java.awt.BorderLayout.EAST);
-
+        });
+        middlePanel.add(discountField, java.awt.BorderLayout.EAST);
+        
         card.add(middlePanel, java.awt.BorderLayout.CENTER);
-
-        // Bottom panel - Price calculation
-        JPanel bottomPanel = new JPanel(new java.awt.BorderLayout(10, 0));
+        
+        // Bottom panel - Price
+        JPanel bottomPanel = new JPanel(new java.awt.BorderLayout());
         bottomPanel.setOpaque(false);
-
-        JPanel calcPanel = new JPanel();
-        calcPanel.setLayout(new javax.swing.BoxLayout(calcPanel, javax.swing.BoxLayout.Y_AXIS));
-        calcPanel.setOpaque(false);
-
-        // Base price calculation
-        JLabel basePriceLabel = new JLabel(String.format("Rs.%.2f × %d = Rs.%.2f",
-                item.getUnitPrice(), item.getQuantity(), item.getUnitPrice() * item.getQuantity()));
-        basePriceLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
-        basePriceLabel.setForeground(TEXT_GRAY);
-        basePriceLabel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-        calcPanel.add(basePriceLabel);
-
-        // ✅ FIX: Show discount calculation correctly
-        if (item.getDiscountPrice() > 0) {
-            // getDiscountPrice() stores per-unit discount
-            double discountPerUnit = item.getDiscountPrice();
-            double totalDiscount = discountPerUnit * item.getQuantity();
-
-            JLabel discountInfo = new JLabel(String.format(
-                    "Discount: Rs.%.2f × %d = -Rs.%.2f",
-                    discountPerUnit, item.getQuantity(), totalDiscount
-            ));
-            discountInfo.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
-            discountInfo.setForeground(ERROR_COLOR);
-            discountInfo.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-            calcPanel.add(discountInfo);
-        }
-
-        bottomPanel.add(calcPanel, java.awt.BorderLayout.CENTER);
-
-        // Right side - Total price
+        
         JLabel lblPrice = new JLabel(String.format("Rs.%.2f", item.getTotalPrice()));
-        lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+        lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
         lblPrice.setForeground(TEAL_COLOR);
         lblPrice.setHorizontalAlignment(JLabel.RIGHT);
         bottomPanel.add(lblPrice, java.awt.BorderLayout.EAST);
-
+        
         card.add(bottomPanel, java.awt.BorderLayout.SOUTH);
-
+        
         return card;
     }
-
+    
+    // Remove item from cart
     private void removeFromCart(String cartKey) {
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Remove this item from cart?",
-                "Confirm Removal",
-                JOptionPane.YES_NO_OPTION);
-
-        if (confirm == JOptionPane.YES_OPTION) {
-            cartItems.remove(cartKey);
-            updateCartPanel();
-        }
+        cartItems.remove(cartKey);
+        updateCartPanel();
     }
-
+    
+    // Clear cart
     private void clearCart() {
         if (cartItems.isEmpty()) {
             return;
         }
-
+        
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Are you sure you want to clear the cart?",
                 "Clear Cart",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
-
+                JOptionPane.YES_NO_OPTION);
+        
         if (confirm == JOptionPane.YES_OPTION) {
             cartItems.clear();
-            jTextField2.setText("");
             updateCartPanel();
         }
     }
-
-    private void updateBalance() {
-        try {
-            String amountText = jTextField2.getText().trim();
-            double total = getTotal();
-
-            if (!amountText.isEmpty()) {
-                double amountReceived = Double.parseDouble(amountText);
-                double balance = amountReceived - total;
-
-                jLabel23.setText(String.format("Rs.%.2f", balance));
-
-                if (balance < 0) {
-                    jLabel23.setForeground(ERROR_COLOR);
-                } else if (balance > 0) {
-                    jLabel23.setForeground(SUCCESS_COLOR);
-                } else {
-                    jLabel23.setForeground(Color.BLACK);
-                }
-            } else {
-                jLabel23.setText("Rs.0.00");
-                jLabel23.setForeground(Color.BLACK);
-            }
-        } catch (NumberFormatException e) {
-            jLabel23.setText("Rs.0.00");
-            jLabel23.setForeground(Color.BLACK);
-        }
-    }
-
+    
+    // Update totals
     private void updateTotals() {
         double total = 0;
-
+        
         for (CartItem item : cartItems.values()) {
             total += item.getTotalPrice();
         }
-
+        
         jLabel15.setText(String.format("Rs.%.2f", total));
-
-        updateBalance();
-
+        
+        // Calculate balance
+        try {
+            String amountText = jTextField2.getText().trim();
+            if (!amountText.isEmpty()) {
+                double amountReceived = Double.parseDouble(amountText);
+                double balance = amountReceived - total;
+                jLabel23.setText(String.format("Rs.%.2f", balance));
+            } else {
+                jLabel23.setText("Rs.0.00");
+            }
+        } catch (NumberFormatException e) {
+            jLabel23.setText("Rs.0.00");
+        }
+        
+        // Notify listener
         if (cartListener != null) {
             cartListener.onCartUpdated(total, cartItems.size());
         }
     }
-
+    
+    // Public method to get cart items (for checkout)
     public Map<String, CartItem> getCartItems() {
         return new HashMap<>(cartItems);
     }
-
+    
+    // Public method to get total
     public double getTotal() {
         double total = 0;
         for (CartItem item : cartItems.values()) {
@@ -699,78 +363,7 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         }
         return total;
     }
-
-    public boolean validateCheckout() {
-        if (cartItems.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Cart is empty. Add products before checkout.",
-                    "Empty Cart",
-                    JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-        if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
-            JOptionPane.showMessageDialog(this,
-                    "Please select a payment method.",
-                    "Missing Payment Method",
-                    JOptionPane.WARNING_MESSAGE);
-            paymentcombo.requestFocus();
-            return false;
-        }
-
-        if (selectedPayment.equalsIgnoreCase("Credit Payment")) {
-            String selectedCustomer = (String) coustomerCombo.getSelectedItem();
-            if (selectedCustomer == null || selectedCustomer.equals("Select Customer")) {
-                JOptionPane.showMessageDialog(this,
-                        "Please select a customer for credit payment.",
-                        "Missing Customer",
-                        JOptionPane.WARNING_MESSAGE);
-                coustomerCombo.requestFocus();
-                return false;
-            }
-        }
-
-        try {
-            String amountText = jTextField2.getText().trim();
-            if (amountText.isEmpty()) {
-                JOptionPane.showMessageDialog(this,
-                        "Please enter amount received.",
-                        "Missing Amount",
-                        JOptionPane.WARNING_MESSAGE);
-                jTextField2.requestFocus();
-                return false;
-            }
-
-            double amountReceived = Double.parseDouble(amountText);
-            double total = getTotal();
-
-            if (amountReceived < total) {
-                JOptionPane.showMessageDialog(this,
-                        String.format("Insufficient amount. Need Rs.%.2f more.", total - amountReceived),
-                        "Insufficient Payment",
-                        JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-
-            return true;
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Invalid amount entered.",
-                    "Invalid Amount",
-                    JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-    }
-
-    public void resetCart() {
-        cartItems.clear();
-        jTextField2.setText("");
-        paymentcombo.setSelectedIndex(0);
-        coustomerCombo.setSelectedIndex(0);
-        updateCartPanel();
-    }
-
+    
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -786,17 +379,6 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         discountPriceinput = new javax.swing.JTextField();
         cartCount = new javax.swing.JLabel();
         clearCartBtn = new javax.swing.JButton();
-        jScrollPane1 = new javax.swing.JScrollPane();
-        jPanel10 = new javax.swing.JPanel();
-        roundedPanel4 = new lk.com.pos.privateclasses.RoundedPanel();
-        cartProductName1 = new javax.swing.JLabel();
-        cartProductPanelDeleteBtn1 = new javax.swing.JButton();
-        cminusBtn1 = new javax.swing.JButton();
-        productCount1 = new javax.swing.JLabel();
-        priceInput1 = new javax.swing.JLabel();
-        cplusBtn1 = new javax.swing.JButton();
-        discountPriceinput1 = new javax.swing.JTextField();
-        jPanel1 = new javax.swing.JPanel();
         paymentcombo = new javax.swing.JComboBox<>();
         coustomerCombo = new javax.swing.JComboBox<>();
         jButton8 = new javax.swing.JButton();
@@ -809,8 +391,16 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         jLabel14 = new javax.swing.JLabel();
         jLabel15 = new javax.swing.JLabel();
         gradientButton1 = new lk.com.pos.privateclasses.GradientButton();
-        jButton1 = new javax.swing.JButton();
-        jComboBox1 = new javax.swing.JComboBox<>();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jPanel10 = new javax.swing.JPanel();
+        roundedPanel4 = new lk.com.pos.privateclasses.RoundedPanel();
+        cartProductName1 = new javax.swing.JLabel();
+        cartProductPanelDeleteBtn1 = new javax.swing.JButton();
+        cminusBtn1 = new javax.swing.JButton();
+        productCount1 = new javax.swing.JLabel();
+        priceInput1 = new javax.swing.JLabel();
+        cplusBtn1 = new javax.swing.JButton();
+        discountPriceinput1 = new javax.swing.JTextField();
 
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -916,108 +506,6 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         clearCartBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
         clearCartBtn.setText("D");
 
-        jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-
-        jPanel10.setBackground(new java.awt.Color(255, 255, 255));
-
-        cartProductName1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        cartProductName1.setText("Product Name (Brand)");
-
-        cartProductPanelDeleteBtn1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-        cartProductPanelDeleteBtn1.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        cartProductPanelDeleteBtn1.setHorizontalTextPosition(javax.swing.SwingConstants.RIGHT);
-
-        cminusBtn1.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
-        cminusBtn1.setText("-");
-
-        productCount1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        productCount1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        productCount1.setText("1");
-
-        priceInput1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
-        priceInput1.setText("Rs.1000");
-
-        cplusBtn1.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
-        cplusBtn1.setText("+");
-        cplusBtn1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                cplusBtn1ActionPerformed(evt);
-            }
-        });
-
-        discountPriceinput1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        discountPriceinput1.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
-        discountPriceinput1.setText(" Descount Price");
-
-        javax.swing.GroupLayout roundedPanel4Layout = new javax.swing.GroupLayout(roundedPanel4);
-        roundedPanel4.setLayout(roundedPanel4Layout);
-        roundedPanel4Layout.setHorizontalGroup(
-            roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, roundedPanel4Layout.createSequentialGroup()
-                .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(roundedPanel4Layout.createSequentialGroup()
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(priceInput1))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, roundedPanel4Layout.createSequentialGroup()
-                        .addGap(18, 18, 18)
-                        .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(roundedPanel4Layout.createSequentialGroup()
-                                .addComponent(cminusBtn1)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(productCount1, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(cplusBtn1)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 117, Short.MAX_VALUE)
-                                .addComponent(discountPriceinput1, javax.swing.GroupLayout.PREFERRED_SIZE, 127, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(roundedPanel4Layout.createSequentialGroup()
-                                .addComponent(cartProductName1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(cartProductPanelDeleteBtn1, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addGap(17, 17, 17))
-        );
-        roundedPanel4Layout.setVerticalGroup(
-            roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(roundedPanel4Layout.createSequentialGroup()
-                .addGap(15, 15, 15)
-                .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(cartProductName1)
-                    .addComponent(cartProductPanelDeleteBtn1, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(10, 10, 10)
-                .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(roundedPanel4Layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(cminusBtn1)
-                            .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                .addComponent(productCount1, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(cplusBtn1))))
-                    .addComponent(discountPriceinput1))
-                .addGap(10, 10, 10)
-                .addComponent(priceInput1)
-                .addGap(15, 15, 15))
-        );
-
-        javax.swing.GroupLayout jPanel10Layout = new javax.swing.GroupLayout(jPanel10);
-        jPanel10.setLayout(jPanel10Layout);
-        jPanel10Layout.setHorizontalGroup(
-            jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel10Layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addComponent(roundedPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(35, Short.MAX_VALUE))
-        );
-        jPanel10Layout.setVerticalGroup(
-            jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel10Layout.createSequentialGroup()
-                .addGap(26, 26, 26)
-                .addComponent(roundedPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(159, Short.MAX_VALUE))
-        );
-
-        jScrollPane1.setViewportView(jPanel10);
-
-        jPanel1.setBackground(new java.awt.Color(255, 255, 255));
-
         paymentcombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         paymentcombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
         paymentcombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Payment Method", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
@@ -1080,96 +568,148 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
             }
         });
 
-        jButton1.setBackground(new java.awt.Color(255, 51, 51));
-        jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton1.setText("Hold Sale");
+        jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        jPanel10.setBackground(new java.awt.Color(255, 255, 255));
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(paymentcombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, 324, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addComponent(gradientButton1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(coustomerCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addComponent(jSeparator2)
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 154, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGap(28, 28, 28)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                    .addComponent(jLabel22)
-                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 247, javax.swing.GroupLayout.PREFERRED_SIZE)))
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 205, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+        cartProductName1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        cartProductName1.setText("Product Name (Brand)");
+
+        cartProductPanelDeleteBtn1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
+        cartProductPanelDeleteBtn1.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        cartProductPanelDeleteBtn1.setHorizontalTextPosition(javax.swing.SwingConstants.RIGHT);
+
+        cminusBtn1.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
+        cminusBtn1.setText("-");
+
+        productCount1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        productCount1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        productCount1.setText("1");
+
+        priceInput1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
+        priceInput1.setText("Rs.1000");
+
+        cplusBtn1.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
+        cplusBtn1.setText("+");
+        cplusBtn1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cplusBtn1ActionPerformed(evt);
+            }
+        });
+
+        discountPriceinput1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        discountPriceinput1.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+        discountPriceinput1.setText(" Descount Price");
+
+        javax.swing.GroupLayout roundedPanel4Layout = new javax.swing.GroupLayout(roundedPanel4);
+        roundedPanel4.setLayout(roundedPanel4Layout);
+        roundedPanel4Layout.setHorizontalGroup(
+            roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, roundedPanel4Layout.createSequentialGroup()
+                .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(roundedPanel4Layout.createSequentialGroup()
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(priceInput1))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, roundedPanel4Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(roundedPanel4Layout.createSequentialGroup()
+                                .addComponent(cminusBtn1)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(productCount1, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(cplusBtn1)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 141, Short.MAX_VALUE)
+                                .addComponent(discountPriceinput1, javax.swing.GroupLayout.PREFERRED_SIZE, 127, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(roundedPanel4Layout.createSequentialGroup()
+                                .addComponent(cartProductName1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(cartProductPanelDeleteBtn1, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                .addGap(17, 17, 17))
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(paymentcombo, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(coustomerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 56, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton9, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(18, 18, 18)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel22, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(11, 11, 11)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel14)
-                    .addComponent(jLabel15))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(gradientButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, 44, Short.MAX_VALUE)
-                    .addComponent(jComboBox1))
-                .addContainerGap(14, Short.MAX_VALUE))
+        roundedPanel4Layout.setVerticalGroup(
+            roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(roundedPanel4Layout.createSequentialGroup()
+                .addGap(15, 15, 15)
+                .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(cartProductName1)
+                    .addComponent(cartProductPanelDeleteBtn1, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(10, 10, 10)
+                .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(roundedPanel4Layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(cminusBtn1)
+                            .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(productCount1, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(cplusBtn1))))
+                    .addComponent(discountPriceinput1))
+                .addGap(10, 10, 10)
+                .addComponent(priceInput1)
+                .addGap(15, 15, 15))
         );
+
+        javax.swing.GroupLayout jPanel10Layout = new javax.swing.GroupLayout(jPanel10);
+        jPanel10.setLayout(jPanel10Layout);
+        jPanel10Layout.setHorizontalGroup(
+            jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel10Layout.createSequentialGroup()
+                .addGap(16, 16, 16)
+                .addComponent(roundedPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGap(16, 16, 16))
+        );
+        jPanel10Layout.setVerticalGroup(
+            jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel10Layout.createSequentialGroup()
+                .addGap(26, 26, 26)
+                .addComponent(roundedPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(159, Short.MAX_VALUE))
+        );
+
+        jScrollPane1.setViewportView(jPanel10);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jScrollPane1)
-                .addContainerGap())
-            .addGroup(layout.createSequentialGroup()
-                .addGap(8, 8, 8)
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGap(10, 10, 10))
-            .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addComponent(cartCount, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(clearCartBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18))
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(cartCount, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(clearCartBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addGroup(layout.createSequentialGroup()
+                                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 154, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGap(1, 1, 1)
+                                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(paymentcombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addComponent(coustomerCombo, 0, 351, Short.MAX_VALUE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jButton9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                                .addComponent(jLabel22)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 247, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(gradientButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, 309, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+            .addComponent(jScrollPane1)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1180,9 +720,30 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
                     .addComponent(clearCartBtn))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 313, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(paymentcombo, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(coustomerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 56, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jButton9, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel22, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(11, 11, 11)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel14)
+                    .addComponent(jLabel15))
+                .addGap(10, 10, 10)
+                .addComponent(gradientButton1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(28, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -1222,16 +783,13 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
     private javax.swing.JTextField discountPriceinput;
     private javax.swing.JTextField discountPriceinput1;
     private lk.com.pos.privateclasses.GradientButton gradientButton1;
-    private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton8;
     private javax.swing.JButton jButton9;
-    private javax.swing.JComboBox<String> jComboBox1;
     private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel22;
     private javax.swing.JLabel jLabel23;
-    private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel10;
     private javax.swing.JPanel jPanel9;
     private javax.swing.JScrollPane jScrollPane1;

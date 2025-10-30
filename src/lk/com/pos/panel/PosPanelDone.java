@@ -971,7 +971,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     private void addToCart(int productId, String productName, String brandName,
             String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) {
         
-        posCartPanel.addToCart(productId, productName, brandName, batchNo, qty, sellingPrice, barcode, lastPrice);
+
     }
     
     @SuppressWarnings("unchecked")

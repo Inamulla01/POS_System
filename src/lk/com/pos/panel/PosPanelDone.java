@@ -147,7 +147,7 @@ class RoundBorder extends javax.swing.border.AbstractBorder {
     }
 }
 
-public class PosPanel extends javax.swing.JPanel implements CartListener {
+public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     
     @Override
     public void onCartUpdated(double total, int itemCount) {
@@ -173,7 +173,7 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
     private int columnsPerRow = 2;
     private javax.swing.Timer searchTimer;
     
-    public PosPanel() {
+    public PosPanelDone() {
         initComponents();
         init();
         javax.swing.SwingUtilities.invokeLater(() -> {
@@ -184,6 +184,7 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
     private void init() {
         setupKeyboardNavigation();
         setupSearchFunctionality();
+        setupSearchShortcut(); // Add keyboard shortcut functionality
         selectProductPanel.putClientProperty(FlatClientProperties.STYLE, "arc:15;");
         selectProductPanel.setBorder(BorderFactory.createCompoundBorder(
             new RoundBorder(Color.WHITE, 1, 15),
@@ -237,6 +238,69 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
                 "track: #F5F5F5;"
                 + "thumb: #1CB5BB;"
                 + "width: 8");
+    }
+    
+    private void setupSearchShortcut() {
+        // Create the focus search action
+        javax.swing.Action focusSearchAction = new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                productSearchBar.requestFocusInWindow();
+                if (productSearchBar.getForeground().equals(java.awt.Color.GRAY)) {
+                    productSearchBar.setText("");
+                    productSearchBar.setForeground(java.awt.Color.BLACK);
+                }
+                productSearchBar.selectAll();
+            }
+        };
+
+        // Get the input map and action map for WHEN_IN_FOCUSED_WINDOW (global)
+        javax.swing.InputMap globalInputMap = getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
+        javax.swing.ActionMap globalActionMap = getActionMap();
+
+        // Define the keys for both F and Ctrl+F
+        String fKey = "FocusSearchF";
+        String ctrlFKey = "FocusSearchCtrlF";
+
+        // Bind F key (no modifiers)
+        globalInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
+        globalActionMap.put(fKey, focusSearchAction);
+
+        // Bind Ctrl+F
+        globalInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
+        globalActionMap.put(ctrlFKey, focusSearchAction);
+
+        // Also set up for ancestor focus for broader coverage
+        javax.swing.InputMap ancestorInputMap = getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        ancestorInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
+        ancestorInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
+
+        // Setup for the scroll pane
+        javax.swing.InputMap scrollInputMap = jScrollPane2.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        javax.swing.ActionMap scrollActionMap = jScrollPane2.getActionMap();
+        
+        scrollInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
+        scrollInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
+        scrollActionMap.put(fKey, focusSearchAction);
+        scrollActionMap.put(ctrlFKey, focusSearchAction);
+
+        // Setup for products panel
+        javax.swing.InputMap panelInputMap = jPanel7.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        javax.swing.ActionMap panelActionMap = jPanel7.getActionMap();
+        
+        panelInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
+        panelInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
+        panelActionMap.put(fKey, focusSearchAction);
+        panelActionMap.put(ctrlFKey, focusSearchAction);
+
+        // Setup for cart panel
+        javax.swing.InputMap cartInputMap = cartPanel.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        javax.swing.ActionMap cartActionMap = cartPanel.getActionMap();
+        
+        cartInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
+        cartInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
+        cartActionMap.put(fKey, focusSearchAction);
+        cartActionMap.put(ctrlFKey, focusSearchAction);
     }
     
     private void setupSearchBarPlaceholder() {
@@ -909,11 +973,13 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
         
         posCartPanel.addToCart(productId, productName, brandName, batchNo, qty, sellingPrice, barcode, lastPrice);
     }
+    
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
         jPanel1 = new javax.swing.JPanel();
+        cartPanel = new lk.com.pos.privateclasses.RoundedPanel();
         selectProductPanel = new lk.com.pos.privateclasses.RoundedPanel();
         jLabel2 = new javax.swing.JLabel();
         reloadBtn = new javax.swing.JButton();
@@ -926,9 +992,19 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
         batchNo = new javax.swing.JLabel();
         qty = new javax.swing.JLabel();
         sellingPrice = new javax.swing.JLabel();
-        cartPanel = new lk.com.pos.privateclasses.RoundedPanel();
 
         jPanel1.setBackground(new java.awt.Color(248, 250, 252));
+
+        javax.swing.GroupLayout cartPanelLayout = new javax.swing.GroupLayout(cartPanel);
+        cartPanel.setLayout(cartPanelLayout);
+        cartPanelLayout.setHorizontalGroup(
+            cartPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 491, Short.MAX_VALUE)
+        );
+        cartPanelLayout.setVerticalGroup(
+            cartPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
 
         selectProductPanel.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1022,16 +1098,16 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
         selectProductPanel.setLayout(selectProductPanelLayout);
         selectProductPanelLayout.setHorizontalGroup(
             selectProductPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, selectProductPanelLayout.createSequentialGroup()
-                .addGap(30, 30, 30)
-                .addGroup(selectProductPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jScrollPane2)
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, selectProductPanelLayout.createSequentialGroup()
+            .addGroup(selectProductPanelLayout.createSequentialGroup()
+                .addGap(18, 18, 18)
+                .addGroup(selectProductPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 714, Short.MAX_VALUE)
+                    .addGroup(selectProductPanelLayout.createSequentialGroup()
                         .addComponent(jLabel2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(reloadBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(productSearchBar, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 642, Short.MAX_VALUE))
-                .addGap(32, 32, 32))
+                    .addComponent(productSearchBar))
+                .addGap(18, 18, 18))
         );
         selectProductPanelLayout.setVerticalGroup(
             selectProductPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1043,18 +1119,8 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(productSearchBar, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 554, Short.MAX_VALUE))
-        );
-
-        javax.swing.GroupLayout cartPanelLayout = new javax.swing.GroupLayout(cartPanel);
-        cartPanel.setLayout(cartPanelLayout);
-        cartPanelLayout.setHorizontalGroup(
-            cartPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 491, Short.MAX_VALUE)
-        );
-        cartPanelLayout.setVerticalGroup(
-            cartPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 547, Short.MAX_VALUE)
+                .addGap(18, 18, 18))
         );
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -1072,21 +1138,25 @@ public class PosPanel extends javax.swing.JPanel implements CartListener {
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(18, 18, 18)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(cartPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(selectProductPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addGap(18, 18, 18))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(selectProductPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(cartPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(20, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGap(0, 0, 0))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGap(0, 0, 0))
         );
     }// </editor-fold>//GEN-END:initComponents
 

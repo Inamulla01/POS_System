@@ -24,9 +24,9 @@ import javax.swing.plaf.basic.BasicMenuItemUI;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewUser;
 import lk.com.pos.dialog.EditProfile;
-import lk.com.pos.panel.CustomerManagement;
+import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
-import lk.com.pos.panel.PosPanel;
+import lk.com.pos.panel.PosPanelDone;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
@@ -65,10 +65,10 @@ public class HomeScreen extends JFrame {
 
     // Panels for card layout
     private DashboardPanel dashboardPanel;
-    private PosPanel posPanel;
+    private PosPanelDone posPanel;
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
-    private CustomerManagement customerManagementPanel;
+    private CustomerPanel customerManagementPanel;
     private ProductPanel productPanel;
     private CardLayout contentPanelLayout;
 
@@ -782,10 +782,10 @@ public class HomeScreen extends JFrame {
 
         // Initialize panels
         this.dashboardPanel = new DashboardPanel();
-        this.posPanel = new PosPanel();
+        this.posPanel = new PosPanelDone();
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
-        this.customerManagementPanel = new CustomerManagement();
+        this.customerManagementPanel = new CustomerPanel();
         this.productPanel = new ProductPanel();
 
         // Add panels to card layout

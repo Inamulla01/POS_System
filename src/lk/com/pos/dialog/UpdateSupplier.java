@@ -1,14 +1,19 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JDialog.java to edit this template
- */
 package lk.com.pos.dialog;
 
 import lk.com.pos.connection.MySQL;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.KeyboardFocusManager;
+import java.awt.RenderingHints;
+import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.awt.event.KeyEvent;
 import javax.swing.*;
 import raven.toast.Notifications;
 
@@ -26,8 +31,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
     public UpdateSupplier(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
-        setLocationRelativeTo(parent);
-        setupKeyboardNavigation();
+        initializeDialog();
     }
     
     // Constructor with supplier ID to load data
@@ -35,119 +39,232 @@ public class UpdateSupplier extends javax.swing.JDialog {
         super(parent, modal);
         this.supplierId = supplierId;
         initComponents();
-        setLocationRelativeTo(parent);
-        setupKeyboardNavigation();
+        initializeDialog();
         loadSupplierData();
     }
     
-    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
-    private void setupKeyboardNavigation() {
-        // Set up Enter key navigation between fields
-        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    jTextField2.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
-
-        jTextField2.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    jTextField3.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    jTextField1.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
-
-        jTextField3.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    jTextField4.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    jTextField2.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
-
-        jTextField4.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    jButton1.requestFocus(); // Update button
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    jTextField3.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
-
-        // Update button keyboard navigation
-        jButton1.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    updateSupplier();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    jTextField4.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    jButton2.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    jButton2.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
-
-        // Cancel button keyboard navigation
-        jButton2.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    dispose();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    jTextField4.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    jButton1.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    jButton1.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
-
-        // Set up Escape key to close dialog
-        getRootPane().registerKeyboardAction(
-            evt -> dispose(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
-        // Set up Ctrl+Enter to update from anywhere
-        getRootPane().registerKeyboardAction(
-            evt -> updateSupplier(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
+    private void initializeDialog() {
+        setLocationRelativeTo(getParent());
+        setupKeyboardNavigation();
+        setupButtonStyles();
+        setupTooltips();
+        
         // Set initial focus
         jTextField1.requestFocus();
+    }
+
+    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
+
+    private boolean areAllRequiredFieldsFilled() {
+        return !jTextField1.getText().trim().isEmpty() &&
+               !jTextField2.getText().trim().isEmpty() &&
+               !jTextField3.getText().trim().isEmpty();
+    }
+
+    // ---------------- BUTTON STYLES AND EFFECTS ----------------
+    private void setupButtonStyles() {
+        // Setup gradient buttons for Save and Cancel
+        setupGradientButton(updateBtn);
+        setupGradientButton(cancelBtn);
+
+        // Create icons with original blue color for action buttons
+        FlatSVGIcon updateIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+        updateIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        updateBtn.setIcon(updateIcon);
+
+        FlatSVGIcon cancelIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+        cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        cancelBtn.setIcon(cancelIcon);
+
+        // Setup refresh button with the same style as add buttons
+        refreshBtn.setBorderPainted(false);
+        refreshBtn.setContentAreaFilled(false);
+        refreshBtn.setFocusPainted(false);
+        refreshBtn.setOpaque(false);
+        refreshBtn.setFocusable(false);
+        refreshBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        FlatSVGIcon refreshIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+        refreshIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+        refreshBtn.setIcon(refreshIcon);
+
+        // Setup mouse listeners for all buttons
+        setupButtonMouseListeners();
+        setupButtonFocusListeners();
+    }
+
+    private void setupGradientButton(JButton button) {
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setForeground(Color.decode("#0893B0"));
+        button.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, javax.swing.JComponent c) {
+                Graphics2D g2 = (Graphics2D) g;
+                int w = c.getWidth();
+                int h = c.getHeight();
+
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // Check button state
+                boolean isHover = button.getModel().isRollover();
+                boolean isPressed = button.getModel().isPressed();
+                boolean isFocused = button.hasFocus();
+
+                // Default state - transparent with blue border
+                if (!isFocused && !isHover && !isPressed) {
+                    g2.setColor(new Color(0, 0, 0, 0)); // Transparent
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+
+                    // Draw border
+                    g2.setColor(Color.decode("#0893B0"));
+                    g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
+                } else {
+                    // Gradient colors for hover/focus/pressed state
+                    Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
+
+                    // Draw gradient
+                    GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
+                    g2.setPaint(gp);
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+                }
+
+                // Draw button text
+                super.paint(g, c);
+            }
+        });
+    }
+
+    private void setupButtonMouseListeners() {
+        // Mouse listeners for updateBtn
+        updateBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                updateBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                updateBtn.setIcon(hoverIcon);
+                updateBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                updateBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                updateBtn.setIcon(normalIcon);
+                updateBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for cancelBtn
+        cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(hoverIcon);
+                cancelBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+
+        // Mouse listeners for refreshBtn (same as add buttons style)
+        refreshBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                refreshBtn.setIcon(hoverIcon);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                refreshBtn.setIcon(normalIcon);
+            }
+        });
+    }
+
+    private void setupButtonFocusListeners() {
+        // Focus listeners for updateBtn
+        updateBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                updateBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                updateBtn.setIcon(focusedIcon);
+                updateBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                updateBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                updateBtn.setIcon(normalIcon);
+                updateBtn.repaint();
+            }
+        });
+
+        // Focus listeners for cancelBtn
+        cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(focusedIcon);
+                cancelBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+
+        // Focus listeners for refreshBtn (same as add buttons style)
+        refreshBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                refreshBtn.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                refreshBtn.setIcon(normalIcon);
+            }
+        });
+    }
+
+    private void setupTooltips() {
+        jTextField1.setToolTipText("Type supplier name and press ENTER to move to next field");
+        jTextField2.setToolTipText("Type phone number and press ENTER to move to next field");
+        jTextField3.setToolTipText("Type address and press ENTER to move to buttons");
+        jTextField4.setToolTipText("Registration number (read-only)");
+        updateBtn.setToolTipText("Click to update supplier (or press ENTER when focused)");
+        cancelBtn.setToolTipText("Click to cancel (or press ESC)");
+        refreshBtn.setToolTipText("Reload original data (or press F1)");
+    }
+
+    // ---------------- VALIDATION AND BUSINESS LOGIC ----------------
+    private void clearForm() {
+        loadSupplierData(); // Reload original data
+        jTextField1.requestFocus();
+        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form reset to original values!");
     }
     
     private void loadSupplierData() {
@@ -209,15 +326,144 @@ public class UpdateSupplier extends javax.swing.JDialog {
         }
         return false;
     }
-    
+    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
+private void setupKeyboardNavigation() {
+    // Set up Enter key and arrow key navigation between fields
+    jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                jTextField2.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                jTextField2.requestFocus();
+                evt.consume();
+            }
+        }
+    });
+
+    jTextField2.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                jTextField3.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                jTextField1.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                jTextField3.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                jTextField1.requestFocus();
+                evt.consume();
+            }
+        }
+    });
+
+    jTextField3.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                // When all fields are filled, go directly to update button
+                if (areAllRequiredFieldsFilled()) {
+                    updateBtn.requestFocusInWindow();
+                } else {
+                    cancelBtn.requestFocusInWindow();
+                }
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                jTextField2.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                // When all fields are filled, go directly to update button
+                if (areAllRequiredFieldsFilled()) {
+                    updateBtn.requestFocusInWindow();
+                } else {
+                    cancelBtn.requestFocusInWindow();
+                }
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                jTextField2.requestFocus();
+                evt.consume();
+            }
+        }
+    });
+
+    // Update button keyboard navigation
+    updateBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                updateSupplier();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                jTextField3.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                cancelBtn.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                cancelBtn.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                cancelBtn.requestFocus();
+                evt.consume();
+            }
+        }
+    });
+
+    // Cancel button keyboard navigation
+    cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                dispose();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                jTextField3.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                updateBtn.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                updateBtn.requestFocus();
+                evt.consume();
+            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                updateBtn.requestFocus();
+                evt.consume();
+            }
+        }
+    });
+
+    // Set up Escape key to close dialog
+    getRootPane().registerKeyboardAction(
+        evt -> dispose(),
+        KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+        JComponent.WHEN_IN_FOCUSED_WINDOW
+    );
+
+    // Set up Ctrl+Enter to update from anywhere
+    getRootPane().registerKeyboardAction(
+        evt -> updateSupplier(),
+        KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
+        JComponent.WHEN_IN_FOCUSED_WINDOW
+    );
+
+    // Set up F1 key for refresh/clear form
+    getRootPane().registerKeyboardAction(
+        evt -> clearForm(),
+        KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
+        JComponent.WHEN_IN_FOCUSED_WINDOW
+    );
+}
     private void updateSupplier() {
         String name = jTextField1.getText().trim();
         String mobile = jTextField2.getText().trim();
         String address = jTextField3.getText().trim();
-        String regNo = jTextField4.getText().trim();
 
         // Basic validation
-        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty() || regNo.isEmpty()) {
+        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     "Please fill all required fields!");
             return;
@@ -273,10 +519,11 @@ public class UpdateSupplier extends javax.swing.JDialog {
         jTextField2 = new javax.swing.JTextField();
         jTextField3 = new javax.swing.JTextField();
         jTextField4 = new javax.swing.JTextField();
-        jButton2 = new javax.swing.JButton();
-        jButton1 = new javax.swing.JButton();
         jLabel2 = new javax.swing.JLabel();
         jSeparator2 = new javax.swing.JSeparator();
+        cancelBtn = new javax.swing.JButton();
+        updateBtn = new javax.swing.JButton();
+        refreshBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -307,27 +554,11 @@ public class UpdateSupplier extends javax.swing.JDialog {
         jTextField4.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
         jTextField4.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Register No *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
         jTextField4.setEnabled(false);
+        jTextField4.setOpaque(true);
         jTextField4.setPreferredSize(new java.awt.Dimension(64, 40));
         jTextField4.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jTextField4ActionPerformed(evt);
-            }
-        });
-
-        jButton2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jButton2.setText("Cancel");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
-            }
-        });
-
-        jButton1.setBackground(new java.awt.Color(115, 230, 203));
-        jButton1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        jButton1.setText("Update");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
             }
         });
 
@@ -337,6 +568,40 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
         jSeparator2.setForeground(new java.awt.Color(0, 137, 176));
 
+        cancelBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        cancelBtn.setForeground(new java.awt.Color(8, 147, 176));
+        cancelBtn.setText("Cancel");
+        cancelBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        cancelBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cancelBtnActionPerformed(evt);
+            }
+        });
+
+        updateBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        updateBtn.setForeground(new java.awt.Color(8, 147, 176));
+        updateBtn.setText("Save");
+        updateBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        updateBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                updateBtnActionPerformed(evt);
+            }
+        });
+
+        refreshBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        refreshBtn.setForeground(new java.awt.Color(8, 147, 176));
+        refreshBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        refreshBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                refreshBtnActionPerformed(evt);
+            }
+        });
+        refreshBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                refreshBtnKeyPressed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -345,14 +610,11 @@ public class UpdateSupplier extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 94, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 112, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                 .addComponent(jLabel2)
                                 .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -360,13 +622,20 @@ public class UpdateSupplier extends javax.swing.JDialog {
                                     .addComponent(jTextField2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 333, Short.MAX_VALUE)
                                     .addComponent(jTextField3, javax.swing.GroupLayout.Alignment.LEADING))
                                 .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addContainerGap(21, Short.MAX_VALUE))))
+                        .addContainerGap(21, Short.MAX_VALUE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(refreshBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(21, 21, 21)
-                .addComponent(jLabel2)
+                .addGap(18, 18, 18)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jLabel2)
+                    .addComponent(refreshBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -379,8 +648,8 @@ public class UpdateSupplier extends javax.swing.JDialog {
                 .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(21, Short.MAX_VALUE))
         );
 
@@ -410,13 +679,21 @@ public class UpdateSupplier extends javax.swing.JDialog {
         // TODO add your handling code here:
     }//GEN-LAST:event_jTextField4ActionPerformed
 
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+    private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
         this.dispose();
-    }//GEN-LAST:event_jButton2ActionPerformed
+    }//GEN-LAST:event_cancelBtnActionPerformed
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void updateBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_updateBtnActionPerformed
         updateSupplier();
-    }//GEN-LAST:event_jButton1ActionPerformed
+    }//GEN-LAST:event_updateBtnActionPerformed
+
+    private void refreshBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_refreshBtnActionPerformed
+        clearForm();
+    }//GEN-LAST:event_refreshBtnActionPerformed
+
+    private void refreshBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_refreshBtnKeyPressed
+        clearForm();
+    }//GEN-LAST:event_refreshBtnKeyPressed
 
     /**
      * @param args the command line arguments
@@ -461,8 +738,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
+    private javax.swing.JButton cancelBtn;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator2;
@@ -470,5 +746,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
     private javax.swing.JTextField jTextField2;
     private javax.swing.JTextField jTextField3;
     private javax.swing.JTextField jTextField4;
+    private javax.swing.JButton refreshBtn;
+    private javax.swing.JButton updateBtn;
     // End of variables declaration//GEN-END:variables
 }

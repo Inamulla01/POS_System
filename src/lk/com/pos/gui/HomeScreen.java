@@ -30,14 +30,20 @@ import lk.com.pos.panel.PosPanelDone;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
-import lk.com.pos.session.Session;
+// import lk.com.pos.session.Session;
 import lk.com.pos.util.AppIconUtil;
 import raven.toast.Notifications;
 
 public class HomeScreen extends JFrame {
 
-    int userId = Session.getInstance().getUserId();
-    String roleName = Session.getInstance().getRoleName();
+    // ===== SESSION CODE COMMENTED OUT =====
+    // int userId = Session.getInstance().getUserId();
+    // String roleName = Session.getInstance().getRoleName();
+    
+    // Temporary hardcoded values for testing (remove when session is restored)
+    int userId = 1;
+    String roleName = "Admin";
+    // ===== END SESSION CODE =====
 
     // Icons
     private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
@@ -88,47 +94,57 @@ public class HomeScreen extends JFrame {
 
         initComponents();
 
-        if (!hasValidSession()) {
-            redirectToLogin();
-            return;
-        }
+        // ===== SESSION VALIDATION COMMENTED OUT =====
+        // if (!hasValidSession()) {
+        //     redirectToLogin();
+        //     return;
+        // }
+        // ===== END SESSION CODE =====
+        
         loadPanels();
         init();
         initSidebarSlider();
 
     }
 
-    private boolean hasValidSession() {
-        Session session = Session.getInstance();
-        boolean isValid = session.getUserId() != 0 && session.getRoleName() != null;
+    // ===== SESSION VALIDATION METHOD COMMENTED OUT =====
+    // private boolean hasValidSession() {
+    //     Session session = Session.getInstance();
+    //     boolean isValid = session.getUserId() != 0 && session.getRoleName() != null;
+    //
+    //     if (!isValid) {
+    //         System.out.println("Invalid session - UserId: " + session.getUserId() + ", Role: " + session.getRoleName());
+    //     }
+    //
+    //     return isValid;
+    // }
+    // ===== END SESSION CODE =====
 
-        if (!isValid) {
-            System.out.println("Invalid session - UserId: " + session.getUserId() + ", Role: " + session.getRoleName());
-        }
-
-        return isValid;
-    }
-
-    private void redirectToLogin() {
-        // Dispose current frame first
-        this.dispose();
-
-        // Create login screen and show notification there
-        SwingUtilities.invokeLater(() -> {
-            LogIn login = new LogIn();
-            login.setVisible(true);
-            // Show notification on the login screen
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Session expired! Please login again.");
-        });
-    }
+    // ===== REDIRECT TO LOGIN METHOD COMMENTED OUT =====
+    // private void redirectToLogin() {
+    //     // Dispose current frame first
+    //     this.dispose();
+    //
+    //     // Create login screen and show notification there
+    //     SwingUtilities.invokeLater(() -> {
+    //         LogIn login = new LogIn();
+    //         login.setVisible(true);
+    //         // Show notification on the login screen
+    //         Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Session expired! Please login again.");
+    //     });
+    // }
+    // ===== END SESSION CODE =====
 
     private void init() {
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-        if (!hasValidSession()) {
-            redirectToLogin();
-            return;
-        }
+        
+        // ===== SESSION VALIDATION COMMENTED OUT =====
+        // if (!hasValidSession()) {
+        //     redirectToLogin();
+        //     return;
+        // }
+        // ===== END SESSION CODE =====
 
         try {
             ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + userId);
@@ -1225,7 +1241,7 @@ public class HomeScreen extends JFrame {
         });
     }
 
-// FIXED: Completely reset all menu item properties
+    // FIXED: Completely reset all menu item properties
     private void resetAllMenuItemsCompletely() {
         for (Component comp : profilePopup.getComponents()) {
             if (comp instanceof JMenuItem) {
@@ -1280,7 +1296,7 @@ public class HomeScreen extends JFrame {
     }
 
     private void addNewUser() {
-// From your main form or any other component
+        // From your main form or any other component
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         AddNewUser dialog = new AddNewUser(parentFrame, true);
         dialog.setLocationRelativeTo(parentFrame);
@@ -1804,106 +1820,106 @@ public class HomeScreen extends JFrame {
 
     private void signOutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_signOutBtnActionPerformed
 
-        Session session = Session.getInstance();
-
-        if (session.getUserId() == 0 || session.getRoleName() == null) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No active session found! You are not logged in.");
-            return;
-        }
-
-        int option = JOptionPane.showConfirmDialog(
-                this,
-                "Are you sure you want to log out, " + session.getRoleName() + "?",
-                "Confirm Logout",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE
-        );
-
-        if (option == JOptionPane.YES_OPTION) {
-            try {
-                // Get user details for logout message
-                String userName = "";
-                String roleName = session.getRoleName();
-
-                // Get username from database
-                ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + session.getUserId());
-                if (rs.next()) {
-                    userName = rs.getString("name");
-                }
-                rs.close();
-
-                // Create logout success message with username and role
-                String logoutMessage = userName + "(" + roleName + ") logged out successfully";
-                int massageId = 0;
-
-                // Check if message already exists in massage table
-                ResultSet checkRs = MySQL.executeSearch("SELECT massage_id FROM massage WHERE massage = '" + logoutMessage + "'");
-                if (checkRs.next()) {
-                    // Message exists, get the existing massage_id
-                    massageId = checkRs.getInt("massage_id");
-
-                } else {
-                    // Message doesn't exist, insert new message
-                    MySQL.executeIUD("INSERT INTO massage (massage) VALUES ('" + logoutMessage + "')");
-
-                    // Get the generated massage_id
-                    ResultSet generatedRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as new_id");
-                    if (generatedRs.next()) {
-                        massageId = generatedRs.getInt("new_id");
-
-                    }
-                    generatedRs.close();
-                }
-                checkRs.close();
-
-                // Insert into notifocation table
-                if (massageId > 0) {
-                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, " + massageId + ")");
-
-                }
-
-                // Clear session
-                session.clear();
-
-                // Stop timers
-                if (clockTimer != null && clockTimer.isRunning()) {
-                    clockTimer.stop();
-                }
-
-                // Show success message
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
-
-                // Close current window
-                this.dispose();
-
-                // Exit application
-                System.exit(0);
-
-            } catch (SQLException e) {
-
-                e.printStackTrace();
-
-                // Clear session even if notification fails
-                session.clear();
-
-                // Stop timers
-                if (clockTimer != null && clockTimer.isRunning()) {
-                    clockTimer.stop();
-                }
-
-                // Show success message
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
-
-                // Close current window
-                this.dispose();
-
-                // Exit application
-                System.exit(0);
-            }
-        } else {
-            // User cancelled logout
-            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Logout cancelled.");
-        }
+//        Session session = Session.getInstance();
+//
+//        if (session.getUserId() == 0 || session.getRoleName() == null) {
+//            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No active session found! You are not logged in.");
+//            return;
+//        }
+//
+//        int option = JOptionPane.showConfirmDialog(
+//                this,
+//                "Are you sure you want to log out, " + session.getRoleName() + "?",
+//                "Confirm Logout",
+//                JOptionPane.YES_NO_OPTION,
+//                JOptionPane.QUESTION_MESSAGE
+//        );
+//
+//        if (option == JOptionPane.YES_OPTION) {
+//            try {
+//                // Get user details for logout message
+//                String userName = "";
+//                String roleName = session.getRoleName();
+//
+//                // Get username from database
+//                ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + session.getUserId());
+//                if (rs.next()) {
+//                    userName = rs.getString("name");
+//                }
+//                rs.close();
+//
+//                // Create logout success message with username and role
+//                String logoutMessage = userName + "(" + roleName + ") logged out successfully";
+//                int massageId = 0;
+//
+//                // Check if message already exists in massage table
+//                ResultSet checkRs = MySQL.executeSearch("SELECT massage_id FROM massage WHERE massage = '" + logoutMessage + "'");
+//                if (checkRs.next()) {
+//                    // Message exists, get the existing massage_id
+//                    massageId = checkRs.getInt("massage_id");
+//
+//                } else {
+//                    // Message doesn't exist, insert new message
+//                    MySQL.executeIUD("INSERT INTO massage (massage) VALUES ('" + logoutMessage + "')");
+//
+//                    // Get the generated massage_id
+//                    ResultSet generatedRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as new_id");
+//                    if (generatedRs.next()) {
+//                        massageId = generatedRs.getInt("new_id");
+//
+//                    }
+//                    generatedRs.close();
+//                }
+//                checkRs.close();
+//
+//                // Insert into notifocation table
+//                if (massageId > 0) {
+//                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, " + massageId + ")");
+//
+//                }
+//
+//                // Clear session
+//                session.clear();
+//
+//                // Stop timers
+//                if (clockTimer != null && clockTimer.isRunning()) {
+//                    clockTimer.stop();
+//                }
+//
+//                // Show success message
+//                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
+//
+//                // Close current window
+//                this.dispose();
+//
+//                // Exit application
+//                System.exit(0);
+//
+//            } catch (SQLException e) {
+//
+//                e.printStackTrace();
+//
+//                // Clear session even if notification fails
+//                session.clear();
+//
+//                // Stop timers
+//                if (clockTimer != null && clockTimer.isRunning()) {
+//                    clockTimer.stop();
+//                }
+//
+//                // Show success message
+//                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
+//
+//                // Close current window
+//                this.dispose();
+//
+//                // Exit application
+//                System.exit(0);
+//            }
+//        } else {
+//            // User cancelled logout
+//            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Logout cancelled.");
+//        }
     }//GEN-LAST:event_signOutBtnActionPerformed
 
     /**
@@ -1915,14 +1931,14 @@ public class HomeScreen extends JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                Session session = Session.getInstance();
-                if (session.getUserId() == 0 || session.getRoleName() == null) {
+              //  Session session = Session.getInstance();
+               // if (session.getUserId() == 0 || session.getRoleName() == null) {
                     // Session invalid, go directly to login
-                    new LogIn().setVisible(true);
-                } else {
+               //     new LogIn().setVisible(true);
+                //} else {
                     // Session valid, create HomeScreen
                     new HomeScreen().setVisible(true);
-                }
+                //}
             }
         });
     }

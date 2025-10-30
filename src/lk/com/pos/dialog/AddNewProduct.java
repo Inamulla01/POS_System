@@ -22,6 +22,12 @@ import javax.swing.SwingUtilities;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
+// Add barcode printing imports
+import java.awt.print.PrinterJob;
+import java.awt.print.PrinterException;
+import java.awt.print.PageFormat;
+import java.awt.print.Printable;
+
 public class AddNewProduct extends javax.swing.JDialog {
 
     public AddNewProduct(java.awt.Frame parent, boolean modal) {
@@ -32,54 +38,89 @@ public class AddNewProduct extends javax.swing.JDialog {
         AutoCompleteDecorator.decorate(brandCombo);
     }
 
-private void addEnterKeyNavigation() {
-    // Map components to their next focus targets for Enter key
-    java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
-    enterNavigationMap.put(productInput, categoryCombo);
-    
-    // For combo boxes, we'll handle Enter key in their specific keyPressed methods
-    // to account for selection state
-    
-    enterNavigationMap.put(addNewCategory, brandCombo);
-    enterNavigationMap.put(addNewBrand, barcodeInput);
-    enterNavigationMap.put(barcodeInput, genarateBarecode);
-    enterNavigationMap.put(genarateBarecode, printBarcode);
-    enterNavigationMap.put(printBarcode, saveBtn);
-    enterNavigationMap.put(saveBtn, clearFormBtn);
-    enterNavigationMap.put(clearFormBtn, cancelBtn);
-    enterNavigationMap.put(cancelBtn, productInput);
+    private void addEnterKeyNavigation() {
+        // Map components to their next focus targets for Enter key
+        java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
+        enterNavigationMap.put(productInput, categoryCombo);
+        enterNavigationMap.put(categoryCombo, brandCombo);
+        enterNavigationMap.put(brandCombo, barcodeInput);
+        enterNavigationMap.put(barcodeInput, cancelBtn);
+        enterNavigationMap.put(cancelBtn, clearFormBtn);
+        enterNavigationMap.put(clearFormBtn, saveBtn);
+        enterNavigationMap.put(saveBtn, productInput);
 
-    // Add key listeners to all components except combo boxes
-    for (java.awt.Component component : enterNavigationMap.keySet()) {
-        // Skip combo boxes as they have their own Enter key handling
-        if (component != categoryCombo && component != brandCombo) {
-            component.addKeyListener(new java.awt.event.KeyAdapter() {
-                @Override
-                public void keyPressed(java.awt.event.KeyEvent evt) {
-                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                        java.awt.Component nextComponent = enterNavigationMap.get(component);
-                        if (nextComponent != null) {
-                            nextComponent.requestFocusInWindow();
+        // Add key listeners to all components except combo boxes
+        for (java.awt.Component component : enterNavigationMap.keySet()) {
+            if (component != categoryCombo && component != brandCombo) {
+                component.addKeyListener(new java.awt.event.KeyAdapter() {
+                    @Override
+                    public void keyPressed(java.awt.event.KeyEvent evt) {
+                        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                            java.awt.Component nextComponent = enterNavigationMap.get(component);
+                            if (nextComponent != null) {
+                                nextComponent.requestFocusInWindow();
+                            }
+                            evt.consume();
                         }
-                        evt.consume();
                     }
-                }
-            });
+                });
+            }
         }
     }
-}
-    private void initializeDialog() {
-        // Center the dialog
-        setLocationRelativeTo(getParent());
 
-        // Load combo box data
+    private boolean allFieldsFilled() {
+        return !productInput.getText().trim().isEmpty()
+                && categoryCombo.getSelectedIndex() > 0
+                && brandCombo.getSelectedIndex() > 0
+                && !barcodeInput.getText().trim().isEmpty();
+    }
+
+    private void handleEnterWithAllFieldsFilled(java.awt.event.KeyEvent evt, java.awt.Component source) {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            if (allFieldsFilled()) {
+                saveBtn.requestFocusInWindow();
+                evt.consume();
+            } else {
+                java.awt.Component nextComponent = getNextComponent(source);
+                if (nextComponent != null) {
+                    nextComponent.requestFocusInWindow();
+                }
+                evt.consume();
+            }
+        }
+    }
+
+    private java.awt.Component getNextComponent(java.awt.Component source) {
+        if (source == productInput) {
+            return categoryCombo;
+        }
+        if (source == categoryCombo) {
+            return brandCombo;
+        }
+        if (source == brandCombo) {
+            return barcodeInput;
+        }
+        if (source == barcodeInput) {
+            return cancelBtn;
+        }
+        if (source == cancelBtn) {
+            return clearFormBtn;
+        }
+        if (source == clearFormBtn) {
+            return saveBtn;
+        }
+        if (source == saveBtn) {
+            return productInput;
+        }
+        return null;
+    }
+
+    private void initializeDialog() {
+        setLocationRelativeTo(getParent());
         loadCategoryCombo();
         loadBrandCombo();
-
-        // Set focus traversal
         setupFocusTraversal();
 
-        // Add mouse listeners to combo boxes
         categoryCombo.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 categoryCombo.showPopup();
@@ -92,7 +133,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Add action listeners to combo boxes
         categoryCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 categoryComboActionPerformed(evt);
@@ -105,6 +145,48 @@ private void addEnterKeyNavigation() {
             }
         });
 
+        // Add F1 and F2 shortcuts for adding category and brand
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                openAddNewCategory();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                openAddNewBrand();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Add F3 and F4 shortcuts for barcode operations
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                generateBarcode();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                printBarcode();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
         getRootPane().registerKeyboardAction(
                 new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -116,33 +198,28 @@ private void addEnterKeyNavigation() {
         );
 
         // Setup tooltips
-        categoryCombo.setToolTipText("Use DOWN arrow to open dropdown, ENTER to select and move to next field");
-        brandCombo.setToolTipText("Use DOWN arrow to open dropdown, ENTER to select and move to next field");
         productInput.setToolTipText("Type product name and press ENTER to move to next field");
-        barcodeInput.setToolTipText("Type barcode and press ENTER to move to next field");
-        addNewCategory.setToolTipText("Press ENTER to add new category, RIGHT arrow to go to add brand");
-        addNewBrand.setToolTipText("Press ENTER to add new brand, LEFT arrow to go to add category");
-        genarateBarecode.setToolTipText("Press ENTER to generate barcode, RIGHT arrow to go to print barcode");
-        printBarcode.setToolTipText("Press ENTER to print barcode, LEFT arrow to go to generate barcode");
+        categoryCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to brand<br>Press <b>F1</b> to add new category</html>");
+        brandCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to barcode<br>Press <b>F2</b> to add new brand</html>");
+        barcodeInput.setToolTipText("<html>Type barcode and press ENTER to move to buttons<br>Press <b>F3</b> to generate barcode<br>Press <b>F4</b> to print barcode</html>");
+        addNewCategory.setToolTipText("Click to add new category (or press F1)");
+        addNewBrand.setToolTipText("Click to add new brand (or press F2)");
+        genarateBarecode.setToolTipText("Click to generate barcode (or press F3)");
+        printBarcode.setToolTipText("Click to print barcode (or press F4)");
 
-        // Setup button styles with proper focus and hover effects
         setupButtonStyles();
-
-        // Set initial focus
         productInput.requestFocus();
     }
 
     private void categoryComboActionPerformed(java.awt.event.ActionEvent evt) {
-        // Auto-move to next field when an item is selected (but not the placeholder)
         if (categoryCombo.getSelectedIndex() > 0 && !categoryCombo.isPopupVisible()) {
-            addNewCategory.requestFocusInWindow();
+            brandCombo.requestFocusInWindow();
         }
     }
 
     private void brandComboActionPerformed(java.awt.event.ActionEvent evt) {
-        // Auto-move to next field when an item is selected (but not the placeholder)
         if (brandCombo.getSelectedIndex() > 0 && !brandCombo.isPopupVisible()) {
-            addNewBrand.requestFocusInWindow();
+            barcodeInput.requestFocusInWindow();
         }
     }
 
@@ -163,59 +240,52 @@ private void addEnterKeyNavigation() {
 
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                // Check button state
                 boolean isHover = button.getModel().isRollover();
                 boolean isPressed = button.getModel().isPressed();
                 boolean isFocused = button.hasFocus();
 
-                // Default state - transparent with blue border
                 if (!isFocused && !isHover && !isPressed) {
-                    g2.setColor(new Color(0, 0, 0, 0)); // Transparent
+                    g2.setColor(new Color(0, 0, 0, 0));
                     g2.fillRoundRect(0, 0, w, h, 5, 5);
-
-                    // Draw border
                     g2.setColor(Color.decode("#0893B0"));
                     g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
                 } else {
-                    // Gradient colors for hover/focus/pressed state
-                    Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
-                    Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
-
-                    // Draw gradient
+                    Color topColor = new Color(0x12, 0xB5, 0xA6);
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0);
                     GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
                     g2.setPaint(gp);
                     g2.fillRoundRect(0, 0, w, h, 5, 5);
                 }
-
-                // Draw button text
                 super.paint(g, c);
             }
         });
     }
 
     private void setupButtonStyles() {
-        // Remove borders, backgrounds, and set hover effects for add buttons
         addNewCategory.setBorderPainted(false);
         addNewCategory.setContentAreaFilled(false);
         addNewCategory.setFocusPainted(false);
         addNewCategory.setOpaque(false);
+        addNewCategory.setFocusable(false);
 
         addNewBrand.setBorderPainted(false);
         addNewBrand.setContentAreaFilled(false);
         addNewBrand.setFocusPainted(false);
         addNewBrand.setOpaque(false);
+        addNewBrand.setFocusable(false);
 
         genarateBarecode.setBorderPainted(false);
         genarateBarecode.setContentAreaFilled(false);
         genarateBarecode.setFocusPainted(false);
         genarateBarecode.setOpaque(false);
+        genarateBarecode.setFocusable(false);
 
         printBarcode.setBorderPainted(false);
         printBarcode.setContentAreaFilled(false);
         printBarcode.setFocusPainted(false);
         printBarcode.setOpaque(false);
+        printBarcode.setFocusable(false);
 
-        // Create icons with original gray color for add buttons
         FlatSVGIcon categoryIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
         categoryIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         addNewCategory.setIcon(categoryIcon);
@@ -224,7 +294,6 @@ private void addEnterKeyNavigation() {
         brandIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         addNewBrand.setIcon(brandIcon);
 
-        // Create icons for barcode buttons
         FlatSVGIcon barcodeIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 25, 25);
         barcodeIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         genarateBarecode.setIcon(barcodeIcon);
@@ -233,12 +302,10 @@ private void addEnterKeyNavigation() {
         printerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         printBarcode.setIcon(printerIcon);
 
-        // Setup gradient buttons
         setupGradientButton(saveBtn);
         setupGradientButton(clearFormBtn);
         setupGradientButton(cancelBtn);
 
-        // Create icons with original blue color for action buttons
         FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
         addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         saveBtn.setIcon(addIcon);
@@ -251,13 +318,11 @@ private void addEnterKeyNavigation() {
         clearIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(clearIcon);
 
-        // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
         setupButtonFocusListeners();
     }
 
     private void setupButtonMouseListeners() {
-        // Mouse listeners for saveBtn
         saveBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 saveBtn.setForeground(Color.WHITE);
@@ -276,7 +341,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Mouse listeners for clearFormBtn
         clearFormBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 clearFormBtn.setForeground(Color.WHITE);
@@ -295,7 +359,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Mouse listeners for cancelBtn
         cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 cancelBtn.setForeground(Color.WHITE);
@@ -314,7 +377,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Add mouse listeners for hover effects on add buttons
         addNewCategory.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
@@ -343,7 +405,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Mouse listeners for barcode buttons
         genarateBarecode.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 25, 25);
@@ -374,7 +435,6 @@ private void addEnterKeyNavigation() {
     }
 
     private void setupButtonFocusListeners() {
-        // Focus listeners for saveBtn
         saveBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 saveBtn.setForeground(Color.WHITE);
@@ -393,7 +453,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Focus listeners for clearFormBtn
         clearFormBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 clearFormBtn.setForeground(Color.WHITE);
@@ -412,7 +471,6 @@ private void addEnterKeyNavigation() {
             }
         });
 
-        // Focus listeners for cancelBtn
         cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 cancelBtn.setForeground(Color.WHITE);
@@ -430,169 +488,103 @@ private void addEnterKeyNavigation() {
                 cancelBtn.repaint();
             }
         });
-
-        // Focus listeners for add buttons
-        addNewCategory.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCategory.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCategory.setIcon(normalIcon);
-            }
-        });
-
-        addNewBrand.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add-brand.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewBrand.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add-brand.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewBrand.setIcon(normalIcon);
-            }
-        });
-
-        // Focus listeners for barcode buttons
-        genarateBarecode.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                genarateBarecode.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                genarateBarecode.setIcon(normalIcon);
-            }
-        });
-
-        printBarcode.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                printBarcode.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                printBarcode.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupFocusTraversal() {
-        // Create focus traversal order
         java.util.List<java.awt.Component> order = java.util.Arrays.asList(
                 productInput,
                 categoryCombo,
-                addNewCategory,
                 brandCombo,
-                addNewBrand,
                 barcodeInput,
-                genarateBarecode,
-                printBarcode,
-                saveBtn,
+                cancelBtn,
                 clearFormBtn,
-                cancelBtn
+                saveBtn
         );
 
-        // Set focus traversal keys
         setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
                 java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
         setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
                 java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
 
-        // Add comprehensive key navigation
         setupArrowKeyNavigation();
         addEnterKeyNavigation();
     }
 
     private void setupArrowKeyNavigation() {
-        // Add arrow key navigation to all components
         productInput.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, productInput);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    handleEnterWithAllFieldsFilled(evt, productInput);
+                } else {
+                    handleArrowNavigation(evt, productInput);
+                }
             }
         });
 
         categoryCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, categoryCombo);
-            }
-        });
-
-        addNewCategory.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, addNewCategory);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER && !categoryCombo.isPopupVisible()) {
+                    handleEnterWithAllFieldsFilled(evt, categoryCombo);
+                } else {
+                    handleArrowNavigation(evt, categoryCombo);
+                }
             }
         });
 
         brandCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, brandCombo);
-            }
-        });
-
-        addNewBrand.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, addNewBrand);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER && !brandCombo.isPopupVisible()) {
+                    handleEnterWithAllFieldsFilled(evt, brandCombo);
+                } else {
+                    handleArrowNavigation(evt, brandCombo);
+                }
             }
         });
 
         barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, barcodeInput);
-            }
-        });
-
-        genarateBarecode.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, genarateBarecode);
-            }
-        });
-
-        printBarcode.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, printBarcode);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    handleEnterWithAllFieldsFilled(evt, barcodeInput);
+                } else {
+                    handleArrowNavigation(evt, barcodeInput);
+                }
             }
         });
 
         saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, saveBtn);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    saveProduct();
+                } else {
+                    handleArrowNavigation(evt, saveBtn);
+                }
             }
         });
 
         clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, clearFormBtn);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    clearForm();
+                } else {
+                    handleArrowNavigation(evt, clearFormBtn);
+                }
             }
         });
 
         cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, cancelBtn);
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    dispose();
+                } else {
+                    handleArrowNavigation(evt, cancelBtn);
+                }
             }
         });
     }
@@ -622,50 +614,34 @@ private void addEnterKeyNavigation() {
         if (source == productInput) {
             categoryCombo.requestFocusInWindow();
         } else if (source == categoryCombo) {
-            addNewCategory.requestFocusInWindow();
-        } else if (source == addNewCategory) {
             brandCombo.requestFocusInWindow();
         } else if (source == brandCombo) {
-            addNewBrand.requestFocusInWindow();
-        } else if (source == addNewBrand) {
             barcodeInput.requestFocusInWindow();
         } else if (source == barcodeInput) {
-            genarateBarecode.requestFocusInWindow();
-        } else if (source == genarateBarecode) {
-            printBarcode.requestFocusInWindow();
-        } else if (source == printBarcode) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            clearFormBtn.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            saveBtn.requestFocusInWindow();
+        } else if (source == saveBtn) {
             productInput.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
         if (source == productInput) {
-            cancelBtn.requestFocusInWindow();
+            saveBtn.requestFocusInWindow();
         } else if (source == categoryCombo) {
             productInput.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            categoryCombo.requestFocusInWindow();
         } else if (source == brandCombo) {
-            addNewCategory.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            brandCombo.requestFocusInWindow();
+            categoryCombo.requestFocusInWindow();
         } else if (source == barcodeInput) {
-            addNewBrand.requestFocusInWindow();
-        } else if (source == genarateBarecode) {
-            barcodeInput.requestFocusInWindow();
-        } else if (source == printBarcode) {
-            genarateBarecode.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            printBarcode.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
-            saveBtn.requestFocusInWindow();
+            brandCombo.requestFocusInWindow();
         } else if (source == cancelBtn) {
+            barcodeInput.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == saveBtn) {
             clearFormBtn.requestFocusInWindow();
         }
     }
@@ -674,54 +650,37 @@ private void addEnterKeyNavigation() {
         if (source == productInput) {
             categoryCombo.requestFocusInWindow();
         } else if (source == categoryCombo) {
-            barcodeInput.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            barcodeInput.requestFocusInWindow();
+            brandCombo.requestFocusInWindow();
         } else if (source == brandCombo) {
             barcodeInput.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            barcodeInput.requestFocusInWindow();
         } else if (source == barcodeInput) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == genarateBarecode) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == printBarcode) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            clearFormBtn.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow();
+        } else if (source == clearFormBtn) {
+            saveBtn.requestFocusInWindow();
+        } else if (source == saveBtn) {
             productInput.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
         if (source == productInput) {
-            cancelBtn.requestFocusInWindow();
+            saveBtn.requestFocusInWindow();
         } else if (source == categoryCombo) {
             productInput.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            productInput.requestFocusInWindow();
         } else if (source == brandCombo) {
-            productInput.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            productInput.requestFocusInWindow();
-        } else if (source == barcodeInput) {
             categoryCombo.requestFocusInWindow();
-        } else if (source == genarateBarecode) {
-            barcodeInput.requestFocusInWindow();
-        } else if (source == printBarcode) {
-            barcodeInput.requestFocusInWindow();
-        } else if (source == saveBtn) {
+        } else if (source == barcodeInput) {
+            brandCombo.requestFocusInWindow();
+        } else if (source == cancelBtn) {
             barcodeInput.requestFocusInWindow();
         } else if (source == clearFormBtn) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == cancelBtn) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == saveBtn) {
             clearFormBtn.requestFocusInWindow();
         }
     }
-
 
     private void loadCategoryCombo() {
         try {
@@ -756,29 +715,73 @@ private void addEnterKeyNavigation() {
     }
 
     private void generateBarcode() {
-        // Generate a simple barcode (you can replace this with your barcode generation logic)
-        String barcode = "BC" + System.currentTimeMillis();
-        barcodeInput.setText(barcode);
+        // Generate 13-digit numeric barcode
+        StringBuilder barcode = new StringBuilder();
+        
+        // Generate 13 random digits
+        for (int i = 0; i < 13; i++) {
+            int digit = (int) (Math.random() * 10); // Random digit from 0-9
+            barcode.append(digit);
+        }
+        
+        barcodeInput.setText(barcode.toString());
         Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                "Barcode generated: " + barcode);
+                "13-digit barcode generated: " + barcode.toString());
     }
 
     private void printBarcode() {
-        // Add your barcode printing logic here
-        if (barcodeInput.getText().trim().isEmpty()) {
+        String barcodeText = barcodeInput.getText().trim();
+        
+        if (barcodeText.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     "Please generate or enter a barcode first");
             barcodeInput.requestFocus();
             return;
         }
 
-        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                "Printing barcode: " + barcodeInput.getText().trim());
-        // Add actual printing code here
+        try {
+            PrinterJob printerJob = PrinterJob.getPrinterJob();
+            printerJob.setJobName("Barcode Print - " + barcodeText);
+
+            printerJob.setPrintable(new Printable() {
+                @Override
+                public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
+                    if (pageIndex > 0) {
+                        return Printable.NO_SUCH_PAGE;
+                    }
+
+                    Graphics2D g2d = (Graphics2D) graphics;
+                    g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+
+                    // Set up fonts
+                    Font barcodeFont = new Font("Monospaced", Font.BOLD, 24);
+                    Font labelFont = new Font("Nunito SemiBold", Font.PLAIN, 12);
+                    
+                    // Draw barcode number
+                    g2d.setFont(barcodeFont);
+                    g2d.drawString(barcodeText, 50, 100);
+                    
+                    // Draw label
+                    g2d.setFont(labelFont);
+                    g2d.drawString("Product Barcode", 50, 130);
+                    g2d.drawString("Generated by POS System", 50, 145);
+
+                    return Printable.PAGE_EXISTS;
+                }
+            });
+
+            if (printerJob.printDialog()) {
+                printerJob.print();
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Barcode sent to printer successfully");
+            }
+        } catch (PrinterException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Printing error: " + e.getMessage());
+        }
     }
 
     private boolean validateForm() {
-        // Validate Product Name
         if (productInput.getText().trim().isEmpty()) {
             productInput.requestFocus();
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -786,7 +789,6 @@ private void addEnterKeyNavigation() {
             return false;
         }
 
-        // Validate Category
         if (categoryCombo.getSelectedIndex() <= 0) {
             categoryCombo.requestFocus();
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -794,7 +796,6 @@ private void addEnterKeyNavigation() {
             return false;
         }
 
-        // Validate Brand
         if (brandCombo.getSelectedIndex() <= 0) {
             brandCombo.requestFocus();
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -802,7 +803,6 @@ private void addEnterKeyNavigation() {
             return false;
         }
 
-        // Validate Barcode
         if (barcodeInput.getText().trim().isEmpty()) {
             barcodeInput.requestFocus();
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -819,10 +819,8 @@ private void addEnterKeyNavigation() {
         }
 
         try {
-            // Check if product with same name and brand already exists
             String productName = productInput.getText().trim();
 
-            // Get brand_id for the check
             int brandId = 0;
             ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
                     + brandCombo.getSelectedItem().toString() + "'");
@@ -830,7 +828,6 @@ private void addEnterKeyNavigation() {
                 brandId = brandRs.getInt("brand_id");
             }
 
-            // Check if product with same name and brand already exists
             ResultSet productCheckRs = MySQL.executeSearch(
                     "SELECT product_id FROM product WHERE product_name = '" + productName
                     + "' AND brand_id = " + brandId
@@ -844,7 +841,6 @@ private void addEnterKeyNavigation() {
                 return;
             }
 
-            // Check if barcode already exists
             ResultSet barcodeCheckRs = MySQL.executeSearch("SELECT product_id FROM product WHERE barcode = '"
                     + barcodeInput.getText().trim() + "'");
             if (barcodeCheckRs.next()) {
@@ -855,7 +851,6 @@ private void addEnterKeyNavigation() {
                 return;
             }
 
-            // Get category_id
             int categoryId = 0;
             ResultSet catRs = MySQL.executeSearch("SELECT category_id FROM category WHERE category_name = '"
                     + categoryCombo.getSelectedItem().toString() + "'");
@@ -863,21 +858,17 @@ private void addEnterKeyNavigation() {
                 categoryId = catRs.getInt("category_id");
             }
 
-            // Default status_id for active product (assuming 1 is active)
             int statusId = 1;
 
-            // Insert into product table
             String query = "INSERT INTO product (product_name, brand_id, category_id, p_status_id, barcode) "
                     + "VALUES ('" + productName + "', " + brandId + ", " + categoryId
                     + ", " + statusId + ", '" + barcodeInput.getText().trim() + "')";
 
             MySQL.executeIUD(query);
 
-            // Show success message
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                     "Product added successfully!");
 
-            // Clear form after successful save
             clearForm();
 
         } catch (Exception e) {
@@ -900,8 +891,8 @@ private void addEnterKeyNavigation() {
             AddNewCategoryDialog dialog = new AddNewCategoryDialog(parentFrame, true);
             dialog.setLocationRelativeTo(parentFrame);
             dialog.setVisible(true);
-            // After closing the category dialog, refresh the combo
             loadCategoryCombo();
+            categoryCombo.requestFocus();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening category dialog: " + e.getMessage());
@@ -914,14 +905,13 @@ private void addEnterKeyNavigation() {
             AddNewBrandDialog dialog = new AddNewBrandDialog(parentFrame, true);
             dialog.setLocationRelativeTo(parentFrame);
             dialog.setVisible(true);
-            // After closing the brand dialog, refresh the combo
             loadBrandCombo();
+            brandCombo.requestFocus();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening brand dialog: " + e.getMessage());
         }
     }
-
     private void categoryEditorKeyPressed(java.awt.event.KeyEvent evt) {
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             // If popup is visible, let it handle the selection first
@@ -1222,7 +1212,7 @@ private void addEnterKeyNavigation() {
     }// </editor-fold>//GEN-END:initComponents
 
     private void barcodeInputActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_barcodeInputActionPerformed
-        saveBtn.requestFocus();
+        cancelBtn.requestFocus();
     }//GEN-LAST:event_barcodeInputActionPerformed
 
     private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
@@ -1258,42 +1248,34 @@ private void addEnterKeyNavigation() {
 
     private void barcodeInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_barcodeInputKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            genarateBarecode.requestFocusInWindow();
+            cancelBtn.requestFocusInWindow();
         } else {
             handleArrowNavigation(evt, barcodeInput);
         }
     }//GEN-LAST:event_barcodeInputKeyPressed
 
     private void categoryComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_categoryComboKeyPressed
-        // When popup is visible, let the combo box handle navigation
-        if (categoryCombo.isPopupVisible()) {
-            // Only handle ENTER key when popup is visible
+               if (categoryCombo.isPopupVisible()) {
             if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                // Close the popup and move to next field
                 categoryCombo.setPopupVisible(false);
-                // Only move to next field if an item is actually selected (not the placeholder)
                 if (categoryCombo.getSelectedIndex() > 0) {
-                    addNewCategory.requestFocusInWindow();
+                    brandCombo.requestFocusInWindow();
                 }
                 evt.consume();
             }
             return;
         }
 
-        // When popup is NOT visible, handle navigation
         switch (evt.getKeyCode()) {
             case KeyEvent.VK_ENTER:
-                // Only move to next field if an item is selected
                 if (categoryCombo.getSelectedIndex() > 0) {
-                    addNewCategory.requestFocusInWindow();
+                    brandCombo.requestFocusInWindow();
                 } else {
-                    // If no item selected, open the dropdown
                     categoryCombo.showPopup();
                 }
                 evt.consume();
                 break;
             case KeyEvent.VK_DOWN:
-                // Only open combo box if not already open
                 if (!categoryCombo.isPopupVisible()) {
                     categoryCombo.showPopup();
                 }
@@ -1303,55 +1285,48 @@ private void addEnterKeyNavigation() {
                 productInput.requestFocusInWindow();
                 evt.consume();
                 break;
-            case KeyEvent.VK_TAB:
-                // Allow normal tab navigation
+            case KeyEvent.VK_RIGHT:
+                brandCombo.requestFocusInWindow();
+                evt.consume();
+                break;
+            case KeyEvent.VK_LEFT:
+                productInput.requestFocusInWindow();
+                evt.consume();
                 break;
             case KeyEvent.VK_SPACE:
-                // Open combo box when SPACE is pressed
                 if (!categoryCombo.isPopupVisible()) {
                     categoryCombo.showPopup();
                 }
                 evt.consume();
                 break;
             default:
-                // For arrow keys, handle navigation
-                if (evt.getKeyCode() == KeyEvent.VK_LEFT || evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    handleArrowNavigation(evt, categoryCombo);
-                }
                 break;
         }
+        
     }//GEN-LAST:event_categoryComboKeyPressed
 
     private void brandComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_brandComboKeyPressed
-        // When popup is visible, let the combo box handle navigation
-        if (brandCombo.isPopupVisible()) {
-            // Only handle ENTER key when popup is visible
+         if (brandCombo.isPopupVisible()) {
             if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                // Close the popup and move to next field
                 brandCombo.setPopupVisible(false);
-                // Only move to next field if an item is actually selected (not the placeholder)
                 if (brandCombo.getSelectedIndex() > 0) {
-                    addNewBrand.requestFocusInWindow();
+                    barcodeInput.requestFocusInWindow();
                 }
                 evt.consume();
             }
             return;
         }
 
-        // When popup is NOT visible, handle navigation
         switch (evt.getKeyCode()) {
             case KeyEvent.VK_ENTER:
-                // Only move to next field if an item is selected
                 if (brandCombo.getSelectedIndex() > 0) {
-                    addNewBrand.requestFocusInWindow();
+                    barcodeInput.requestFocusInWindow();
                 } else {
-                    // If no item selected, open the dropdown
                     brandCombo.showPopup();
                 }
                 evt.consume();
                 break;
             case KeyEvent.VK_DOWN:
-                // Only open combo box if not already open
                 if (!brandCombo.isPopupVisible()) {
                     brandCombo.showPopup();
                 }
@@ -1361,21 +1336,21 @@ private void addEnterKeyNavigation() {
                 categoryCombo.requestFocusInWindow();
                 evt.consume();
                 break;
-            case KeyEvent.VK_TAB:
-                // Allow normal tab navigation
+            case KeyEvent.VK_RIGHT:
+                barcodeInput.requestFocusInWindow();
+                evt.consume();
+                break;
+            case KeyEvent.VK_LEFT:
+                categoryCombo.requestFocusInWindow();
+                evt.consume();
                 break;
             case KeyEvent.VK_SPACE:
-                // Open combo box when SPACE is pressed
                 if (!brandCombo.isPopupVisible()) {
                     brandCombo.showPopup();
                 }
                 evt.consume();
                 break;
             default:
-                // For arrow keys, handle navigation
-                if (evt.getKeyCode() == KeyEvent.VK_LEFT || evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    handleArrowNavigation(evt, brandCombo);
-                }
                 break;
         }
     }//GEN-LAST:event_brandComboKeyPressed

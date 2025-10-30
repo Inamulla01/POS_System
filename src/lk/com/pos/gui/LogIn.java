@@ -110,7 +110,7 @@ public class LogIn extends javax.swing.JFrame {
         // Setup keyboard navigation
         setupFocusTraversal();
         setupButtonStyles();
-        
+
         // Set initial focus
         userName.requestFocus();
     }
@@ -118,10 +118,10 @@ public class LogIn extends javax.swing.JFrame {
     private void setupFocusTraversal() {
         // Create focus traversal order
         java.util.List<java.awt.Component> order = java.util.Arrays.asList(
-            userName,
-            password,
-            passwordEyeButton,
-            loginBtn
+                userName,
+                password,
+                loginBtn,
+                passwordEyeButton
         );
 
         // Set focus traversal keys
@@ -133,6 +133,17 @@ public class LogIn extends javax.swing.JFrame {
         // Add comprehensive key navigation
         setupArrowKeyNavigation();
         addEnterKeyNavigation();
+
+        // Add F2 shortcut for password toggle
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                togglePasswordVisibility();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
 
         // Add ESC key to close
         getRootPane().registerKeyboardAction(
@@ -147,8 +158,8 @@ public class LogIn extends javax.swing.JFrame {
 
         // Setup tooltips
         userName.setToolTipText("Type username and press ENTER to move to password field");
-        password.setToolTipText("Type password and press ENTER to move to eye button");
-        passwordEyeButton.setToolTipText("Press ENTER or SPACE to toggle password visibility");
+        password.setToolTipText("<html>Type password and press ENTER to login<br>Press <b>F2</b> to toggle password visibility</html>");
+        passwordEyeButton.setToolTipText("<html>Press ENTER or SPACE to toggle password visibility<br>Press <b>F2</b> to toggle from anywhere</html>");
         loginBtn.setToolTipText("Press ENTER to login");
     }
 
@@ -208,23 +219,23 @@ public class LogIn extends javax.swing.JFrame {
         if (source == userName) {
             password.requestFocusInWindow();
         } else if (source == password) {
-            passwordEyeButton.requestFocusInWindow();
+            loginBtn.requestFocusInWindow(); // Skip eye button, go directly to login
         } else if (source == passwordEyeButton) {
-            loginBtn.requestFocusInWindow();
-        } else if (source == loginBtn) {
             userName.requestFocusInWindow();
+        } else if (source == loginBtn) {
+            passwordEyeButton.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
         if (source == userName) {
-            loginBtn.requestFocusInWindow();
+            passwordEyeButton.requestFocusInWindow();
         } else if (source == password) {
             userName.requestFocusInWindow();
         } else if (source == passwordEyeButton) {
-            password.requestFocusInWindow();
+            loginBtn.requestFocusInWindow();
         } else if (source == loginBtn) {
-            passwordEyeButton.requestFocusInWindow();
+            password.requestFocusInWindow(); // Skip eye button
         }
     }
 
@@ -232,23 +243,23 @@ public class LogIn extends javax.swing.JFrame {
         if (source == userName) {
             password.requestFocusInWindow();
         } else if (source == password) {
-            passwordEyeButton.requestFocusInWindow();
+            loginBtn.requestFocusInWindow(); // Skip eye button, go directly to login
         } else if (source == passwordEyeButton) {
-            loginBtn.requestFocusInWindow();
-        } else if (source == loginBtn) {
             userName.requestFocusInWindow();
+        } else if (source == loginBtn) {
+            passwordEyeButton.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
         if (source == userName) {
-            loginBtn.requestFocusInWindow();
+            passwordEyeButton.requestFocusInWindow();
         } else if (source == password) {
             userName.requestFocusInWindow();
         } else if (source == passwordEyeButton) {
-            password.requestFocusInWindow();
+            loginBtn.requestFocusInWindow();
         } else if (source == loginBtn) {
-            passwordEyeButton.requestFocusInWindow();
+            password.requestFocusInWindow(); // Skip eye button
         }
     }
 
@@ -256,7 +267,7 @@ public class LogIn extends javax.swing.JFrame {
         // Map components to their next focus targets for Enter key
         java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
         enterNavigationMap.put(userName, password);
-        enterNavigationMap.put(password, passwordEyeButton);
+        enterNavigationMap.put(password, loginBtn); // Password field goes directly to login button
         enterNavigationMap.put(passwordEyeButton, loginBtn);
         enterNavigationMap.put(loginBtn, userName);
 
@@ -300,6 +311,18 @@ public class LogIn extends javax.swing.JFrame {
                 }
             }
         });
+
+        // Special handling for password field - trigger login on Enter when in password field
+        password.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    // Instead of moving focus, directly trigger login
+                    loginBtnActionPerformed(null);
+                    evt.consume();
+                }
+            }
+        });
     }
 
     private void setupButtonStyles() {
@@ -334,10 +357,10 @@ public class LogIn extends javax.swing.JFrame {
                 // Create blue tinted icons for hover/focus state
                 FlatSVGIcon eyeOpenHover = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 25, 25);
                 eyeOpenHover.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#0893B0")));
-                
+
                 FlatSVGIcon eyeClosedHover = new FlatSVGIcon("lk/com/pos/icon/eye-closed.svg", 25, 25);
                 eyeClosedHover.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#0893B0")));
-                
+
                 if (passwordVisible) {
                     passwordEyeButton.setIcon(eyeOpenHover);
                 } else {
@@ -366,7 +389,7 @@ public class LogIn extends javax.swing.JFrame {
             passwordEyeButton.setIcon(eyeOpenIcon);
         }
         passwordVisible = !passwordVisible;
-        
+
         // Re-apply hover effect if needed
         if (passwordEyeButton.hasFocus()) {
             applyEyeButtonHoverEffect(true);

@@ -489,121 +489,122 @@ public class AddNewUser extends javax.swing.JDialog {
         }
     }
 
-private void handleRightArrow(java.awt.Component source) {
-    if (source == userNameField) {
-        passwordField.requestFocusInWindow();
-    } else if (source == passwordField) {
-        passwordEyeButton.requestFocusInWindow();
-    } else if (source == passwordEyeButton) {
-        confirmPasswordField.requestFocusInWindow();
-    } else if (source == confirmPasswordField) {
-        confirmPasswordEyeButton.requestFocusInWindow();
-    } else if (source == confirmPasswordEyeButton) {
-        userRoleCombo.requestFocusInWindow();
-    } else if (source == userRoleCombo) {
-        addBtn.requestFocusInWindow();
-    } else if (source == addBtn) {
-        clearFormBtn.requestFocusInWindow();
-    } else if (source == clearFormBtn) {
-        cancelBtn.requestFocusInWindow();
-    } else if (source == cancelBtn) {
-        userNameField.requestFocusInWindow(); // Loop back to start
+    private void handleRightArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            passwordField.requestFocusInWindow();
+        } else if (source == passwordField) {
+            passwordEyeButton.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            confirmPasswordEyeButton.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            cancelBtn.requestFocusInWindow(); // Go to first button (Cancel)
+        } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow(); // Cancel -> Clear Form
+        } else if (source == clearFormBtn) {
+            addBtn.requestFocusInWindow(); // Clear Form -> Save
+        } else if (source == addBtn) {
+            userNameField.requestFocusInWindow(); // Save -> back to start
+        }
     }
-}
 
-private void handleLeftArrow(java.awt.Component source) {
-    if (source == userNameField) {
-        cancelBtn.requestFocusInWindow(); // Loop back to end
-    } else if (source == passwordField) {
-        userNameField.requestFocusInWindow();
-    } else if (source == passwordEyeButton) {
-        passwordField.requestFocusInWindow();
-    } else if (source == confirmPasswordField) {
-        passwordEyeButton.requestFocusInWindow();
-    } else if (source == confirmPasswordEyeButton) {
-        confirmPasswordField.requestFocusInWindow();
-    } else if (source == userRoleCombo) {
-        confirmPasswordEyeButton.requestFocusInWindow();
-    } else if (source == addBtn) {
-        userRoleCombo.requestFocusInWindow();
-    } else if (source == clearFormBtn) {
-        addBtn.requestFocusInWindow();
-    } else if (source == cancelBtn) {
-        clearFormBtn.requestFocusInWindow();
+    private void handleLeftArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            addBtn.requestFocusInWindow(); // Loop back to last button (Save)
+        } else if (source == passwordField) {
+            userNameField.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            passwordField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            passwordEyeButton.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            confirmPasswordEyeButton.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            userRoleCombo.requestFocusInWindow(); // Cancel -> back to combo
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow(); // Clear Form -> Cancel
+        } else if (source == addBtn) {
+            clearFormBtn.requestFocusInWindow(); // Save -> Clear Form
+        }
     }
-}
 
-private void handleDownArrow(java.awt.Component source) {
-    if (source == userNameField) {
-        passwordField.requestFocusInWindow();
-    } else if (source == passwordField) {
-        passwordEyeButton.requestFocusInWindow();
-    } else if (source == passwordEyeButton) {
-        confirmPasswordField.requestFocusInWindow();
-    } else if (source == confirmPasswordField) {
-        confirmPasswordEyeButton.requestFocusInWindow();
-    } else if (source == confirmPasswordEyeButton) {
-        userRoleCombo.requestFocusInWindow();
-    } else if (source == userRoleCombo) {
-        addBtn.requestFocusInWindow();
-    } else if (source == addBtn) {
-        clearFormBtn.requestFocusInWindow();
-    } else if (source == clearFormBtn) {
-        cancelBtn.requestFocusInWindow();
-    } else if (source == cancelBtn) {
-        userNameField.requestFocusInWindow(); // Loop back to start
+    private void handleDownArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            passwordField.requestFocusInWindow();
+        } else if (source == passwordField) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            userRoleCombo.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            cancelBtn.requestFocusInWindow(); // Go to first button (Cancel)
+        } else if (source == cancelBtn) {
+            clearFormBtn.requestFocusInWindow(); // Cancel -> Clear Form
+        } else if (source == clearFormBtn) {
+            addBtn.requestFocusInWindow(); // Clear Form -> Save
+        } else if (source == addBtn) {
+            userNameField.requestFocusInWindow(); // Save -> back to start
+        }
     }
-}
 
-private void handleUpArrow(java.awt.Component source) {
-    if (source == userNameField) {
-        cancelBtn.requestFocusInWindow(); // Loop back to end
-    } else if (source == passwordField) {
-        userNameField.requestFocusInWindow();
-    } else if (source == passwordEyeButton) {
-        userNameField.requestFocusInWindow();
-    } else if (source == confirmPasswordField) {
-        passwordField.requestFocusInWindow();
-    } else if (source == confirmPasswordEyeButton) {
-        passwordField.requestFocusInWindow();
-    } else if (source == userRoleCombo) {
-        confirmPasswordEyeButton.requestFocusInWindow();
-    } else if (source == addBtn) {
-        userRoleCombo.requestFocusInWindow();
-    } else if (source == clearFormBtn) {
-        addBtn.requestFocusInWindow();
-    } else if (source == cancelBtn) {
-        clearFormBtn.requestFocusInWindow();
+    private void handleUpArrow(java.awt.Component source) {
+        if (source == userNameField) {
+            addBtn.requestFocusInWindow(); // Loop back to last button (Save)
+        } else if (source == passwordField) {
+            userNameField.requestFocusInWindow();
+        } else if (source == passwordEyeButton) {
+            userNameField.requestFocusInWindow();
+        } else if (source == confirmPasswordField) {
+            passwordField.requestFocusInWindow();
+        } else if (source == confirmPasswordEyeButton) {
+            passwordField.requestFocusInWindow();
+        } else if (source == userRoleCombo) {
+            confirmPasswordField.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            userRoleCombo.requestFocusInWindow(); // Cancel -> back to combo
+        } else if (source == clearFormBtn) {
+            cancelBtn.requestFocusInWindow(); // Clear Form -> Cancel
+        } else if (source == addBtn) {
+            clearFormBtn.requestFocusInWindow(); // Save -> Clear Form
+        }
     }
-}
+
     private void addEnterKeyNavigation() {
         // Map components to their next focus targets for Enter key
-java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
-    enterNavigationMap.put(userNameField, passwordField);
-    enterNavigationMap.put(passwordField, passwordEyeButton);
-    enterNavigationMap.put(passwordEyeButton, confirmPasswordField);
-    enterNavigationMap.put(confirmPasswordField, confirmPasswordEyeButton);
-    enterNavigationMap.put(confirmPasswordEyeButton, userRoleCombo);
-    enterNavigationMap.put(userRoleCombo, addBtn);
-    enterNavigationMap.put(addBtn, clearFormBtn);
-    enterNavigationMap.put(clearFormBtn, cancelBtn);
-    enterNavigationMap.put(cancelBtn, userNameField);
+        java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
+        enterNavigationMap.put(userNameField, passwordField);
+        enterNavigationMap.put(passwordField, passwordEyeButton);
+        enterNavigationMap.put(passwordEyeButton, confirmPasswordField);
+        enterNavigationMap.put(confirmPasswordField, confirmPasswordEyeButton);
+        enterNavigationMap.put(confirmPasswordEyeButton, userRoleCombo);
+        enterNavigationMap.put(userRoleCombo, cancelBtn); // Go to first button (Cancel)
+        enterNavigationMap.put(cancelBtn, clearFormBtn); // Cancel -> Clear Form
+        enterNavigationMap.put(clearFormBtn, addBtn); // Clear Form -> Save
+        enterNavigationMap.put(addBtn, userNameField); // Save -> back to start
 
-    // Add key listeners to all components
-    for (java.awt.Component component : enterNavigationMap.keySet()) {
-        component.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    java.awt.Component nextComponent = enterNavigationMap.get(component);
-                    if (nextComponent != null) {
-                        nextComponent.requestFocusInWindow();
+        // Add key listeners to all components
+        for (java.awt.Component component : enterNavigationMap.keySet()) {
+            component.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override
+                public void keyPressed(java.awt.event.KeyEvent evt) {
+                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                        java.awt.Component nextComponent = enterNavigationMap.get(component);
+                        if (nextComponent != null) {
+                            nextComponent.requestFocusInWindow();
+                        }
+                        evt.consume();
                     }
-                    evt.consume();
                 }
-            }
-        });
-    }
+            });
+        }
         // Special handling for eye buttons - also trigger toggle on Enter and Space
         passwordEyeButton.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
@@ -734,7 +735,7 @@ java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new j
             public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent evt) {
                 // Popup is opening
             }
-            
+
             public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent evt) {
                 // Popup is closing - if a valid item was selected, move focus
                 SwingUtilities.invokeLater(() -> {
@@ -743,7 +744,7 @@ java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new j
                     }
                 });
             }
-            
+
             public void popupMenuCanceled(javax.swing.event.PopupMenuEvent evt) {
                 // Popup was canceled
             }
@@ -1039,7 +1040,7 @@ java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new j
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                .addContainerGap(12, Short.MAX_VALUE)
+                .addContainerGap(21, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel1)
                     .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 410, javax.swing.GroupLayout.PREFERRED_SIZE)

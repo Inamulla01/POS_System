@@ -55,6 +55,10 @@ public class ProductPanel extends javax.swing.JPanel {
                 "track: #F5F5F5;"
                 + "thumb: #1CB5BB;"
                 + "width: 8");
+        
+        productSearchBar.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search By Product Name Or Barcode");
+        productSearchBar.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, 
+            new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
     }
 
     private void setupEventListeners() {
@@ -89,6 +93,8 @@ public class ProductPanel extends javax.swing.JPanel {
                 }
             }
         });
+        
+        productSearchBar.setForeground(Color.GRAY);
 
         // Radio buttons - trigger search on selection
         expiringRadioBtn.addActionListener(e -> SearchFilters());
@@ -290,7 +296,7 @@ public class ProductPanel extends javax.swing.JPanel {
         // Create main rounded panel
         lk.com.pos.privateclasses.RoundedPanel card = new lk.com.pos.privateclasses.RoundedPanel();
         card.setLayout(new java.awt.BorderLayout());
-        card.setPreferredSize(new java.awt.Dimension(420, 450));
+        card.setPreferredSize(new java.awt.Dimension(420, 480));
         card.setMaximumSize(new java.awt.Dimension(420, 480));
         card.setMinimumSize(new java.awt.Dimension(380, 480));
         card.setBackground(java.awt.Color.WHITE);
@@ -872,7 +878,7 @@ public class ProductPanel extends javax.swing.JPanel {
         });
 
         addProductDialog.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addProductDialog.setText("Add Product");
+        addProductDialog.setText("Add Stock");
         addProductDialog.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addProductDialogActionPerformed(evt);
@@ -1280,8 +1286,8 @@ public class ProductPanel extends javax.swing.JPanel {
                         .addComponent(lowStockRadioBtn)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(expiredRadioBtn)
-                        .addGap(116, 116, 116)
-                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(114, 114, 114)
+                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(

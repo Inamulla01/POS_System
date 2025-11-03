@@ -1,5 +1,6 @@
 package lk.com.pos.panel;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.connection.MySQL;
 import java.sql.ResultSet;
@@ -10,23 +11,34 @@ import javax.swing.JOptionPane;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GridBagLayout;
-import java.awt.GridBagConstraints;
-import java.awt.Insets;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 
 public class CustomerPanel extends javax.swing.JPanel {
 
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-    private int currentPanelWidth = 0;
+    private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
 
     public CustomerPanel() {
         initComponents();
         init();
+        // Load due amount customers by default
         loadCustomers();
     }
 
     private void init() {
+        // Set modern scrollbar styling
+        jScrollPane1.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+        jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
+        
+        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+                "track: #F5F5F5;"
+                + "thumb: #1CB5BB;"
+                + "width: 8");
+
         // Set icons for buttons
         FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 20, 20);
         editBtn.setIcon(blueEdit);
@@ -34,24 +46,54 @@ public class CustomerPanel extends javax.swing.JPanel {
         FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 20, 20);
         deleteBtn.setIcon(redDelete);
         
-        // Set placeholder text color for search field
-        jTextField1.setForeground(Color.GRAY);
+        // Modern styling for search field
+        jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search By Customer Name or NIC");
+        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, 
+            new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         
-        // Add focus listeners for search field placeholder
-        jTextField1.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
+        // Add focus listeners for search field
+        jTextField1.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
                 if (jTextField1.getText().equals("Search By Customer Name or NIC")) {
                     jTextField1.setText("");
                     jTextField1.setForeground(Color.BLACK);
                 }
             }
-            public void focusLost(java.awt.event.FocusEvent evt) {
+            
+            @Override
+            public void focusLost(FocusEvent e) {
                 if (jTextField1.getText().isEmpty()) {
-                    jTextField1.setForeground(Color.GRAY);
                     jTextField1.setText("Search By Customer Name or NIC");
+                    jTextField1.setForeground(Color.GRAY);
                 }
             }
         });
+        
+        // Set initial text color for placeholder
+        jTextField1.setForeground(Color.GRAY);
+        
+        // Modern button styling
+        jButton1.putClientProperty(FlatClientProperties.STYLE, ""
+            + "background:#3B82F6;"
+            + "foreground:#FFFFFF;"
+            + "borderWidth:0;"
+            + "focusWidth:0;"
+            + "innerFocusWidth:0");
+        
+        // Radio button styling
+        jRadioButton1.putClientProperty(FlatClientProperties.STYLE, ""
+            + "foreground:#EF4444;");
+        jRadioButton2.putClientProperty(FlatClientProperties.STYLE, ""
+            + "foreground:#6366F1;");
+        jRadioButton4.putClientProperty(FlatClientProperties.STYLE, ""
+            + "foreground:#F97316;");
+
+        // Set "Due Amount" as default selected radio button
+        jRadioButton4.setSelected(true);
+        
+        // Setup panel background
+        jPanel2.setBackground(Color.decode("#F8FAFC"));
         
         // Add key listener for search
         jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
@@ -60,461 +102,599 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
         
-        // Add listener for missed due date filter
-        jRadioButton1.addActionListener(evt -> loadCustomers());
-        
-        // Setup responsive grid layout for jPanel2
-        jPanel2.setLayout(new GridBagLayout());
-        jPanel2.setBackground(new Color(245, 245, 245));
-        
-        // Add component listener for responsive behavior
-        jScrollPane1.addComponentListener(new java.awt.event.ComponentAdapter() {
-            public void componentResized(java.awt.event.ComponentEvent evt) {
-                int newWidth = jScrollPane1.getViewport().getWidth();
-                if (Math.abs(newWidth - currentPanelWidth) > 50) {
-                    currentPanelWidth = newWidth;
-                    loadCustomers();
-                }
-            }
-        });
-    }
-
-    private int getColumnsForWidth(int width) {
-        if (width < 900) return 1;
-        if (width < 1400) return 2;
-        return 3;
+        // Add listeners for all radio buttons
+        jRadioButton1.addActionListener(evt -> searchCustomers());
+        jRadioButton2.addActionListener(evt -> searchCustomers());
+        jRadioButton4.addActionListener(evt -> searchCustomers());
     }
 
     private void loadCustomers() {
+        String searchText = jTextField1.getText().trim();
+        // Don't search if it's the placeholder text
+        if (searchText.equals("Search By Customer Name or NIC")) {
+            searchText = "";
+        }
+        boolean missedDueDateOnly = jRadioButton1.isSelected();
+        boolean noDueOnly = jRadioButton2.isSelected();
+        boolean dueAmountOnly = jRadioButton4.isSelected();
+        
+        loadCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+    }
+
+    private void loadCustomers(String searchText, boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
         try {
-            // Clear existing panels
+            // Clear existing products
             jPanel2.removeAll();
-            
-            String query = buildQuery();
+            jPanel2.setBackground(Color.decode("#F8FAFC"));
+
+            String query = buildQuery(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
             ResultSet rs = MySQL.executeSearch(query);
-            
-            // Get viewport width for responsive layout
-            int viewportWidth = jScrollPane1.getViewport().getWidth();
-            int columns = getColumnsForWidth(viewportWidth);
-            
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.fill = GridBagConstraints.BOTH;
-            gbc.insets = new Insets(10, 10, 10, 10);
-            gbc.weightx = 1.0;
-            gbc.weighty = 0;
-            
-            int row = 0;
-            int col = 0;
-            boolean hasData = false;
-            
+
+            // Store customers in a list
+            java.util.List<lk.com.pos.privateclasses.RoundedPanel> customerCards = new java.util.ArrayList<>();
+
+            int customerCount = 0;
+
+            // Loop through results and create customer cards
             while (rs.next()) {
-                hasData = true;
-                
-                gbc.gridx = col;
-                gbc.gridy = row;
-                
-                jPanel2.add(createCustomerCard(rs), gbc);
-                
-                col++;
-                if (col >= columns) {
-                    col = 0;
-                    row++;
+                customerCount++;
+
+                lk.com.pos.privateclasses.RoundedPanel customerCard = createCustomerCard(
+                    rs.getInt("customer_id"),
+                    rs.getString("customer_name"),
+                    rs.getString("customer_phone_no"),
+                    rs.getString("customer_address"),
+                    rs.getString("nic"),
+                    rs.getString("date_time"),
+                    rs.getString("status_name"),
+                    rs.getString("latest_due_date"),
+                    rs.getDouble("total_credit_amount"),
+                    rs.getDouble("total_paid")
+                );
+
+                customerCards.add(customerCard);
+            }
+
+            // If no customers found - show message
+            if (customerCount == 0) {
+                jPanel2.setLayout(new java.awt.BorderLayout());
+
+                javax.swing.JPanel messagePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
+                messagePanel.setBackground(Color.decode("#F8FAFC"));
+                messagePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(40, 0, 0, 0));
+
+                javax.swing.JLabel noCustomers = new javax.swing.JLabel("No customers found");
+                noCustomers.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
+                noCustomers.setForeground(Color.decode("#6B7280"));
+                noCustomers.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+
+                messagePanel.add(noCustomers);
+                jPanel2.add(messagePanel, java.awt.BorderLayout.NORTH);
+            } else {
+                // Create responsive grid panel - EXACTLY LIKE PRODUCT PANEL
+                final javax.swing.JPanel gridPanel = new javax.swing.JPanel();
+                gridPanel.setBackground(Color.decode("#F8FAFC"));
+
+                // Calculate initial columns based on jPanel2 width - 3 columns like product panel
+                int initialColumns = calculateColumns(jPanel2.getWidth());
+                gridPanel.setLayout(new java.awt.GridLayout(0, initialColumns, 25, 25));
+
+                // Add all customer cards
+                for (lk.com.pos.privateclasses.RoundedPanel card : customerCards) {
+                    gridPanel.add(card);
                 }
+
+                // Proper scrolling implementation like product panel
+                jPanel2.setLayout(new java.awt.BorderLayout());
+
+                // Create main container with vertical layout for proper scrolling
+                javax.swing.JPanel mainContainer = new javax.swing.JPanel();
+                mainContainer.setLayout(new javax.swing.BoxLayout(mainContainer, javax.swing.BoxLayout.Y_AXIS));
+                mainContainer.setBackground(Color.decode("#F8FAFC"));
+
+                // Add padding around the grid
+                javax.swing.JPanel paddingPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
+                paddingPanel.setBackground(Color.decode("#F8FAFC"));
+                paddingPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(25, 25, 25, 25));
+                paddingPanel.add(gridPanel, java.awt.BorderLayout.NORTH);
+
+                mainContainer.add(paddingPanel);
+                jPanel2.add(mainContainer, java.awt.BorderLayout.NORTH);
+
+                // Add component listener to jPanel2 for window resize
+                jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
+                    private int lastColumns = initialColumns;
+
+                    @Override
+                    public void componentResized(java.awt.event.ComponentEvent e) {
+                        int panelWidth = jPanel2.getWidth();
+                        int newColumns = calculateColumns(panelWidth);
+
+                        // Only update if columns changed
+                        if (newColumns != lastColumns) {
+                            lastColumns = newColumns;
+                            gridPanel.setLayout(new java.awt.GridLayout(0, newColumns, 25, 25));
+                            gridPanel.revalidate();
+                            gridPanel.repaint();
+                        }
+                    }
+                });
             }
-            
-            // Add empty filler panel at the end
-            gbc.gridx = 0;
-            gbc.gridy = row + 1;
-            gbc.gridwidth = columns;
-            gbc.weighty = 1.0;
-            javax.swing.JPanel filler = new javax.swing.JPanel();
-            filler.setOpaque(false);
-            jPanel2.add(filler, gbc);
-            
-            if (!hasData) {
-                showNoDataMessage();
-            }
-            
+
             // Refresh the panel
             jPanel2.revalidate();
             jPanel2.repaint();
-            
-        } catch (SQLException e) {
+
+        } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, 
-                "Error loading customers: " + e.getMessage(), 
-                "Database Error", 
-                JOptionPane.ERROR_MESSAGE);
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Error loading customers: " + e.getMessage(),
+                    "Database Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private String buildQuery() {
+    private int calculateColumns(int panelWidth) {
+        int availableWidth = panelWidth - 50; // Account for padding
+        int cardWithGap = 445; // Same as product panel
+
+        if (availableWidth >= cardWithGap * 3) {
+            return 3; // 3 columns on large screens
+        } else if (availableWidth >= cardWithGap * 2) {
+            return 2; // 2 columns on medium screens
+        } else {
+            return 1; // 1 column on small screens
+        }
+    }
+
+    private String buildQuery(String searchText, boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
         StringBuilder query = new StringBuilder();
+        
+        // Use subquery to handle aggregation properly
+        query.append("SELECT * FROM (");
+        
         query.append("SELECT ");
         query.append("cc.customer_id, ");
         query.append("cc.customer_name, ");
         query.append("cc.customer_phone_no, ");
         query.append("cc.customer_address, ");
-        query.append("cc.customer_amount_due, ");
-        query.append("cc.final_date, ");
         query.append("cc.nic, ");
+        query.append("cc.date_time, ");
         query.append("s.status_name, ");
+        query.append("MAX(c.credit_final_date) as latest_due_date, ");
+        query.append("IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, ");
         query.append("IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid ");
         query.append("FROM credit_customer cc ");
         query.append("JOIN status s ON s.status_id = cc.status_id ");
-        query.append("LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id ");
+        query.append("LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id ");
+        query.append("LEFT JOIN credit_pay cp ON cp.credit_id = c.credit_id ");
         
-        // Add filter for missed due date
-        if (jRadioButton1.isSelected()) {
-            query.append("WHERE cc.final_date < CURDATE() ");
-            query.append("AND cc.customer_amount_due > IFNULL((SELECT SUM(credit_pay_amount) FROM credit_pay WHERE credit_customer_id = cc.customer_id), 0) ");
+        // Add search filter
+        if (!searchText.isEmpty() && !searchText.equals("Search By Customer Name or NIC")) {
+            query.append("WHERE (cc.customer_name LIKE '%").append(searchText).append("%' ");
+            query.append("OR cc.nic LIKE '%").append(searchText).append("%') ");
         }
         
-        query.append("GROUP BY cc.customer_id ");
-        query.append("ORDER BY cc.customer_id DESC");
+        query.append("GROUP BY cc.customer_id, cc.customer_name, cc.customer_phone_no, ");
+        query.append("cc.customer_address, cc.nic, cc.date_time, s.status_name ");
+        
+        query.append(") AS customer_data ");
+        query.append("WHERE 1=1 ");
+        
+        // Apply filters based on radio button selection
+        if (missedDueDateOnly) {
+            query.append("AND latest_due_date < CURDATE() ");
+            query.append("AND total_credit_amount > total_paid ");
+        } else if (noDueOnly) {
+            query.append("AND total_credit_amount <= total_paid ");
+        } else if (dueAmountOnly) {
+            query.append("AND total_credit_amount > total_paid ");
+        }
+        
+        query.append("ORDER BY customer_id DESC");
         
         return query.toString();
     }
 
     private void searchCustomers() {
         String searchText = jTextField1.getText().trim();
-        
-        // Don't search if placeholder text
-        if (searchText.equals("Search By Customer Name or NIC") || searchText.isEmpty()) {
-            loadCustomers();
-            return;
+        // Don't search if it's the placeholder text
+        if (searchText.equals("Search By Customer Name or NIC")) {
+            searchText = "";
         }
-        
-        try {
-            jPanel2.removeAll();
-            
-            String query = "SELECT " +
-                "cc.customer_id, " +
-                "cc.customer_name, " +
-                "cc.customer_phone_no, " +
-                "cc.customer_address, " +
-                "cc.customer_amount_due, " +
-                "cc.final_date, " +
-                "cc.nic, " +
-                "s.status_name, " +
-                "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid " +
-                "FROM credit_customer cc " +
-                "JOIN status s ON s.status_id = cc.status_id " +
-                "LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id " +
-                "WHERE cc.customer_name LIKE '%" + searchText + "%' " +
-                "OR cc.nic LIKE '%" + searchText + "%' " +
-                "GROUP BY cc.customer_id " +
-                "ORDER BY cc.customer_id DESC";
-            
-            ResultSet rs = MySQL.executeSearch(query);
-            
-            // Get viewport width for responsive layout
-            int viewportWidth = jScrollPane1.getViewport().getWidth();
-            int columns = getColumnsForWidth(viewportWidth);
-            
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.fill = GridBagConstraints.BOTH;
-            gbc.insets = new Insets(10, 10, 10, 10);
-            gbc.weightx = 1.0;
-            gbc.weighty = 0;
-            
-            int row = 0;
-            int col = 0;
-            boolean hasData = false;
-            
-            while (rs.next()) {
-                hasData = true;
-                
-                gbc.gridx = col;
-                gbc.gridy = row;
-                
-                jPanel2.add(createCustomerCard(rs), gbc);
-                
-                col++;
-                if (col >= columns) {
-                    col = 0;
-                    row++;
-                }
-            }
-            
-            // Add empty filler panel
-            gbc.gridx = 0;
-            gbc.gridy = row + 1;
-            gbc.gridwidth = columns;
-            gbc.weighty = 1.0;
-            javax.swing.JPanel filler = new javax.swing.JPanel();
-            filler.setOpaque(false);
-            jPanel2.add(filler, gbc);
-            
-            if (!hasData) {
-                showNoDataMessage();
-            }
-            
-            jPanel2.revalidate();
-            jPanel2.repaint();
-            
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        boolean missedDueDateOnly = jRadioButton1.isSelected();
+        boolean noDueOnly = jRadioButton2.isSelected();
+        boolean dueAmountOnly = jRadioButton4.isSelected();
+        loadCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
     }
 
-    private javax.swing.JPanel createCustomerCard(ResultSet rs) throws SQLException {
-        // Get data from ResultSet
-        int customerId = rs.getInt("customer_id");
-        String customerName = rs.getString("customer_name");
-        String phone = rs.getString("customer_phone_no");
-        String address = rs.getString("customer_address");
-        double amountDue = rs.getDouble("customer_amount_due");
-        String finalDate = rs.getString("final_date");
-        String nic = rs.getString("nic");
-        double totalPaid = rs.getDouble("total_paid");
-        
+    private lk.com.pos.privateclasses.RoundedPanel createCustomerCard(
+            int customerId, String customerName, String phone,
+            String address, String nic, String registrationDate,
+            String status, String finalDate, double totalCreditAmount, 
+            double totalPaid) {
+
         // Calculate outstanding balance
-        double outstanding = amountDue - totalPaid;
+        double outstanding = totalCreditAmount - totalPaid;
         
-        // Check if missed due date
+        // Check if missed due date - LIKE PRODUCT PANEL'S EXPIRED BADGE
         boolean missedDueDate = false;
+        String displayDueDate = "No Credit";
         try {
-            java.util.Date dueDate = DATE_FORMAT.parse(finalDate);
-            java.util.Date today = new java.util.Date();
-            missedDueDate = dueDate.before(today) && outstanding > 0;
+            if (finalDate != null) {
+                java.util.Date dueDate = DATE_FORMAT.parse(finalDate);
+                java.util.Date today = new java.util.Date();
+                missedDueDate = dueDate.before(today) && outstanding > 0;
+                displayDueDate = DISPLAY_DATE_FORMAT.format(dueDate);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        
-        // Create a new rounded panel for this customer
-        lk.com.pos.privateclasses.RoundedPanel customerCard = new lk.com.pos.privateclasses.RoundedPanel();
-        customerCard.setBackground(Color.WHITE);
-        customerCard.setPreferredSize(new Dimension(420, 450));
-        customerCard.setBorder(javax.swing.BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
-        
-        // Customer name section
-        javax.swing.JPanel headerPanel = new javax.swing.JPanel();
-        headerPanel.setBackground(Color.WHITE);
-        headerPanel.setLayout(new java.awt.BorderLayout());
-        
-        javax.swing.JLabel nameLabel = new javax.swing.JLabel(customerName);
-        nameLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
-        nameLabel.setForeground(new Color(15, 23, 42));
-        
-        javax.swing.JPanel buttonPanel = new javax.swing.JPanel();
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
-        
-        // Edit button
-        javax.swing.JButton editButton = new javax.swing.JButton();
-        editButton.setPreferredSize(new Dimension(36, 36));
-        editButton.setBackground(new Color(239, 246, 255));
-        editButton.setBorder(javax.swing.BorderFactory.createEmptyBorder());
-        editButton.setFocusPainted(false);
-        editButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 18, 18);
-        editButton.setIcon(blueEdit);
-        editButton.addActionListener(evt -> editCustomer(customerId));
-        
-        // Delete button
-        javax.swing.JButton deleteButton = new javax.swing.JButton();
-        deleteButton.setPreferredSize(new Dimension(36, 36));
-        deleteButton.setBackground(new Color(254, 242, 242));
-        deleteButton.setBorder(javax.swing.BorderFactory.createEmptyBorder());
-        deleteButton.setFocusPainted(false);
-        deleteButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
-        deleteButton.setIcon(redDelete);
-        deleteButton.addActionListener(evt -> deleteCustomer(customerId));
-        
-        buttonPanel.add(editButton);
-        buttonPanel.add(deleteButton);
-        
-        headerPanel.add(nameLabel, java.awt.BorderLayout.WEST);
-        headerPanel.add(buttonPanel, java.awt.BorderLayout.EAST);
-        
-        // Customer details header with missed due date on right
-        javax.swing.JPanel detailsHeaderPanel = new javax.swing.JPanel();
-        detailsHeaderPanel.setBackground(Color.WHITE);
-        detailsHeaderPanel.setLayout(new java.awt.BorderLayout());
-        
-        javax.swing.JLabel detailsHeaderLabel = new javax.swing.JLabel("CUSTOMER DETAILS");
-        detailsHeaderLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
-        detailsHeaderLabel.setForeground(new Color(148, 163, 184));
-        
-        javax.swing.JLabel missedLabel = new javax.swing.JLabel("⚠ Missed Due Date");
-        missedLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
-        missedLabel.setForeground(new Color(239, 68, 68));
-        missedLabel.setVisible(missedDueDate);
-        
-        detailsHeaderPanel.add(detailsHeaderLabel, java.awt.BorderLayout.WEST);
-        detailsHeaderPanel.add(missedLabel, java.awt.BorderLayout.EAST);
-        
-        // Customer details grid
-        javax.swing.JPanel detailsGrid = new javax.swing.JPanel();
-        detailsGrid.setLayout(new java.awt.GridLayout(2, 2, 20, 15));
-        detailsGrid.setBackground(Color.WHITE);
-        
-        detailsGrid.add(createInfoPanel("Phone", phone, new Color(236, 72, 153)));
-        detailsGrid.add(createInfoPanel("NIC", nic, new Color(6, 182, 212)));
-        detailsGrid.add(createInfoPanel("Final Date", finalDate, new Color(245, 158, 11)));
-        detailsGrid.add(createInfoPanel("Amount Due", "Rs. " + PRICE_FORMAT.format(amountDue), new Color(16, 185, 129)));
-        
-        // Address section
-        javax.swing.JPanel addressPanel = createInfoPanel("Address", address, new Color(139, 92, 246));
-        
-        // Payment details header with button
-        javax.swing.JPanel paymentHeaderPanel = new javax.swing.JPanel();
-        paymentHeaderPanel.setBackground(Color.WHITE);
-        paymentHeaderPanel.setLayout(new java.awt.BorderLayout());
-        
-        javax.swing.JLabel paymentHeaderLabel = new javax.swing.JLabel("PAYMENT DETAILS");
-        paymentHeaderLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
-        paymentHeaderLabel.setForeground(new Color(148, 163, 184));
-        
-        javax.swing.JButton paymentDetailsBtn = new javax.swing.JButton("View Details");
-        paymentDetailsBtn.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
-        paymentDetailsBtn.setForeground(new Color(59, 130, 246));
-        paymentDetailsBtn.setBackground(Color.WHITE);
-        paymentDetailsBtn.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        paymentDetailsBtn.setFocusPainted(false);
-        paymentDetailsBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        paymentDetailsBtn.addActionListener(evt -> showPaymentDetails(customerId));
-        
-        paymentHeaderPanel.add(paymentHeaderLabel, java.awt.BorderLayout.WEST);
-        paymentHeaderPanel.add(paymentDetailsBtn, java.awt.BorderLayout.EAST);
-        
-        // Payment cards
-        javax.swing.JPanel paymentGrid = new javax.swing.JPanel();
-        paymentGrid.setLayout(new java.awt.GridLayout(1, 3, 10, 0));
-        paymentGrid.setBackground(Color.WHITE);
-        
-        paymentGrid.add(createPaymentCard("Amount Due", "Rs. " + PRICE_FORMAT.format(amountDue), 
-            new Color(219, 234, 254), new Color(37, 99, 235)));
-        paymentGrid.add(createPaymentCard("Paid Amount", "Rs. " + PRICE_FORMAT.format(totalPaid), 
-            new Color(209, 250, 229), new Color(22, 163, 74)));
-        paymentGrid.add(createPaymentCard("Outstanding", "Rs. " + PRICE_FORMAT.format(outstanding), 
-            new Color(254, 243, 199), new Color(234, 88, 12)));
-        
-        // Layout the customer card
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(customerCard);
-        customerCard.setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(headerPanel, 0, 380, Short.MAX_VALUE)
-                    .addComponent(detailsHeaderPanel, 0, 380, Short.MAX_VALUE)
-                    .addComponent(detailsGrid, 0, 380, Short.MAX_VALUE)
-                    .addComponent(addressPanel, 0, 380, Short.MAX_VALUE)
-                    .addComponent(paymentHeaderPanel, 0, 380, Short.MAX_VALUE)
-                    .addComponent(paymentGrid, 0, 380, Short.MAX_VALUE))
-                .addGap(20, 20, 20))
-        );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addComponent(headerPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 32, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addComponent(detailsHeaderPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 18, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(12, 12, 12)
-                .addComponent(detailsGrid, 95, 95, 95)
-                .addGap(15, 15, 15)
-                .addComponent(addressPanel, 60, 60, 60)
-                .addGap(18, 18, 18)
-                .addComponent(paymentHeaderPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(12, 12, 12)
-                .addComponent(paymentGrid, 80, 80, 80)
-                .addGap(20, 20, 20))
-        );
-        
-        return customerCard;
-    }
 
-    private javax.swing.JPanel createInfoPanel(String label, String value, Color labelColor) {
-        javax.swing.JPanel panel = new javax.swing.JPanel();
-        panel.setBackground(Color.WHITE);
-        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
-        
-        javax.swing.JLabel labelComponent = new javax.swing.JLabel(label);
-        labelComponent.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
-        labelComponent.setForeground(labelColor);
-        labelComponent.setAlignmentX(LEFT_ALIGNMENT);
-        
-        javax.swing.JLabel valueComponent = new javax.swing.JLabel(value != null ? value : "N/A");
-        valueComponent.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-        valueComponent.setForeground(new Color(51, 65, 85));
-        valueComponent.setAlignmentX(LEFT_ALIGNMENT);
-        
-        panel.add(labelComponent);
-        panel.add(javax.swing.Box.createRigidArea(new Dimension(0, 6)));
-        panel.add(valueComponent);
-        
-        return panel;
-    }
+        // Format registration date
+        String regDate = "N/A";
+        try {
+            if (registrationDate != null) {
+                java.util.Date reg = DATE_FORMAT.parse(registrationDate);
+                regDate = DISPLAY_DATE_FORMAT.format(reg);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-    private lk.com.pos.privateclasses.RoundedPanel createPaymentCard(String label, String value, Color bgColor, Color textColor) {
+        // Create main rounded panel - EXACTLY LIKE PRODUCT PANEL
         lk.com.pos.privateclasses.RoundedPanel card = new lk.com.pos.privateclasses.RoundedPanel();
-        card.setBackground(bgColor);
-        card.setBorder(javax.swing.BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
+        card.setLayout(new java.awt.BorderLayout());
+        card.setPreferredSize(new java.awt.Dimension(420, 470)); // Increased height for address section
+        card.setMaximumSize(new java.awt.Dimension(420, 470));
+        card.setMinimumSize(new java.awt.Dimension(380, 470));
+        card.setBackground(java.awt.Color.WHITE);
+        card.setBorderThickness(0);
+        card.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 18, 18, 18));
+
+        // Main content panel
+        javax.swing.JPanel contentPanel = new javax.swing.JPanel();
+        contentPanel.setLayout(new javax.swing.BoxLayout(contentPanel, javax.swing.BoxLayout.Y_AXIS));
+        contentPanel.setBackground(java.awt.Color.WHITE);
+        contentPanel.setOpaque(false);
+
+        // === HEADER SECTION ===
+        javax.swing.JPanel headerPanel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 0));
+        headerPanel.setOpaque(false);
+        headerPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 40));
+
+        // Customer Name
+        javax.swing.JLabel nameLabel = new javax.swing.JLabel(customerName);
+        nameLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
+        nameLabel.setForeground(Color.decode("#1E293B"));
+        nameLabel.setToolTipText(customerName);
+        headerPanel.add(nameLabel, java.awt.BorderLayout.CENTER);
+
+        // Action buttons panel - EXACTLY LIKE PRODUCT PANEL
+        javax.swing.JPanel actionPanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
+        actionPanel.setOpaque(false);
+
+        // Edit Button - Fixed size like product panel
+        javax.swing.JButton editButton = new javax.swing.JButton();
+        editButton.setPreferredSize(new java.awt.Dimension(30, 30));
+        editButton.setMinimumSize(new java.awt.Dimension(30, 30));
+        editButton.setMaximumSize(new java.awt.Dimension(30, 30));
+        editButton.setBackground(Color.decode("#EFF6FF"));
+        editButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        try {
+            FlatSVGIcon editIcon = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 16, 16);
+            editButton.setIcon(editIcon);
+        } catch (Exception e) {
+            editButton.setText("✎");
+            editButton.setForeground(Color.decode("#3B82F6"));
+            editButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
+        }
+        editButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#BFDBFE"), 1));
+        editButton.setFocusable(false);
+        editButton.addActionListener(e -> editCustomer(customerId));
+
+        // Delete Button - Fixed size like product panel
+        javax.swing.JButton deleteButton = new javax.swing.JButton();
+        deleteButton.setPreferredSize(new java.awt.Dimension(30, 30));
+        deleteButton.setMinimumSize(new java.awt.Dimension(30, 30));
+        deleteButton.setMaximumSize(new java.awt.Dimension(30, 30));
+        deleteButton.setBackground(Color.decode("#FEF2F2"));
+        deleteButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        try {
+            FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 16, 16);
+            deleteButton.setIcon(deleteIcon);
+        } catch (Exception e) {
+            deleteButton.setText("×");
+            deleteButton.setForeground(Color.decode("#EF4444"));
+            deleteButton.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
+        }
+        deleteButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#FECACA"), 1));
+        deleteButton.setFocusable(false);
+        deleteButton.addActionListener(e -> deleteCustomer(customerId));
+
+        actionPanel.add(editButton);
+        actionPanel.add(deleteButton);
+        headerPanel.add(actionPanel, java.awt.BorderLayout.EAST);
+
+        contentPanel.add(headerPanel);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(8));
+
+        // === STATUS AND BADGES ROW - EXACTLY LIKE PRODUCT PANEL ===
+        javax.swing.JPanel statusBadgePanel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 0));
+        statusBadgePanel.setOpaque(false);
+        statusBadgePanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 30));
+
+        // Status Label - Like supplier in product panel
+        javax.swing.JLabel statusLabel = new javax.swing.JLabel("● " + status);
+        statusLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
+        statusLabel.setForeground(Color.decode("#6366F1"));
+        statusLabel.setToolTipText("Status: " + status);
+        statusBadgePanel.add(statusLabel, java.awt.BorderLayout.WEST);
+
+        // Status badges on right side - EXACTLY LIKE PRODUCT PANEL
+        javax.swing.JPanel badgePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
+        badgePanel.setOpaque(false);
+
+        // Missed Due Date Badge - EXACTLY LIKE PRODUCT PANEL'S EXPIRED BADGE
+        if (missedDueDate) {
+            javax.swing.JLabel missedBadge = new javax.swing.JLabel("⚠ Missed Due Date");
+            missedBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
+            missedBadge.setForeground(Color.decode("#7C2D12"));
+            missedBadge.setBackground(Color.decode("#FED7AA"));
+            missedBadge.setOpaque(true);
+            missedBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+            missedBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createLineBorder(Color.decode("#FB923C"), 1),
+                    javax.swing.BorderFactory.createEmptyBorder(4, 10, 4, 10)
+            ));
+            badgePanel.add(missedBadge);
+        }
+
+        // High Credit Risk Badge (if outstanding is high) - Like low stock badge
+        if (outstanding > 50000) {
+            javax.swing.JLabel highRiskBadge = new javax.swing.JLabel("📉 High Risk");
+            highRiskBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
+            highRiskBadge.setForeground(java.awt.Color.WHITE);
+            highRiskBadge.setBackground(Color.decode("#DC2626"));
+            highRiskBadge.setOpaque(true);
+            highRiskBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+            highRiskBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                    javax.swing.BorderFactory.createLineBorder(Color.decode("#FECACA"), 1),
+                    javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8)
+            ));
+            badgePanel.add(highRiskBadge);
+        }
+
+        statusBadgePanel.add(badgePanel, java.awt.BorderLayout.EAST);
+
+        contentPanel.add(statusBadgePanel);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(15));
+
+        // === CUSTOMER DETAILS HEADER ===
+        javax.swing.JPanel detailsHeaderPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
+        detailsHeaderPanel.setOpaque(false);
+        detailsHeaderPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 20));
+
+        javax.swing.JLabel detailsHeader = new javax.swing.JLabel("CUSTOMER DETAILS");
+        detailsHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
+        detailsHeader.setForeground(Color.decode("#94A3B8"));
+        detailsHeaderPanel.add(detailsHeader, java.awt.BorderLayout.WEST);
+
+        contentPanel.add(detailsHeaderPanel);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(15));
+
+        // === DETAILS GRID - REMOVED STATUS AND CREDIT AMOUNT ===
+        javax.swing.JPanel detailsGrid = new javax.swing.JPanel(new java.awt.GridLayout(2, 2, 20, 15)); // Changed to 2 rows
+        detailsGrid.setOpaque(false);
+        detailsGrid.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 120)); // Reduced height
+
+        // Row 1: Phone, NIC
+        detailsGrid.add(createDetailPanel("Phone", formatPhoneNumber(phone), Color.decode("#8B5CF6")));
+        detailsGrid.add(createDetailPanel("NIC", nic, Color.decode("#EC4899")));
+
+        // Row 2: Due Date, Registered - REMOVED CREDIT AMOUNT AND STATUS
+        detailsGrid.add(createDetailPanel("Due Date", displayDueDate, Color.decode("#10B981")));
+        detailsGrid.add(createDetailPanel("Registered Date", regDate, Color.decode("#06B6D4")));
+
+        contentPanel.add(detailsGrid);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(20));
+
+        // === ADDRESS SECTION - MOVED BELOW DETAILS GRID ===
+        if (address != null && !address.trim().isEmpty()) {
+            javax.swing.JPanel addressPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
+            addressPanel.setOpaque(false);
+            addressPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 50));
+            
+            javax.swing.JLabel addressTitle = new javax.swing.JLabel("📍 Address");
+            addressTitle.setFont(new java.awt.Font("Nunito SemiBold", 1, 13));
+            addressTitle.setForeground(Color.decode("#6366F1"));
+            addressTitle.setToolTipText("Customer Address");
+            
+            // Create address label with proper wrapping
+            javax.swing.JLabel addressLabel = new javax.swing.JLabel("<html><div style='width:360px;'>" + address + "</div></html>");
+            addressLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
+            addressLabel.setForeground(Color.decode("#1E293B"));
+            addressLabel.setToolTipText(address);
+            addressLabel.setVerticalAlignment(javax.swing.SwingConstants.TOP);
+            
+            addressPanel.add(addressTitle, java.awt.BorderLayout.NORTH);
+            addressPanel.add(javax.swing.Box.createVerticalStrut(5), java.awt.BorderLayout.CENTER);
+            addressPanel.add(addressLabel, java.awt.BorderLayout.CENTER);
+            
+            contentPanel.add(addressPanel);
+            contentPanel.add(javax.swing.Box.createVerticalStrut(15));
+        }
+
+        // === PAYMENT SUMMARY HEADER ===
+        javax.swing.JPanel paymentHeaderPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
+        paymentHeaderPanel.setOpaque(false);
+        paymentHeaderPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 25));
+
+        javax.swing.JLabel paymentHeader = new javax.swing.JLabel("💰 PAYMENT SUMMARY");
+        paymentHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
+        paymentHeader.setForeground(Color.decode("#94A3B8"));
+        paymentHeaderPanel.add(paymentHeader, java.awt.BorderLayout.WEST);
         
-        javax.swing.JLabel labelComponent = new javax.swing.JLabel(label);
-        labelComponent.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
-        labelComponent.setForeground(textColor);
+        // View Details Button - With colorful background
+        javax.swing.JButton paymentDetailsBtn = new javax.swing.JButton("View Details");
+        paymentDetailsBtn.setFont(new java.awt.Font("Nunito SemiBold", 0, 10)); // Smaller
+        paymentDetailsBtn.setForeground(Color.WHITE);
+        paymentDetailsBtn.setBackground(Color.decode("#8B5CF6")); // Purple background
+        paymentDetailsBtn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+            javax.swing.BorderFactory.createLineBorder(Color.decode("#7C3AED"), 1),
+            javax.swing.BorderFactory.createEmptyBorder(4, 10, 4, 10) // Reduced padding
+        ));
+        paymentDetailsBtn.setFocusable(false);
+        paymentDetailsBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        paymentDetailsBtn.addActionListener(e -> showPaymentDetails(customerId));
         
-        javax.swing.JLabel valueComponent = new javax.swing.JLabel(value);
-        valueComponent.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
-        valueComponent.setForeground(textColor);
+        // Add hover effect
+        paymentDetailsBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                paymentDetailsBtn.setBackground(Color.decode("#7C3AED")); // Darker purple on hover
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                paymentDetailsBtn.setBackground(Color.decode("#8B5CF6")); // Original purple
+            }
+        });
         
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(card);
-        card.setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(8, 8, 8)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
-                    .addComponent(labelComponent)
-                    .addComponent(valueComponent))
-                .addGap(8, 8, 8))
+        paymentHeaderPanel.add(paymentDetailsBtn, java.awt.BorderLayout.EAST);
+
+        contentPanel.add(paymentHeaderPanel);
+        contentPanel.add(javax.swing.Box.createVerticalStrut(12));
+
+        // === PAYMENT PANELS - EXACTLY LIKE PRODUCT PRICING PANELS ===
+        javax.swing.JPanel paymentPanel = new javax.swing.JPanel(new java.awt.GridLayout(1, 3, 10, 0));
+        paymentPanel.setOpaque(false);
+        paymentPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 65));
+
+        // Credit Amount - Blue theme
+        lk.com.pos.privateclasses.RoundedPanel creditPanel = createPaymentPanel(
+                "Amount Due",
+                totalCreditAmount,
+                Color.decode("#DBEAFE"),
+                Color.decode("#1E40AF")
         );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
-                .addComponent(labelComponent)
-                .addGap(8, 8, 8)
-                .addComponent(valueComponent)
-                .addGap(20, 20, 20))
+
+        // Paid Amount - Green theme
+        lk.com.pos.privateclasses.RoundedPanel paidPanel = createPaymentPanel(
+                "Paid Amount",
+                totalPaid,
+                Color.decode("#D1FAE5"),
+                Color.decode("#059669")
         );
-        
+
+        // Outstanding - Color based on amount
+        Color outstandingBg = outstanding > 0 ? Color.decode("#FEF3C7") : Color.decode("#D1FAE5");
+        Color outstandingText = outstanding > 0 ? Color.decode("#92400E") : Color.decode("#059669");
+        lk.com.pos.privateclasses.RoundedPanel outstandingPanel = createPaymentPanel(
+                "OutStanding",
+                outstanding,
+                outstandingBg,
+                outstandingText
+        );
+
+        paymentPanel.add(creditPanel);
+        paymentPanel.add(paidPanel);
+        paymentPanel.add(outstandingPanel);
+
+        contentPanel.add(paymentPanel);
+
+        card.add(contentPanel, java.awt.BorderLayout.CENTER);
         return card;
     }
 
-    private void showNoDataMessage() {
-        GridBagConstraints gbc = new GridBagConstraints();
+    private String getShortAddress(String address) {
+        if (address == null || address.trim().isEmpty()) return "No Address";
+        if (address.length() <= 25) return address;
+        return address.substring(0, 22) + "...";
+    }
+
+    private String formatPhoneNumber(String phone) {
+        if (phone == null || phone.trim().isEmpty()) return "N/A";
+        String cleaned = phone.replaceAll("[^0-9]", "");
+        if (cleaned.length() == 10) {
+            return cleaned.replaceFirst("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
+        }
+        return phone;
+    }
+
+    private javax.swing.JPanel createDetailPanel(String title, String value, Color accentColor) {
+        javax.swing.JPanel panel = new javax.swing.JPanel();
+        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+        panel.setOpaque(false);
+
+        javax.swing.JLabel titleLabel = new javax.swing.JLabel(title);
+        titleLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 13));
+        titleLabel.setForeground(accentColor);
+        titleLabel.setAlignmentX(javax.swing.JComponent.LEFT_ALIGNMENT);
+
+        String displayValue = value;
+        if (value != null && value.length() > 25) {
+            displayValue = "<html><div style='width:140px;'>" + value + "</div></html>";
+        }
+
+        javax.swing.JLabel valueLabel = new javax.swing.JLabel(displayValue);
+        valueLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        valueLabel.setForeground(Color.decode("#1E293B"));
+        valueLabel.setToolTipText(value);
+        valueLabel.setAlignmentX(javax.swing.JComponent.LEFT_ALIGNMENT);
+
+        panel.add(titleLabel);
+        panel.add(javax.swing.Box.createVerticalStrut(5));
+        panel.add(valueLabel);
+
+        return panel;
+    }
+
+    private lk.com.pos.privateclasses.RoundedPanel createPaymentPanel(String title, double amount, Color bgColor, Color textColor) {
+        lk.com.pos.privateclasses.RoundedPanel panel = new lk.com.pos.privateclasses.RoundedPanel();
+        panel.setBackgroundColor(bgColor);
+        panel.setBorderThickness(0);
+        panel.setLayout(new java.awt.GridBagLayout());
+        panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 5, 10, 5));
+
+        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
+        gbc.anchor = java.awt.GridBagConstraints.CENTER;
+        gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        gbc.anchor = GridBagConstraints.CENTER;
-        
-        javax.swing.JPanel noDataPanel = new javax.swing.JPanel();
-        noDataPanel.setOpaque(false);
-        noDataPanel.setLayout(new javax.swing.BoxLayout(noDataPanel, javax.swing.BoxLayout.Y_AXIS));
-        
-        javax.swing.JLabel noDataLabel = new javax.swing.JLabel("No customers found");
-        noDataLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 18));
-        noDataLabel.setForeground(new Color(148, 163, 184));
-        noDataLabel.setAlignmentX(CENTER_ALIGNMENT);
-        
-        javax.swing.JLabel subLabel = new javax.swing.JLabel("Try adjusting your search or filters");
-        subLabel.setFont(new Font("Nunito", Font.PLAIN, 14));
-        subLabel.setForeground(new Color(203, 213, 225));
-        subLabel.setAlignmentX(CENTER_ALIGNMENT);
-        
-        noDataPanel.add(noDataLabel);
-        noDataPanel.add(javax.swing.Box.createRigidArea(new Dimension(0, 8)));
-        noDataPanel.add(subLabel);
-        
-        jPanel2.add(noDataPanel, gbc);
+
+        // Title Label
+        javax.swing.JLabel titleLabel = new javax.swing.JLabel(title);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 12));
+        titleLabel.setForeground(textColor);
+        titleLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        panel.add(titleLabel, gbc);
+
+        // Amount Label with smart formatting
+        String formattedAmount = formatPrice(amount);
+
+        gbc.gridy = 1;
+        gbc.insets = new java.awt.Insets(5, 0, 0, 0);
+
+        javax.swing.JLabel amountLabel = new javax.swing.JLabel(formattedAmount);
+        amountLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        amountLabel.setForeground(textColor);
+        amountLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        amountLabel.setToolTipText(title + ": Rs." + String.format("%.2f", amount));
+        panel.add(amountLabel, gbc);
+
+        return panel;
+    }
+
+    // Smart price formatting - same as product panel
+    private String formatPrice(double price) {
+        if (price >= 100000) {
+            return String.format("Rs.%.1fK", price / 1000);
+        } else if (price >= 10000) {
+            return String.format("Rs.%.2fK", price / 1000);
+        } else if (price >= 1000) {
+            return String.format("Rs.%.0f", price);
+        } else {
+            return String.format("Rs.%.2f", price);
+        }
     }
 
     private void editCustomer(int customerId) {
@@ -543,8 +723,9 @@ public class CustomerPanel extends javax.swing.JPanel {
         if (confirm == JOptionPane.YES_OPTION) {
             try {
                 // Delete related credit_pay records first
-                MySQL.executeIUD("DELETE FROM credit_pay WHERE credit_customer_id = " + customerId);
-                
+                MySQL.executeIUD("DELETE FROM credit_pay WHERE credit_id IN (SELECT credit_id FROM credit WHERE credit_customer_id = " + customerId + ")");
+                // Delete related credit records
+                MySQL.executeIUD("DELETE FROM credit WHERE credit_customer_id = " + customerId);
                 // Delete the customer
                 MySQL.executeIUD("DELETE FROM credit_customer WHERE customer_id = " + customerId);
                 
@@ -569,6 +750,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        buttonGroup1 = new javax.swing.ButtonGroup();
         jPanel1 = new javax.swing.JPanel();
         jTextField1 = new javax.swing.JTextField();
         jRadioButton1 = new javax.swing.JRadioButton();
@@ -608,8 +790,10 @@ public class CustomerPanel extends javax.swing.JPanel {
         jLabel31 = new javax.swing.JLabel();
         jLabel32 = new javax.swing.JLabel();
         jButton2 = new javax.swing.JButton();
+        jRadioButton2 = new javax.swing.JRadioButton();
+        jRadioButton4 = new javax.swing.JRadioButton();
 
-        jPanel1.setBackground(new java.awt.Color(255, 255, 255));
+        jPanel1.setBackground(new java.awt.Color(248, 250, 252));
 
         jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jTextField1.setText("Search By Customer Name or NIC");
@@ -619,12 +803,15 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
 
+        buttonGroup1.add(jRadioButton1);
         jRadioButton1.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jRadioButton1.setForeground(new java.awt.Color(255, 51, 51));
         jRadioButton1.setText("Missed Due Date");
 
         jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jButton1.setText("Add New Customer");
+
+        jPanel2.setBackground(new java.awt.Color(248, 250, 252));
 
         jLabel1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20)); // NOI18N
         jLabel1.setText("Customer Name ");
@@ -899,7 +1086,7 @@ public class CustomerPanel extends javax.swing.JPanel {
                 .addGap(18, 18, 18)
                 .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(roundedPanel1Layout.createSequentialGroup()
-                        .addComponent(roundedPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                        .addComponent(roundedPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, 114, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(roundedPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -964,7 +1151,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addGap(18, 18, 18)
                 .addComponent(roundedPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(440, Short.MAX_VALUE))
+                .addContainerGap(525, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -976,6 +1163,16 @@ public class CustomerPanel extends javax.swing.JPanel {
 
         jScrollPane1.setViewportView(jPanel2);
 
+        buttonGroup1.add(jRadioButton2);
+        jRadioButton2.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
+        jRadioButton2.setForeground(new java.awt.Color(99, 102, 241));
+        jRadioButton2.setText("No Due");
+
+        buttonGroup1.add(jRadioButton4);
+        jRadioButton4.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
+        jRadioButton4.setForeground(new java.awt.Color(255, 153, 0));
+        jRadioButton4.setText("Due Amount");
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -983,12 +1180,16 @@ public class CustomerPanel extends javax.swing.JPanel {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 346, Short.MAX_VALUE)
+                        .addComponent(jTextField1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRadioButton4)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jRadioButton1)
-                        .addGap(180, 180, 180)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRadioButton2)
+                        .addGap(150, 150, 150)
                         .addComponent(jButton1)))
                 .addGap(18, 18, 18))
         );
@@ -1000,10 +1201,12 @@ public class CustomerPanel extends javax.swing.JPanel {
                     .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jRadioButton2)
+                        .addComponent(jRadioButton4)
                         .addComponent(jRadioButton1)))
                 .addGap(18, 18, 18)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 415, Short.MAX_VALUE)
-                .addGap(18, 18, 18))
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 440, Short.MAX_VALUE)
+                .addGap(14, 14, 14))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
@@ -1016,9 +1219,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGap(0, 0, 0))
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -1032,6 +1233,7 @@ public class CustomerPanel extends javax.swing.JPanel {
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JButton deleteBtn;
     private javax.swing.JButton editBtn;
     private javax.swing.JButton jButton1;
@@ -1063,6 +1265,8 @@ public class CustomerPanel extends javax.swing.JPanel {
     private javax.swing.JPanel jPanel8;
     private javax.swing.JPanel jPanel9;
     private javax.swing.JRadioButton jRadioButton1;
+    private javax.swing.JRadioButton jRadioButton2;
+    private javax.swing.JRadioButton jRadioButton4;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;

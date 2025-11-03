@@ -64,4 +64,11 @@ public class RoundedPanel extends JPanel {
         this.borderThickness = thickness;
         repaint();
     }
+    
+    // Add this method to your RoundedPanel class
+public void removeBorder() {
+    this.borderThickness = 0;
+    this.borderColor = new Color(0, 0, 0, 0); // Transparent border
+    repaint();
+} 
 }

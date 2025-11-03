@@ -54,20 +54,23 @@ public class PosCartPanel extends javax.swing.JPanel {
         jScrollPane1.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
         jScrollPane1.getVerticalScrollBar().setBlockIncrement(80);
-         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
-        "track: #F5F5F5;" +
-        "thumb: #1CB5BB;" +
-        "width: 10"); 
+        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+                "track: #F5F5F5;"
+                + "thumb: #1CB5BB;"
+                + "width: 10");
 
         this.putClientProperty(FlatClientProperties.STYLE, "arc:15");
 
-        jPanel1.setBorder(BorderFactory.createEmptyBorder(15, 18, 15, 18));
+        jPanel1.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
+        jPanel3.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
 
         jPanel10.setLayout(new javax.swing.BoxLayout(jPanel10, javax.swing.BoxLayout.Y_AXIS));
-    jPanel10.setBackground(Color.WHITE);
-    
-    // ✅ ADD: Center the panel inside scroll pane
-    jPanel10.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+        jPanel10.setBackground(Color.WHITE);
+
+        jPanel2.putClientProperty(FlatClientProperties.STYLE, "arc:20;");
+        jPanel2.setBorder(BorderFactory.createEmptyBorder());
+        // ✅ ADD: Center the panel inside scroll pane
+        jPanel10.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
 
         clearCartBtn.addActionListener(evt -> clearCart());
 
@@ -85,14 +88,18 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
+        // Add payment method change listener
+        paymentcombo.addActionListener(evt -> togglePaymentButtons());
+// Set initial state
+        togglePaymentButtons();
+
         ((AbstractDocument) jTextField2.getDocument()).setDocumentFilter(new NumericDocumentFilter());
 
         loadPaymentMethods();
-        loadCustomers();
+        //loadCustomers();
 
-        paymentcombo.addActionListener(evt -> toggleCustomerCombo());
-        toggleCustomerCombo();
-
+//        paymentcombo.addActionListener(evt -> toggleCustomerCombo());
+//        toggleCustomerCombo();
         showNoProductsMessage();
     }
 
@@ -122,50 +129,48 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
-    private void loadCustomers() {
-        try {
-            coustomerCombo.removeAllItems();
-            coustomerCombo.addItem("Select Customer");
-
-            Connection connection = lk.com.pos.connection.MySQL.getConnection();
-            String query = "SELECT * FROM credit_customer ORDER BY customer_name ASC";
-            PreparedStatement pst = connection.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-
-            while (rs.next()) {
-                String customerName = rs.getString("customer_name");
-                String customerPhone = rs.getString("customer_phone_no");
-                coustomerCombo.addItem(customerName + " - " + customerPhone);
-            }
-
-            rs.close();
-            pst.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error loading customers: " + e.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void toggleCustomerCombo() {
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-
-        if (selectedPayment != null && selectedPayment.equalsIgnoreCase("Credit Payment")) {
-            coustomerCombo.setVisible(true);
-            jButton8.setVisible(true);
-            jButton9.setVisible(true);
-        } else {
-            coustomerCombo.setVisible(false);
-            jButton8.setVisible(false);
-            jButton9.setVisible(false);
-        }
-
-        revalidate();
-        repaint();
-    }
-
+//    private void loadCustomers() {
+//        try {
+//            coustomerCombo.removeAllItems();
+//            coustomerCombo.addItem("Select Customer");
+//
+//            Connection connection = lk.com.pos.connection.MySQL.getConnection();
+//            String query = "SELECT * FROM credit_customer ORDER BY customer_name ASC";
+//            PreparedStatement pst = connection.prepareStatement(query);
+//            ResultSet rs = pst.executeQuery();
+//
+//            while (rs.next()) {
+//                String customerName = rs.getString("customer_name");
+//                String customerPhone = rs.getString("customer_phone_no");
+//                coustomerCombo.addItem(customerName + " - " + customerPhone);
+//            }
+//
+//            rs.close();
+//            pst.close();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            JOptionPane.showMessageDialog(this,
+//                    "Error loading customers: " + e.getMessage(),
+//                    "Database Error",
+//                    JOptionPane.ERROR_MESSAGE);
+//        }
+//    }
+//    private void toggleCustomerCombo() {
+//        String selectedPayment = (String) paymentcombo.getSelectedItem();
+//
+//        if (selectedPayment != null && selectedPayment.equalsIgnoreCase("Credit Payment")) {
+//            coustomerCombo.setVisible(true);
+//            jButton8.setVisible(true);
+//            jButton9.setVisible(true);
+//        } else {
+//            coustomerCombo.setVisible(false);
+//            jButton8.setVisible(false);
+//            jButton9.setVisible(false);
+//        }
+//
+//        revalidate();
+//        repaint();
+//    }
     private class NumericDocumentFilter extends DocumentFilter {
 
         @Override
@@ -197,29 +202,57 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     public void addToCart(int productId, String productName, String brandName,
-        String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) { // ✅ ADD lastPrice parameter
+            String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) { // ✅ ADD lastPrice parameter
 
-    String cartKey = productId + "_" + batchNo;
+        String cartKey = productId + "_" + batchNo;
 
-    if (cartItems.containsKey(cartKey)) {
-        CartItem item = cartItems.get(cartKey);
+        if (cartItems.containsKey(cartKey)) {
+            CartItem item = cartItems.get(cartKey);
 
-        if (item.getQuantity() < item.getAvailableQty()) {
-            item.setQuantity(item.getQuantity() + 1);
-            updateCartPanel();
+            if (item.getQuantity() < item.getAvailableQty()) {
+                item.setQuantity(item.getQuantity() + 1);
+                updateCartPanel();
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Cannot add more. Available stock: " + item.getAvailableQty(),
+                        "Stock Limit",
+                        JOptionPane.WARNING_MESSAGE);
+            }
         } else {
-            JOptionPane.showMessageDialog(this,
-                    "Cannot add more. Available stock: " + item.getAvailableQty(),
-                    "Stock Limit",
-                    JOptionPane.WARNING_MESSAGE);
+            CartItem newItem = new CartItem(productId, productName, brandName,
+                    batchNo, qty, sellingPrice, barcode, lastPrice); // ✅ PASS last_price
+            cartItems.put(cartKey, newItem);
+            updateCartPanel();
         }
-    } else {
-        CartItem newItem = new CartItem(productId, productName, brandName,
-                batchNo, qty, sellingPrice, barcode, lastPrice); // ✅ PASS last_price
-        cartItems.put(cartKey, newItem);
-        updateCartPanel();
     }
-}
+
+    private void togglePaymentButtons() {
+        String selectedPayment = (String) paymentcombo.getSelectedItem();
+
+        if (selectedPayment != null) {
+            if (selectedPayment.equalsIgnoreCase("Card Payment")) {
+                cardPayBtn.setVisible(true);
+                creditCustomerBtn.setVisible(false);
+            } else if (selectedPayment.equalsIgnoreCase("Credit Payment")) {
+                cardPayBtn.setVisible(false);
+                creditCustomerBtn.setVisible(true);
+            } else if (selectedPayment.equalsIgnoreCase("Cash Payment")) {
+                cardPayBtn.setVisible(false);
+                creditCustomerBtn.setVisible(false);
+            } else {
+                // For "Select Payment Method" or any other option, hide both
+                cardPayBtn.setVisible(false);
+                creditCustomerBtn.setVisible(false);
+            }
+        } else {
+            // If nothing is selected, hide both
+            cardPayBtn.setVisible(false);
+            creditCustomerBtn.setVisible(false);
+        }
+
+        revalidate();
+        repaint();
+    }
 
     private void showNoProductsMessage() {
         jPanel10.removeAll();
@@ -400,168 +433,168 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         // Real-time discount validation
         // Real-time discount validation with last_price
-discountField.getDocument().addDocumentListener(new DocumentListener() {
-    private void validateDiscount() {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                discountField.setForeground(Color.BLACK);
-                item.setDiscountPrice(0);
-                updateTotals();
-                return;
-            }
+        discountField.getDocument().addDocumentListener(new DocumentListener() {
+            private void validateDiscount() {
+                try {
+                    String text = discountField.getText().trim();
+                    if (text.isEmpty()) {
+                        discountField.setForeground(Color.BLACK);
+                        item.setDiscountPrice(0);
+                        updateTotals();
+                        return;
+                    }
 
-            // User enters per-unit discount
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice(); // ✅ GET last_price from CartItem
+                    // User enters per-unit discount
+                    double discountInput = Double.parseDouble(text);
+                    double unitPrice = item.getUnitPrice();
+                    double lastPrice = item.getLastPrice(); // ✅ GET last_price from CartItem
 
-            // Calculate final price after discount
-            double finalPricePerUnit = unitPrice - discountInput;
+                    // Calculate final price after discount
+                    double finalPricePerUnit = unitPrice - discountInput;
 
-            if (discountInput < 0) {
-                discountField.setForeground(ERROR_COLOR);
-                discountField.setToolTipText("Discount cannot be negative");
-            } else if (discountInput > unitPrice) {
-                discountField.setForeground(ERROR_COLOR);
-                discountField.setToolTipText("Max discount per unit: Rs." + String.format("%.2f", unitPrice));
-            } else if (finalPricePerUnit < lastPrice) {
-                // ✅ Check if discounted price is below last_price
-                discountField.setForeground(ERROR_COLOR);
-                double maxAllowedDiscount = unitPrice - lastPrice;
-                discountField.setToolTipText(String.format(
-                    "Cannot go below last price! Purchase price (Rs.%.2f) < Last price (Rs.%.2f). Max discount: Rs.%.2f",
-                    finalPricePerUnit, lastPrice, maxAllowedDiscount
-                ));
-            } else {
-                discountField.setForeground(SUCCESS_COLOR);
-                double totalDiscount = discountInput * item.getQuantity();
-                discountField.setToolTipText(String.format("Total discount: Rs.%.2f (%.2f × %d)",
-                        totalDiscount, discountInput, item.getQuantity()));
-                item.setDiscountPrice(discountInput);
-                updateTotals();
-            }
-        } catch (NumberFormatException e) {
-            discountField.setForeground(ERROR_COLOR);
-            discountField.setToolTipText("Invalid number");
-        }
-    }
-
-    public void changedUpdate(DocumentEvent e) {
-        validateDiscount();
-    }
-
-    public void removeUpdate(DocumentEvent e) {
-        validateDiscount();
-    }
-
-    public void insertUpdate(DocumentEvent e) {
-        validateDiscount();
-    }
-});
-
-discountField.addFocusListener(new java.awt.event.FocusAdapter() {
-    @Override
-    public void focusGained(java.awt.event.FocusEvent evt) {
-        if (discountField.getText().trim().equals("0") || discountField.getText().trim().equals("0.00")) {
-            discountField.setText("");
-        }
-    }
-
-    @Override
-    public void focusLost(java.awt.event.FocusEvent evt) {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                item.setDiscountPrice(0);
-                discountField.setText("0");
-                updateTotals();
-                return;
-            }
-
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice(); // ✅ GET last_price
-            double finalPricePerUnit = unitPrice - discountInput;
-
-            if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                // Restore current value
-                discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-                discountField.setForeground(Color.BLACK);
-                
-                String message;
-                if (discountInput < 0) {
-                    message = "Discount cannot be negative";
-                } else if (discountInput > unitPrice) {
-                    message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
-                } else {
-                    double maxAllowedDiscount = unitPrice - lastPrice;
-                    message = String.format(
-                        "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                        finalPricePerUnit, lastPrice, maxAllowedDiscount
-                    );
+                    if (discountInput < 0) {
+                        discountField.setForeground(ERROR_COLOR);
+                        discountField.setToolTipText("Discount cannot be negative");
+                    } else if (discountInput > unitPrice) {
+                        discountField.setForeground(ERROR_COLOR);
+                        discountField.setToolTipText("Max discount per unit: Rs." + String.format("%.2f", unitPrice));
+                    } else if (finalPricePerUnit < lastPrice) {
+                        // ✅ Check if discounted price is below last_price
+                        discountField.setForeground(ERROR_COLOR);
+                        double maxAllowedDiscount = unitPrice - lastPrice;
+                        discountField.setToolTipText(String.format(
+                                "Cannot go below last price! Purchase price (Rs.%.2f) < Last price (Rs.%.2f). Max discount: Rs.%.2f",
+                                finalPricePerUnit, lastPrice, maxAllowedDiscount
+                        ));
+                    } else {
+                        discountField.setForeground(SUCCESS_COLOR);
+                        double totalDiscount = discountInput * item.getQuantity();
+                        discountField.setToolTipText(String.format("Total discount: Rs.%.2f (%.2f × %d)",
+                                totalDiscount, discountInput, item.getQuantity()));
+                        item.setDiscountPrice(discountInput);
+                        updateTotals();
+                    }
+                } catch (NumberFormatException e) {
+                    discountField.setForeground(ERROR_COLOR);
+                    discountField.setToolTipText("Invalid number");
                 }
-                
-                JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-            } else {
-                item.setDiscountPrice(discountInput);
-                discountField.setText(String.format("%.2f", discountInput));
-                discountField.setForeground(Color.BLACK);
-                updateTotals();
             }
-        } catch (NumberFormatException e) {
-            discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-            discountField.setForeground(Color.BLACK);
-        }
-    }
-});
+
+            public void changedUpdate(DocumentEvent e) {
+                validateDiscount();
+            }
+
+            public void removeUpdate(DocumentEvent e) {
+                validateDiscount();
+            }
+
+            public void insertUpdate(DocumentEvent e) {
+                validateDiscount();
+            }
+        });
+
+        discountField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                if (discountField.getText().trim().equals("0") || discountField.getText().trim().equals("0.00")) {
+                    discountField.setText("");
+                }
+            }
+
+            @Override
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                try {
+                    String text = discountField.getText().trim();
+                    if (text.isEmpty()) {
+                        item.setDiscountPrice(0);
+                        discountField.setText("0");
+                        updateTotals();
+                        return;
+                    }
+
+                    double discountInput = Double.parseDouble(text);
+                    double unitPrice = item.getUnitPrice();
+                    double lastPrice = item.getLastPrice(); // ✅ GET last_price
+                    double finalPricePerUnit = unitPrice - discountInput;
+
+                    if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
+                        // Restore current value
+                        discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+                        discountField.setForeground(Color.BLACK);
+
+                        String message;
+                        if (discountInput < 0) {
+                            message = "Discount cannot be negative";
+                        } else if (discountInput > unitPrice) {
+                            message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
+                        } else {
+                            double maxAllowedDiscount = unitPrice - lastPrice;
+                            message = String.format(
+                                    "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
+                                    finalPricePerUnit, lastPrice, maxAllowedDiscount
+                            );
+                        }
+
+                        JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        item.setDiscountPrice(discountInput);
+                        discountField.setText(String.format("%.2f", discountInput));
+                        discountField.setForeground(Color.BLACK);
+                        updateTotals();
+                    }
+                } catch (NumberFormatException e) {
+                    discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+                    discountField.setForeground(Color.BLACK);
+                }
+            }
+        });
 
 // ENTER key handler with last_price validation
-discountField.getInputMap().put(javax.swing.KeyStroke.getKeyStroke("ENTER"), "applyDiscount");
-discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction() {
-    @Override
-    public void actionPerformed(java.awt.event.ActionEvent e) {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                item.setDiscountPrice(0);
-                discountField.setText("0.00");
-                updateTotals();
-                return;
-            }
+        discountField.getInputMap().put(javax.swing.KeyStroke.getKeyStroke("ENTER"), "applyDiscount");
+        discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                try {
+                    String text = discountField.getText().trim();
+                    if (text.isEmpty()) {
+                        item.setDiscountPrice(0);
+                        discountField.setText("0.00");
+                        updateTotals();
+                        return;
+                    }
 
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice(); // ✅ GET last_price
-            double finalPricePerUnit = unitPrice - discountInput;
+                    double discountInput = Double.parseDouble(text);
+                    double unitPrice = item.getUnitPrice();
+                    double lastPrice = item.getLastPrice(); // ✅ GET last_price
+                    double finalPricePerUnit = unitPrice - discountInput;
 
-            if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                String message;
-                if (discountInput < 0) {
-                    message = "Discount cannot be negative";
-                } else if (discountInput > unitPrice) {
-                    message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
-                } else {
-                    double maxAllowedDiscount = unitPrice - lastPrice;
-                    message = String.format(
-                        "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                        finalPricePerUnit, lastPrice, maxAllowedDiscount
-                    );
+                    if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
+                        String message;
+                        if (discountInput < 0) {
+                            message = "Discount cannot be negative";
+                        } else if (discountInput > unitPrice) {
+                            message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
+                        } else {
+                            double maxAllowedDiscount = unitPrice - lastPrice;
+                            message = String.format(
+                                    "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
+                                    finalPricePerUnit, lastPrice, maxAllowedDiscount
+                            );
+                        }
+
+                        JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+
+                    item.setDiscountPrice(discountInput);
+                    discountField.setText(String.format("%.2f", discountInput));
+                    updateTotals();
+
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(null, "Invalid discount value.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
-                
-                JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-                return;
             }
-
-            item.setDiscountPrice(discountInput);
-            discountField.setText(String.format("%.2f", discountInput));
-            updateTotals();
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(null, "Invalid discount value.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-});
+        });
 
         discountContainer.add(discountField);
         middlePanel.add(discountContainer, java.awt.BorderLayout.EAST);
@@ -719,18 +752,17 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
             return false;
         }
 
-        if (selectedPayment.equalsIgnoreCase("Credit Payment")) {
-            String selectedCustomer = (String) coustomerCombo.getSelectedItem();
-            if (selectedCustomer == null || selectedCustomer.equals("Select Customer")) {
-                JOptionPane.showMessageDialog(this,
-                        "Please select a customer for credit payment.",
-                        "Missing Customer",
-                        JOptionPane.WARNING_MESSAGE);
-                coustomerCombo.requestFocus();
-                return false;
-            }
-        }
-
+//        if (selectedPayment.equalsIgnoreCase("Credit Payment")) {
+//            String selectedCustomer = (String) coustomerCombo.getSelectedItem();
+//            if (selectedCustomer == null || selectedCustomer.equals("Select Customer")) {
+//                JOptionPane.showMessageDialog(this,
+//                        "Please select a customer for credit payment.",
+//                        "Missing Customer",
+//                        JOptionPane.WARNING_MESSAGE);
+//                coustomerCombo.requestFocus();
+//                return false;
+//            }
+//        }
         try {
             String amountText = jTextField2.getText().trim();
             if (amountText.isEmpty()) {
@@ -767,7 +799,6 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         cartItems.clear();
         jTextField2.setText("");
         paymentcombo.setSelectedIndex(0);
-        coustomerCombo.setSelectedIndex(0);
         updateCartPanel();
     }
 
@@ -784,8 +815,7 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         priceInput = new javax.swing.JLabel();
         cplusBtn = new javax.swing.JButton();
         discountPriceinput = new javax.swing.JTextField();
-        cartCount = new javax.swing.JLabel();
-        clearCartBtn = new javax.swing.JButton();
+        jPanel2 = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
         jPanel10 = new javax.swing.JPanel();
         roundedPanel4 = new lk.com.pos.privateclasses.RoundedPanel();
@@ -798,9 +828,7 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         discountPriceinput1 = new javax.swing.JTextField();
         jPanel1 = new javax.swing.JPanel();
         paymentcombo = new javax.swing.JComboBox<>();
-        coustomerCombo = new javax.swing.JComboBox<>();
-        jButton8 = new javax.swing.JButton();
-        jButton9 = new javax.swing.JButton();
+        cardPayBtn = new javax.swing.JButton();
         jLabel21 = new javax.swing.JLabel();
         jTextField2 = new javax.swing.JTextField();
         jLabel22 = new javax.swing.JLabel();
@@ -809,8 +837,12 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         jLabel14 = new javax.swing.JLabel();
         jLabel15 = new javax.swing.JLabel();
         gradientButton1 = new lk.com.pos.privateclasses.GradientButton();
+        creditCustomerBtn = new javax.swing.JButton();
+        jPanel3 = new javax.swing.JPanel();
+        clearCartBtn = new javax.swing.JButton();
         jButton1 = new javax.swing.JButton();
-        jComboBox1 = new javax.swing.JComboBox<>();
+        cartCount = new javax.swing.JLabel();
+        jButton3 = new javax.swing.JButton();
 
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -910,11 +942,7 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
 
         setBackground(new java.awt.Color(255, 255, 255));
 
-        cartCount.setFont(new java.awt.Font("Nunito ExtraBold", 1, 22)); // NOI18N
-        cartCount.setText("Cart (01)");
-
-        clearCartBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
-        clearCartBtn.setText("D");
+        jPanel2.setBackground(new java.awt.Color(255, 255, 255));
 
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -1004,14 +1032,14 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
             .addGroup(jPanel10Layout.createSequentialGroup()
                 .addGap(16, 16, 16)
                 .addComponent(roundedPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(35, Short.MAX_VALUE))
+                .addContainerGap(58, Short.MAX_VALUE))
         );
         jPanel10Layout.setVerticalGroup(
             jPanel10Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel10Layout.createSequentialGroup()
-                .addGap(26, 26, 26)
+                .addGap(11, 11, 11)
                 .addComponent(roundedPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(159, Short.MAX_VALUE))
+                .addContainerGap(156, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(jPanel10);
@@ -1022,31 +1050,15 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         paymentcombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
         paymentcombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Payment Method", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
 
-        coustomerCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        coustomerCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        coustomerCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Select Customer", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-
-        jButton8.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
-        jButton8.setText("v");
-        jButton8.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-        jButton8.setMaximumSize(new java.awt.Dimension(33, 35));
-        jButton8.setMinimumSize(new java.awt.Dimension(33, 35));
-        jButton8.setPreferredSize(new java.awt.Dimension(33, 35));
-        jButton8.addActionListener(new java.awt.event.ActionListener() {
+        cardPayBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
+        cardPayBtn.setText("C");
+        cardPayBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
+        cardPayBtn.setMaximumSize(new java.awt.Dimension(33, 35));
+        cardPayBtn.setMinimumSize(new java.awt.Dimension(33, 35));
+        cardPayBtn.setPreferredSize(new java.awt.Dimension(33, 35));
+        cardPayBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton8ActionPerformed(evt);
-            }
-        });
-
-        jButton9.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
-        jButton9.setText("+");
-        jButton9.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-        jButton9.setMaximumSize(new java.awt.Dimension(33, 35));
-        jButton9.setMinimumSize(new java.awt.Dimension(33, 35));
-        jButton9.setPreferredSize(new java.awt.Dimension(33, 35));
-        jButton9.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton9ActionPerformed(evt);
+                cardPayBtnActionPerformed(evt);
             }
         });
 
@@ -1080,55 +1092,58 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
             }
         });
 
-        jButton1.setBackground(new java.awt.Color(255, 51, 51));
-        jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton1.setText("Hold Sale");
-
-        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        creditCustomerBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
+        creditCustomerBtn.setText("V");
+        creditCustomerBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
+        creditCustomerBtn.setMaximumSize(new java.awt.Dimension(33, 35));
+        creditCustomerBtn.setMinimumSize(new java.awt.Dimension(33, 35));
+        creditCustomerBtn.setPreferredSize(new java.awt.Dimension(33, 35));
+        creditCustomerBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                creditCustomerBtnActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(paymentcombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, 324, javax.swing.GroupLayout.PREFERRED_SIZE))
             .addComponent(gradientButton1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(coustomerCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(paymentcombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addComponent(jSeparator2)
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 154, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGap(28, 28, 28)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                    .addComponent(jLabel22)
-                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 247, javax.swing.GroupLayout.PREFERRED_SIZE)))
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(cardPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 205, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(creditCustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, 296, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                        .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                            .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 154, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGap(28, 28, 28)
+                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 252, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                            .addComponent(jLabel22)
+                            .addGap(93, 93, 93)
+                            .addComponent(jLabel23, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(paymentcombo, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(coustomerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 56, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton9, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(paymentcombo, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(cardPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(creditCustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1145,44 +1160,88 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
                     .addComponent(jLabel15))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(gradientButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, 44, Short.MAX_VALUE)
-                    .addComponent(jComboBox1))
-                .addContainerGap(14, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        jPanel3.setBackground(new java.awt.Color(255, 255, 255));
+
+        clearCartBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
+        clearCartBtn.setText("D");
+        clearCartBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                clearCartBtnActionPerformed(evt);
+            }
+        });
+
+        jButton1.setBackground(new java.awt.Color(255, 51, 51));
+        jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jButton1.setText("H");
+
+        cartCount.setFont(new java.awt.Font("Nunito ExtraBold", 1, 22)); // NOI18N
+        cartCount.setText("Cart (01)");
+
+        jButton3.setBackground(new java.awt.Color(255, 204, 0));
+        jButton3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jButton3.setText("E");
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addComponent(cartCount, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(clearCartBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
+                        .addGap(4, 4, 4)
+                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jButton1)
+                            .addComponent(clearCartBtn)
+                            .addComponent(jButton3)))
+                    .addComponent(cartCount))
+                .addGap(0, 0, Short.MAX_VALUE))
+        );
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
+            .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 178, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jScrollPane1)
-                .addContainerGap())
-            .addGroup(layout.createSequentialGroup()
-                .addGap(8, 8, 8)
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGap(10, 10, 10))
-            .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addComponent(cartCount, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(clearCartBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18))
+            .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(cartCount)
-                    .addComponent(clearCartBtn))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 313, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -1190,13 +1249,9 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         // TODO add your handling code here:
     }//GEN-LAST:event_cplusBtnActionPerformed
 
-    private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
+    private void cardPayBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cardPayBtnActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_jButton8ActionPerformed
-
-    private void jButton9ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton9ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jButton9ActionPerformed
+    }//GEN-LAST:event_cardPayBtnActionPerformed
 
     private void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_gradientButton1ActionPerformed
         // TODO add your handling code here:
@@ -1206,8 +1261,17 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
         // TODO add your handling code here:
     }//GEN-LAST:event_cplusBtn1ActionPerformed
 
+    private void clearCartBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearCartBtnActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_clearCartBtnActionPerformed
+
+    private void creditCustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditCustomerBtnActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_creditCustomerBtnActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton cardPayBtn;
     private javax.swing.JLabel cartCount;
     private javax.swing.JLabel cartProductName;
     private javax.swing.JLabel cartProductName1;
@@ -1216,16 +1280,14 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
     private javax.swing.JButton clearCartBtn;
     private javax.swing.JButton cminusBtn;
     private javax.swing.JButton cminusBtn1;
-    private javax.swing.JComboBox<String> coustomerCombo;
     private javax.swing.JButton cplusBtn;
     private javax.swing.JButton cplusBtn1;
+    private javax.swing.JButton creditCustomerBtn;
     private javax.swing.JTextField discountPriceinput;
     private javax.swing.JTextField discountPriceinput1;
     private lk.com.pos.privateclasses.GradientButton gradientButton1;
     private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton8;
-    private javax.swing.JButton jButton9;
-    private javax.swing.JComboBox<String> jComboBox1;
+    private javax.swing.JButton jButton3;
     private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel21;
@@ -1233,6 +1295,8 @@ discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction
     private javax.swing.JLabel jLabel23;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel10;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
     private javax.swing.JPanel jPanel9;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator2;

@@ -27,6 +27,10 @@ import javax.swing.text.DocumentFilter;
 import java.sql.ResultSet;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+import lk.com.pos.dialog.AddCredit;
+import lk.com.pos.dialog.DiscountDialog;
 
 public class PosCartPanel extends javax.swing.JPanel {
 
@@ -1177,6 +1181,11 @@ public class PosCartPanel extends javax.swing.JPanel {
         jButton1.setBackground(new java.awt.Color(255, 51, 51));
         jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jButton1.setText("H");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
 
         cartCount.setFont(new java.awt.Font("Nunito ExtraBold", 1, 22)); // NOI18N
         cartCount.setText("Cart (01)");
@@ -1187,6 +1196,11 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         jButton2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jButton2.setText("Di");
+        jButton2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton2ActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
@@ -1273,8 +1287,55 @@ public class PosCartPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_clearCartBtnActionPerformed
 
     private void creditCustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditCustomerBtnActionPerformed
-        // TODO add your handling code here:
+        
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        double amount = 5000.00; // Your amount here
+
+        AddCredit dialog = new AddCredit(parentFrame, true, amount);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
+
+// After dialog closes, get the selected customer ID
+        if (dialog.isCreditSaved()) {
+            int customerId = dialog.getSelectedCustomerId();
+            System.out.println("Selected Customer ID: " + customerId);
+
+            // Use the customer ID in your calling class
+            // ... your logic here
+        }
+
+        
     }//GEN-LAST:event_creditCustomerBtnActionPerformed
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        
+    }//GEN-LAST:event_jButton1ActionPerformed
+
+    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+        Double totalAmount = 1000.0; // Your total amount here
+
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        DiscountDialog dialog = new DiscountDialog(parentFrame, true, totalAmount);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
+
+// Check results after dialog closes
+        if (dialog.isDiscountApplied()) {
+            Double discountAmount = dialog.getDiscountAmount();
+            int discountTypeId = dialog.getDiscountTypeId();
+
+            // Calculate final amount after discount
+            Double finalAmount = totalAmount - discountAmount;
+
+            System.out.println("Original Total: " + totalAmount);
+            System.out.println("Discount: " + discountAmount);
+            System.out.println("Final Amount: " + finalAmount);
+            System.out.println("Discount Type ID: " + discountTypeId);
+
+            // Update your UI with the discounted amount
+        }
+        
+    }//GEN-LAST:event_jButton2ActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

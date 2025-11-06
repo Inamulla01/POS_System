@@ -63,35 +63,35 @@
                           <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
                           <Group type="103" groupAlignment="0" max="-2" attributes="0">
                               <Component id="SupplierCombo" alignment="0" min="-2" pref="479" max="-2" attributes="0"/>
-                              <Group type="103" alignment="0" groupAlignment="1" attributes="0">
-                                  <Group type="102" attributes="0">
-                                      <Component id="cancelBtn" min="-2" pref="122" max="-2" attributes="0"/>
+                              <Group type="102" alignment="1" attributes="0">
+                                  <Component id="cancelBtn" min="-2" pref="165" max="-2" attributes="0"/>
+                                  <EmptySpace max="-2" attributes="0"/>
+                                  <Component id="clearFormBtn" min="-2" pref="175" max="-2" attributes="0"/>
+                                  <EmptySpace max="-2" attributes="0"/>
+                                  <Component id="saveBtn" min="-2" pref="160" max="-2" attributes="0"/>
+                              </Group>
+                              <Group type="103" alignment="1" groupAlignment="0" attributes="0">
+                                  <Group type="102" alignment="0" attributes="0">
+                                      <Component id="manufactureDate" min="-2" pref="250" max="-2" attributes="0"/>
                                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                                      <Component id="clearFormBtn" min="-2" pref="130" max="-2" attributes="0"/>
-                                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                                      <Component id="saveBtn" min="-2" pref="130" max="-2" attributes="0"/>
+                                      <Component id="expriyDate" min="-2" pref="250" max="-2" attributes="0"/>
                                   </Group>
-                                  <Group type="103" groupAlignment="0" attributes="0">
+                                  <Group type="103" alignment="0" groupAlignment="1" attributes="0">
+                                      <Component id="addNewSupplier" alignment="1" min="-2" pref="27" max="-2" attributes="0"/>
                                       <Group type="102" alignment="0" attributes="0">
-                                          <Component id="manufactureDate" min="-2" pref="250" max="-2" attributes="0"/>
+                                          <Component id="purchasePrice" min="-2" pref="250" max="-2" attributes="0"/>
                                           <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                                          <Component id="expriyDate" min="-2" pref="250" max="-2" attributes="0"/>
-                                      </Group>
-                                      <Group type="103" alignment="0" groupAlignment="1" attributes="0">
-                                          <Component id="addNewSupplier" alignment="1" min="-2" pref="27" max="-2" attributes="0"/>
-                                          <Group type="102" alignment="0" attributes="0">
-                                              <Component id="purchasePrice" min="-2" pref="250" max="-2" attributes="0"/>
-                                              <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                                              <Component id="lastPrice" min="-2" pref="250" max="-2" attributes="0"/>
-                                          </Group>
+                                          <Component id="lastPrice" min="-2" pref="250" max="-2" attributes="0"/>
                                       </Group>
                                   </Group>
                               </Group>
                               <Group type="102" alignment="0" attributes="0">
-                                  <Component id="sellingPrice" min="-2" pref="192" max="-2" attributes="0"/>
+                                  <Component id="sellingPrice" min="-2" pref="172" max="-2" attributes="0"/>
                                   <EmptySpace max="-2" attributes="0"/>
-                                  <Component id="batchNoInput" min="-2" pref="208" max="-2" attributes="0"/>
-                                  <EmptySpace max="32767" attributes="0"/>
+                                  <Component id="batchNoInput" min="-2" pref="195" max="-2" attributes="0"/>
+                                  <EmptySpace max="-2" attributes="0"/>
+                                  <Component id="generateBatchBtn" max="32767" attributes="0"/>
+                                  <EmptySpace max="-2" attributes="0"/>
                                   <Component id="quantityInput" min="-2" pref="100" max="-2" attributes="0"/>
                               </Group>
                           </Group>
@@ -109,30 +109,35 @@
                   <EmptySpace type="unrelated" max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="1" attributes="0">
                       <Group type="102" attributes="0">
-                          <Component id="jSeparator1" min="-2" pref="4" max="-2" attributes="0"/>
+                          <Group type="103" groupAlignment="1" attributes="0">
+                              <Group type="102" attributes="0">
+                                  <Component id="jSeparator1" min="-2" pref="4" max="-2" attributes="0"/>
+                                  <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
+                                  <Component id="productNameCombo" min="-2" max="-2" attributes="0"/>
+                              </Group>
+                              <Component id="addNewProduct" min="-2" pref="41" max="-2" attributes="0"/>
+                          </Group>
                           <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
-                          <Component id="productNameCombo" min="-2" max="-2" attributes="0"/>
+                          <Group type="103" groupAlignment="0" max="-2" attributes="0">
+                              <Component id="SupplierCombo" min="-2" max="-2" attributes="0"/>
+                              <Group type="102" attributes="0">
+                                  <EmptySpace min="-2" pref="11" max="-2" attributes="0"/>
+                                  <Component id="addNewSupplier" max="32767" attributes="0"/>
+                              </Group>
+                          </Group>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Group type="103" groupAlignment="3" attributes="0">
+                              <Component id="purchasePrice" alignment="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="lastPrice" alignment="3" min="-2" max="-2" attributes="0"/>
+                          </Group>
+                          <EmptySpace type="unrelated" max="-2" attributes="0"/>
+                          <Group type="103" groupAlignment="3" attributes="0">
+                              <Component id="sellingPrice" alignment="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="batchNoInput" alignment="3" min="-2" max="-2" attributes="0"/>
+                              <Component id="quantityInput" alignment="3" min="-2" max="-2" attributes="0"/>
+                          </Group>
                       </Group>
-                      <Component id="addNewProduct" min="-2" pref="41" max="-2" attributes="0"/>
-                  </Group>
-                  <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
-                  <Group type="103" groupAlignment="0" max="-2" attributes="0">
-                      <Component id="SupplierCombo" min="-2" max="-2" attributes="0"/>
-                      <Group type="102" attributes="0">
-                          <EmptySpace min="-2" pref="11" max="-2" attributes="0"/>
-                          <Component id="addNewSupplier" max="32767" attributes="0"/>
-                      </Group>
-                  </Group>
-                  <EmptySpace max="-2" attributes="0"/>
-                  <Group type="103" groupAlignment="3" attributes="0">
-                      <Component id="purchasePrice" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="lastPrice" alignment="3" min="-2" max="-2" attributes="0"/>
-                  </Group>
-                  <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                  <Group type="103" groupAlignment="3" attributes="0">
-                      <Component id="sellingPrice" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="batchNoInput" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="quantityInput" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="generateBatchBtn" min="-2" pref="41" max="-2" attributes="0"/>
                   </Group>
                   <EmptySpace type="unrelated" max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="3" attributes="0">
@@ -176,7 +181,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Purchase Price">
+                <TitledBorder title="Purchase Price *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -193,7 +198,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Last Price">
+                <TitledBorder title="Last Price *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -210,7 +215,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Selling Price">
+                <TitledBorder title="Selling Price *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -224,11 +229,12 @@
           <Properties>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Manufacture Date">
+                <TitledBorder title="Manufacture Date *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
             </Property>
+            <Property name="dateFormatString" type="java.lang.String" value="MM/dd/yyyy"/>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito SemiBold" size="14" style="1"/>
             </Property>
@@ -242,11 +248,12 @@
           <Properties>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Expriy Date">
+                <TitledBorder title="Expriy Date *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
             </Property>
+            <Property name="dateFormatString" type="java.lang.String" value="MM/dd/yyyy"/>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito SemiBold" size="14" style="1"/>
             </Property>
@@ -271,7 +278,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Supplier">
+                <TitledBorder title="Supplier *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -358,7 +365,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Batch No">
+                <TitledBorder title="Batch No *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -383,7 +390,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Products">
+                <TitledBorder title="Products *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -445,7 +452,7 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Quantity">
+                <TitledBorder title="Quantity *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
@@ -453,6 +460,26 @@
           </Properties>
           <Events>
             <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="quantityInputKeyPressed"/>
+          </Events>
+        </Component>
+        <Component class="javax.swing.JButton" name="generateBatchBtn">
+          <Properties>
+            <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
+              <Font name="Nunito ExtraBold" size="14" style="1"/>
+            </Property>
+            <Property name="foreground" type="java.awt.Color" editor="org.netbeans.beaninfo.editors.ColorEditor">
+              <Color blue="99" green="99" red="99" type="rgb"/>
+            </Property>
+            <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
+              <Border info="null"/>
+            </Property>
+            <Property name="cursor" type="java.awt.Cursor" editor="org.netbeans.modules.form.editors2.CursorEditor">
+              <Color id="Hand Cursor"/>
+            </Property>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="generateBatchBtnActionPerformed"/>
+            <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="generateBatchBtnKeyPressed"/>
           </Events>
         </Component>
       </SubComponents>

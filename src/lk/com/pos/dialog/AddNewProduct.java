@@ -37,56 +37,52 @@ public class AddNewProduct extends javax.swing.JDialog {
         AutoCompleteDecorator.decorate(categoryCombo);
         AutoCompleteDecorator.decorate(brandCombo);
     }
+private void addEnterKeyNavigation() {
+    // Map components to their next focus targets for Enter key
+    java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
+    enterNavigationMap.put(productInput, categoryCombo);
+    enterNavigationMap.put(categoryCombo, brandCombo);
+    enterNavigationMap.put(brandCombo, barcodeInput);
+    // REMOVED barcodeInput from here - it has custom logic
+    enterNavigationMap.put(cancelBtn, clearFormBtn);
+    enterNavigationMap.put(clearFormBtn, saveBtn);
+    enterNavigationMap.put(saveBtn, productInput);
 
-    private void addEnterKeyNavigation() {
-        // Map components to their next focus targets for Enter key
-        java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
-        enterNavigationMap.put(productInput, categoryCombo);
-        enterNavigationMap.put(categoryCombo, brandCombo);
-        enterNavigationMap.put(brandCombo, barcodeInput);
-        enterNavigationMap.put(barcodeInput, cancelBtn);
-        enterNavigationMap.put(cancelBtn, clearFormBtn);
-        enterNavigationMap.put(clearFormBtn, saveBtn);
-        enterNavigationMap.put(saveBtn, productInput);
-
-        // Add key listeners to all components except combo boxes
-        for (java.awt.Component component : enterNavigationMap.keySet()) {
-            if (component != categoryCombo && component != brandCombo) {
-                component.addKeyListener(new java.awt.event.KeyAdapter() {
-                    @Override
-                    public void keyPressed(java.awt.event.KeyEvent evt) {
-                        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                            java.awt.Component nextComponent = enterNavigationMap.get(component);
-                            if (nextComponent != null) {
-                                nextComponent.requestFocusInWindow();
-                            }
-                            evt.consume();
+    // Add key listeners to all components except combo boxes and barcodeInput
+    for (java.awt.Component component : enterNavigationMap.keySet()) {
+        if (component != categoryCombo && component != brandCombo && component != barcodeInput) {
+            component.addKeyListener(new java.awt.event.KeyAdapter() {
+                @Override
+                public void keyPressed(java.awt.event.KeyEvent evt) {
+                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                        java.awt.Component nextComponent = enterNavigationMap.get(component);
+                        if (nextComponent != null) {
+                            nextComponent.requestFocusInWindow();
                         }
+                        evt.consume();
                     }
-                });
-            }
+                }
+            });
         }
     }
-
+}
     private boolean allFieldsFilled() {
-        return !productInput.getText().trim().isEmpty()
+        boolean filled = !productInput.getText().trim().isEmpty()
                 && categoryCombo.getSelectedIndex() > 0
                 && brandCombo.getSelectedIndex() > 0
                 && !barcodeInput.getText().trim().isEmpty();
+
+        System.out.println("All fields filled: " + filled); // Debug line
+        return filled;
     }
 
     private void handleEnterWithAllFieldsFilled(java.awt.event.KeyEvent evt, java.awt.Component source) {
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (allFieldsFilled()) {
-                saveBtn.requestFocusInWindow();
-                evt.consume();
-            } else {
-                java.awt.Component nextComponent = getNextComponent(source);
-                if (nextComponent != null) {
-                    nextComponent.requestFocusInWindow();
-                }
-                evt.consume();
+            java.awt.Component nextComponent = getNextComponent(source);
+            if (nextComponent != null) {
+                nextComponent.requestFocusInWindow();
             }
+            evt.consume();
         }
     }
 
@@ -101,7 +97,7 @@ public class AddNewProduct extends javax.swing.JDialog {
             return barcodeInput;
         }
         if (source == barcodeInput) {
-            return cancelBtn;
+            return cancelBtn; // Default navigation
         }
         if (source == cancelBtn) {
             return clearFormBtn;
@@ -544,17 +540,26 @@ public class AddNewProduct extends javax.swing.JDialog {
             }
         });
 
-        barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    handleEnterWithAllFieldsFilled(evt, barcodeInput);
-                } else {
-                    handleArrowNavigation(evt, barcodeInput);
-                }
+barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
+    @Override
+    public void keyPressed(java.awt.event.KeyEvent evt) {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            // Check if all fields are filled
+            if (allFieldsFilled()) {
+                // All fields filled - go directly to Save button
+                System.out.println("All fields filled - going to Save button");
+                saveBtn.requestFocusInWindow();
+            } else {
+                // Not all fields filled - go to cancel button
+                System.out.println("Not all fields filled - going to Cancel button");
+                cancelBtn.requestFocusInWindow();
             }
-        });
-
+            evt.consume();
+        } else {
+            handleArrowNavigation(evt, barcodeInput);
+        }
+    }
+});
         saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -717,13 +722,13 @@ public class AddNewProduct extends javax.swing.JDialog {
     private void generateBarcode() {
         // Generate 13-digit numeric barcode
         StringBuilder barcode = new StringBuilder();
-        
+
         // Generate 13 random digits
         for (int i = 0; i < 13; i++) {
             int digit = (int) (Math.random() * 10); // Random digit from 0-9
             barcode.append(digit);
         }
-        
+
         barcodeInput.setText(barcode.toString());
         Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                 "13-digit barcode generated: " + barcode.toString());
@@ -731,7 +736,7 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void printBarcode() {
         String barcodeText = barcodeInput.getText().trim();
-        
+
         if (barcodeText.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     "Please generate or enter a barcode first");
@@ -756,11 +761,11 @@ public class AddNewProduct extends javax.swing.JDialog {
                     // Set up fonts
                     Font barcodeFont = new Font("Monospaced", Font.BOLD, 24);
                     Font labelFont = new Font("Nunito SemiBold", Font.PLAIN, 12);
-                    
+
                     // Draw barcode number
                     g2d.setFont(barcodeFont);
                     g2d.drawString(barcodeText, 50, 100);
-                    
+
                     // Draw label
                     g2d.setFont(labelFont);
                     g2d.drawString("Product Barcode", 50, 130);
@@ -912,6 +917,7 @@ public class AddNewProduct extends javax.swing.JDialog {
                     "Error opening brand dialog: " + e.getMessage());
         }
     }
+
     private void categoryEditorKeyPressed(java.awt.event.KeyEvent evt) {
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             // If popup is visible, let it handle the selection first
@@ -1159,11 +1165,11 @@ public class AddNewProduct extends javax.swing.JDialog {
                                 .addComponent(jLabel3)
                                 .addComponent(productInput))
                             .addGroup(jPanel3Layout.createSequentialGroup()
-                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 153, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 172, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel3Layout.setVerticalGroup(
@@ -1247,15 +1253,23 @@ public class AddNewProduct extends javax.swing.JDialog {
     }//GEN-LAST:event_addNewBrandActionPerformed
 
     private void barcodeInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_barcodeInputKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            cancelBtn.requestFocusInWindow();
+    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+        // Check if all fields are filled
+        if (allFieldsFilled()) {
+            // All fields filled - go directly to Save button
+            saveBtn.requestFocusInWindow();
         } else {
-            handleArrowNavigation(evt, barcodeInput);
+            // Not all fields filled - go to cancel button
+            cancelBtn.requestFocusInWindow();
         }
+        evt.consume();
+    } else {
+        handleArrowNavigation(evt, barcodeInput);
+    }
     }//GEN-LAST:event_barcodeInputKeyPressed
 
     private void categoryComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_categoryComboKeyPressed
-               if (categoryCombo.isPopupVisible()) {
+        if (categoryCombo.isPopupVisible()) {
             if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                 categoryCombo.setPopupVisible(false);
                 if (categoryCombo.getSelectedIndex() > 0) {
@@ -1302,11 +1316,11 @@ public class AddNewProduct extends javax.swing.JDialog {
             default:
                 break;
         }
-        
+
     }//GEN-LAST:event_categoryComboKeyPressed
 
     private void brandComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_brandComboKeyPressed
-         if (brandCombo.isPopupVisible()) {
+        if (brandCombo.isPopupVisible()) {
             if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                 brandCombo.setPopupVisible(false);
                 if (brandCombo.getSelectedIndex() > 0) {

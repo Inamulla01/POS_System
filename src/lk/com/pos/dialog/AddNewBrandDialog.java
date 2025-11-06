@@ -456,6 +456,7 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
         brand = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("AddNew Brand");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 

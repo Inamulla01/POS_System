@@ -49,6 +49,10 @@ public class UpdateSupplier extends javax.swing.JDialog {
         setupButtonStyles();
         setupTooltips();
         
+        // Enable registration number field
+        jTextField4.setEnabled(true);
+        jTextField4.setEditable(true);
+        
         // Set initial focus
         jTextField1.requestFocus();
     }
@@ -58,7 +62,8 @@ public class UpdateSupplier extends javax.swing.JDialog {
     private boolean areAllRequiredFieldsFilled() {
         return !jTextField1.getText().trim().isEmpty() &&
                !jTextField2.getText().trim().isEmpty() &&
-               !jTextField3.getText().trim().isEmpty();
+               !jTextField3.getText().trim().isEmpty() &&
+               !jTextField4.getText().trim().isEmpty();
     }
 
     // ---------------- BUTTON STYLES AND EFFECTS ----------------
@@ -253,8 +258,8 @@ public class UpdateSupplier extends javax.swing.JDialog {
     private void setupTooltips() {
         jTextField1.setToolTipText("Type supplier name and press ENTER to move to next field");
         jTextField2.setToolTipText("Type phone number and press ENTER to move to next field");
-        jTextField3.setToolTipText("Type address and press ENTER to move to buttons");
-        jTextField4.setToolTipText("Registration number (read-only)");
+        jTextField3.setToolTipText("Type address and press ENTER to move to next field");
+        jTextField4.setToolTipText("Type registration number and press ENTER to move to buttons");
         updateBtn.setToolTipText("Click to update supplier (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
         refreshBtn.setToolTipText("Reload original data (or press F1)");
@@ -326,144 +331,189 @@ public class UpdateSupplier extends javax.swing.JDialog {
         }
         return false;
     }
+
+    private boolean isRegistrationNumberExists(String regNo) {
+        try {
+            Connection conn = MySQL.getConnection();
+            String sql = "SELECT COUNT(*) FROM suppliers WHERE suppliers_reg_no = ? AND suppliers_id != ?";
+            PreparedStatement pst = conn.prepareStatement(sql);
+            pst.setString(1, regNo);
+            pst.setInt(2, supplierId);
+            ResultSet rs = pst.executeQuery();
+            
+            if (rs.next() && rs.getInt(1) > 0) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                        "Registration number already exists!");
+                return true;
+            }
+            
+            rs.close();
+            pst.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     // ---------------- KEYBOARD NAVIGATION SETUP ----------------
-private void setupKeyboardNavigation() {
-    // Set up Enter key and arrow key navigation between fields
-    jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
-        @Override
-        public void keyPressed(java.awt.event.KeyEvent evt) {
-            if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                jTextField2.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                jTextField2.requestFocus();
-                evt.consume();
-            }
-        }
-    });
-
-    jTextField2.addKeyListener(new java.awt.event.KeyAdapter() {
-        @Override
-        public void keyPressed(java.awt.event.KeyEvent evt) {
-            if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                jTextField3.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                jTextField1.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                jTextField3.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                jTextField1.requestFocus();
-                evt.consume();
-            }
-        }
-    });
-
-    jTextField3.addKeyListener(new java.awt.event.KeyAdapter() {
-        @Override
-        public void keyPressed(java.awt.event.KeyEvent evt) {
-            if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                // When all fields are filled, go directly to update button
-                if (areAllRequiredFieldsFilled()) {
-                    updateBtn.requestFocusInWindow();
-                } else {
-                    cancelBtn.requestFocusInWindow();
+    private void setupKeyboardNavigation() {
+        // Set up Enter key and arrow key navigation between fields
+        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField2.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    jTextField2.requestFocus();
+                    evt.consume();
                 }
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                jTextField2.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                // When all fields are filled, go directly to update button
-                if (areAllRequiredFieldsFilled()) {
-                    updateBtn.requestFocusInWindow();
-                } else {
-                    cancelBtn.requestFocusInWindow();
+            }
+        });
+
+        jTextField2.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField1.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    jTextField1.requestFocus();
+                    evt.consume();
                 }
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                jTextField2.requestFocus();
-                evt.consume();
             }
-        }
-    });
+        });
 
-    // Update button keyboard navigation
-    updateBtn.addKeyListener(new java.awt.event.KeyAdapter() {
-        @Override
-        public void keyPressed(java.awt.event.KeyEvent evt) {
-            if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                updateSupplier();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                jTextField3.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                cancelBtn.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                cancelBtn.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                cancelBtn.requestFocus();
-                evt.consume();
+        jTextField3.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField2.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    jTextField2.requestFocus();
+                    evt.consume();
+                }
             }
-        }
-    });
+        });
 
-    // Cancel button keyboard navigation
-    cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
-        @Override
-        public void keyPressed(java.awt.event.KeyEvent evt) {
-            if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                dispose();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                jTextField3.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                updateBtn.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                updateBtn.requestFocus();
-                evt.consume();
-            } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                updateBtn.requestFocus();
-                evt.consume();
+        jTextField4.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    // When all fields are filled, go directly to update button
+                    if (areAllRequiredFieldsFilled()) {
+                        updateBtn.requestFocusInWindow();
+                    } else {
+                        cancelBtn.requestFocusInWindow();
+                    }
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    // When all fields are filled, go directly to update button
+                    if (areAllRequiredFieldsFilled()) {
+                        updateBtn.requestFocusInWindow();
+                    } else {
+                        cancelBtn.requestFocusInWindow();
+                    }
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                }
             }
-        }
-    });
+        });
 
-    // Set up Escape key to close dialog
-    getRootPane().registerKeyboardAction(
-        evt -> dispose(),
-        KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-        JComponent.WHEN_IN_FOCUSED_WINDOW
-    );
+        // Update button keyboard navigation
+        updateBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    updateSupplier();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    cancelBtn.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    cancelBtn.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    cancelBtn.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
 
-    // Set up Ctrl+Enter to update from anywhere
-    getRootPane().registerKeyboardAction(
-        evt -> updateSupplier(),
-        KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
-        JComponent.WHEN_IN_FOCUSED_WINDOW
-    );
+        // Cancel button keyboard navigation
+        cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    dispose();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    updateBtn.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    updateBtn.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    updateBtn.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
 
-    // Set up F1 key for refresh/clear form
-    getRootPane().registerKeyboardAction(
-        evt -> clearForm(),
-        KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
-        JComponent.WHEN_IN_FOCUSED_WINDOW
-    );
-}
+        // Set up Escape key to close dialog
+        getRootPane().registerKeyboardAction(
+            evt -> dispose(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set up Ctrl+Enter to update from anywhere
+        getRootPane().registerKeyboardAction(
+            evt -> updateSupplier(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Set up F1 key for refresh/clear form
+        getRootPane().registerKeyboardAction(
+            evt -> clearForm(),
+            KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+    }
+
     private void updateSupplier() {
         String name = jTextField1.getText().trim();
         String mobile = jTextField2.getText().trim();
         String address = jTextField3.getText().trim();
+        String regNo = jTextField4.getText().trim();
 
         // Basic validation
-        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty()) {
+        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty() || regNo.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     "Please fill all required fields!");
             return;
@@ -481,15 +531,22 @@ private void setupKeyboardNavigation() {
             return;
         }
 
+        // Check if registration number already exists (excluding current supplier)
+        if (isRegistrationNumberExists(regNo)) {
+            jTextField4.requestFocus();
+            return;
+        }
+
         try {
             Connection conn = MySQL.getConnection();
-            String sql = "UPDATE suppliers SET suppliers_name = ?, suppliers_mobile = ?, suppliers_address = ? WHERE suppliers_id = ?";
+            String sql = "UPDATE suppliers SET suppliers_name = ?, suppliers_mobile = ?, suppliers_address = ?, suppliers_reg_no = ? WHERE suppliers_id = ?";
             
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setString(1, name);
             pst.setString(2, mobile);
             pst.setString(3, address);
-            pst.setInt(4, supplierId);
+            pst.setString(4, regNo);
+            pst.setInt(5, supplierId);
             
             int rowsAffected = pst.executeUpdate();
             
@@ -510,6 +567,7 @@ private void setupKeyboardNavigation() {
                     "Database error: " + e.getMessage());
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -526,6 +584,7 @@ private void setupKeyboardNavigation() {
         refreshBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("Edit Customer");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -613,7 +672,7 @@ private void setupKeyboardNavigation() {
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                 .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                 .addComponent(jLabel2)

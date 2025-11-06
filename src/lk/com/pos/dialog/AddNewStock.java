@@ -47,8 +47,8 @@ public class AddNewStock extends javax.swing.JDialog {
         loadProductCombo();
         loadSupplierCombo();
 
-        // Generate initial batch number
-        generateBatchNumber();
+        // Don't generate initial batch number - leave it empty
+        batchNoInput.setText("");
 
         // Set focus traversal
         setupFocusTraversal();
@@ -66,7 +66,7 @@ public class AddNewStock extends javax.swing.JDialog {
             }
         });
 
-        // Add F1 and F2 shortcuts for adding product and supplier
+        // Add F1, F2, and F3 shortcuts
         getRootPane().registerKeyboardAction(
                 new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -90,6 +90,16 @@ public class AddNewStock extends javax.swing.JDialog {
         getRootPane().registerKeyboardAction(
                 new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
+                generateBatchNumber();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
                 dispose();
             }
         },
@@ -97,7 +107,8 @@ public class AddNewStock extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        batchNoInput.setToolTipText("<html>Batch number is auto-generated<br>Press <b>SPACE</b> to regenerate</html>");
+        batchNoInput.setToolTipText("<html>Batch number - you can type your own or press <b>F3</b> to generate new one</html>");
+        generateBatchBtn.setToolTipText("Click to generate new batch number (or press F3)");
         productNameCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F1</b> to add new product</html>");
         SupplierCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to add new supplier</html>");
         quantityInput.setToolTipText("Type quantity and press ENTER to move to next field");
@@ -111,8 +122,8 @@ public class AddNewStock extends javax.swing.JDialog {
         lastPrice.setToolTipText("Previous selling price (should be ≥ purchase price)");
         sellingPrice.setToolTipText("Current selling price (should be ≥ last price)");
 
-        // Fix batch number input to be focusable but not editable
-        batchNoInput.setEditable(false);
+        // Make batch number input editable and focusable
+        batchNoInput.setEditable(true);
         batchNoInput.setFocusable(true);
 
         // Make date editors focusable and add key listeners
@@ -132,6 +143,10 @@ public class AddNewStock extends javax.swing.JDialog {
         // Remove add buttons from keyboard navigation
         addNewProduct.setFocusable(false);
         addNewSupplier.setFocusable(false);
+        generateBatchBtn.setFocusable(false);
+        
+        // Set focus to product combo box when dialog opens
+        productNameCombo.requestFocusInWindow();
     }
 
     private boolean allFieldsFilled() {
@@ -197,13 +212,19 @@ public class AddNewStock extends javax.swing.JDialog {
         addNewProduct.setContentAreaFilled(false);
         addNewProduct.setFocusPainted(false);
         addNewProduct.setOpaque(false);
-        addNewProduct.setFocusable(false); // Remove from keyboard navigation
+        addNewProduct.setFocusable(false);
 
         addNewSupplier.setBorderPainted(false);
         addNewSupplier.setContentAreaFilled(false);
         addNewSupplier.setFocusPainted(false);
         addNewSupplier.setOpaque(false);
-        addNewSupplier.setFocusable(false); // Remove from keyboard navigation
+        addNewSupplier.setFocusable(false);
+
+        generateBatchBtn.setBorderPainted(false);
+        generateBatchBtn.setContentAreaFilled(false);
+        generateBatchBtn.setFocusPainted(false);
+        generateBatchBtn.setOpaque(false);
+        generateBatchBtn.setFocusable(false);
 
         // Create icons with original gray color for add buttons
         FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
@@ -213,6 +234,11 @@ public class AddNewStock extends javax.swing.JDialog {
         FlatSVGIcon add1Icon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
         add1Icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         addNewSupplier.setIcon(add1Icon);
+
+        // Create batch icon with gray color
+        FlatSVGIcon batchIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+        batchIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+        generateBatchBtn.setIcon(batchIcon);
 
         // Setup gradient buttons
         setupGradientButton(saveBtn);
@@ -323,6 +349,20 @@ public class AddNewStock extends javax.swing.JDialog {
                 addNewSupplier.setIcon(normalIcon);
             }
         });
+
+        generateBatchBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                generateBatchBtn.setIcon(hoverIcon);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                generateBatchBtn.setIcon(normalIcon);
+            }
+        });
     }
 
     private void setupButtonFocusListeners() {
@@ -383,7 +423,7 @@ public class AddNewStock extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for add buttons (they are not focusable but keep for consistency)
+        // Focus listeners for add buttons
         addNewProduct.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
@@ -411,14 +451,26 @@ public class AddNewStock extends javax.swing.JDialog {
                 addNewSupplier.setIcon(normalIcon);
             }
         });
+
+        generateBatchBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                generateBatchBtn.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                generateBatchBtn.setIcon(normalIcon);
+            }
+        });
     }
 
     private void setupDateChooserNavigation() {
-        // Get the actual text field components from date editors
         javax.swing.JTextField manufactureDateEditor = (javax.swing.JTextField) manufactureDate.getDateEditor().getUiComponent();
         javax.swing.JTextField expriyDateEditor = (javax.swing.JTextField) expriyDate.getDateEditor().getUiComponent();
 
-        // Add key listener to manufacture date editor
         manufactureDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -435,7 +487,6 @@ public class AddNewStock extends javax.swing.JDialog {
             }
         });
 
-        // Add key listener to expiry date editor
         expriyDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -443,7 +494,7 @@ public class AddNewStock extends javax.swing.JDialog {
                     if (allFieldsFilled()) {
                         saveBtn.requestFocusInWindow();
                     } else {
-                        saveBtn.requestFocusInWindow(); // From expiry date, always go to save
+                        saveBtn.requestFocusInWindow();
                     }
                     evt.consume();
                 } else {
@@ -454,11 +505,9 @@ public class AddNewStock extends javax.swing.JDialog {
     }
 
     private void setupNumericDateInput() {
-        // Get the text field components from date editors
         javax.swing.JTextField manufactureDateEditor = (javax.swing.JTextField) manufactureDate.getDateEditor().getUiComponent();
         javax.swing.JTextField expriyDateEditor = (javax.swing.JTextField) expriyDate.getDateEditor().getUiComponent();
 
-        // Add document listeners to handle numeric date input
         manufactureDateEditor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 handleNumericDateInput(manufactureDateEditor, manufactureDate);
@@ -491,7 +540,6 @@ public class AddNewStock extends javax.swing.JDialog {
     private void handleNumericDateInput(javax.swing.JTextField dateField, com.toedter.calendar.JDateChooser dateChooser) {
         String text = dateField.getText().trim();
 
-        // Only process if text contains only digits and is 6-8 characters long
         if (text.matches("\\d{6,8}")) {
             try {
                 String formattedDate = formatNumericDate(text);
@@ -499,12 +547,10 @@ public class AddNewStock extends javax.swing.JDialog {
                     SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
                     Date date = dateFormat.parse(formattedDate);
                     dateChooser.setDate(date);
-
-                    // Update the text field with formatted date
                     dateField.setText(formattedDate);
                 }
             } catch (Exception e) {
-                // Ignore parsing errors, user might still be typing
+                // Ignore parsing errors
             }
         }
     }
@@ -514,31 +560,27 @@ public class AddNewStock extends javax.swing.JDialog {
             return null;
         }
 
-        // Remove any non-digit characters
         String digits = numericDate.replaceAll("\\D", "");
 
         if (digits.length() < 6) {
-            return null; // Not enough digits for a complete date
+            return null;
         }
 
         try {
             int day, month, year;
 
             if (digits.length() == 6) {
-                // DDMMYY format
                 day = Integer.parseInt(digits.substring(0, 2));
                 month = Integer.parseInt(digits.substring(2, 4));
                 year = 2000 + Integer.parseInt(digits.substring(4, 6));
             } else if (digits.length() == 8) {
-                // DDMMYYYY format
                 day = Integer.parseInt(digits.substring(0, 2));
                 month = Integer.parseInt(digits.substring(2, 4));
                 year = Integer.parseInt(digits.substring(4, 8));
             } else {
-                return null; // Invalid length
+                return null;
             }
 
-            // Validate date
             if (isValidDate(day, month, year)) {
                 return String.format("%02d/%02d/%04d", day, month, year);
             }
@@ -558,12 +600,10 @@ public class AddNewStock extends javax.swing.JDialog {
             return false;
         }
 
-        // Check for months with 30 days
         if ((month == 4 || month == 6 || month == 9 || month == 11) && day > 30) {
             return false;
         }
 
-        // Check for February
         if (month == 2) {
             if (isLeapYear(year)) {
                 return day <= 29;
@@ -620,7 +660,7 @@ public class AddNewStock extends javax.swing.JDialog {
                 letters += (char) ('A' + (int) (Math.random() * 26));
             }
 
-            // Generate exactly 10 numbers (total 13 characters: 3 letters + 10 numbers)
+            // Generate exactly 10 numbers
             String numbers = "";
             for (int i = 0; i < 10; i++) {
                 numbers += (int) (Math.random() * 10);
@@ -631,6 +671,8 @@ public class AddNewStock extends javax.swing.JDialog {
 
         generatedBatchNumbers.add(batchNumber);
         batchNoInput.setText(batchNumber);
+        batchNoInput.requestFocus();
+        batchNoInput.selectAll();
     }
 
     private boolean isBatchNumberExists(String batchNo) {
@@ -643,10 +685,9 @@ public class AddNewStock extends javax.swing.JDialog {
     }
 
     private void setupFocusTraversal() {
-        // Create focus traversal order (excluding add buttons)
         java.util.List<java.awt.Component> order = java.util.Arrays.asList(
                 productNameCombo,
-                SupplierCombo, // Skip add buttons
+                SupplierCombo,
                 purchasePrice,
                 lastPrice,
                 sellingPrice,
@@ -659,19 +700,16 @@ public class AddNewStock extends javax.swing.JDialog {
                 cancelBtn
         );
 
-        // Set focus traversal keys
         setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
                 java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0)));
         setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
                 java.util.Collections.singleton(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK)));
 
-        // Add comprehensive key navigation
         setupArrowKeyNavigation();
         addEnterKeyNavigation();
     }
 
     private void setupArrowKeyNavigation() {
-        // Add arrow key navigation to all components
         productNameCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -710,7 +748,12 @@ public class AddNewStock extends javax.swing.JDialog {
         batchNoInput.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleArrowNavigation(evt, batchNoInput);
+                if (evt.getKeyCode() == KeyEvent.VK_F3) {
+                    generateBatchNumber();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, batchNoInput);
+                }
             }
         });
 
@@ -780,9 +823,9 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void handleRightArrow(java.awt.Component source) {
         if (source == productNameCombo) {
-            SupplierCombo.requestFocusInWindow(); // Skip add product button
+            SupplierCombo.requestFocusInWindow();
         } else if (source == SupplierCombo) {
-            purchasePrice.requestFocusInWindow(); // Skip add supplier button
+            purchasePrice.requestFocusInWindow();
         } else if (source == purchasePrice) {
             lastPrice.requestFocusInWindow();
         } else if (source == lastPrice) {
@@ -796,28 +839,23 @@ public class AddNewStock extends javax.swing.JDialog {
         } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
             expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == expriyDate.getDateEditor().getUiComponent()) {
-            // BUTTONS: Go to first button (Cancel)
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
-            // Cancel -> Clear Form
             clearFormBtn.requestFocusInWindow();
         } else if (source == clearFormBtn) {
-            // Clear Form -> Save
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            // Save -> back to start
             productNameCombo.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
         if (source == productNameCombo) {
-            // Loop back to last button (Save)
             saveBtn.requestFocusInWindow();
         } else if (source == SupplierCombo) {
-            productNameCombo.requestFocusInWindow(); // Skip add product button
+            productNameCombo.requestFocusInWindow();
         } else if (source == purchasePrice) {
-            SupplierCombo.requestFocusInWindow(); // Skip add supplier button
+            SupplierCombo.requestFocusInWindow();
         } else if (source == lastPrice) {
             purchasePrice.requestFocusInWindow();
         } else if (source == sellingPrice) {
@@ -831,22 +869,19 @@ public class AddNewStock extends javax.swing.JDialog {
         } else if (source == expriyDate.getDateEditor().getUiComponent()) {
             manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == cancelBtn) {
-            // Cancel -> back to expiry date
             expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == clearFormBtn) {
-            // Clear Form -> Cancel
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            // Save -> Clear Form
             clearFormBtn.requestFocusInWindow();
         }
     }
 
     private void handleDownArrow(java.awt.Component source) {
         if (source == productNameCombo) {
-            SupplierCombo.requestFocusInWindow(); // Skip add product button
+            SupplierCombo.requestFocusInWindow();
         } else if (source == SupplierCombo) {
-            purchasePrice.requestFocusInWindow(); // Skip add supplier button
+            purchasePrice.requestFocusInWindow();
         } else if (source == purchasePrice) {
             sellingPrice.requestFocusInWindow();
         } else if (source == lastPrice) {
@@ -860,28 +895,23 @@ public class AddNewStock extends javax.swing.JDialog {
         } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
             expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == expriyDate.getDateEditor().getUiComponent()) {
-            // BUTTONS: Go to first button (Cancel)
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
-            // Cancel -> Clear Form
             clearFormBtn.requestFocusInWindow();
         } else if (source == clearFormBtn) {
-            // Clear Form -> Save
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            // Save -> back to start
             productNameCombo.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
         if (source == productNameCombo) {
-            // Loop back to last button (Save)
             saveBtn.requestFocusInWindow();
         } else if (source == SupplierCombo) {
-            productNameCombo.requestFocusInWindow(); // Skip add product button
+            productNameCombo.requestFocusInWindow();
         } else if (source == purchasePrice) {
-            SupplierCombo.requestFocusInWindow(); // Skip add supplier button
+            SupplierCombo.requestFocusInWindow();
         } else if (source == lastPrice) {
             purchasePrice.requestFocusInWindow();
         } else if (source == sellingPrice) {
@@ -895,19 +925,15 @@ public class AddNewStock extends javax.swing.JDialog {
         } else if (source == expriyDate.getDateEditor().getUiComponent()) {
             manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == cancelBtn) {
-            // Cancel -> back to expiry date
             expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == clearFormBtn) {
-            // Clear Form -> Cancel
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            // Save -> Clear Form
             clearFormBtn.requestFocusInWindow();
         }
     }
 
     private void addEnterKeyNavigation() {
-        // Map components to their next focus targets for Enter key
         java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
         enterNavigationMap.put(productNameCombo, SupplierCombo);
         enterNavigationMap.put(SupplierCombo, purchasePrice);
@@ -922,20 +948,17 @@ public class AddNewStock extends javax.swing.JDialog {
         enterNavigationMap.put(clearFormBtn, saveBtn);
         enterNavigationMap.put(saveBtn, productNameCombo);
 
-        // Add key listeners to all components
         for (java.awt.Component component : enterNavigationMap.keySet()) {
             component.addKeyListener(new java.awt.event.KeyAdapter() {
                 @Override
                 public void keyPressed(java.awt.event.KeyEvent evt) {
                     if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                        // If all fields are filled, go directly to Save button
                         if (allFieldsFilled()) {
                             saveBtn.requestFocusInWindow();
                             evt.consume();
                             return;
                         }
 
-                        // Special handling for combo boxes - only move if item is selected
                         if (component == productNameCombo) {
                             if (productNameCombo.getSelectedIndex() > 0 && !productNameCombo.isPopupVisible()) {
                                 SupplierCombo.requestFocusInWindow();
@@ -990,21 +1013,24 @@ public class AddNewStock extends javax.swing.JDialog {
     }
 
     private boolean validateInputs() {
-        // Validate product selection
         if (productNameCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a product");
             productNameCombo.requestFocus();
             return false;
         }
 
-        // Validate supplier selection
         if (SupplierCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a supplier");
             SupplierCombo.requestFocus();
             return false;
         }
 
-        // Validate purchase price
+        if (batchNoInput.getText().trim().isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter or generate a batch number");
+            batchNoInput.requestFocus();
+            return false;
+        }
+
         double purchasePriceValue = 0;
         try {
             purchasePriceValue = Double.parseDouble(purchasePrice.getText().trim());
@@ -1019,7 +1045,6 @@ public class AddNewStock extends javax.swing.JDialog {
             return false;
         }
 
-        // Validate last price (optional field)
         double lastPriceValue = 0;
         if (!lastPrice.getText().trim().isEmpty()) {
             try {
@@ -1036,7 +1061,6 @@ public class AddNewStock extends javax.swing.JDialog {
             }
         }
 
-        // Validate selling price
         double sellingPriceValue = 0;
         try {
             sellingPriceValue = Double.parseDouble(sellingPrice.getText().trim());
@@ -1051,9 +1075,7 @@ public class AddNewStock extends javax.swing.JDialog {
             return false;
         }
 
-        /// Validate pricing rules
         if (lastPriceValue > 0) {
-            // Last price should be greater than or equal to purchase price
             if (lastPriceValue < purchasePriceValue) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Last price cannot be less than purchase price");
@@ -1062,7 +1084,6 @@ public class AddNewStock extends javax.swing.JDialog {
                 return false;
             }
 
-            // Selling price should be greater than or equal to last price
             if (sellingPriceValue < lastPriceValue) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Selling price cannot be less than last price");
@@ -1071,7 +1092,6 @@ public class AddNewStock extends javax.swing.JDialog {
                 return false;
             }
         } else {
-            // If no last price provided, selling price should at least cover purchase price
             if (sellingPriceValue < purchasePriceValue) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Selling price cannot be less than purchase price");
@@ -1080,7 +1100,7 @@ public class AddNewStock extends javax.swing.JDialog {
                 return false;
             }
         }
-        // Validate dates
+
         if (manufactureDate.getDate() == null) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select manufacture date");
             manufactureDate.getDateEditor().getUiComponent().requestFocus();
@@ -1093,7 +1113,6 @@ public class AddNewStock extends javax.swing.JDialog {
             return false;
         }
 
-        // Validate expiry date is after manufacture date
         if (expriyDate.getDate().before(manufactureDate.getDate())) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Expiry date must be after manufacture date");
             expriyDate.getDateEditor().getUiComponent().requestFocus();
@@ -1133,7 +1152,6 @@ public class AddNewStock extends javax.swing.JDialog {
         }
 
         try {
-            // Get IDs from names
             int productId = getProductId(productNameCombo.getSelectedItem().toString());
             int supplierId = getSupplierId(SupplierCombo.getSelectedItem().toString());
 
@@ -1142,34 +1160,28 @@ public class AddNewStock extends javax.swing.JDialog {
                 return;
             }
 
-            // Format dates
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             String manufactureDateStr = dateFormat.format(manufactureDate.getDate());
             String expiryDateStr = dateFormat.format(expriyDate.getDate());
 
-            // Get current date and time for stock added timestamp
             SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             String currentDateTime = datetimeFormat.format(new Date());
 
-            // Get values
             String batchNo = batchNoInput.getText().trim();
             int quantity = Integer.parseInt(quantityInput.getText().trim());
             double sellingPriceValue = Double.parseDouble(sellingPrice.getText().trim());
             double purchasePriceValue = Double.parseDouble(purchasePrice.getText().trim());
             double lastPriceValue = lastPrice.getText().trim().isEmpty() ? 0 : Double.parseDouble(lastPrice.getText().trim());
 
-            // Create SQL query with added_date_time field
             String query = String.format(
                     "INSERT INTO stock (batch_no, expriy_date, manufacture_date, qty, selling_price, last_price, purchase_price, product_id, suppliers_id, date_time) "
                     + "VALUES ('%s', '%s', '%s', %d, %.2f, %.2f, %.2f, %d, %d, '%s')",
                     batchNo, expiryDateStr, manufactureDateStr, quantity, sellingPriceValue, lastPriceValue, purchasePriceValue, productId, supplierId, currentDateTime
             );
 
-            // Execute query
             MySQL.executeIUD(query);
 
             clearForm();
-            generateBatchNumber();
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving stock: " + e.getMessage());
@@ -1183,6 +1195,7 @@ public class AddNewStock extends javax.swing.JDialog {
         purchasePrice.setText("");
         lastPrice.setText("");
         sellingPrice.setText("");
+        batchNoInput.setText(""); // Clear batch number too
         quantityInput.setText("1");
         manufactureDate.setDate(null);
         expriyDate.setDate(null);
@@ -1210,6 +1223,7 @@ public class AddNewStock extends javax.swing.JDialog {
         addNewSupplier = new javax.swing.JButton();
         addNewProduct = new javax.swing.JButton();
         quantityInput = new javax.swing.JTextField();
+        generateBatchBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Add New Stock");
@@ -1223,7 +1237,7 @@ public class AddNewStock extends javax.swing.JDialog {
         jSeparator1.setForeground(new java.awt.Color(0, 137, 176));
 
         purchasePrice.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        purchasePrice.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Purchase Price", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        purchasePrice.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Purchase Price *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         purchasePrice.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 purchasePriceKeyPressed(evt);
@@ -1231,7 +1245,7 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         lastPrice.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        lastPrice.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Last Price", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        lastPrice.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Last Price *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         lastPrice.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 lastPriceKeyPressed(evt);
@@ -1239,14 +1253,15 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         sellingPrice.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        sellingPrice.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Selling Price", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        sellingPrice.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Selling Price *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         sellingPrice.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 sellingPriceKeyPressed(evt);
             }
         });
 
-        manufactureDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Manufacture Date", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        manufactureDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Manufacture Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        manufactureDate.setDateFormatString("MM/dd/yyyy");
         manufactureDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         manufactureDate.setOpaque(false);
         manufactureDate.addKeyListener(new java.awt.event.KeyAdapter() {
@@ -1255,7 +1270,8 @@ public class AddNewStock extends javax.swing.JDialog {
             }
         });
 
-        expriyDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Expriy Date", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        expriyDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Expriy Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        expriyDate.setDateFormatString("MM/dd/yyyy");
         expriyDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         expriyDate.setOpaque(false);
         expriyDate.addKeyListener(new java.awt.event.KeyAdapter() {
@@ -1266,7 +1282,7 @@ public class AddNewStock extends javax.swing.JDialog {
 
         SupplierCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         SupplierCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        SupplierCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Supplier", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        SupplierCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Supplier *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         SupplierCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 SupplierComboActionPerformed(evt);
@@ -1324,7 +1340,7 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         batchNoInput.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        batchNoInput.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Batch No", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        batchNoInput.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Batch No *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         batchNoInput.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 batchNoInputKeyPressed(evt);
@@ -1333,7 +1349,7 @@ public class AddNewStock extends javax.swing.JDialog {
 
         productNameCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         productNameCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        productNameCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Products", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        productNameCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Products *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         productNameCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 productNameComboActionPerformed(evt);
@@ -1379,10 +1395,25 @@ public class AddNewStock extends javax.swing.JDialog {
         });
 
         quantityInput.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        quantityInput.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Quantity", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        quantityInput.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Quantity *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         quantityInput.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 quantityInputKeyPressed(evt);
+            }
+        });
+
+        generateBatchBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        generateBatchBtn.setForeground(new java.awt.Color(153, 153, 153));
+        generateBatchBtn.setBorder(null);
+        generateBatchBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        generateBatchBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                generateBatchBtnActionPerformed(evt);
+            }
+        });
+        generateBatchBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                generateBatchBtnKeyPressed(evt);
             }
         });
 
@@ -1406,29 +1437,30 @@ public class AddNewStock extends javax.swing.JDialog {
                         .addGap(0, 0, Short.MAX_VALUE)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 479, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addGroup(jPanel1Layout.createSequentialGroup()
-                                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 122, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(jPanel1Layout.createSequentialGroup()
-                                        .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                        .addComponent(addNewSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                                            .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                            .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 192, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, 208, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 175, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 160, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addGroup(jPanel1Layout.createSequentialGroup()
+                                    .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                    .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(addNewSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                                        .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 172, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, 195, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(generateBatchBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(21, 21, 21))))
         );
@@ -1440,25 +1472,28 @@ public class AddNewStock extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 4, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, 4, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(productNameCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(addNewProduct, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(productNameCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(addNewProduct, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGap(11, 11, 11)
-                        .addComponent(addNewSupplier, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addGap(11, 11, 11)
+                                .addComponent(addNewSupplier, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(sellingPrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(batchNoInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(quantityInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(generateBatchBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1516,20 +1551,12 @@ public class AddNewStock extends javax.swing.JDialog {
     }//GEN-LAST:event_SupplierComboActionPerformed
 
     private void addNewSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewSupplierActionPerformed
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        AddSupplier dialog = new AddSupplier(parentFrame, true);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-        loadSupplierCombo();
+        openAddNewSupplier();
 
     }//GEN-LAST:event_addNewSupplierActionPerformed
 
     private void addNewProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewProductActionPerformed
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        AddNewProduct dialog = new AddNewProduct(parentFrame, true);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-        loadProductCombo();
+        openAddNewProduct();
     }//GEN-LAST:event_addNewProductActionPerformed
 
     private void purchasePriceKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_purchasePriceKeyPressed
@@ -1705,6 +1732,18 @@ public class AddNewStock extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_quantityInputKeyPressed
 
+    private void generateBatchBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_generateBatchBtnActionPerformed
+        generateBatchNumber();
+    }//GEN-LAST:event_generateBatchBtnActionPerformed
+
+    private void generateBatchBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_generateBatchBtnKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            generateBatchNumber();
+        } else {
+            handleArrowNavigation(evt, generateBatchBtn);
+        }
+    }//GEN-LAST:event_generateBatchBtnKeyPressed
+
     /**
      * @param args the command line arguments
      */
@@ -1758,6 +1797,7 @@ public class AddNewStock extends javax.swing.JDialog {
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
     private com.toedter.calendar.JDateChooser expriyDate;
+    private javax.swing.JButton generateBatchBtn;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator1;

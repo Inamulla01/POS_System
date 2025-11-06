@@ -1390,10 +1390,6 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     }//GEN-LAST:event_cancelBtnKeyPressed
 
-    private void genarateBarecodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_genarateBarecodeActionPerformed
-        generateBarcode();
-    }//GEN-LAST:event_genarateBarecodeActionPerformed
-
     private void printBarcodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_printBarcodeActionPerformed
         printBarcode();
     }//GEN-LAST:event_printBarcodeActionPerformed
@@ -1414,6 +1410,14 @@ public class AddNewProduct extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_addNewBrandKeyPressed
 
+    private void printBarcodeKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_printBarcodeKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            printBarcodeActionPerformed(null);
+        } else {
+            handleArrowNavigation(evt, printBarcode);
+        }
+    }//GEN-LAST:event_printBarcodeKeyPressed
+
     private void genarateBarecodeKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_genarateBarecodeKeyReleased
         // TODO add your handling code here:
     }//GEN-LAST:event_genarateBarecodeKeyReleased
@@ -1426,13 +1430,9 @@ public class AddNewProduct extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_genarateBarecodeKeyPressed
 
-    private void printBarcodeKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_printBarcodeKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            printBarcodeActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, printBarcode);
-        }
-    }//GEN-LAST:event_printBarcodeKeyPressed
+    private void genarateBarecodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_genarateBarecodeActionPerformed
+        generateBarcode();
+    }//GEN-LAST:event_genarateBarecodeActionPerformed
 
     /**
      * @param args the command line arguments

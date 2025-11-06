@@ -26,6 +26,7 @@ import lk.com.pos.dialog.AddNewUser;
 import lk.com.pos.dialog.EditProfile;
 import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
+import lk.com.pos.panel.NotificationPanel;
 import lk.com.pos.panel.PosPanelDone;
 import lk.com.pos.panel.ProductPanel;
 import lk.com.pos.panel.SalesPanel;
@@ -71,6 +72,7 @@ public class HomeScreen extends JFrame {
     private CustomerPanel customerManagementPanel;
     private ProductPanel productPanel;
     private CardLayout contentPanelLayout;
+    private NotificationPanel notificationPanel;
 
     // Current active button
     private JButton activeButton = null;
@@ -165,6 +167,7 @@ public class HomeScreen extends JFrame {
         menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
         calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24);
+        
 
         // Initialize navigation bar icons
         navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
@@ -190,6 +193,7 @@ public class HomeScreen extends JFrame {
         buttonHoverStates.put(stockBtn, false);
         buttonHoverStates.put(calBtn, false);
         buttonHoverStates.put(signOutBtn, false);
+        buttonHoverStates.put(notificasionBtn, false);
 
         // Setup hover buttons for sidebar
         setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
@@ -787,6 +791,7 @@ public class HomeScreen extends JFrame {
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerPanel();
         this.productPanel = new ProductPanel();
+        this.notificationPanel = new NotificationPanel();
 
         // Add panels to card layout
         this.cardPanel.add(dashboardPanel, "dashboard_panel");
@@ -795,6 +800,7 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(salesPanel, "sales_panel");
         this.cardPanel.add(customerManagementPanel, "customer_management_panel");
         this.cardPanel.add(productPanel, "product_panel");
+        this.cardPanel.add(notificationPanel,"notification_Panel");
 
         SwingUtilities.updateComponentTreeUI(cardPanel);
     }
@@ -890,6 +896,7 @@ public class HomeScreen extends JFrame {
         if (button == signOutBtn) {
             return signOutIcon;
         }
+        
         return null;
     }
 
@@ -903,6 +910,11 @@ public class HomeScreen extends JFrame {
         contentPanelLayout.show(cardPanel, "pos_panel");
         setActiveButton(posBtn);
         updateShortcutIconVisibility();
+    }
+    
+    private void showNotificationPanel(){
+        contentPanelLayout.show(cardPanel, "notification_Panel");
+        
     }
 
     private void showSupplierPanel() {
@@ -1339,6 +1351,7 @@ public class HomeScreen extends JFrame {
         stockBtn = new javax.swing.JButton();
         signOutBtn = new javax.swing.JButton();
         logo = new javax.swing.JLabel();
+        notificasionBtn = new javax.swing.JButton();
         cardPanel = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -1437,7 +1450,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(helloLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 57, Short.MAX_VALUE)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1571,21 +1584,41 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        notificasionBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        notificasionBtn.setText("Notification");
+        notificasionBtn.setBorder(null);
+        notificasionBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        notificasionBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        notificasionBtn.setIconTextGap(3);
+        notificasionBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        notificasionBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        notificasionBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                notificasionBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout sidePenalLayout = new javax.swing.GroupLayout(sidePenal);
         sidePenal.setLayout(sidePenalLayout);
         sidePenalLayout.setHorizontalGroup(
             sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(signOutBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(sidePenalLayout.createSequentialGroup()
-                .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(dashboardBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                    .addComponent(posBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                    .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                    .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                    .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                    .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                    .addComponent(logo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(sidePenalLayout.createSequentialGroup()
+                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(dashboardBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(posBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(logo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(0, 6, Short.MAX_VALUE))
+                    .addGroup(sidePenalLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)))
+                .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
             sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1603,7 +1636,9 @@ public class HomeScreen extends JFrame {
                 .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(supplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 115, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -1922,6 +1957,10 @@ public class HomeScreen extends JFrame {
 //        }
     }//GEN-LAST:event_signOutBtnActionPerformed
 
+    private void notificasionBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_notificasionBtnActionPerformed
+        showNotificationPanel();
+    }//GEN-LAST:event_notificasionBtnActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -1954,6 +1993,7 @@ public class HomeScreen extends JFrame {
     private javax.swing.JLabel logo;
     private javax.swing.JButton menuBtn;
     private javax.swing.JPanel navPanel;
+    private javax.swing.JButton notificasionBtn;
     private javax.swing.JPanel penal1;
     private javax.swing.JButton posBtn;
     private javax.swing.JButton profileBtn;

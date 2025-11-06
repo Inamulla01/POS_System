@@ -843,6 +843,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         jButton1 = new javax.swing.JButton();
         cartCount = new javax.swing.JLabel();
         jButton3 = new javax.swing.JButton();
+        jButton2 = new javax.swing.JButton();
 
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1184,6 +1185,9 @@ public class PosCartPanel extends javax.swing.JPanel {
         jButton3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jButton3.setText("E");
 
+        jButton2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jButton2.setText("Di");
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
@@ -1191,6 +1195,8 @@ public class PosCartPanel extends javax.swing.JPanel {
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addComponent(cartCount, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1206,7 +1212,8 @@ public class PosCartPanel extends javax.swing.JPanel {
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jButton1)
                             .addComponent(clearCartBtn)
-                            .addComponent(jButton3)))
+                            .addComponent(jButton3)
+                            .addComponent(jButton2)))
                     .addComponent(cartCount))
                 .addGap(0, 0, Short.MAX_VALUE))
         );
@@ -1287,6 +1294,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JTextField discountPriceinput1;
     private lk.com.pos.privateclasses.GradientButton gradientButton1;
     private javax.swing.JButton jButton1;
+    private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
     private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;

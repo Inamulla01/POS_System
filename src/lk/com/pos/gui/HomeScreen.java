@@ -28,7 +28,7 @@ import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.NotificationPanel;
 import lk.com.pos.panel.PosPanelDone;
-import lk.com.pos.panel.ProductPanel;
+import lk.com.pos.panel.StockPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
 // import lk.com.pos.session.Session;
@@ -70,7 +70,7 @@ public class HomeScreen extends JFrame {
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
     private CustomerPanel customerManagementPanel;
-    private ProductPanel productPanel;
+    private StockPanel productPanel;
     private CardLayout contentPanelLayout;
     private NotificationPanel notificationPanel;
 
@@ -790,7 +790,7 @@ public class HomeScreen extends JFrame {
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerPanel();
-        this.productPanel = new ProductPanel();
+        this.productPanel = new StockPanel();
         this.notificationPanel = new NotificationPanel();
 
         // Add panels to card layout
@@ -1352,6 +1352,8 @@ public class HomeScreen extends JFrame {
         signOutBtn = new javax.swing.JButton();
         logo = new javax.swing.JLabel();
         notificasionBtn = new javax.swing.JButton();
+        returnBtn = new javax.swing.JButton();
+        productBtn = new javax.swing.JButton();
         cardPanel = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -1598,6 +1600,34 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        returnBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        returnBtn.setText("Return");
+        returnBtn.setBorder(null);
+        returnBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        returnBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        returnBtn.setIconTextGap(3);
+        returnBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        returnBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        returnBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                returnBtnActionPerformed(evt);
+            }
+        });
+
+        productBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        productBtn.setText("Product");
+        productBtn.setBorder(null);
+        productBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        productBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        productBtn.setIconTextGap(3);
+        productBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        productBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        productBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout sidePenalLayout = new javax.swing.GroupLayout(sidePenal);
         sidePenal.setLayout(sidePenalLayout);
         sidePenalLayout.setHorizontalGroup(
@@ -1617,7 +1647,10 @@ public class HomeScreen extends JFrame {
                         .addGap(0, 6, Short.MAX_VALUE))
                     .addGroup(sidePenalLayout.createSequentialGroup()
                         .addContainerGap()
-                        .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)))
+                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(productBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))))
                 .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
@@ -1638,7 +1671,11 @@ public class HomeScreen extends JFrame {
                 .addComponent(supplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 43, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -1961,6 +1998,14 @@ public class HomeScreen extends JFrame {
         showNotificationPanel();
     }//GEN-LAST:event_notificasionBtnActionPerformed
 
+    private void returnBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_returnBtnActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_returnBtnActionPerformed
+
+    private void productBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productBtnActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productBtnActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -1996,7 +2041,9 @@ public class HomeScreen extends JFrame {
     private javax.swing.JButton notificasionBtn;
     private javax.swing.JPanel penal1;
     private javax.swing.JButton posBtn;
+    private javax.swing.JButton productBtn;
     private javax.swing.JButton profileBtn;
+    private javax.swing.JButton returnBtn;
     private javax.swing.JButton salesBtn;
     private javax.swing.JPanel sidePenal;
     private javax.swing.JButton signOutBtn;

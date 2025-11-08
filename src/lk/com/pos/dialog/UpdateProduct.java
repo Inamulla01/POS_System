@@ -1522,10 +1522,9 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void openAddNewProduct() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewProduct dialog = new AddNewProduct(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
-            dialog.setVisible(true);
+            AddNewProduct addProduct = new AddNewProduct(null, true);
+        addProduct.setLocationRelativeTo(null);
+        addProduct.setVisible(true);
             // Note: Product name is a text field, so no need to reload combo
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1535,9 +1534,8 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void openAddNewCategory() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewCategoryDialog dialog = new AddNewCategoryDialog(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+            AddNewCategoryDialog dialog = new AddNewCategoryDialog(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadCategoryCombo();
             categoryCombo.requestFocus();
@@ -1549,9 +1547,8 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void openAddNewBrand() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewBrandDialog dialog = new AddNewBrandDialog(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+            AddNewBrandDialog dialog = new AddNewBrandDialog(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadBrandCombo();
             brandCombo.requestFocus();
@@ -1563,9 +1560,8 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void openAddNewSupplier() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddSupplier dialog = new AddSupplier(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+            AddSupplier dialog = new AddSupplier(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadSupplierCombo();
             SupplierCombo.requestFocus();

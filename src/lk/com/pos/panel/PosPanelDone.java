@@ -1003,7 +1003,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         jPanel7 = new javax.swing.JPanel();
         roundedPanel1 = new lk.com.pos.privateclasses.RoundedPanel();
         productName = new javax.swing.JLabel();
-        brandName = new javax.swing.JLabel();
         batchNo = new javax.swing.JLabel();
         qty = new javax.swing.JLabel();
         sellingPrice = new javax.swing.JLabel();
@@ -1053,10 +1052,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         productName.setFont(new java.awt.Font("Nunito ExtraBold", 1, 18)); // NOI18N
         productName.setText("Product Name");
 
-        brandName.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        brandName.setForeground(new java.awt.Color(102, 102, 102));
-        brandName.setText("Brand :");
-
         batchNo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         batchNo.setText("BATCH 1");
         batchNo.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
@@ -1079,15 +1074,14 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                         .addComponent(productName)
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(roundedPanel1Layout.createSequentialGroup()
-                        .addComponent(brandName)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 92, Short.MAX_VALUE)
+                        .addGap(0, 0, Short.MAX_VALUE)
                         .addComponent(sellingPrice)
                         .addGap(18, 18, 18))
                     .addGroup(roundedPanel1Layout.createSequentialGroup()
                         .addComponent(qty)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(batchNo)
-                        .addGap(0, 0, Short.MAX_VALUE))))
+                        .addGap(0, 89, Short.MAX_VALUE))))
         );
         roundedPanel1Layout.setVerticalGroup(
             roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1095,9 +1089,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                 .addGap(15, 15, 15)
                 .addComponent(productName)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(brandName)
-                    .addComponent(sellingPrice))
+                .addComponent(sellingPrice)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(qty)
@@ -1198,7 +1190,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel batchNo;
-    private javax.swing.JLabel brandName;
     private lk.com.pos.privateclasses.RoundedPanel cartPanel;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;

@@ -29,6 +29,8 @@ import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.NotificationPanel;
 import lk.com.pos.panel.PosPanelDone;
 import lk.com.pos.panel.ProductPanel;
+import lk.com.pos.panel.ReturnPanel;
+import lk.com.pos.panel.StockPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
 // import lk.com.pos.session.Session;
@@ -70,9 +72,11 @@ public class HomeScreen extends JFrame {
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
     private CustomerPanel customerManagementPanel;
-    private ProductPanel productPanel;
+    private StockPanel stockPanel;
     private CardLayout contentPanelLayout;
     private NotificationPanel notificationPanel;
+    private ReturnPanel retuenPanel;
+    private ProductPanel productPanel;
 
     // Current active button
     private JButton activeButton = null;
@@ -790,8 +794,10 @@ public class HomeScreen extends JFrame {
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerPanel();
-        this.productPanel = new ProductPanel();
+        this.stockPanel = new StockPanel();
         this.notificationPanel = new NotificationPanel();
+        this.productPanel = new ProductPanel();
+        this.retuenPanel = new ReturnPanel();
 
         // Add panels to card layout
         this.cardPanel.add(dashboardPanel, "dashboard_panel");
@@ -799,8 +805,10 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(supplierPanel, "supplier_panel");
         this.cardPanel.add(salesPanel, "sales_panel");
         this.cardPanel.add(customerManagementPanel, "customer_management_panel");
-        this.cardPanel.add(productPanel, "product_panel");
+        this.cardPanel.add(stockPanel, "stock_panel");
         this.cardPanel.add(notificationPanel,"notification_Panel");
+        this.cardPanel.add(retuenPanel,"retuen_Panel");
+        this.cardPanel.add(productPanel,"product_Panel");
 
         SwingUtilities.updateComponentTreeUI(cardPanel);
     }
@@ -935,10 +943,19 @@ public class HomeScreen extends JFrame {
         updateShortcutIconVisibility();
     }
 
-    private void showProductPanel() {
-        contentPanelLayout.show(cardPanel, "product_panel");
+    private void showStockPanel() {
+        contentPanelLayout.show(cardPanel, "stock_panel");
         setActiveButton(stockBtn);
         updateShortcutIconVisibility();
+    }
+    
+    private void showProductPanel(){
+        contentPanelLayout.show(cardPanel, "product_Panel");
+        
+    }
+    
+    private void showReturnPanel(){
+        contentPanelLayout.show(cardPanel, "retuen_Panel");
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1352,6 +1369,8 @@ public class HomeScreen extends JFrame {
         signOutBtn = new javax.swing.JButton();
         logo = new javax.swing.JLabel();
         notificasionBtn = new javax.swing.JButton();
+        returnBtn = new javax.swing.JButton();
+        productBtn = new javax.swing.JButton();
         cardPanel = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -1598,6 +1617,34 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        returnBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        returnBtn.setText("Return");
+        returnBtn.setBorder(null);
+        returnBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        returnBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        returnBtn.setIconTextGap(3);
+        returnBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        returnBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        returnBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                returnBtnActionPerformed(evt);
+            }
+        });
+
+        productBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        productBtn.setText("Product");
+        productBtn.setBorder(null);
+        productBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        productBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        productBtn.setIconTextGap(3);
+        productBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        productBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        productBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout sidePenalLayout = new javax.swing.GroupLayout(sidePenal);
         sidePenal.setLayout(sidePenalLayout);
         sidePenalLayout.setHorizontalGroup(
@@ -1617,7 +1664,10 @@ public class HomeScreen extends JFrame {
                         .addGap(0, 6, Short.MAX_VALUE))
                     .addGroup(sidePenalLayout.createSequentialGroup()
                         .addContainerGap()
-                        .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)))
+                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(productBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))))
                 .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
@@ -1638,7 +1688,11 @@ public class HomeScreen extends JFrame {
                 .addComponent(supplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 43, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -1794,7 +1848,7 @@ public class HomeScreen extends JFrame {
     }//GEN-LAST:event_calBtnActionPerformed
 
     private void stockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockBtnActionPerformed
-        showProductPanel();
+        showStockPanel();
     }//GEN-LAST:event_stockBtnActionPerformed
 
     private void salesBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_salesBtnActionPerformed
@@ -1961,6 +2015,14 @@ public class HomeScreen extends JFrame {
         showNotificationPanel();
     }//GEN-LAST:event_notificasionBtnActionPerformed
 
+    private void returnBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_returnBtnActionPerformed
+        showReturnPanel();
+    }//GEN-LAST:event_returnBtnActionPerformed
+
+    private void productBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productBtnActionPerformed
+        showProductPanel();
+    }//GEN-LAST:event_productBtnActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -1996,7 +2058,9 @@ public class HomeScreen extends JFrame {
     private javax.swing.JButton notificasionBtn;
     private javax.swing.JPanel penal1;
     private javax.swing.JButton posBtn;
+    private javax.swing.JButton productBtn;
     private javax.swing.JButton profileBtn;
+    private javax.swing.JButton returnBtn;
     private javax.swing.JButton salesBtn;
     private javax.swing.JPanel sidePenal;
     private javax.swing.JButton signOutBtn;

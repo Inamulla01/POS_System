@@ -30,7 +30,10 @@ import java.sql.PreparedStatement;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import lk.com.pos.dialog.AddCredit;
+import lk.com.pos.dialog.CardPayDialog;
 import lk.com.pos.dialog.DiscountDialog;
+import lk.com.pos.dialog.ExchangeProductDialog;
+import raven.toast.Notifications;
 
 public class PosCartPanel extends javax.swing.JPanel {
 
@@ -1194,6 +1197,11 @@ public class PosCartPanel extends javax.swing.JPanel {
         jButton3.setBackground(new java.awt.Color(255, 204, 0));
         jButton3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jButton3.setText("E");
+        jButton3.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton3ActionPerformed(evt);
+            }
+        });
 
         jButton2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jButton2.setText("Di");
@@ -1285,7 +1293,28 @@ public class PosCartPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_cplusBtnActionPerformed
 
     private void cardPayBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cardPayBtnActionPerformed
-        // TODO add your handling code here:
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        CardPayDialog dialog = new CardPayDialog(parentFrame, true);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
+
+// After dialog closes, get the generated card_payment_id
+        Integer cardPaymentId = dialog.getGeneratedCardPaymentId();
+
+        if (cardPaymentId != null) {
+            // Use the card_payment_id in your sales table or wherever needed
+            System.out.println("Generated Card Payment ID: " + cardPaymentId);
+
+            // Example: Set it in your sales form
+            // salesForm.setCardPaymentId(cardPaymentId);
+            // Or use it directly in your database insert
+            // String salesQuery = "INSERT INTO sales (..., card_payment_id) VALUES (..., " + cardPaymentId + ")";
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                    "Card payment added successfully! ID: " + cardPaymentId);
+        } else {
+            // User cancelled or save failed
+            System.out.println("No card payment ID returned - user cancelled or save failed");
+        }
     }//GEN-LAST:event_cardPayBtnActionPerformed
 
     private void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_gradientButton1ActionPerformed
@@ -1301,7 +1330,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_clearCartBtnActionPerformed
 
     private void creditCustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditCustomerBtnActionPerformed
-        
+
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         double amount = 5000.00; // Your amount here
 
@@ -1318,11 +1347,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             // ... your logic here
         }
 
-        
+
     }//GEN-LAST:event_creditCustomerBtnActionPerformed
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        
+
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
@@ -1348,12 +1377,19 @@ public class PosCartPanel extends javax.swing.JPanel {
 
             // Update your UI with the discounted amount
         }
-        
+
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_jButton4ActionPerformed
+    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        ExchangeProductDialog dialog = new ExchangeProductDialog(parentFrame, true);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
+
+    }//GEN-LAST:event_jButton3ActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

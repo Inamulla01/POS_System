@@ -1,5 +1,6 @@
 package lk.com.pos.panel;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.privateclasses.RoundedPanel;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -170,7 +171,10 @@ public class SalesPanel extends javax.swing.JPanel {
         // Enhanced scroll pane
         jScrollPane1.setBorder(null);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(20);
-        jScrollPane1.setBackground(new Color(248, 250, 252));
+        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+                "track: #F5F5F5;"
+                + "thumb: #1CB5BB;"
+                + "width: 8");
         
         // Custom scrollbar styling
         jScrollPane1.getVerticalScrollBar().setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {

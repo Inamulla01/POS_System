@@ -1,5 +1,6 @@
 package lk.com.pos.panel;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.privateclasses.RoundedPanel;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -179,7 +180,10 @@ public class ReturnPanel extends javax.swing.JPanel {
         
         jScrollPane1.setBorder(null);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(20);
-        jScrollPane1.setBackground(new Color(248, 250, 252));
+        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+                "track: #F5F5F5;"
+                + "thumb: #1CB5BB;"
+                + "width: 8");
         
         jScrollPane1.getVerticalScrollBar().setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
             @Override
@@ -236,7 +240,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                         "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
                         "s.invoice_no, s.total as original_total, " +
                         "rr.reason as return_reason, " +
-                        "ps.status_name, " +
+                        "ps.p_status as status_name, " +  // Corrected: using ps.p_status
                         "u.name as processed_by, " +
                         "pm.payment_method_name, " +
                         "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
@@ -580,7 +584,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel headerPanel = new JPanel();
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
         headerPanel.setOpaque(false);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 16, 24));
 
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.X_AXIS));
@@ -593,38 +597,34 @@ public class ReturnPanel extends javax.swing.JPanel {
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
         textPanel.setOpaque(false);
 
-        JLabel invoiceLabel = new JLabel("🔄 Return #" + (invoiceNo != null ? invoiceNo.toUpperCase() : ""));
-        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 22));
-        invoiceLabel.setForeground(new Color(30, 41, 59));
+        JLabel invoiceLabel = new JLabel("Return #" + (invoiceNo != null ? invoiceNo.toUpperCase() : ""));
+        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+        invoiceLabel.setForeground(new Color(15, 23, 42));
         invoiceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel customerLabel = new JLabel(customerName != null ? customerName : "Walk-in Customer");
-        customerLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
+        customerLabel.setFont(new Font("Nunito", Font.PLAIN, 14));
         customerLabel.setForeground(new Color(100, 116, 139));
         customerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         textPanel.add(invoiceLabel);
-        textPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        textPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         textPanel.add(customerLabel);
 
         leftPanel.add(iconLabel);
-        leftPanel.add(Box.createRigidArea(new Dimension(12, 0)));
+        leftPanel.add(Box.createRigidArea(new Dimension(14, 0)));
         leftPanel.add(textPanel);
 
         JPanel rightPanel = new JPanel();
-        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.X_AXIS));
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setOpaque(false);
         rightPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-
-        JLabel statusBadge = createStatusBadge(statusName);
         
         JLabel totalLabel = new JLabel(String.format("Rs.%.2f", returnAmount));
-        totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
+        totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 22));
         totalLabel.setForeground(new Color(239, 68, 68));
-        totalLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
+        totalLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
-        rightPanel.add(statusBadge);
-        rightPanel.add(Box.createRigidArea(new Dimension(12, 0)));
         rightPanel.add(totalLabel);
 
         headerPanel.add(leftPanel);
@@ -707,25 +707,25 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BorderLayout());
         itemsPanel.setOpaque(false);
-        itemsPanel.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
+        itemsPanel.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
 
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
         
-        JLabel itemsHeader = new JLabel("📦 RETURNED ITEMS");
-        itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
-        itemsHeader.setForeground(new Color(71, 85, 105));
-        itemsHeader.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+        JLabel itemsHeader = new JLabel("RETURNED ITEMS");
+        itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        itemsHeader.setForeground(new Color(100, 116, 139));
+        itemsHeader.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 2));
         
         headerPanel.add(itemsHeader, BorderLayout.WEST);
 
         RoundedPanel itemsContainer = new RoundedPanel();
         itemsContainer.setLayout(new BoxLayout(itemsContainer, BoxLayout.Y_AXIS));
-        itemsContainer.setBackgroundColor(new Color(254, 242, 242));
+        itemsContainer.setBackgroundColor(new Color(248, 250, 252));
         itemsContainer.setCornerRadius(12);
         itemsContainer.setBorderThickness(0);
-        itemsContainer.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
+        itemsContainer.setBorder(BorderFactory.createEmptyBorder(16, 18, 16, 18));
 
         loadReturnItems(itemsContainer, returnId);
 
@@ -803,9 +803,9 @@ public class ReturnPanel extends javax.swing.JPanel {
     private JPanel createReturnItemCard(String productName, String qty, double price, 
                                        double discountPrice, double total, String batchNo) {
         JPanel itemPanel = new JPanel();
-        itemPanel.setLayout(new BorderLayout(10, 0));
+        itemPanel.setLayout(new BorderLayout(12, 0));
         itemPanel.setOpaque(false);
-        itemPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+        itemPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
         JPanel leftPanel = new JPanel();
@@ -814,7 +814,7 @@ public class ReturnPanel extends javax.swing.JPanel {
 
         JLabel productLabel = new JLabel(productName != null ? productName : "Unknown Product");
         productLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
-        productLabel.setForeground(new Color(30, 41, 59));
+        productLabel.setForeground(new Color(15, 23, 42));
         productLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel detailsPanel = new JPanel();
@@ -823,7 +823,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         detailsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel priceQtyLabel = new JLabel(String.format("Rs.%.2f × %s", price, qty));
-        priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
+        priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
         priceQtyLabel.setForeground(new Color(100, 116, 139));
 
         detailsPanel.add(priceQtyLabel);
@@ -841,14 +841,14 @@ public class ReturnPanel extends javax.swing.JPanel {
         extraInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         if (batchNo != null && !batchNo.isEmpty()) {
-            JLabel batchLabel = new JLabel("🏷️ Batch: " + batchNo);
+            JLabel batchLabel = new JLabel("Batch: " + batchNo);
             batchLabel.setFont(new Font("Nunito", Font.PLAIN, 11));
             batchLabel.setForeground(new Color(148, 163, 184));
             extraInfoPanel.add(batchLabel);
         }
 
         leftPanel.add(productLabel);
-        leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         leftPanel.add(detailsPanel);
         
         if (extraInfoPanel.getComponentCount() > 0) {
@@ -871,26 +871,27 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel footerPanel = new JPanel();
         footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
         footerPanel.setOpaque(false);
-        footerPanel.setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(16, 20, 20, 20));
 
         // Return reason panel
         RoundedPanel reasonPanel = new RoundedPanel();
-        reasonPanel.setLayout(new BoxLayout(reasonPanel, BoxLayout.X_AXIS));
+        reasonPanel.setLayout(new BorderLayout(12, 0));
         reasonPanel.setBackgroundColor(new Color(254, 249, 242));
-        reasonPanel.setCornerRadius(12);
+        reasonPanel.setCornerRadius(10);
         reasonPanel.setBorderThickness(0);
         reasonPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-        reasonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+        reasonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
         
         JLabel reasonIcon = new JLabel(getReasonEmoji(returnReason));
-        reasonIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        reasonIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+        reasonIcon.setVerticalAlignment(SwingConstants.TOP);
         
         JPanel reasonTextPanel = new JPanel();
         reasonTextPanel.setLayout(new BoxLayout(reasonTextPanel, BoxLayout.Y_AXIS));
         reasonTextPanel.setOpaque(false);
         
         JLabel reasonLabel = new JLabel("RETURN REASON");
-        reasonLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        reasonLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 10));
         reasonLabel.setForeground(new Color(146, 64, 14));
         reasonLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
@@ -903,13 +904,11 @@ public class ReturnPanel extends javax.swing.JPanel {
         reasonTextPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         reasonTextPanel.add(reasonValue);
         
-        reasonPanel.add(reasonIcon);
-        reasonPanel.add(Box.createRigidArea(new Dimension(12, 0)));
-        reasonPanel.add(reasonTextPanel);
-        reasonPanel.add(Box.createHorizontalGlue());
+        reasonPanel.add(reasonIcon, BorderLayout.WEST);
+        reasonPanel.add(reasonTextPanel, BorderLayout.CENTER);
         
         footerPanel.add(reasonPanel);
-        footerPanel.add(Box.createRigidArea(new Dimension(0, 16)));
+        footerPanel.add(Box.createRigidArea(new Dimension(0, 14)));
 
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.X_AXIS));
@@ -922,11 +921,11 @@ public class ReturnPanel extends javax.swing.JPanel {
         datePanel.setAlignmentY(Component.CENTER_ALIGNMENT);
         
         JLabel dateIcon = new JLabel("📅");
-        dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
-        dateIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+        dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        dateIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
         
         JLabel dateLabel = new JLabel(formatDateTime(returnDate));
-        dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+        dateLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
         dateLabel.setForeground(new Color(100, 116, 139));
         
         datePanel.add(dateIcon);
@@ -938,16 +937,16 @@ public class ReturnPanel extends javax.swing.JPanel {
         processedByPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
         
         JLabel userIcon = new JLabel("👤");
-        userIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
-        userIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+        userIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
+        userIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
         
         JLabel processedText = new JLabel("Processed by: ");
-        processedText.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+        processedText.setFont(new Font("Nunito", Font.PLAIN, 12));
         processedText.setForeground(new Color(100, 116, 139));
         
         JLabel processedValue = new JLabel(processedBy != null ? processedBy : "Unknown");
-        processedValue.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
-        processedValue.setForeground(new Color(30, 41, 59));
+        processedValue.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
+        processedValue.setForeground(new Color(15, 23, 42));
         
         processedByPanel.add(userIcon);
         processedByPanel.add(processedText);
@@ -1319,28 +1318,21 @@ public class ReturnPanel extends javax.swing.JPanel {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jTextField1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, 314, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(sortByDays, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, 314, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(91, 91, 91)))
+                        .addComponent(sortByReason, 0, 419, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addContainerGap()
-                                .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(17, 17, 17)
-                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(18, 18, 18))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addGap(12, 12, 12)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)))
+                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jTextField1))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 388, Short.MAX_VALUE)
                 .addGap(17, 17, 17))
         );

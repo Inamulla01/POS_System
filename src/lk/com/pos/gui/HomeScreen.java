@@ -28,6 +28,8 @@ import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
 import lk.com.pos.panel.NotificationPanel;
 import lk.com.pos.panel.PosPanelDone;
+import lk.com.pos.panel.ProductPanel;
+import lk.com.pos.panel.ReturnPanel;
 import lk.com.pos.panel.StockPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
@@ -70,9 +72,11 @@ public class HomeScreen extends JFrame {
     private SupplierPanel supplierPanel;
     private SalesPanel salesPanel;
     private CustomerPanel customerManagementPanel;
-    private StockPanel productPanel;
+    private StockPanel stockPanel;
     private CardLayout contentPanelLayout;
     private NotificationPanel notificationPanel;
+    private ReturnPanel retuenPanel;
+    private ProductPanel productPanel;
 
     // Current active button
     private JButton activeButton = null;
@@ -790,8 +794,10 @@ public class HomeScreen extends JFrame {
         this.supplierPanel = new SupplierPanel();
         this.salesPanel = new SalesPanel();
         this.customerManagementPanel = new CustomerPanel();
-        this.productPanel = new StockPanel();
+        this.stockPanel = new StockPanel();
         this.notificationPanel = new NotificationPanel();
+        this.productPanel = new ProductPanel();
+        this.retuenPanel = new ReturnPanel();
 
         // Add panels to card layout
         this.cardPanel.add(dashboardPanel, "dashboard_panel");
@@ -799,8 +805,10 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(supplierPanel, "supplier_panel");
         this.cardPanel.add(salesPanel, "sales_panel");
         this.cardPanel.add(customerManagementPanel, "customer_management_panel");
-        this.cardPanel.add(productPanel, "product_panel");
+        this.cardPanel.add(stockPanel, "stock_panel");
         this.cardPanel.add(notificationPanel,"notification_Panel");
+        this.cardPanel.add(retuenPanel,"retuen_Panel");
+        this.cardPanel.add(productPanel,"product_Panel");
 
         SwingUtilities.updateComponentTreeUI(cardPanel);
     }
@@ -935,10 +943,19 @@ public class HomeScreen extends JFrame {
         updateShortcutIconVisibility();
     }
 
-    private void showProductPanel() {
-        contentPanelLayout.show(cardPanel, "product_panel");
+    private void showStockPanel() {
+        contentPanelLayout.show(cardPanel, "stock_panel");
         setActiveButton(stockBtn);
         updateShortcutIconVisibility();
+    }
+    
+    private void showProductPanel(){
+        contentPanelLayout.show(cardPanel, "product_Panel");
+        
+    }
+    
+    private void showReturnPanel(){
+        contentPanelLayout.show(cardPanel, "retuen_Panel");
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1831,7 +1848,7 @@ public class HomeScreen extends JFrame {
     }//GEN-LAST:event_calBtnActionPerformed
 
     private void stockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockBtnActionPerformed
-        showProductPanel();
+        showStockPanel();
     }//GEN-LAST:event_stockBtnActionPerformed
 
     private void salesBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_salesBtnActionPerformed
@@ -1999,11 +2016,11 @@ public class HomeScreen extends JFrame {
     }//GEN-LAST:event_notificasionBtnActionPerformed
 
     private void returnBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_returnBtnActionPerformed
-        // TODO add your handling code here:
+        showReturnPanel();
     }//GEN-LAST:event_returnBtnActionPerformed
 
     private void productBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productBtnActionPerformed
-        // TODO add your handling code here:
+        showProductPanel();
     }//GEN-LAST:event_productBtnActionPerformed
 
     /**

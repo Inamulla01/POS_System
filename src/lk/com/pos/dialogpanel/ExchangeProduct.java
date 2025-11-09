@@ -29,7 +29,7 @@ public class ExchangeProduct extends javax.swing.JPanel {
         return qty;
     }
 
-    public JTextField getNewQty() {
+    public JTextField getExchangeQtyField() {
         return newQty;
     }
 

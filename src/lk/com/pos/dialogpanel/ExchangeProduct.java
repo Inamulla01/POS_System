@@ -1,235 +1,127 @@
 package lk.com.pos.dialogpanel;
 
-import java.awt.Color;
-import java.awt.Cursor;
-import javax.swing.BorderFactory;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import javax.swing.*;
 
-/**
- *
- * @author moham
- */
 public class ExchangeProduct extends javax.swing.JPanel {
 
-    private int saleItemId;
-    private int stockId;
-    private int originalQuantity;
-    private double unitPrice;
-    private double discountPerUnit;
-    private double totalAmount;
-    private String batchNo;
-
-    /**
-     * Creates new form ExchangeProduct
-     */
     public ExchangeProduct() {
         initComponents();
-        setupSpinner();
-        setupCheckbox();
     }
 
-    public void setProductDetails(String productName, double unitPrice, 
-                                 double discountPrice, int quantity, 
-                                 double total, String batchNo) {
-        cartProductName1.setText(productName);
-        this.unitPrice = unitPrice;
-        this.discountPerUnit = discountPrice / quantity;
-        this.originalQuantity = quantity;
-        this.totalAmount = total;
-        this.batchNo = batchNo;
-        
-        updateDisplay();
-        setupSpinner(); // Re-setup spinner with actual quantity
+    // Getter methods for all components
+    public JLabel getProductName() {
+        return productName;
     }
 
-    public void setIds(int saleItemId, int stockId) {
-        this.saleItemId = saleItemId;
-        this.stockId = stockId;
+    public JLabel getProductPrice() {
+        return productPrice;
     }
 
-    private void setupSpinner() {
-        jSpinner1.setModel(new SpinnerNumberModel(0, 0, originalQuantity, 1));
-        jSpinner1.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                updateReturnCalculation();
-            }
-        });
+    public JLabel getQtyCount() {
+        return qtyCount;
     }
 
-    private void setupCheckbox() {
-        jCheckBox1.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                if (jCheckBox1.isSelected()) {
-                    jSpinner1.setValue(originalQuantity);
-                } else {
-                    jSpinner1.setValue(0);
-                }
-                jSpinner1.setEnabled(!jCheckBox1.isSelected());
-            }
-        });
+    public JLabel getDiscountItem() {
+        return discountItem;
     }
 
-    private void updateDisplay() {
-        brandName.setText(String.format("Rs %.2f X %d = Rs %.2f", 
-            unitPrice, originalQuantity, unitPrice * originalQuantity));
-        
-        if (discountPerUnit > 0) {
-            brandName1.setText(String.format("Discount Rs %.2f X %d = Rs %.2f", 
-                discountPerUnit, originalQuantity, discountPerUnit * originalQuantity));
-            brandName1.setVisible(true);
-        } else {
-            brandName1.setVisible(false);
-        }
-        
-        brandName2.setText("Quantity = " + originalQuantity);
-        priceInput1.setText(String.format("Rs %.2f", totalAmount));
-        brandName3.setText("Batch: " + batchNo);
-        
-        // Update spinner maximum
-        if (jSpinner1.getModel() instanceof SpinnerNumberModel) {
-            SpinnerNumberModel model = (SpinnerNumberModel) jSpinner1.getModel();
-            model.setMaximum(originalQuantity);
-        }
+    public JLabel getQty() {
+        return qty;
     }
 
-    private void updateReturnCalculation() {
-        int returnQty = getReturnQuantity();
-        double returnTotal = returnQty * unitPrice;
-        double returnDiscount = returnQty * discountPerUnit;
-        double netReturn = returnTotal - returnDiscount;
-        
-        // Update display for return amounts
-        if (returnQty > 0) {
-            brandName1.setText(String.format("Return: %d items = Rs %.2f", returnQty, netReturn));
-            brandName1.setForeground(Color.RED);
-            brandName1.setVisible(true);
-            
-            // Highlight the panel
-            setBorder(BorderFactory.createLineBorder(Color.decode("#0893B0"), 2));
-        } else {
-            // Reset to original display
-            if (discountPerUnit > 0) {
-                brandName1.setText(String.format("Discount Rs %.2f X %d = Rs %.2f", 
-                    discountPerUnit, originalQuantity, discountPerUnit * originalQuantity));
-                brandName1.setForeground(Color.RED);
-            } else {
-                brandName1.setVisible(false);
-            }
-            
-            // Reset border
-            setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-        }
+    public JTextField getNewQty() {
+        return newQty;
     }
 
-    public int getReturnQuantity() {
-        return (Integer) jSpinner1.getValue();
-    }
-
-    public double getUnitPrice() {
-        return unitPrice;
-    }
-
-    public double getDiscountAmount() {
-        return getReturnQuantity() * discountPerUnit;
-    }
-
-    public double getReturnTotal() {
-        return (getReturnQuantity() * unitPrice) - getDiscountAmount();
-    }
-
-    public int getSaleItemId() {
-        return saleItemId;
-    }
-
-    public int getStockId() {
-        return stockId;
+    public JCheckBox getCheckBox() {
+        return jCheckBox2;
     }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jPanel1 = new javax.swing.JPanel();
-        cartProductName1 = new javax.swing.JLabel();
-        priceInput1 = new javax.swing.JLabel();
-        brandName = new javax.swing.JLabel();
-        brandName1 = new javax.swing.JLabel();
-        brandName2 = new javax.swing.JLabel();
-        jSpinner1 = new javax.swing.JSpinner();
-        brandName3 = new javax.swing.JLabel();
-        jCheckBox1 = new javax.swing.JCheckBox();
+        productPenal = new javax.swing.JPanel();
+        productName = new javax.swing.JLabel();
+        productPrice = new javax.swing.JLabel();
+        qtyCount = new javax.swing.JLabel();
+        discountItem = new javax.swing.JLabel();
+        qty = new javax.swing.JLabel();
+        brandName4 = new javax.swing.JLabel();
+        jCheckBox2 = new javax.swing.JCheckBox();
+        newQty = new javax.swing.JTextField();
 
-        cartProductName1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
-        cartProductName1.setText("Product Name (Brand)");
+        productPenal.setBackground(new java.awt.Color(248, 250, 252));
 
-        priceInput1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 18)); // NOI18N
-        priceInput1.setForeground(new java.awt.Color(8, 147, 176));
-        priceInput1.setText("Rs.570.00");
+        productName.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
+        productName.setText("Product Name (Brand)");
 
-        brandName.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
-        brandName.setForeground(new java.awt.Color(102, 102, 102));
-        brandName.setText("Rs 200.00 X 3 = 600");
+        productPrice.setFont(new java.awt.Font("Nunito ExtraBold", 1, 18)); // NOI18N
+        productPrice.setForeground(new java.awt.Color(8, 147, 176));
+        productPrice.setText("Rs.570.00");
 
-        brandName1.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
-        brandName1.setForeground(new java.awt.Color(255, 0, 0));
-        brandName1.setText("Discount Rs 10.00 X 3 = Rs 570.00");
+        qtyCount.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        qtyCount.setForeground(new java.awt.Color(102, 102, 102));
+        qtyCount.setText("Rs 200.00 X 3 = 600");
 
-        brandName2.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
-        brandName2.setForeground(new java.awt.Color(102, 102, 102));
-        brandName2.setText("Quantity = 3");
+        discountItem.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        discountItem.setForeground(new java.awt.Color(255, 0, 0));
+        discountItem.setText("Discount Rs 10.00 X 3 = Rs 570.00");
 
-        brandName3.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
-        brandName3.setForeground(new java.awt.Color(102, 102, 102));
-        brandName3.setText("Exchang Quantity");
+        qty.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        qty.setForeground(new java.awt.Color(102, 102, 102));
+        qty.setText("Quantity = 3");
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+        brandName4.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        brandName4.setForeground(new java.awt.Color(102, 102, 102));
+        brandName4.setText("Exchang Quantity");
+
+        javax.swing.GroupLayout productPenalLayout = new javax.swing.GroupLayout(productPenal);
+        productPenal.setLayout(productPenalLayout);
+        productPenalLayout.setHorizontalGroup(
+            productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(productPenalLayout.createSequentialGroup()
                 .addGap(12, 12, 12)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(brandName1)
-                    .addComponent(brandName)
-                    .addComponent(brandName2)
-                    .addComponent(cartProductName1))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 213, Short.MAX_VALUE)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(priceInput1, javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(brandName3, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jSpinner1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 104, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGroup(productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(productPenalLayout.createSequentialGroup()
+                        .addGroup(productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(discountItem)
+                            .addComponent(qtyCount)
+                            .addComponent(qty))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 209, Short.MAX_VALUE)
+                        .addGroup(productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(productPrice, javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(brandName4, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(newQty, javax.swing.GroupLayout.Alignment.TRAILING))
                         .addGap(12, 12, 12))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addComponent(jCheckBox1)
+                    .addGroup(productPenalLayout.createSequentialGroup()
+                        .addComponent(productName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jCheckBox2)
                         .addContainerGap())))
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+        productPenalLayout.setVerticalGroup(
+            productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(productPenalLayout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(cartProductName1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(brandName2, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(productPenalLayout.createSequentialGroup()
+                        .addComponent(jCheckBox2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(brandName, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jCheckBox1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(brandName3, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGroup(productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(productPenalLayout.createSequentialGroup()
+                                .addComponent(brandName4, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(newQty, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(productPenalLayout.createSequentialGroup()
+                                .addGap(12, 12, 12)
+                                .addComponent(qty, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(qtyCount, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                    .addComponent(productName))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(priceInput1, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(brandName1, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(productPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(productPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(discountItem, javax.swing.GroupLayout.PREFERRED_SIZE, 12, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -237,24 +129,24 @@ public class ExchangeProduct extends javax.swing.JPanel {
         this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(productPenal, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(productPenal, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JLabel brandName;
-    private javax.swing.JLabel brandName1;
-    private javax.swing.JLabel brandName2;
-    private javax.swing.JLabel brandName3;
-    private javax.swing.JLabel cartProductName1;
-    private javax.swing.JCheckBox jCheckBox1;
-    private javax.swing.JPanel jPanel1;
-    private javax.swing.JSpinner jSpinner1;
-    private javax.swing.JLabel priceInput1;
+    private javax.swing.JLabel brandName4;
+    private javax.swing.JLabel discountItem;
+    private javax.swing.JCheckBox jCheckBox2;
+    private javax.swing.JTextField newQty;
+    private javax.swing.JLabel productName;
+    private javax.swing.JPanel productPenal;
+    private javax.swing.JLabel productPrice;
+    private javax.swing.JLabel qty;
+    private javax.swing.JLabel qtyCount;
     // End of variables declaration//GEN-END:variables
 }

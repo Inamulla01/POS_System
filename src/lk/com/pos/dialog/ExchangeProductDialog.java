@@ -2,12 +2,16 @@ package lk.com.pos.dialog;
 
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialogpanel.ExchangeProduct;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ExchangeProductDialog extends javax.swing.JDialog {
 
@@ -28,14 +32,672 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private double currentCreditAmount = 0.0;
     private boolean isCreditPayment = false;
 
+    // Keyboard navigation variables
+    private int currentProductIndex = -1;
+    private java.util.List<ExchangeProduct> productPanels = new java.util.ArrayList<>();
+
+    // Return ID to be passed back to calling point
+    private int generatedReturnId = -1;
+
     public ExchangeProductDialog(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
+        setupButtonStyles();
+        setupKeyboardNavigation();
         loadInvoices();
         loadReturnReasons();
 
         productsPanel.setLayout(new BoxLayout(productsPanel, BoxLayout.Y_AXIS));
         showNoInvoiceSelectedMessage();
+    }
+
+    // Method to get the generated return ID
+    public int getGeneratedReturnId() {
+        return generatedReturnId;
+    }
+
+    private void setupButtonStyles() {
+        setupGradientButton(saveBtn);
+        setupGradientButton(clearFormBtn);
+        setupGradientButton(cancelBtn);
+
+        // Create icons with original blue color for action buttons
+        FlatSVGIcon saveIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 25, 25);
+        saveIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        saveBtn.setIcon(saveIcon);
+
+        FlatSVGIcon clearIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+        clearIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        clearFormBtn.setIcon(clearIcon);
+
+        FlatSVGIcon cancelIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+        cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        cancelBtn.setIcon(cancelIcon);
+
+        setupButtonMouseListeners();
+        setupButtonFocusListeners();
+    }
+
+    private void setupGradientButton(JButton button) {
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setForeground(Color.decode("#0893B0"));
+        button.setFont(new Font("Nunito SemiBold", Font.BOLD, 16));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, javax.swing.JComponent c) {
+                Graphics2D g2 = (Graphics2D) g;
+                int w = c.getWidth();
+                int h = c.getHeight();
+
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                boolean isHover = button.getModel().isRollover();
+                boolean isPressed = button.getModel().isPressed();
+                boolean isFocused = button.hasFocus();
+
+                if (!isFocused && !isHover && !isPressed) {
+                    g2.setColor(new Color(0, 0, 0, 0));
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+                    g2.setColor(Color.decode("#0893B0"));
+                    g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
+                } else {
+                    Color topColor = new Color(0x12, 0xB5, 0xA6);
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0);
+                    GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
+                    g2.setPaint(gp);
+                    g2.fillRoundRect(0, 0, w, h, 5, 5);
+                }
+                super.paint(g, c);
+            }
+        });
+    }
+
+    private void setupButtonMouseListeners() {
+        saveBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                saveBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                saveBtn.setIcon(hoverIcon);
+                saveBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                saveBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                saveBtn.setIcon(normalIcon);
+                saveBtn.repaint();
+            }
+        });
+
+        clearFormBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(hoverIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                clearFormBtn.setIcon(normalIcon);
+                clearFormBtn.repaint();
+            }
+        });
+
+        cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(hoverIcon);
+                cancelBtn.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+    }
+
+    private void setupButtonFocusListeners() {
+        saveBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                saveBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                saveBtn.setIcon(focusedIcon);
+                saveBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                saveBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                saveBtn.setIcon(normalIcon);
+                saveBtn.repaint();
+            }
+        });
+
+        clearFormBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                clearFormBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                clearFormBtn.setIcon(focusedIcon);
+                clearFormBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                clearFormBtn.setIcon(normalIcon);
+                clearFormBtn.repaint();
+            }
+        });
+
+        cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                cancelBtn.setIcon(focusedIcon);
+                cancelBtn.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                cancelBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                cancelBtn.setIcon(normalIcon);
+                cancelBtn.repaint();
+            }
+        });
+    }
+
+    private void setupKeyboardNavigation() {
+        // Set initial focus to invoice text field
+        SwingUtilities.invokeLater(() -> {
+            invoiceNo.requestFocusInWindow();
+        });
+
+        // Setup tooltips
+        invoiceNo.setToolTipText("Enter invoice number and press ENTER to load details");
+        reasonCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select<br>Navigate with arrow keys</html>");
+        saveBtn.setToolTipText("Press ENTER to process exchange");
+        clearFormBtn.setToolTipText("Press ENTER to clear form");
+        cancelBtn.setToolTipText("Press ENTER to cancel");
+
+        // Invoice text field keyboard handling
+        invoiceNo.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent evt) {
+                switch (evt.getKeyCode()) {
+                    case KeyEvent.VK_ENTER:
+                        if (!invoiceNo.getText().trim().isEmpty()) {
+                            String invoiceNumber = invoiceNo.getText().trim();
+                            loadInvoiceDetails(invoiceNumber);
+                            if (!productPanels.isEmpty()) {
+                                moveFocusToFirstProduct();
+                            } else {
+                                reasonCombo.requestFocusInWindow();
+                            }
+                        }
+                        evt.consume();
+                        break;
+
+                    case KeyEvent.VK_TAB:
+                        if (evt.isShiftDown()) {
+                            cancelBtn.requestFocusInWindow();
+                        } else {
+                            if (!productPanels.isEmpty()) {
+                                moveFocusToFirstProduct();
+                            } else {
+                                reasonCombo.requestFocusInWindow();
+                            }
+                        }
+                        evt.consume();
+                        break;
+
+                    case KeyEvent.VK_DOWN:
+                        if (!productPanels.isEmpty()) {
+                            moveFocusToFirstProduct();
+                        } else {
+                            reasonCombo.requestFocusInWindow();
+                        }
+                        evt.consume();
+                        break;
+                }
+            }
+        });
+
+        // Reason combo keyboard handling
+        reasonCombo.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent evt) {
+                if (reasonCombo.isPopupVisible()) {
+                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                        reasonCombo.setPopupVisible(false);
+                        if (reasonCombo.getSelectedIndex() > 0) {
+                            saveBtn.requestFocusInWindow();
+                        }
+                        evt.consume();
+                    }
+                    return;
+                }
+
+                switch (evt.getKeyCode()) {
+                    case KeyEvent.VK_ENTER:
+                        if (reasonCombo.getSelectedIndex() > 0) {
+                            saveBtn.requestFocusInWindow();
+                        } else {
+                            reasonCombo.showPopup();
+                        }
+                        evt.consume();
+                        break;
+                    case KeyEvent.VK_DOWN:
+                        if (!reasonCombo.isPopupVisible()) {
+                            reasonCombo.showPopup();
+                        }
+                        evt.consume();
+                        break;
+                    case KeyEvent.VK_UP:
+                        moveFocusToLastProduct();
+                        evt.consume();
+                        break;
+                    case KeyEvent.VK_TAB:
+                        if (evt.isShiftDown()) {
+                            invoiceNo.requestFocusInWindow();
+                        } else {
+                            saveBtn.requestFocusInWindow();
+                        }
+                        evt.consume();
+                        break;
+                    case KeyEvent.VK_SPACE:
+                        if (!reasonCombo.isPopupVisible()) {
+                            reasonCombo.showPopup();
+                        }
+                        evt.consume();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+
+        // Save button keyboard handling
+        saveBtn.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    saveBtnActionPerformed(null);
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    reasonCombo.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    clearFormBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    clearFormBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    cancelBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_TAB) {
+                    if (evt.isShiftDown()) {
+                        reasonCombo.requestFocusInWindow();
+                    } else {
+                        clearFormBtn.requestFocusInWindow();
+                    }
+                    evt.consume();
+                }
+            }
+        });
+
+        // Clear form button keyboard handling
+        clearFormBtn.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    clearFormBtnActionPerformed(null);
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    reasonCombo.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    saveBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    saveBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    cancelBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_TAB) {
+                    if (evt.isShiftDown()) {
+                        saveBtn.requestFocusInWindow();
+                    } else {
+                        cancelBtn.requestFocusInWindow();
+                    }
+                    evt.consume();
+                }
+            }
+        });
+
+        // Cancel button keyboard handling
+        cancelBtn.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    cancelBtnActionPerformed(null);
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    reasonCombo.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    saveBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    clearFormBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    saveBtn.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_TAB) {
+                    if (evt.isShiftDown()) {
+                        clearFormBtn.requestFocusInWindow();
+                    } else {
+                        invoiceNo.requestFocusInWindow();
+                    }
+                    evt.consume();
+                }
+            }
+        });
+
+        // Global key listener for product navigation
+        productsPanel.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleProductNavigation(e);
+            }
+        });
+        productsPanel.setFocusable(true);
+
+        // Add ESC key to close dialog
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                dispose();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+    }
+
+    private void handleProductNavigation(KeyEvent e) {
+        if (productPanels.isEmpty()) {
+            return;
+        }
+
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_DOWN:
+                if (currentProductIndex < productPanels.size() - 1) {
+                    currentProductIndex++;
+                    focusProductPanel(currentProductIndex);
+                    scrollToProduct(currentProductIndex);
+                } else {
+                    reasonCombo.requestFocusInWindow();
+                }
+                e.consume();
+                break;
+
+            case KeyEvent.VK_UP:
+                if (currentProductIndex > 0) {
+                    currentProductIndex--;
+                    focusProductPanel(currentProductIndex);
+                    scrollToProduct(currentProductIndex);
+                } else {
+                    invoiceNo.requestFocusInWindow();
+                }
+                e.consume();
+                break;
+
+            case KeyEvent.VK_ENTER:
+                if (currentProductIndex >= 0 && currentProductIndex < productPanels.size()) {
+                    ExchangeProduct currentPanel = productPanels.get(currentProductIndex);
+                    JCheckBox checkBox = currentPanel.getCheckBox();
+
+                    // Toggle checkbox selection
+                    checkBox.setSelected(!checkBox.isSelected());
+                    productSelectedStatus.put(currentProductIndex, checkBox.isSelected());
+
+                    // Update border colors based on selection and focus
+                    updateProductPanelBorder(currentPanel, checkBox.isSelected(), true);
+
+                    // If selected, enable quantity field and focus on it
+                    if (checkBox.isSelected()) {
+                        currentPanel.getExchangeQtyField().setEnabled(true);
+                        currentPanel.getExchangeQtyField().requestFocusInWindow();
+                        currentPanel.getExchangeQtyField().selectAll();
+                    } else {
+                        currentPanel.getExchangeQtyField().setEnabled(false);
+                        // Don't change the quantity value when unchecking
+                    }
+                }
+                e.consume();
+                break;
+
+            case KeyEvent.VK_RIGHT:
+                // Move to next product or to reason combo
+                if (currentProductIndex < productPanels.size() - 1) {
+                    currentProductIndex++;
+                    focusProductPanel(currentProductIndex);
+                    scrollToProduct(currentProductIndex);
+                } else {
+                    reasonCombo.requestFocusInWindow();
+                }
+                e.consume();
+                break;
+
+            case KeyEvent.VK_LEFT:
+                // Move to previous product or to invoice field
+                if (currentProductIndex > 0) {
+                    currentProductIndex--;
+                    focusProductPanel(currentProductIndex);
+                    scrollToProduct(currentProductIndex);
+                } else {
+                    invoiceNo.requestFocusInWindow();
+                }
+                e.consume();
+                break;
+
+            case KeyEvent.VK_TAB:
+                if (e.isShiftDown()) {
+                    reasonCombo.requestFocusInWindow();
+                } else {
+                    invoiceNo.requestFocusInWindow();
+                }
+                e.consume();
+                break;
+        }
+    }
+
+    private void updateProductPanelBorder(ExchangeProduct panel, boolean isSelected, boolean hasFocus) {
+        if (isSelected && hasFocus) {
+            // Selected and focused - YELLOW border
+            panel.setBorder(BorderFactory.createLineBorder(Color.YELLOW, 2));
+        } else if (isSelected) {
+            // Selected but not focused - RED border
+            panel.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
+        } else if (hasFocus) {
+            // Not selected but focused - GREEN border
+            panel.setBorder(BorderFactory.createLineBorder(Color.GREEN, 2));
+        } else {
+            // Not selected and not focused - default LIGHT GRAY border
+            panel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+        }
+    }
+
+    private void focusProductPanel(int index) {
+        // Reset all panel borders based on their selection status
+        for (int i = 0; i < productPanels.size(); i++) {
+            ExchangeProduct panel = productPanels.get(i);
+            boolean isSelected = productSelectedStatus.getOrDefault(i, false);
+            updateProductPanelBorder(panel, isSelected, (i == index));
+        }
+
+        // Scroll to the focused product
+        if (index >= 0 && index < productPanels.size()) {
+            ExchangeProduct currentPanel = productPanels.get(index);
+            currentPanel.scrollRectToVisible(currentPanel.getBounds());
+        }
+    }
+
+    private void scrollToProduct(int index) {
+        if (index >= 0 && index < productPanels.size()) {
+            ExchangeProduct panel = productPanels.get(index);
+            Rectangle bounds = panel.getBounds();
+            Rectangle viewRect = productsScrollPanel.getViewport().getViewRect();
+
+            if (!viewRect.contains(bounds)) {
+                productsScrollPanel.getViewport().scrollRectToVisible(
+                        new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height)
+                );
+            }
+        }
+    }
+
+    private void moveFocusToFirstProduct() {
+        if (!productPanels.isEmpty()) {
+            currentProductIndex = 0;
+            focusProductPanel(currentProductIndex);
+            productsPanel.requestFocusInWindow();
+            scrollToProduct(currentProductIndex);
+        } else {
+            reasonCombo.requestFocusInWindow();
+        }
+    }
+
+    private void moveFocusToLastProduct() {
+        if (!productPanels.isEmpty()) {
+            currentProductIndex = productPanels.size() - 1;
+            focusProductPanel(currentProductIndex);
+            productsPanel.requestFocusInWindow();
+            scrollToProduct(currentProductIndex);
+        } else {
+            invoiceNo.requestFocusInWindow();
+        }
+    }
+
+    private void setupQuantityFieldNavigation(ExchangeProduct productPanel, int productIndex) {
+        productPanel.getExchangeQtyField().addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_ENTER:
+                        // When ENTER is pressed in quantity field, move to next product
+                        productsPanel.requestFocusInWindow();
+                        if (currentProductIndex < productPanels.size() - 1) {
+                            currentProductIndex++;
+                            focusProductPanel(currentProductIndex);
+                            scrollToProduct(currentProductIndex);
+                        } else {
+                            reasonCombo.requestFocusInWindow();
+                        }
+                        e.consume();
+                        break;
+
+                    case KeyEvent.VK_ESCAPE:
+                        // ESC to go back to product selection without changing quantity
+                        productsPanel.requestFocusInWindow();
+                        focusProductPanel(currentProductIndex);
+                        e.consume();
+                        break;
+
+                    case KeyEvent.VK_UP:
+                        // Move to previous product
+                        productsPanel.requestFocusInWindow();
+                        if (currentProductIndex > 0) {
+                            currentProductIndex--;
+                            focusProductPanel(currentProductIndex);
+                            scrollToProduct(currentProductIndex);
+                        } else {
+                            invoiceNo.requestFocusInWindow();
+                        }
+                        e.consume();
+                        break;
+
+                    case KeyEvent.VK_DOWN:
+                        // Move to next product
+                        productsPanel.requestFocusInWindow();
+                        if (currentProductIndex < productPanels.size() - 1) {
+                            currentProductIndex++;
+                            focusProductPanel(currentProductIndex);
+                            scrollToProduct(currentProductIndex);
+                        } else {
+                            reasonCombo.requestFocusInWindow();
+                        }
+                        e.consume();
+                        break;
+
+                    case KeyEvent.VK_TAB:
+                        // TAB to move to next field
+                        if (e.isShiftDown()) {
+                            // Shift+TAB - move to previous product
+                            productsPanel.requestFocusInWindow();
+                            if (currentProductIndex > 0) {
+                                currentProductIndex--;
+                                focusProductPanel(currentProductIndex);
+                                scrollToProduct(currentProductIndex);
+                            } else {
+                                invoiceNo.requestFocusInWindow();
+                            }
+                        } else {
+                            // TAB - move to next product or reason combo
+                            productsPanel.requestFocusInWindow();
+                            if (currentProductIndex < productPanels.size() - 1) {
+                                currentProductIndex++;
+                                focusProductPanel(currentProductIndex);
+                                scrollToProduct(currentProductIndex);
+                            } else {
+                                reasonCombo.requestFocusInWindow();
+                            }
+                        }
+                        e.consume();
+                        break;
+                }
+            }
+        });
+
+        // Update border when quantity field loses focus
+        productPanel.getExchangeQtyField().addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                boolean isSelected = productPanel.getCheckBox().isSelected();
+                updateProductPanelBorder(productPanel, isSelected, false);
+            }
+
+            @Override
+            public void focusGained(FocusEvent e) {
+                boolean isSelected = productPanel.getCheckBox().isSelected();
+                updateProductPanelBorder(productPanel, isSelected, true);
+            }
+        });
     }
 
     private void loadInvoices() {
@@ -49,69 +711,11 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             ResultSet rs = MySQL.executeSearch(query);
 
             invoiceMap.clear();
-            invoiceCombo.removeAllItems();
-            invoiceCombo.addItem("Select Invoice");
-
-            // Create a custom renderer for the combo box
-            invoiceCombo.setRenderer(new DefaultListCellRenderer() {
-                @Override
-                public Component getListCellRendererComponent(JList<?> list, Object value,
-                        int index, boolean isSelected, boolean cellHasFocus) {
-                    super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
-                    if (index > 0 && value instanceof String) {
-                        String invoiceNo = (String) value;
-                        // Find the sales ID for this invoice
-                        int salesId = -1;
-                        for (Map.Entry<Integer, String> entry : invoiceMap.entrySet()) {
-                            if (entry.getValue().equals(invoiceNo)) {
-                                salesId = entry.getKey();
-                                break;
-                            }
-                        }
-
-                        if (salesId != -1) {
-                            try {
-                                String detailQuery = "SELECT s.datetime, s.total, "
-                                        + "pm.payment_method_name, cc.customer_name "
-                                        + "FROM sales s "
-                                        + "LEFT JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id "
-                                        + "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id "
-                                        + "WHERE s.sales_id = " + salesId;
-
-                                ResultSet detailRs = MySQL.executeSearch(detailQuery);
-                                if (detailRs.next()) {
-                                    Timestamp timestamp = detailRs.getTimestamp("datetime");
-                                    String formattedDate = new SimpleDateFormat("dd/MM/yyyy").format(timestamp);
-                                    double total = detailRs.getDouble("total");
-                                    String paymentMethod = detailRs.getString("payment_method_name");
-                                    String customerName = detailRs.getString("customer_name");
-
-                                    String displayText = String.format("%s | %s | Rs.%.2f | %s | %s",
-                                            invoiceNo,
-                                            formattedDate,
-                                            total,
-                                            paymentMethod != null ? paymentMethod.replace(" Payment", "") : "Unknown",
-                                            customerName != null ? customerName : "Walk-in Customer");
-
-                                    setText(displayText);
-                                }
-                            } catch (SQLException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                    return this;
-                }
-            });
 
             while (rs.next()) {
                 int salesId = rs.getInt("sales_id");
                 String invoiceNo = rs.getString("invoice_no");
                 invoiceMap.put(salesId, invoiceNo);
-
-                // Add just the invoice number - the renderer will handle the display
-                invoiceCombo.addItem(invoiceNo);
             }
 
         } catch (SQLException e) {
@@ -145,13 +749,15 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
     private void showNoInvoiceSelectedMessage() {
         productsPanel.removeAll();
+        productPanels.clear();
+        currentProductIndex = -1;
 
         JPanel messagePanel = new JPanel();
         messagePanel.setBackground(Color.WHITE);
         messagePanel.setLayout(new BorderLayout());
-        messagePanel.setPreferredSize(new Dimension(600, 200));
+        messagePanel.setPreferredSize(new Dimension(563, 200));
 
-        JLabel messageLabel = new JLabel("Please select an invoice to view details", JLabel.CENTER);
+        JLabel messageLabel = new JLabel("Please enter an invoice number and press ENTER to view details", JLabel.CENTER);
         messageLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 16));
         messageLabel.setForeground(new Color(150, 150, 150));
 
@@ -165,6 +771,9 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private void loadInvoiceDetails(String invoiceNo) {
         try {
             productsPanel.removeAll();
+            productPanels.clear();
+            currentProductIndex = -1;
+
             productOriginalQtys.clear();
             productSaleItemIds.clear();
             productStockIds.clear();
@@ -195,13 +804,11 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             if (rs.next()) {
                 currentSalesId = rs.getInt("sales_id");
 
-                // Check if this is a credit payment
                 int paymentMethodId = rs.getInt("payment_method_id");
-                isCreditPayment = (paymentMethodId == 3); // 3 = Credit Payment
+                isCreditPayment = (paymentMethodId == 3);
 
                 if (isCreditPayment) {
                     currentCreditCustomerId = rs.getInt("credit_customer_id");
-                    // Load current credit amount for this customer
                     loadCurrentCreditAmount();
                 }
 
@@ -219,6 +826,14 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 }
 
                 loadInvoiceProducts(currentSalesId, hasInvoiceDiscount);
+
+                SwingUtilities.invokeLater(() -> {
+                    moveFocusToFirstProduct();
+                });
+            } else {
+                JOptionPane.showMessageDialog(this, "Invoice not found: " + invoiceNo,
+                        "Not Found", JOptionPane.WARNING_MESSAGE);
+                showNoInvoiceSelectedMessage();
             }
 
             productsPanel.revalidate();
@@ -441,6 +1056,8 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 ExchangeProduct productPanel = new ExchangeProduct();
                 productPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
                 productPanel.setBackground(Color.WHITE);
+                // Set default border - light gray
+                productPanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
                 productPanel.getProductName().setText(
                         rs.getString("product_name") + " (" + rs.getString("brand_name") + ")"
@@ -491,7 +1108,8 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 int maxExchangeQty = Math.min(originalQty, currentStockQty);
 
                 // Set up text field for quantity input
-                productPanel.getExchangeQtyField().setText("0");
+                // Set default quantity to existing/original quantity
+                productPanel.getExchangeQtyField().setText(String.valueOf(originalQty));
                 productPanel.getExchangeQtyField().setEnabled(false);
 
                 final int currentIndex = productIndex;
@@ -500,12 +1118,15 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                     productSelectedStatus.put(currentIndex, isSelected);
                     productPanel.getExchangeQtyField().setEnabled(isSelected);
 
+                    // Update border color based on selection
+                    updateProductPanelBorder(productPanel, isSelected, (currentIndex == currentProductIndex));
+
                     if (isSelected) {
-                        int minQty = Math.max(1, originalQty);
-                        productPanel.getExchangeQtyField().setText(String.valueOf(minQty));
-                    } else {
-                        productPanel.getExchangeQtyField().setText("0");
+                        // Auto-focus on quantity field when checkbox is selected
+                        productPanel.getExchangeQtyField().requestFocusInWindow();
+                        productPanel.getExchangeQtyField().selectAll();
                     }
+                    // Don't change the quantity value when unchecking - keep current value
                 });
 
                 productPanel.getExchangeQtyField().addActionListener(e -> {
@@ -518,7 +1139,11 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                     }
                 });
 
+                // Add enhanced keyboard navigation for quantity field
+                setupQuantityFieldNavigation(productPanel, productIndex);
+
                 productsContainer.add(productPanel);
+                productPanels.add(productPanel);
 
                 if (!rs.isLast()) {
                     JSeparator productSeparator = new JSeparator();
@@ -552,23 +1177,33 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         try {
             String qtyText = productPanel.getExchangeQtyField().getText().trim();
             if (qtyText.isEmpty()) {
-                productPanel.getExchangeQtyField().setText("0");
+                // Set to original quantity if empty
+                productPanel.getExchangeQtyField().setText(String.valueOf(originalQty));
                 return;
             }
 
             int exchangeQty = Integer.parseInt(qtyText);
 
+            // Don't allow more than original purchased quantity
             if (exchangeQty > originalQty) {
                 JOptionPane.showMessageDialog(this,
                         "Exchange quantity cannot exceed original purchased quantity (" + originalQty + ")",
                         "Validation Error", JOptionPane.WARNING_MESSAGE);
                 productPanel.getExchangeQtyField().setText(String.valueOf(originalQty));
-            } else if (exchangeQty > currentStockQty) {
+            } // Don't allow more than available stock
+            else if (exchangeQty > currentStockQty) {
                 JOptionPane.showMessageDialog(this,
                         "Exchange quantity cannot exceed available stock (" + currentStockQty + ")",
                         "Validation Error", JOptionPane.WARNING_MESSAGE);
                 productPanel.getExchangeQtyField().setText(String.valueOf(currentStockQty));
-            } else if (productPanel.getCheckBox().isSelected() && exchangeQty < 1) {
+            } // Must be at least 1 for selected products
+            else if (productPanel.getCheckBox().isSelected() && exchangeQty < 1) {
+                JOptionPane.showMessageDialog(this,
+                        "Exchange quantity must be at least 1 for selected products",
+                        "Validation Error", JOptionPane.WARNING_MESSAGE);
+                productPanel.getExchangeQtyField().setText("1");
+            } // If quantity is 0 and product is selected, set to at least 1
+            else if (productPanel.getCheckBox().isSelected() && exchangeQty == 0) {
                 JOptionPane.showMessageDialog(this,
                         "Exchange quantity must be at least 1 for selected products",
                         "Validation Error", JOptionPane.WARNING_MESSAGE);
@@ -578,12 +1213,13 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             JOptionPane.showMessageDialog(this,
                     "Please enter a valid number for exchange quantity",
                     "Validation Error", JOptionPane.WARNING_MESSAGE);
-            productPanel.getExchangeQtyField().setText("0");
+            // Set back to original quantity on invalid input
+            productPanel.getExchangeQtyField().setText(String.valueOf(originalQty));
         }
     }
 
     private void clearForm() {
-        invoiceCombo.setSelectedIndex(0);
+        invoiceNo.setText("");
         reasonCombo.setSelectedIndex(0);
         showNoInvoiceSelectedMessage();
         invoiceTotalDiscount = 0.0;
@@ -598,6 +1234,14 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         currentCreditCustomerId = -1;
         currentCreditAmount = 0.0;
         isCreditPayment = false;
+        currentProductIndex = -1;
+        productPanels.clear();
+        generatedReturnId = -1;
+
+        // Reset focus to invoice text field
+        SwingUtilities.invokeLater(() -> {
+            invoiceNo.requestFocusInWindow();
+        });
     }
 
     private double calculateRefundAmount() {
@@ -607,7 +1251,6 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         for (Component comp : productsPanel.getComponents()) {
             if (comp instanceof JPanel) {
                 JPanel containerPanel = (JPanel) comp;
-                // Check if this container panel has ExchangeProduct components
                 for (Component innerComp : containerPanel.getComponents()) {
                     if (innerComp instanceof ExchangeProduct) {
                         ExchangeProduct productPanel = (ExchangeProduct) innerComp;
@@ -682,7 +1325,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 || reason.toLowerCase().contains("misplaced");
     }
 
-    private void processExchange() {
+    private boolean processExchange() {
         Connection conn = null;
         try {
             conn = MySQL.getConnection();
@@ -702,7 +1345,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             if (reasonId == -1) {
                 JOptionPane.showMessageDialog(this, "Invalid return reason selected",
                         "Error", JOptionPane.ERROR_MESSAGE);
-                return;
+                return false;
             }
 
             // Check if any products are selected with quantity > 0
@@ -755,10 +1398,10 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             if (!hasSelectedProducts) {
                 JOptionPane.showMessageDialog(this, "Please select at least one product to return with quantity greater than 0",
                         "Warning", JOptionPane.WARNING_MESSAGE);
-                return;
+                return false;
             }
 
-            // Calculate total refund amount and discount
+            // Calculate total refund amount and discount - USE ORIGINAL QUANTITIES FROM DATABASE
             double totalRefundAmount = calculateRefundAmount();
             double totalDiscountPrice = calculateTotalDiscountPrice();
 
@@ -784,12 +1427,13 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             try (ResultSet generatedKeys = returnStmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     returnId = generatedKeys.getInt(1);
+                    generatedReturnId = returnId; // Store the return ID
                 } else {
                     throw new SQLException("Creating return failed, no ID obtained.");
                 }
             }
 
-            // Process return items
+            // Process return items - USE ORIGINAL QUANTITIES FROM DATABASE
             boolean isStockLoss = isStockLossReason(selectedReason);
             productIndex = 0;
 
@@ -808,14 +1452,14 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                     if (exchangeQty > 0) {
                                         int saleItemId = productSaleItemIds.get(productIndex);
                                         int stockId = productStockIds.get(productIndex);
-                                        int originalQty = productOriginalQtys.get(productIndex);
+                                        int originalQty = productOriginalQtys.get(productIndex); // USE ORIGINAL QTY FROM DATABASE
                                         double unitPrice = productUnitPrices.get(productIndex);
                                         double discountPrice = productDiscountPrices.get(productIndex);
 
-                                        // Calculate individual item amounts
-                                        double itemTotalBeforeDiscount = unitPrice * exchangeQty;
+                                        // Calculate individual item amounts USING ORIGINAL QUANTITY
+                                        double itemTotalBeforeDiscount = unitPrice * originalQty;
                                         double itemDiscountAmount = (discountPrice / originalQty) * exchangeQty;
-                                        double itemTotalReturnAmount = itemTotalBeforeDiscount - itemDiscountAmount;
+                                        double itemTotalReturnAmount = (itemTotalBeforeDiscount / originalQty) * exchangeQty;
 
                                         // Insert return item
                                         String returnItemQuery = "INSERT INTO return_item (return_qty, unit_return_price, "
@@ -849,7 +1493,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
                                             stockLossStmt.executeUpdate();
                                         } else {
-                                            // Update stock quantity (add back to inventory)
+                                            // Update stock quantity (add back to inventory) - USE EXCHANGE QTY
                                             String updateStockQuery = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
                                             PreparedStatement updateStockStmt = conn.prepareStatement(updateStockQuery);
                                             updateStockStmt.setInt(1, exchangeQty);
@@ -875,14 +1519,14 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                             if (exchangeQty > 0) {
                                 int saleItemId = productSaleItemIds.get(productIndex);
                                 int stockId = productStockIds.get(productIndex);
-                                int originalQty = productOriginalQtys.get(productIndex);
+                                int originalQty = productOriginalQtys.get(productIndex); // USE ORIGINAL QTY FROM DATABASE
                                 double unitPrice = productUnitPrices.get(productIndex);
                                 double discountPrice = productDiscountPrices.get(productIndex);
 
-                                // Calculate individual item amounts
-                                double itemTotalBeforeDiscount = unitPrice * exchangeQty;
+                                // Calculate individual item amounts USING ORIGINAL QUANTITY
+                                double itemTotalBeforeDiscount = unitPrice * originalQty;
                                 double itemDiscountAmount = (discountPrice / originalQty) * exchangeQty;
-                                double itemTotalReturnAmount = itemTotalBeforeDiscount - itemDiscountAmount;
+                                double itemTotalReturnAmount = (itemTotalBeforeDiscount / originalQty) * exchangeQty;
 
                                 // Insert return item
                                 String returnItemQuery = "INSERT INTO return_item (return_qty, unit_return_price, "
@@ -916,7 +1560,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
                                     stockLossStmt.executeUpdate();
                                 } else {
-                                    // Update stock quantity (add back to inventory)
+                                    // Update stock quantity (add back to inventory) - USE EXCHANGE QTY
                                     String updateStockQuery = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
                                     PreparedStatement updateStockStmt = conn.prepareStatement(updateStockQuery);
                                     updateStockStmt.setInt(1, exchangeQty);
@@ -943,7 +1587,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             String message = buildSuccessMessage(totalRefundAmount, selectedReason, isStockLoss);
             JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
 
-            clearForm();
+            return true;
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -956,6 +1600,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             }
             JOptionPane.showMessageDialog(this, "Error processing exchange: " + e.getMessage(),
                     "Database Error", JOptionPane.ERROR_MESSAGE);
+            return false;
         } catch (NumberFormatException e) {
             e.printStackTrace();
             if (conn != null) {
@@ -967,6 +1612,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             }
             JOptionPane.showMessageDialog(this, "Error parsing price data",
                     "Data Error", JOptionPane.ERROR_MESSAGE);
+            return false;
         } finally {
             if (conn != null) {
                 try {
@@ -1005,6 +1651,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private String buildSuccessMessage(double refundAmount, String selectedReason, boolean isStockLoss) {
         StringBuilder message = new StringBuilder();
         message.append("Exchange processed successfully!\n");
+        message.append("Return ID: ").append(generatedReturnId).append("\n");
         message.append("Refund Amount: Rs.").append(String.format("%.2f", refundAmount)).append("\n");
 
         if (isCreditPayment) {
@@ -1096,7 +1743,6 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         saveBtn = new javax.swing.JButton();
         clearFormBtn = new javax.swing.JButton();
         cancelBtn = new javax.swing.JButton();
-        invoiceCombo = new javax.swing.JComboBox<>();
         productsScrollPanel = new javax.swing.JScrollPane();
         productsPanel = new javax.swing.JPanel();
         invoiceNumberLabel = new javax.swing.JLabel();
@@ -1108,8 +1754,10 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         cashierLabel = new javax.swing.JLabel();
         discountLabel = new javax.swing.JLabel();
         reasonCombo = new javax.swing.JComboBox<>();
+        invoiceNo = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("Exchange Product");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1161,20 +1809,6 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 cancelBtnKeyPressed(evt);
-            }
-        });
-
-        invoiceCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        invoiceCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        invoiceCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Invoice No *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        invoiceCombo.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                invoiceComboActionPerformed(evt);
-            }
-        });
-        invoiceCombo.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                invoiceComboKeyPressed(evt);
             }
         });
 
@@ -1295,6 +1929,9 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             }
         });
 
+        invoiceNo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        invoiceNo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Invoice No", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -1309,13 +1946,13 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                         .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 189, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 181, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(invoiceCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(reasonCombo, javax.swing.GroupLayout.Alignment.TRAILING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jLabel3)
-                            .addComponent(productsScrollPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(invoiceNo, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 563, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel3, javax.swing.GroupLayout.Alignment.LEADING))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(productsScrollPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(
@@ -1326,7 +1963,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 .addGap(7, 7, 7)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(invoiceCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(invoiceNo, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(productsScrollPanel, javax.swing.GroupLayout.DEFAULT_SIZE, 328, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -1355,8 +1992,8 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
     private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed
 
-        if (invoiceCombo.getSelectedIndex() <= 0) {
-            JOptionPane.showMessageDialog(this, "Please select an invoice",
+        if (invoiceNo.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter an invoice number",
                     "Warning", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -1430,16 +2067,18 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 + "\nReturn Reason: " + selectedReason
                 + "\n\nStock Handling: "
                 + (isStockLoss ? "Items will be marked as STOCK LOSS (not returned to inventory)"
-                        : "Items will be RETURNED TO INVENTORY")
+                        : "Items will be returned to inventory")
                 + "\n\nDo you want to proceed with the exchange?";
 
         int confirm = JOptionPane.showConfirmDialog(this, confirmationMessage,
                 "Confirm Exchange", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            processExchange();
+            boolean success = processExchange();
+            if (success) {
+                dispose();
+            }
         }
-
     }//GEN-LAST:event_saveBtnActionPerformed
 
     private void saveBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_saveBtnKeyPressed
@@ -1461,17 +2100,6 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private void cancelBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cancelBtnKeyPressed
 
     }//GEN-LAST:event_cancelBtnKeyPressed
-
-    private void invoiceComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_invoiceComboKeyPressed
-
-    }//GEN-LAST:event_invoiceComboKeyPressed
-
-    private void invoiceComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_invoiceComboActionPerformed
-        if (invoiceCombo.getSelectedIndex() > 0) {
-            String selectedInvoice = (String) invoiceCombo.getSelectedItem();
-            loadInvoiceDetails(selectedInvoice);
-        }
-    }//GEN-LAST:event_invoiceComboActionPerformed
 
     private void reasonComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_reasonComboActionPerformed
         // TODO add your handling code here:
@@ -1535,7 +2163,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private javax.swing.JLabel customerNameLabel;
     private javax.swing.JLabel dateLabel;
     private javax.swing.JLabel discountLabel;
-    private javax.swing.JComboBox<String> invoiceCombo;
+    private javax.swing.JTextField invoiceNo;
     private javax.swing.JLabel invoiceNumberLabel;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel1;

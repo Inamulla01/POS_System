@@ -33,6 +33,8 @@ import lk.com.pos.dialog.AddCredit;
 import lk.com.pos.dialog.CardPayDialog;
 import lk.com.pos.dialog.DiscountDialog;
 import lk.com.pos.dialog.ExchangeProductDialog;
+import lk.com.pos.dialog.HoldDialog;
+import lk.com.pos.privateclasses.Invoice;
 import raven.toast.Notifications;
 
 public class PosCartPanel extends javax.swing.JPanel {
@@ -1381,7 +1383,23 @@ public class PosCartPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
-        // TODO add your handling code here:
+           JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        HoldDialog holdDialog = new HoldDialog(parentFrame, true); // 'this' refers to your main JFrame
+    holdDialog.setVisible(true);
+    
+    // After dialog closes, check if an invoice was selected
+    if (holdDialog.isInvoiceSelected()) {
+        Invoice selectedInvoice = holdDialog.getSelectedInvoice();
+        
+        // Use the selected invoice
+        System.out.println("Selected Invoice: " + selectedInvoice.getInvoiceNo());
+        System.out.println("Amount: Rs. " + selectedInvoice.getTotal());
+        System.out.println("Status: " + selectedInvoice.getStatus());
+        
+
+    } else {
+        System.out.println("No invoice was selected or dialog was cancelled");
+    }
     }//GEN-LAST:event_jButton4ActionPerformed
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);

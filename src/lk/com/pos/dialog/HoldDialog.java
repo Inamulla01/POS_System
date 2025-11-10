@@ -10,6 +10,11 @@ import javax.swing.BoxLayout;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import lk.com.pos.connection.MySQL;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyAdapter;
+import javax.swing.BorderFactory;
+import java.awt.Color;
+import java.awt.Component;
 
 /**
  *
@@ -17,7 +22,11 @@ import lk.com.pos.connection.MySQL;
  */
 public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPanelListener {
 
-    private List<Invoice> todayInvoices;
+    private List<Invoice> recentInvoices;
+    private List<HoldPanel> invoicePanels;
+    private int currentPanelIndex = -1;
+    private Invoice selectedInvoice;
+    private boolean invoiceSelected = false;
 
     /**
      * Creates new form HoldDialog
@@ -26,7 +35,26 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         super(parent, modal);
         initComponents();
         setLocationRelativeTo(parent);
+        setDialogSize(); // Set the dialog size
         initializeDialog();
+        setupKeyboardNavigation();
+    }
+
+    // Set the dialog size to 580px width
+    private void setDialogSize() {
+        this.setSize(600, 300);
+        this.setPreferredSize(new java.awt.Dimension(600, 300));
+        jScrollPane1.setPreferredSize(new java.awt.Dimension(600, 300));
+    }
+
+    // Add this method to get the selected invoice
+    public Invoice getSelectedInvoice() {
+        return selectedInvoice;
+    }
+
+    // Add this method to check if an invoice was selected
+    public boolean isInvoiceSelected() {
+        return invoiceSelected;
     }
 
     private void initializeDialog() {
@@ -35,7 +63,7 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
 
         // Load invoices in a separate thread to prevent UI freezing
         new Thread(() -> {
-            loadTodayInvoices();
+            loadRecentInvoices();
             SwingUtilities.invokeLater(() -> {
                 populateInvoicePanels();
             });
@@ -55,23 +83,19 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         invoceLoadPenal.repaint();
     }
 
-    private void loadTodayInvoices() {
-        todayInvoices = new ArrayList<>();
+    private void loadRecentInvoices() {
+        recentInvoices = new ArrayList<>();
 
         try {
-            // Query to get today's invoices with customer and payment method information
+            // Query to get invoices from the last 24 hours WITHOUT customer name
             String query
                     = "SELECT s.sales_id, s.invoice_no, s.datetime, s.total, "
                     + "s.status_id, st.status_type, "
-                    + "pm.payment_method_name, "
-                    + "cc.customer_name, "
                     + "u.user_id "
                     + "FROM sales s "
                     + "INNER JOIN i_status st ON s.status_id = st.status_id "
-                    + "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id "
-                    + "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id "
                     + "INNER JOIN user u ON s.user_id = u.user_id "
-                    + "WHERE DATE(s.datetime) = CURDATE() "
+                    + "WHERE s.datetime >= DATE_SUB(NOW(), INTERVAL 24 HOUR) "
                     + "ORDER BY s.datetime DESC";
 
             ResultSet rs = MySQL.executeSearch(query);
@@ -83,11 +107,11 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
                         rs.getTimestamp("datetime"),
                         rs.getString("status_type"),
                         rs.getDouble("total"),
-                        rs.getString("customer_name"),
-                        rs.getString("payment_method_name"),
+                        null, // No customer name
+                        "Cash", // Default payment method since it's removed from query
                         rs.getInt("user_id")
                 );
-                todayInvoices.add(invoice);
+                recentInvoices.add(invoice);
             }
 
         } catch (SQLException e) {
@@ -104,8 +128,9 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
     private void populateInvoicePanels() {
         invoceLoadPenal.removeAll();
         invoceLoadPenal.setLayout(new BoxLayout(invoceLoadPenal, BoxLayout.Y_AXIS));
+        invoicePanels = new ArrayList<>();
 
-        if (todayInvoices.isEmpty()) {
+        if (recentInvoices.isEmpty()) {
             showNoInvoicesMessage();
         } else {
             showInvoicesList();
@@ -114,6 +139,15 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         updateTitleWithCount();
         invoceLoadPenal.revalidate();
         invoceLoadPenal.repaint();
+
+        // Set focus to first panel if available
+        if (!invoicePanels.isEmpty()) {
+            SwingUtilities.invokeLater(() -> {
+                currentPanelIndex = 0;
+                setPanelFocus(currentPanelIndex);
+                requestFocus(); // Request focus for the dialog
+            });
+        }
     }
 
     private void showNoInvoicesMessage() {
@@ -121,7 +155,7 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         messagePanel.setBackground(new java.awt.Color(255, 255, 255));
         messagePanel.setLayout(new java.awt.BorderLayout());
 
-        javax.swing.JLabel noDataLabel = new javax.swing.JLabel("No invoices found for today", javax.swing.JLabel.CENTER);
+        javax.swing.JLabel noDataLabel = new javax.swing.JLabel("No invoices found in the last 24 hours", javax.swing.JLabel.CENTER);
         noDataLabel.setFont(new java.awt.Font("Nunito", 1, 14));
         noDataLabel.setForeground(new java.awt.Color(128, 128, 128));
         noDataLabel.setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 10, 20, 10));
@@ -131,10 +165,30 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
     }
 
     private void showInvoicesList() {
-        for (Invoice invoice : todayInvoices) {
+        for (Invoice invoice : recentInvoices) {
             HoldPanel panel = new HoldPanel(invoice, this);
-            panel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 65));
+            panel.setMaximumSize(new java.awt.Dimension(580, 65));
+            panel.setPreferredSize(new java.awt.Dimension(580, 65));
+            panel.setMinimumSize(new java.awt.Dimension(580, 65));
+
+            // Add mouse listener for click selection
+            panel.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent evt) {
+                    // Find which panel was clicked
+                    for (int i = 0; i < invoicePanels.size(); i++) {
+                        if (invoicePanels.get(i) == panel) {
+                            currentPanelIndex = i;
+                            setPanelFocus(currentPanelIndex);
+                            selectCurrentPanel();
+                            break;
+                        }
+                    }
+                }
+            });
+
             invoceLoadPenal.add(panel);
+            invoicePanels.add(panel);
 
             // Add spacing between panels
             invoceLoadPenal.add(createSpacer());
@@ -151,8 +205,136 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
 
     private void updateTitleWithCount() {
         SwingUtilities.invokeLater(() -> {
-            jLabel3.setText("Today's Invoices (" + todayInvoices.size() + ")");
+            jLabel3.setText("Recent Invoices (Last 24 Hours) - " + recentInvoices.size() + " found");
         });
+    }
+
+    private void setupKeyboardNavigation() {
+        // Add key listener to the dialog
+        this.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+
+        // Add key listener to the scroll pane as well
+        jScrollPane1.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+
+        // Add key listener to the main panel
+        invoceLoadPenal.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyPress(e);
+            }
+        });
+
+        // Make all components focusable
+        this.setFocusable(true);
+        jScrollPane1.setFocusable(true);
+        invoceLoadPenal.setFocusable(true);
+
+        // Request focus for the dialog
+        this.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowActivated(java.awt.event.WindowEvent e) {
+                requestFocus();
+            }
+        });
+    }
+
+    private void handleKeyPress(KeyEvent e) {
+        if (invoicePanels == null || invoicePanels.isEmpty()) {
+            return;
+        }
+
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_DOWN:
+                moveSelection(1);
+                e.consume(); // Prevent default behavior
+                break;
+            case KeyEvent.VK_UP:
+                moveSelection(-1);
+                e.consume(); // Prevent default behavior
+                break;
+            case KeyEvent.VK_ENTER:
+                if (currentPanelIndex >= 0 && currentPanelIndex < invoicePanels.size()) {
+                    selectCurrentPanel();
+                    e.consume(); // Prevent default behavior
+                }
+                break;
+            case KeyEvent.VK_ESCAPE:
+                invoiceSelected = false;
+                dispose();
+                e.consume(); // Prevent default behavior
+                break;
+        }
+    }
+
+    private void moveSelection(int direction) {
+        if (invoicePanels.isEmpty()) {
+            return;
+        }
+
+        // Clear previous focus
+        if (currentPanelIndex >= 0 && currentPanelIndex < invoicePanels.size()) {
+            clearPanelFocus(currentPanelIndex);
+        }
+
+        // Calculate new index
+        currentPanelIndex += direction;
+
+        // Wrap around
+        if (currentPanelIndex < 0) {
+            currentPanelIndex = invoicePanels.size() - 1;
+        } else if (currentPanelIndex >= invoicePanels.size()) {
+            currentPanelIndex = 0;
+        }
+
+        // Set new focus
+        setPanelFocus(currentPanelIndex);
+    }
+
+    private void setPanelFocus(int index) {
+        if (index >= 0 && index < invoicePanels.size()) {
+            HoldPanel panel = invoicePanels.get(index);
+            panel.setBorder(BorderFactory.createLineBorder(new Color(8, 147, 176), 2));
+
+            // Set panel focused state to show button hover effect
+            panel.setPanelFocused(true);
+
+            // Ensure the panel is visible in scroll pane
+            panel.scrollRectToVisible(panel.getBounds());
+
+            // Request focus for the dialog to continue receiving key events
+            requestFocus();
+        }
+    }
+
+    private void clearPanelFocus(int index) {
+        if (index >= 0 && index < invoicePanels.size()) {
+            HoldPanel panel = invoicePanels.get(index);
+            panel.setBorder(BorderFactory.createEmptyBorder());
+
+            // Remove panel focused state to hide button hover effect
+            panel.setPanelFocused(false);
+        }
+    }
+
+    private void selectCurrentPanel() {
+        if (currentPanelIndex >= 0 && currentPanelIndex < invoicePanels.size()) {
+            HoldPanel panel = invoicePanels.get(currentPanelIndex);
+            // Get the button text to determine the action
+            String action = panel.getControleButton().getText();
+
+            // Call the listener method directly with the panel's invoice
+            onInvoiceSelected(panel.getInvoice(), action);
+        }
     }
 
     @Override
@@ -177,20 +359,13 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         int response = JOptionPane.showConfirmDialog(this,
                 "Switch to invoice: " + invoice.getInvoiceNo() + "?\n"
                 + "Amount: Rs. " + String.format("%.2f", invoice.getTotal()) + "\n"
-                + "Customer: " + (invoice.getCustomerName() != null ? invoice.getCustomerName() : "Walk-in") + "\n"
-                + "Payment: " + invoice.getPaymentMethod(),
+                + "Date: " + invoice.getDate(),
                 "Switch Invoice",
                 JOptionPane.YES_NO_OPTION);
 
         if (response == JOptionPane.YES_OPTION) {
-            // Implement switch logic here - you can pass the invoice back to main form
-            JOptionPane.showMessageDialog(this,
-                    "Switched to invoice: " + invoice.getInvoiceNo(),
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-
-            // Here you can return the selected invoice to the main form
-            // For example: mainForm.switchToInvoice(invoice);
+            this.selectedInvoice = invoice;
+            this.invoiceSelected = true;
             this.dispose();
         }
     }
@@ -212,8 +387,6 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
             details.append("ID: ").append(invoice.getInvoiceNo()).append("\n");
             details.append("Status: ").append(invoice.getStatus()).append("\n");
             details.append("Amount: Rs. ").append(String.format("%.2f", invoice.getTotal())).append("\n");
-            details.append("Customer: ").append(invoice.getCustomerName() != null ? invoice.getCustomerName() : "Walk-in").append("\n");
-            details.append("Payment: ").append(invoice.getPaymentMethod()).append("\n");
             details.append("Date: ").append(invoice.getDate()).append("\n\n");
             details.append("Items:\n");
 
@@ -265,6 +438,12 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         initializeDialog();
     }
 
+    // Override requestFocus to ensure dialog gets focus
+    @Override
+    public void requestFocus() {
+        super.requestFocus();
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -275,10 +454,20 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         jSeparator3 = new javax.swing.JSeparator();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowOpened(java.awt.event.WindowEvent evt) {
+                formWindowOpened(evt);
+            }
+        });
 
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         invoceLoadPenal.setBackground(new java.awt.Color(255, 255, 255));
+        invoceLoadPenal.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                invoceLoadPenalKeyPressed(evt);
+            }
+        });
 
         jLabel3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel3.setForeground(new java.awt.Color(8, 147, 176));
@@ -293,9 +482,9 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
             .addGroup(invoceLoadPenalLayout.createSequentialGroup()
                 .addGap(20, 20, 20)
                 .addGroup(invoceLoadPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 357, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 471, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel3))
-                .addContainerGap(21, Short.MAX_VALUE))
+                .addContainerGap(107, Short.MAX_VALUE))
         );
         invoceLoadPenalLayout.setVerticalGroup(
             invoceLoadPenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -304,7 +493,7 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(137, Short.MAX_VALUE))
+                .addContainerGap(234, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(invoceLoadPenal);
@@ -313,17 +502,27 @@ public class HoldDialog extends javax.swing.JDialog implements HoldPanel.HoldPan
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1)
+            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 600, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void formWindowOpened(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowOpened
+        SwingUtilities.invokeLater(() -> {
+            requestFocus();
+        });
+    }//GEN-LAST:event_formWindowOpened
+
+    private void invoceLoadPenalKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_invoceLoadPenalKeyPressed
+        handleKeyPress(evt);
+    }//GEN-LAST:event_invoceLoadPenalKeyPressed
 
     /**
      * @param args the command line arguments

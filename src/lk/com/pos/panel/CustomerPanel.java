@@ -7,380 +7,1683 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import javax.swing.JOptionPane;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Component;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.GridLayout;
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.event.KeyEvent;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Date;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.AbstractAction;
+import javax.swing.SwingWorker;
+import javax.swing.JOptionPane;
+import javax.swing.BoxLayout;
+import javax.swing.Box;
+import javax.swing.SwingConstants;
+import lk.com.pos.dialog.CreditView;
+import lk.com.pos.dialog.UpdateCustomer;
 
+/**
+ * CustomerPanel - Displays and manages customer information with credit details
+ * Features: Search, filters, keyboard navigation, credit tracking
+ * 
+ * @author Your Name
+ * @version 2.0
+ */
 public class CustomerPanel extends javax.swing.JPanel {
-
+   
+    // Date & Number Formatting
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
+    
+    // UI Constants - Colors
+    private static final class Colors {
+        static final Color TEAL_PRIMARY = new Color(28, 181, 187);
+        static final Color TEAL_HOVER = new Color(60, 200, 206);
+        static final Color BORDER_DEFAULT = new Color(230, 230, 230);
+        static final Color BACKGROUND = Color.decode("#F8FAFC");
+        static final Color CARD_WHITE = Color.WHITE;
+        static final Color TEXT_PRIMARY = Color.decode("#1E293B");
+        static final Color TEXT_SECONDARY = Color.decode("#6B7280");
+        static final Color TEXT_MUTED = Color.decode("#94A3B8");
+        
+        // Badge Colors
+        static final Color BADGE_MISSED_BG = Color.decode("#FED7AA");
+        static final Color BADGE_MISSED_FG = Color.decode("#7C2D12");
+        static final Color BADGE_MISSED_BORDER = Color.decode("#FB923C");
+        static final Color BADGE_HIGH_RISK_BG = Color.decode("#DC2626");
+        static final Color BADGE_HIGH_RISK_FG = Color.WHITE;
+        static final Color BADGE_HIGH_RISK_BORDER = Color.decode("#FECACA");
+        
+        // Payment Panel Colors
+        static final Color PAYMENT_DUE_BG = Color.decode("#DBEAFE");
+        static final Color PAYMENT_DUE_FG = Color.decode("#1E40AF");
+        static final Color PAYMENT_PAID_BG = Color.decode("#D1FAE5");
+        static final Color PAYMENT_PAID_FG = Color.decode("#059669");
+        static final Color PAYMENT_OUTSTANDING_BG = Color.decode("#FEF3C7");
+        static final Color PAYMENT_OUTSTANDING_FG = Color.decode("#92400E");
+        
+        // Detail Colors
+        static final Color DETAIL_PHONE = Color.decode("#8B5CF6");
+        static final Color DETAIL_NIC = Color.decode("#EC4899");
+        static final Color DETAIL_DUE_DATE = Color.decode("#10B981");
+        static final Color DETAIL_REG_DATE = Color.decode("#06B6D4");
+        static final Color DETAIL_STATUS = Color.decode("#6366F1");
+        
+        // Button Colors
+        static final Color BTN_EDIT_BG = Color.decode("#EFF6FF");
+        static final Color BTN_EDIT_BORDER = Color.decode("#BFDBFE");
+        static final Color BTN_VIEW_BG = Color.decode("#8B5CF6");
+        static final Color BTN_VIEW_BG_HOVER = Color.decode("#7C3AED");
+        static final Color BTN_VIEW_BORDER = Color.decode("#7C3AED");
+    }
+    
+    // UI Constants - Dimensions
+    private static final class Dimensions {
+        static final Dimension CARD_SIZE = new Dimension(420, 470);
+        static final Dimension CARD_MAX_SIZE = new Dimension(420, 470);
+        static final Dimension CARD_MIN_SIZE = new Dimension(380, 470);
+        static final Dimension ACTION_BUTTON_SIZE = new Dimension(30, 30);
+        static final int CARD_WIDTH_WITH_GAP = 445;
+        static final int GRID_GAP = 25;
+        static final int CARD_PADDING = 16;
+    }
+    
+    // UI Constants - Fonts
+    private static final class Fonts {
+        static final java.awt.Font HEADER = new java.awt.Font("Nunito ExtraBold", 1, 20);
+        static final java.awt.Font SECTION_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 11);
+        static final java.awt.Font BADGE = new java.awt.Font("Nunito ExtraBold", 1, 11);
+        static final java.awt.Font BADGE_SMALL = new java.awt.Font("Nunito ExtraBold", 1, 10);
+        static final java.awt.Font DETAIL_TITLE = new java.awt.Font("Nunito SemiBold", 0, 13);
+        static final java.awt.Font DETAIL_VALUE = new java.awt.Font("Nunito SemiBold", 1, 14);
+        static final java.awt.Font STATUS = new java.awt.Font("Nunito SemiBold", 0, 14);
+        static final java.awt.Font PAYMENT_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 12);
+        static final java.awt.Font PAYMENT_AMOUNT = new java.awt.Font("Nunito ExtraBold", 1, 16);
+        static final java.awt.Font ADDRESS_TITLE = new java.awt.Font("Nunito SemiBold", 1, 13);
+        static final java.awt.Font HINT_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 13);
+        static final java.awt.Font HINT_KEY = new java.awt.Font("Consolas", 1, 11);
+        static final java.awt.Font HINT_DESC = new java.awt.Font("Nunito SemiBold", 0, 11);
+        static final java.awt.Font LOADING = new java.awt.Font("Nunito ExtraBold", 1, 20);
+        static final java.awt.Font POSITION = new java.awt.Font("Nunito ExtraBold", 1, 14);
+    }
+    
+    // UI Constants - Strings
+    private static final class Strings {
+        static final String SEARCH_PLACEHOLDER = "Search By Customer Name or NIC";
+        static final String NO_CUSTOMERS = "No customers found";
+        static final String LOADING_MESSAGE = "Loading customers...";
+        static final String LOADING_SUBMESSAGE = "Please wait";
+        static final String HELP_TITLE = "KEYBOARD SHORTCUTS";
+        static final String HELP_CLOSE_HINT = "Press ? to hide";
+        static final String SECTION_DETAILS = "CUSTOMER DETAILS";
+        static final String SECTION_PAYMENT = "PAYMENT SUMMARY";
+        static final String ADDRESS_PREFIX = "Address";
+        static final String NO_CREDIT = "No Credit";
+        static final String NO_ADDRESS = "No Address";
+        static final String NO_VALUE = "N/A";
+    }
+    
+    // Business Constants
+    private static final class Business {
+        static final double HIGH_RISK_THRESHOLD = 50000.0;
+        static final long REFRESH_COOLDOWN_MS = 1000; // 1 second
+    }
+
+    // Keyboard Navigation
+    private lk.com.pos.privateclasses.RoundedPanel currentFocusedCard = null;
+    private List<lk.com.pos.privateclasses.RoundedPanel> customerCardsList = new ArrayList<>();
+    private int currentCardIndex = -1;
+    private int currentColumns = 3;
+    
+    // UI Components
+    private JPanel positionIndicator;
+    private JLabel positionLabel;
+    private Timer positionTimer;
+    private JPanel keyboardHintsPanel;
+    private boolean hintsVisible = false;
+    private JPanel loadingPanel;
+    private JLabel loadingLabel;
+    
+    // State
+    private long lastRefreshTime = 0;
 
     public CustomerPanel() {
         initComponents();
-        init();
-        // Load due amount customers by default
+        initializeUI();
+        createPositionIndicator();
+        createKeyboardHintsPanel();
+        createLoadingPanel();
+        setupKeyboardShortcuts();
         loadCustomers();
+        
+        SwingUtilities.invokeLater(() -> {
+            this.requestFocusInWindow();
+            showKeyboardHints();
+        });
     }
 
-    private void init() {
-        // Set modern scrollbar styling
-        jScrollPane1.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+    /**
+     * Initializes UI components and settings
+     */
+    private void initializeUI() {
+        setupScrollPane();
+        setupIcons();
+        setupSearchField();
+        setupButtons();
+        setupRadioButtons();
+        setupEventListeners();
+        setupPanel();
+    }
+    
+    /**
+     * Configures scroll pane styling
+     */
+    private void setupScrollPane() {
+        jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
         jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
         
         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
-                "track: #F5F5F5;"
-                + "thumb: #1CB5BB;"
-                + "width: 8");
-
-        // Set icons for buttons
-        FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 20, 20);
-        editBtn.setIcon(blueEdit);
-
-        FlatSVGIcon redDelete = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 20, 20);
-        deleteBtn.setIcon(redDelete);
+                "track: #F5F5F5; thumb: #1CB5BB; width: 8");
+    }
+    
+    /**
+     * Sets up button icons
+     */
+    private void setupIcons() {
+        try {
+            FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 20, 20);
+            editBtn.setIcon(blueEdit);
+        } catch (Exception e) {
+            System.err.println("Error loading edit icon: " + e.getMessage());
+        }
         
-        // Modern styling for search field
-        jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search By Customer Name or NIC");
-        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, 
-            new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
+        // Hide delete button as requested
+        if (deleteBtn != null) {
+            deleteBtn.setVisible(false);
+        }
+    }
+    
+    /**
+     * Configures search field
+     */
+    private void setupSearchField() {
+        jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Strings.SEARCH_PLACEHOLDER);
+        try {
+            jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, 
+                new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
+        } catch (Exception e) {
+            System.err.println("Error loading search icon: " + e.getMessage());
+        }
         
-        // Add focus listeners for search field
-        jTextField1.addFocusListener(new FocusAdapter() {
+        jTextField1.setToolTipText("Search customers (Ctrl+F or /) - Press ? for help");
+        
+        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
-            public void focusGained(FocusEvent e) {
-                if (jTextField1.getText().equals("Search By Customer Name or NIC")) {
-                    jTextField1.setText("");
-                    jTextField1.setForeground(Color.BLACK);
-                }
-            }
-            
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (jTextField1.getText().isEmpty()) {
-                    jTextField1.setText("Search By Customer Name or NIC");
-                    jTextField1.setForeground(Color.GRAY);
-                }
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                performSearch();
             }
         });
+    }
+    
+    /**
+     * Configures buttons
+     */
+    private void setupButtons() {
+        jButton1.putClientProperty(FlatClientProperties.STYLE, 
+            "background:#3B82F6; foreground:#FFFFFF; borderWidth:0; focusWidth:0; innerFocusWidth:0");
+    }
+    
+    /**
+     * Configures radio buttons
+     */
+    private void setupRadioButtons() {
+        jRadioButton1.putClientProperty(FlatClientProperties.STYLE, "foreground:#EF4444;");
+        jRadioButton2.putClientProperty(FlatClientProperties.STYLE, "foreground:#6366F1;");
+        jRadioButton4.putClientProperty(FlatClientProperties.STYLE, "foreground:#F97316;");
         
-        // Set initial text color for placeholder
-        jTextField1.setForeground(Color.GRAY);
+        jRadioButton1.setToolTipText("Filter missed due date customers (Alt+1)");
+        jRadioButton2.setToolTipText("Filter no due customers (Alt+2)");
+        jRadioButton4.setToolTipText("Filter due amount customers (Alt+3)");
         
-        // Modern button styling
-        jButton1.putClientProperty(FlatClientProperties.STYLE, ""
-            + "background:#3B82F6;"
-            + "foreground:#FFFFFF;"
-            + "borderWidth:0;"
-            + "focusWidth:0;"
-            + "innerFocusWidth:0");
-        
-        // Radio button styling
-        jRadioButton1.putClientProperty(FlatClientProperties.STYLE, ""
-            + "foreground:#EF4444;");
-        jRadioButton2.putClientProperty(FlatClientProperties.STYLE, ""
-            + "foreground:#6366F1;");
-        jRadioButton4.putClientProperty(FlatClientProperties.STYLE, ""
-            + "foreground:#F97316;");
-
-        // Set "Due Amount" as default selected radio button
+        // Set "Due Amount" as default
         jRadioButton4.setSelected(true);
         
-        // Setup panel background
-        jPanel2.setBackground(Color.decode("#F8FAFC"));
+        // Add action listeners
+        jRadioButton1.addActionListener(evt -> onFilterChanged());
+        jRadioButton2.addActionListener(evt -> onFilterChanged());
+        jRadioButton4.addActionListener(evt -> onFilterChanged());
         
-        // Add key listener for search
-        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyReleased(java.awt.event.KeyEvent evt) {
-                searchCustomers();
+        // Toggle on click if already selected
+        setupRadioButtonToggle(jRadioButton1);
+        setupRadioButtonToggle(jRadioButton2);
+        setupRadioButtonToggle(jRadioButton4);
+    }
+    
+    /**
+     * Sets up toggle behavior for radio button
+     */
+    private void setupRadioButtonToggle(javax.swing.JRadioButton radioBtn) {
+        radioBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                if (radioBtn.isSelected()) {
+                    buttonGroup1.clearSelection();
+                    performSearch();
+                    evt.consume();
+                }
+            }
+        });
+    }
+    
+    /**
+     * Sets up main panel
+     */
+    private void setupPanel() {
+        jPanel2.setBackground(Colors.BACKGROUND);
+    }
+    
+    /**
+     * Sets up event listeners
+     */
+    private void setupEventListeners() {
+        this.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentShown(java.awt.event.ComponentEvent e) {
+                SwingUtilities.invokeLater(() -> CustomerPanel.this.requestFocusInWindow());
+            }
+        });
+    }
+    
+    /**
+     * Called when filter changes
+     */
+    private void onFilterChanged() {
+        performSearch();
+        this.requestFocusInWindow();
+    }
+
+    /**
+     * Creates loading overlay panel
+     */
+    private void createLoadingPanel() {
+        loadingPanel = new JPanel(new BorderLayout());
+        loadingPanel.setBackground(new Color(248, 250, 252, 230));
+        loadingPanel.setVisible(false);
+        
+        JPanel centerPanel = new JPanel();
+        centerPanel.setOpaque(false);
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        
+        loadingLabel = new JLabel(Strings.LOADING_MESSAGE);
+        loadingLabel.setFont(Fonts.LOADING);
+        loadingLabel.setForeground(Colors.TEAL_PRIMARY);
+        loadingLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        loadingLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+        
+        JLabel subLabel = new JLabel(Strings.LOADING_SUBMESSAGE);
+        subLabel.setFont(Fonts.HINT_DESC);
+        subLabel.setForeground(Colors.TEXT_SECONDARY);
+        subLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        subLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+        
+        centerPanel.add(Box.createVerticalGlue());
+        centerPanel.add(loadingLabel);
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(subLabel);
+        centerPanel.add(Box.createVerticalGlue());
+        
+        loadingPanel.add(centerPanel, BorderLayout.CENTER);
+        add(loadingPanel, Integer.valueOf(2000));
+    }
+    
+    /**
+     * Shows or hides loading panel
+     */
+    private void showLoading(boolean show) {
+        SwingUtilities.invokeLater(() -> {
+            loadingPanel.setVisible(show);
+            if (show) {
+                loadingPanel.setBounds(0, 0, getWidth(), getHeight());
+            }
+            revalidate();
+            repaint();
+        });
+    }
+
+    /**
+     * Creates position indicator panel
+     */
+    private void createPositionIndicator() {
+        positionIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
+        positionIndicator.setBackground(new Color(31, 41, 55, 230));
+        positionIndicator.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+            BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+        positionIndicator.setVisible(false);
+        
+        positionLabel = new JLabel();
+        positionLabel.setFont(Fonts.POSITION);
+        positionLabel.setForeground(Color.WHITE);
+        
+        positionIndicator.add(positionLabel);
+        
+        setLayout(new javax.swing.OverlayLayout(this) {
+            @Override
+            public void layoutContainer(java.awt.Container target) {
+                super.layoutContainer(target);
+                layoutOverlays();
             }
         });
         
-        // Add listeners for all radio buttons
-        jRadioButton1.addActionListener(evt -> searchCustomers());
-        jRadioButton2.addActionListener(evt -> searchCustomers());
-        jRadioButton4.addActionListener(evt -> searchCustomers());
+        add(positionIndicator, Integer.valueOf(1000));
+    }
+    
+    /**
+     * Layouts overlay panels
+     */
+    private void layoutOverlays() {
+        if (positionIndicator != null && positionIndicator.isVisible()) {
+            Dimension size = positionIndicator.getPreferredSize();
+            int x = (getWidth() - size.width) / 2;
+            int y = 80;
+            positionIndicator.setBounds(x, y, size.width, size.height);
+        }
+        
+        if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
+            Dimension size = keyboardHintsPanel.getPreferredSize();
+            int x = getWidth() - size.width - 20;
+            int y = getHeight() - size.height - 20;
+            keyboardHintsPanel.setBounds(x, y, size.width, size.height);
+        }
+        
+        if (loadingPanel != null && loadingPanel.isVisible()) {
+            loadingPanel.setBounds(0, 0, getWidth(), getHeight());
+        }
+    }
+    
+    /**
+     * Shows position indicator with text
+     */
+    private void showPositionIndicator(String text) {
+        if (text == null || text.isEmpty()) return;
+        
+        positionLabel.setText(text);
+        positionIndicator.setVisible(true);
+        revalidate();
+        repaint();
+        
+        if (positionTimer != null && positionTimer.isRunning()) {
+            positionTimer.stop();
+        }
+        
+        positionTimer = new Timer(2000, e -> {
+            positionIndicator.setVisible(false);
+            revalidate();
+            repaint();
+        });
+        positionTimer.setRepeats(false);
+        positionTimer.start();
     }
 
-    private void loadCustomers() {
-        String searchText = jTextField1.getText().trim();
-        // Don't search if it's the placeholder text
-        if (searchText.equals("Search By Customer Name or NIC")) {
-            searchText = "";
+    /**
+     * Creates keyboard hints panel
+     */
+    private void createKeyboardHintsPanel() {
+        keyboardHintsPanel = new JPanel();
+        keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
+        keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
+        keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+        ));
+        keyboardHintsPanel.setVisible(false);
+        
+        JLabel title = new JLabel(Strings.HELP_TITLE);
+        title.setFont(Fonts.HINT_TITLE);
+        title.setForeground(Colors.TEAL_PRIMARY);
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(title);
+        keyboardHintsPanel.add(Box.createVerticalStrut(10));
+        
+        addHintRow("← → ↑ ↓", "Navigate cards", "#FFFFFF");
+        addHintRow("V", "View Credit Details", "#FCD34D");
+        addHintRow("E", "Edit Customer", "#1CB5BB");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Alt+1-3", "Quick Filters", "#FB923C");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(10));
+        
+        JLabel closeHint = new JLabel(Strings.HELP_CLOSE_HINT);
+        closeHint.setFont(new java.awt.Font("Nunito SemiBold", 2, 10));
+        closeHint.setForeground(Color.decode("#9CA3AF"));
+        closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+        keyboardHintsPanel.add(closeHint);
+        
+        add(keyboardHintsPanel, Integer.valueOf(1001));
+    }
+    
+    /**
+     * Adds hint row to keyboard hints panel
+     */
+    private void addHintRow(String key, String description, String keyColor) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
+        row.setOpaque(false);
+        row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(300, 25));
+        
+        JLabel keyLabel = new JLabel(key);
+        keyLabel.setFont(Fonts.HINT_KEY);
+        keyLabel.setForeground(Color.decode(keyColor));
+        keyLabel.setPreferredSize(new Dimension(90, 20));
+        
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(Fonts.HINT_DESC);
+        descLabel.setForeground(Color.decode("#D1D5DB"));
+        
+        row.add(keyLabel);
+        row.add(descLabel);
+        keyboardHintsPanel.add(row);
+    }
+    
+    /**
+     * Shows or hides keyboard hints
+     */
+    private void showKeyboardHints() {
+        if (!hintsVisible) {
+            keyboardHintsPanel.setVisible(true);
+            hintsVisible = true;
+            revalidate();
+            repaint();
+            
+            Timer hideTimer = new Timer(5000, e -> {
+                keyboardHintsPanel.setVisible(false);
+                hintsVisible = false;
+                revalidate();
+                repaint();
+            });
+            hideTimer.setRepeats(false);
+            hideTimer.start();
+        } else {
+            keyboardHintsPanel.setVisible(false);
+            hintsVisible = false;
+            revalidate();
+            repaint();
         }
+    }
+
+    /**
+     * Sets up all keyboard shortcuts
+     */
+    private void setupKeyboardShortcuts() {
+        this.setFocusable(true);
+        
+        int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
+        int arrowCondition = JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT;
+        
+        // Arrow navigation
+        registerKeyAction("LEFT", KeyEvent.VK_LEFT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_LEFT));
+        registerKeyAction("RIGHT", KeyEvent.VK_RIGHT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_RIGHT));
+        registerKeyAction("UP", KeyEvent.VK_UP, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_UP));
+        registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_DOWN));
+        
+        // Actions
+        registerKeyAction("V", KeyEvent.VK_V, 0, condition, this::viewCreditForSelectedCard);
+        registerKeyAction("E", KeyEvent.VK_E, 0, condition, this::editSelectedCard);
+        
+        // Enter to start navigation
+        registerKeyAction("ENTER", KeyEvent.VK_ENTER, 0, condition, this::handleEnterKey);
+        
+        // Search
+        registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, this::focusSearch);
+        registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, this::handleSlashKey);
+        
+        // Escape
+        registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
+        
+        // Refresh
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::refreshCustomers);
+        registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshCustomers);
+        
+        // Quick filters
+        registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton1));
+        registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton2));
+        registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
+        registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, this::clearFilters);
+        
+        // Help
+        registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, this::showKeyboardHints);
+        
+        setupSearchFieldShortcuts();
+    }
+    
+    /**
+     * Sets up search field specific shortcuts
+     */
+    private void setupSearchFieldShortcuts() {
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
+        jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                clearSearchAndFilters();
+            }
+        });
+        
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
+        jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                startNavigationFromSearch();
+            }
+        });
+    }
+    
+    /**
+     * Registers a keyboard action
+     */
+    private void registerKeyAction(String actionName, int keyCode, int modifiers, int condition, Runnable action) {
+        KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, modifiers);
+        this.getInputMap(condition).put(keyStroke, actionName);
+        this.getActionMap().put(actionName, new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (shouldIgnoreKeyAction(keyCode, modifiers)) {
+                    return;
+                }
+                action.run();
+            }
+        });
+    }
+    
+    /**
+     * Determines if key action should be ignored
+     */
+    private boolean shouldIgnoreKeyAction(int keyCode, int modifiers) {
+        return jTextField1.hasFocus() && 
+               keyCode != KeyEvent.VK_ESCAPE && 
+               keyCode != KeyEvent.VK_ENTER &&
+               modifiers == 0 &&
+               keyCode != KeyEvent.VK_SLASH;
+    }
+    
+    /**
+     * Handles Enter key
+     */
+    private void handleEnterKey() {
+        if (currentCardIndex == -1 && !customerCardsList.isEmpty()) {
+            navigateCards(KeyEvent.VK_RIGHT);
+        }
+    }
+    
+    /**
+     * Handles slash key
+     */
+    private void handleSlashKey() {
+        if (!jTextField1.hasFocus()) {
+            focusSearch();
+        }
+    }
+    
+    /**
+     * Clears search and filters
+     */
+    private void clearSearchAndFilters() {
+        jTextField1.setText("");
+        buttonGroup1.clearSelection();
+        performSearch();
+        CustomerPanel.this.requestFocusInWindow();
+    }
+    
+    /**
+     * Starts navigation from search field
+     */
+    private void startNavigationFromSearch() {
+        if (!customerCardsList.isEmpty()) {
+            CustomerPanel.this.requestFocusInWindow();
+            if (currentCardIndex == -1) {
+                currentCardIndex = 0;
+                selectCurrentCard();
+                scrollToCardSmooth(currentCardIndex);
+                updatePositionIndicator();
+            }
+        }
+    }
+
+   
+    /**
+     * Navigates between cards using arrow keys
+     */
+    private void navigateCards(int direction) {
+        if (customerCardsList.isEmpty()) {
+            showPositionIndicator("No customers available");
+            return;
+        }
+        
+        if (currentCardIndex < 0) {
+            currentCardIndex = 0;
+            selectCurrentCard();
+            scrollToCardSmooth(currentCardIndex);
+            updatePositionIndicator();
+            return;
+        }
+        
+        int oldIndex = currentCardIndex;
+        int newIndex = calculateNewIndex(direction, currentCardIndex, customerCardsList.size());
+        
+        if (newIndex != oldIndex) {
+            deselectCard(oldIndex);
+            currentCardIndex = newIndex;
+            selectCurrentCard();
+            scrollToCardSmooth(currentCardIndex);
+            updatePositionIndicator();
+        } else {
+            showBoundaryMessage(direction);
+        }
+    }
+    
+    /**
+     * Shows message when at navigation boundary
+     */
+    private void showBoundaryMessage(int direction) {
+        String message;
+        switch (direction) {
+            case KeyEvent.VK_LEFT:
+                message = "◀️ Already at the beginning";
+                break;
+            case KeyEvent.VK_RIGHT:
+                message = "▶️ Already at the end";
+                break;
+            case KeyEvent.VK_UP:
+                message = "🔼 Already at the top";
+                break;
+            case KeyEvent.VK_DOWN:
+                message = "🔽 Already at the bottom";
+                break;
+            default:
+                return;
+        }
+        showPositionIndicator(message);
+    }
+    
+    /**
+     * Calculates new card index based on direction
+     */
+    private int calculateNewIndex(int direction, int currentIndex, int totalCards) {
+        int currentRow = currentIndex / currentColumns;
+        int currentCol = currentIndex % currentColumns;
+        int totalRows = (int) Math.ceil((double) totalCards / currentColumns);
+        
+        switch (direction) {
+            case KeyEvent.VK_LEFT:
+                return calculateLeftIndex(currentIndex, currentRow, currentCol);
+                
+            case KeyEvent.VK_RIGHT:
+                return calculateRightIndex(currentIndex, currentRow, totalCards);
+                
+            case KeyEvent.VK_UP:
+                return calculateUpIndex(currentIndex, currentRow);
+                
+            case KeyEvent.VK_DOWN:
+                return calculateDownIndex(currentIndex, currentRow, currentCol, totalCards, totalRows);
+                
+            default:
+                return currentIndex;
+        }
+    }
+    
+    private int calculateLeftIndex(int currentIndex, int currentRow, int currentCol) {
+        if (currentCol > 0) {
+            return currentIndex - 1;
+        } else if (currentRow > 0) {
+            return Math.min((currentRow * currentColumns) - 1, customerCardsList.size() - 1);
+        }
+        return currentIndex;
+    }
+    
+    private int calculateRightIndex(int currentIndex, int currentRow, int totalCards) {
+        if (currentIndex < totalCards - 1) {
+            int nextIndex = currentIndex + 1;
+            int nextRow = nextIndex / currentColumns;
+            return nextIndex;
+        }
+        return currentIndex;
+    }
+    
+    private int calculateUpIndex(int currentIndex, int currentRow) {
+        if (currentRow > 0) {
+            return Math.max(0, currentIndex - currentColumns);
+        }
+        return currentIndex;
+    }
+    
+    private int calculateDownIndex(int currentIndex, int currentRow, int currentCol, int totalCards, int totalRows) {
+        int targetIndex = currentIndex + currentColumns;
+        if (targetIndex < totalCards) {
+            return targetIndex;
+        } else {
+            int lastRowFirstIndex = (totalRows - 1) * currentColumns;
+            int potentialIndex = lastRowFirstIndex + currentCol;
+            
+            if (potentialIndex < totalCards && potentialIndex > currentIndex) {
+                return potentialIndex;
+            }
+        }
+        return currentIndex;
+    }
+    
+    /**
+     * Updates position indicator with current position
+     */
+    private void updatePositionIndicator() {
+        if (currentCardIndex < 0 || currentCardIndex >= customerCardsList.size()) {
+            return;
+        }
+        
+        int row = (currentCardIndex / currentColumns) + 1;
+        int col = (currentCardIndex % currentColumns) + 1;
+        int totalRows = (int) Math.ceil((double) customerCardsList.size() / currentColumns);
+        
+        String text = String.format("Card %d/%d (Row %d/%d, Col %d) | V: View Credits | E: Edit", 
+            currentCardIndex + 1, 
+            customerCardsList.size(),
+            row,
+            totalRows,
+            col
+        );
+        
+        showPositionIndicator(text);
+    }
+    
+    /**
+     * Selects current card visually
+     */
+    private void selectCurrentCard() {
+        if (currentCardIndex < 0 || currentCardIndex >= customerCardsList.size()) {
+            return;
+        }
+        
+        lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(currentCardIndex);
+        
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(Colors.TEAL_PRIMARY, 4, 15),
+            BorderFactory.createEmptyBorder(14, 14, 14, 14)
+        ));
+        
+        card.setBackground(card.getBackground().brighter());
+        currentFocusedCard = card;
+    }
+    
+    /**
+     * Deselects card at index
+     */
+    private void deselectCard(int index) {
+        if (index < 0 || index >= customerCardsList.size()) {
+            return;
+        }
+        
+        lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(index);
+        
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
+            BorderFactory.createEmptyBorder(16, 16, 16, 16)
+        ));
+        
+        card.setBackground(Colors.CARD_WHITE);
+    }
+    
+    /**
+     * Deselects current card
+     */
+    private void deselectCurrentCard() {
+        if (currentFocusedCard != null) {
+            deselectCard(currentCardIndex);
+            currentFocusedCard = null;
+        }
+        currentCardIndex = -1;
+    }
+    
+    /**
+     * Scrolls to card smoothly
+     */
+    private void scrollToCardSmooth(int index) {
+        if (index < 0 || index >= customerCardsList.size()) {
+            return;
+        }
+        
+        SwingUtilities.invokeLater(() -> {
+            try {
+                lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(index);
+                
+                Point cardLocation = card.getLocation();
+                Dimension cardSize = card.getSize();
+                Rectangle viewRect = jScrollPane1.getViewport().getViewRect();
+                
+                int cardTop = cardLocation.y;
+                int cardBottom = cardLocation.y + cardSize.height;
+                int viewTop = viewRect.y;
+                int viewBottom = viewRect.y + viewRect.height;
+                
+                int targetY = calculateScrollTarget(cardTop, cardBottom, viewTop, viewBottom, viewRect.height);
+                
+                if (targetY != viewRect.y) {
+                    animateScroll(viewRect.x, viewRect.y, targetY);
+                }
+                
+            } catch (Exception e) {
+                System.err.println("Error scrolling to card: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Calculates scroll target Y position
+     */
+    private int calculateScrollTarget(int cardTop, int cardBottom, int viewTop, int viewBottom, int viewHeight) {
+        int targetY = viewTop;
+        
+        if (cardTop < viewTop) {
+            targetY = Math.max(0, cardTop - 50);
+        } else if (cardBottom > viewBottom) {
+            targetY = cardBottom - viewHeight + 50;
+        } else if (cardTop < viewTop + 100 && cardTop >= viewTop) {
+            targetY = Math.max(0, cardTop - 100);
+        } else if (cardBottom > viewBottom - 100 && cardBottom <= viewBottom) {
+            targetY = cardBottom - viewHeight + 100;
+        } else {
+            return viewTop; // No scroll needed
+        }
+        
+        return targetY;
+    }
+    
+    /**
+     * Animates scroll to position
+     */
+    private void animateScroll(int x, int startY, int endY) {
+        final int steps = 10;
+        final int delay = 15;
+        
+        Timer scrollTimer = new Timer(delay, null);
+        final int[] step = {0};
+        
+        scrollTimer.addActionListener(e -> {
+            step[0]++;
+            if (step[0] <= steps) {
+                double progress = (double) step[0] / steps;
+                double easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                int newY = (int) (startY + (endY - startY) * easeProgress);
+                jScrollPane1.getViewport().setViewPosition(new Point(x, newY));
+            } else {
+                scrollTimer.stop();
+            }
+        });
+        
+        scrollTimer.start();
+    }
+    /**
+     * Views credit details for selected card
+     */
+    private void viewCreditForSelectedCard() {
+        if (currentCardIndex < 0 || currentCardIndex >= customerCardsList.size()) {
+            showPositionIndicator("Select a card first (use arrow keys)");
+            return;
+        }
+        
+        lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(currentCardIndex);
+        Integer customerId = (Integer) card.getClientProperty("customerId");
+        
+        if (customerId != null) {
+            showPaymentDetails(customerId);
+            SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
+        }
+    }
+    
+    /**
+     * Edits selected card
+     */
+    private void editSelectedCard() {
+        if (currentCardIndex < 0 || currentCardIndex >= customerCardsList.size()) {
+            showPositionIndicator("Select a card first (use arrow keys)");
+            return;
+        }
+        
+        lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(currentCardIndex);
+        Integer customerId = (Integer) card.getClientProperty("customerId");
+        
+        if (customerId != null) {
+            editCustomer(customerId);
+            SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
+        }
+    }
+    
+    /**
+     * Focuses search field
+     */
+    private void focusSearch() {
+        jTextField1.requestFocus();
+        jTextField1.selectAll();
+        showPositionIndicator("🔍 Search mode - Type to filter customers (Press ↓ to navigate results)");
+    }
+    
+    /**
+     * Handles Escape key
+     */
+    private void handleEscape() {
+        if (currentCardIndex >= 0) {
+            deselectCurrentCard();
+            showPositionIndicator("Card deselected");
+        } else if (!jTextField1.getText().isEmpty() || buttonGroup1.getSelection() != null) {
+            jTextField1.setText("");
+            buttonGroup1.clearSelection();
+            performSearch();
+            showPositionIndicator("Filters cleared");
+        }
+        this.requestFocusInWindow();
+    }
+    
+    /**
+     * Refreshes customer list
+     */
+    private void refreshCustomers() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRefreshTime < Business.REFRESH_COOLDOWN_MS) {
+            showPositionIndicator("Please wait before refreshing again");
+            return;
+        }
+        
+        lastRefreshTime = currentTime;
+        performSearch();
+        showPositionIndicator("Customers refreshed");
+        this.requestFocusInWindow();
+    }
+    
+    /**
+     * Clears all filters
+     */
+    private void clearFilters() {
+        buttonGroup1.clearSelection();
+        performSearch();
+        showPositionIndicator("All filters cleared");
+        this.requestFocusInWindow();
+    }
+    
+    /**
+     * Toggles radio button state
+     */
+    private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
+        if (radioBtn.isSelected()) {
+            buttonGroup1.clearSelection();
+            showPositionIndicator("Filter removed: " + radioBtn.getText());
+        } else {
+            radioBtn.setSelected(true);
+            showPositionIndicator("Filter applied: " + radioBtn.getText());
+        }
+        performSearch();
+        this.requestFocusInWindow();
+    }
+
+    /**
+     * Data class to hold customer information
+     */
+    private static class CustomerCardData {
+        int customerId;
+        String customerName, phone, address, nic, registrationDate;
+        String status, finalDate;
+        double totalCreditAmount, totalPaid;
+    }
+    
+    /**
+     * Loads customers with default filters
+     */
+    private void loadCustomers() {
+        String searchText = getSearchText();
         boolean missedDueDateOnly = jRadioButton1.isSelected();
         boolean noDueOnly = jRadioButton2.isSelected();
         boolean dueAmountOnly = jRadioButton4.isSelected();
         
-        loadCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+        loadCustomersAsync(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
     }
-
-    private void loadCustomers(String searchText, boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
-        try {
-            // Clear existing products
-            jPanel2.removeAll();
-            jPanel2.setBackground(Color.decode("#F8FAFC"));
-
-            String query = buildQuery(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
-            ResultSet rs = MySQL.executeSearch(query);
-
-            // Store customers in a list
-            java.util.List<lk.com.pos.privateclasses.RoundedPanel> customerCards = new java.util.ArrayList<>();
-
-            int customerCount = 0;
-
-            // Loop through results and create customer cards
-            while (rs.next()) {
-                customerCount++;
-
-                lk.com.pos.privateclasses.RoundedPanel customerCard = createCustomerCard(
-                    rs.getInt("customer_id"),
-                    rs.getString("customer_name"),
-                    rs.getString("customer_phone_no"),
-                    rs.getString("customer_address"),
-                    rs.getString("nic"),
-                    rs.getString("date_time"),
-                    rs.getString("status_name"),
-                    rs.getString("latest_due_date"),
-                    rs.getDouble("total_credit_amount"),
-                    rs.getDouble("total_paid")
-                );
-
-                customerCards.add(customerCard);
+    
+    /**
+     * Gets search text from field
+     */
+    private String getSearchText() {
+        String text = jTextField1.getText().trim();
+        return text.equals(Strings.SEARCH_PLACEHOLDER) ? "" : text;
+    }
+    
+    /**
+     * Performs search based on current filters
+     */
+    private void performSearch() {
+        loadCustomers();
+    }
+    
+    /**
+     * Loads customers asynchronously
+     */
+    private void loadCustomersAsync(String searchText, boolean missedDueDateOnly, 
+                                    boolean noDueOnly, boolean dueAmountOnly) {
+        showLoading(true);
+        
+        SwingWorker<List<CustomerCardData>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<CustomerCardData> doInBackground() throws Exception {
+                return fetchCustomersFromDatabase(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
             }
-
-            // If no customers found - show message
-            if (customerCount == 0) {
-                jPanel2.setLayout(new java.awt.BorderLayout());
-
-                javax.swing.JPanel messagePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
-                messagePanel.setBackground(Color.decode("#F8FAFC"));
-                messagePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(40, 0, 0, 0));
-
-                javax.swing.JLabel noCustomers = new javax.swing.JLabel("No customers found");
-                noCustomers.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
-                noCustomers.setForeground(Color.decode("#6B7280"));
-                noCustomers.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-
-                messagePanel.add(noCustomers);
-                jPanel2.add(messagePanel, java.awt.BorderLayout.NORTH);
-            } else {
-                // Create responsive grid panel - EXACTLY LIKE PRODUCT PANEL
-                final javax.swing.JPanel gridPanel = new javax.swing.JPanel();
-                gridPanel.setBackground(Color.decode("#F8FAFC"));
-
-                // Calculate initial columns based on jPanel2 width - 3 columns like product panel
-                int initialColumns = calculateColumns(jPanel2.getWidth());
-                gridPanel.setLayout(new java.awt.GridLayout(0, initialColumns, 25, 25));
-
-                // Add all customer cards
-                for (lk.com.pos.privateclasses.RoundedPanel card : customerCards) {
-                    gridPanel.add(card);
+            
+            @Override
+            protected void done() {
+                try {
+                    List<CustomerCardData> customers = get();
+                    displayCustomers(customers);
+                } catch (Exception e) {
+                    handleLoadError(e);
+                } finally {
+                    showLoading(false);
                 }
-
-                // Proper scrolling implementation like product panel
-                jPanel2.setLayout(new java.awt.BorderLayout());
-
-                // Create main container with vertical layout for proper scrolling
-                javax.swing.JPanel mainContainer = new javax.swing.JPanel();
-                mainContainer.setLayout(new javax.swing.BoxLayout(mainContainer, javax.swing.BoxLayout.Y_AXIS));
-                mainContainer.setBackground(Color.decode("#F8FAFC"));
-
-                // Add padding around the grid
-                javax.swing.JPanel paddingPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
-                paddingPanel.setBackground(Color.decode("#F8FAFC"));
-                paddingPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(25, 25, 25, 25));
-                paddingPanel.add(gridPanel, java.awt.BorderLayout.NORTH);
-
-                mainContainer.add(paddingPanel);
-                jPanel2.add(mainContainer, java.awt.BorderLayout.NORTH);
-
-                // Add component listener to jPanel2 for window resize
-                jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
-                    private int lastColumns = initialColumns;
-
-                    @Override
-                    public void componentResized(java.awt.event.ComponentEvent e) {
-                        int panelWidth = jPanel2.getWidth();
-                        int newColumns = calculateColumns(panelWidth);
-
-                        // Only update if columns changed
-                        if (newColumns != lastColumns) {
-                            lastColumns = newColumns;
-                            gridPanel.setLayout(new java.awt.GridLayout(0, newColumns, 25, 25));
-                            gridPanel.revalidate();
-                            gridPanel.repaint();
-                        }
-                    }
-                });
             }
-
-            // Refresh the panel
-            jPanel2.revalidate();
-            jPanel2.repaint();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
-                    "Error loading customers: " + e.getMessage(),
-                    "Database Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
-        }
+        };
+        
+        worker.execute();
     }
+    
+    /**
+     * Fetches customers from database
+     */
+    private List<CustomerCardData> fetchCustomersFromDatabase(String searchText, boolean missedDueDateOnly, 
+                                                              boolean noDueOnly, boolean dueAmountOnly) throws Exception {
+        List<CustomerCardData> customers = new ArrayList<>();
+        ResultSet rs = null;
+        
+        try {
+            String query = buildCustomerQuery(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+            rs = MySQL.executeSearch(query);
 
-    private int calculateColumns(int panelWidth) {
-        int availableWidth = panelWidth - 50; // Account for padding
-        int cardWithGap = 445; // Same as product panel
-
-        if (availableWidth >= cardWithGap * 3) {
-            return 3; // 3 columns on large screens
-        } else if (availableWidth >= cardWithGap * 2) {
-            return 2; // 2 columns on medium screens
-        } else {
-            return 1; // 1 column on small screens
+            while (rs.next()) {
+                CustomerCardData data = createCustomerDataFromResultSet(rs);
+                customers.add(data);
+            }
+            
+        } catch (SQLException e) {
+            throw new Exception("Database error while fetching customers: " + e.getMessage(), e);
+        } finally {
+            // Resource cleanup handled by MySQL class
         }
+        
+        return customers;
     }
-
-    private String buildQuery(String searchText, boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
+    
+    /**
+     * Creates CustomerCardData from ResultSet
+     */
+    private CustomerCardData createCustomerDataFromResultSet(ResultSet rs) throws SQLException {
+        CustomerCardData data = new CustomerCardData();
+        
+        data.customerId = rs.getInt("customer_id");
+        data.customerName = rs.getString("customer_name");
+        data.phone = rs.getString("customer_phone_no");
+        data.address = rs.getString("customer_address");
+        data.nic = rs.getString("nic");
+        data.registrationDate = rs.getString("date_time");
+        data.status = rs.getString("status_name");
+        data.finalDate = rs.getString("latest_due_date");
+        data.totalCreditAmount = rs.getDouble("total_credit_amount");
+        data.totalPaid = rs.getDouble("total_paid");
+        
+        return data;
+    }
+    
+    /**
+     * Builds SQL query for customers
+     */
+    private String buildCustomerQuery(String searchText, boolean missedDueDateOnly, 
+                                     boolean noDueOnly, boolean dueAmountOnly) {
         StringBuilder query = new StringBuilder();
         
-        // Use subquery to handle aggregation properly
         query.append("SELECT * FROM (");
+        query.append(buildCustomerSubquery());
         
-        query.append("SELECT ");
-        query.append("cc.customer_id, ");
-        query.append("cc.customer_name, ");
-        query.append("cc.customer_phone_no, ");
-        query.append("cc.customer_address, ");
-        query.append("cc.nic, ");
-        query.append("cc.date_time, ");
-        query.append("s.status_name, ");
-        query.append("MAX(c.credit_final_date) as latest_due_date, ");
-        query.append("IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, ");
-        query.append("IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid ");
-        query.append("FROM credit_customer cc ");
-        query.append("JOIN status s ON s.status_id = cc.status_id ");
-        query.append("LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id ");
-        query.append("LEFT JOIN credit_pay cp ON cp.credit_id = c.credit_id ");
-        
-        // Add search filter
-        if (!searchText.isEmpty() && !searchText.equals("Search By Customer Name or NIC")) {
-            query.append("WHERE (cc.customer_name LIKE '%").append(searchText).append("%' ");
-            query.append("OR cc.nic LIKE '%").append(searchText).append("%') ");
+        // Add search filter with SQL injection protection
+        if (isValidSearchText(searchText)) {
+            String escapedSearch = escapeSQL(searchText);
+            query.append("WHERE (cc.customer_name LIKE '%").append(escapedSearch).append("%' ");
+            query.append("OR cc.nic LIKE '%").append(escapedSearch).append("%') ");
         }
         
         query.append("GROUP BY cc.customer_id, cc.customer_name, cc.customer_phone_no, ");
         query.append("cc.customer_address, cc.nic, cc.date_time, s.status_name ");
+        query.append(") AS customer_data WHERE 1=1 ");
         
-        query.append(") AS customer_data ");
-        query.append("WHERE 1=1 ");
-        
-        // Apply filters based on radio button selection
-        if (missedDueDateOnly) {
-            query.append("AND latest_due_date < CURDATE() ");
-            query.append("AND total_credit_amount > total_paid ");
-        } else if (noDueOnly) {
-            query.append("AND total_credit_amount <= total_paid ");
-        } else if (dueAmountOnly) {
-            query.append("AND total_credit_amount > total_paid ");
-        }
-        
+        // Apply status filters
+        query.append(buildStatusFilter(missedDueDateOnly, noDueOnly, dueAmountOnly));
         query.append("ORDER BY customer_id DESC");
         
         return query.toString();
     }
-
-    private void searchCustomers() {
-        String searchText = jTextField1.getText().trim();
-        // Don't search if it's the placeholder text
-        if (searchText.equals("Search By Customer Name or NIC")) {
-            searchText = "";
+    
+    /**
+     * Builds customer subquery
+     */
+    private String buildCustomerSubquery() {
+        return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, " +
+               "cc.customer_address, cc.nic, cc.date_time, s.status_name, " +
+               "MAX(c.credit_final_date) as latest_due_date, " +
+               "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, " +
+               "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid " +
+               "FROM credit_customer cc " +
+               "JOIN status s ON s.status_id = cc.status_id " +
+               "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id " +
+               "LEFT JOIN credit_pay cp ON cp.credit_id = c.credit_id ";
+    }
+    
+    /**
+     * Checks if search text is valid
+     */
+    private boolean isValidSearchText(String searchText) {
+        return searchText != null && 
+               !searchText.isEmpty() && 
+               !searchText.equals(Strings.SEARCH_PLACEHOLDER);
+    }
+    
+    /**
+     * Escapes SQL special characters
+     */
+    private String escapeSQL(String input) {
+        if (input == null) return "";
+        
+        return input.replace("\\", "\\\\")
+                   .replace("'", "''")
+                   .replace("%", "\\%")
+                   .replace("_", "\\_");
+    }
+    
+    /**
+     * Builds status filter clause
+     */
+    private String buildStatusFilter(boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
+        if (missedDueDateOnly) {
+            return "AND latest_due_date < CURDATE() " +
+                   "AND total_credit_amount > total_paid ";
+        } else if (noDueOnly) {
+            return "AND total_credit_amount <= total_paid ";
+        } else if (dueAmountOnly) {
+            return "AND total_credit_amount > total_paid ";
         }
-        boolean missedDueDateOnly = jRadioButton1.isSelected();
-        boolean noDueOnly = jRadioButton2.isSelected();
-        boolean dueAmountOnly = jRadioButton4.isSelected();
-        loadCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+        return "";
+    }
+    
+    /**
+     * Handles load error
+     */
+    private void handleLoadError(Exception e) {
+        System.err.println("Error loading customers: " + e.getMessage());
+        e.printStackTrace();
+        
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to load customers. Please try again.\n" + e.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
+        });
     }
 
-    private lk.com.pos.privateclasses.RoundedPanel createCustomerCard(
-            int customerId, String customerName, String phone,
-            String address, String nic, String registrationDate,
-            String status, String finalDate, double totalCreditAmount, 
-            double totalPaid) {
-
-        // Calculate outstanding balance
-        double outstanding = totalCreditAmount - totalPaid;
+    /**
+     * Displays customers in grid
+     */
+    private void displayCustomers(List<CustomerCardData> customers) {
+        clearCustomerCards();
         
-        // Check if missed due date - LIKE PRODUCT PANEL'S EXPIRED BADGE
-        boolean missedDueDate = false;
-        String displayDueDate = "No Credit";
-        try {
-            if (finalDate != null) {
-                java.util.Date dueDate = DATE_FORMAT.parse(finalDate);
-                java.util.Date today = new java.util.Date();
-                missedDueDate = dueDate.before(today) && outstanding > 0;
-                displayDueDate = DISPLAY_DATE_FORMAT.format(dueDate);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        currentCardIndex = -1;
+        currentFocusedCard = null;
+
+        if (customers.isEmpty()) {
+            showEmptyState();
+            return;
         }
 
-        // Format registration date
-        String regDate = "N/A";
-        try {
-            if (registrationDate != null) {
-                java.util.Date reg = DATE_FORMAT.parse(registrationDate);
-                regDate = DISPLAY_DATE_FORMAT.format(reg);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        currentColumns = calculateColumns(jPanel2.getWidth());
+        final JPanel gridPanel = createGridPanel();
+        
+        for (CustomerCardData data : customers) {
+            lk.com.pos.privateclasses.RoundedPanel card = createCustomerCard(data);
+            gridPanel.add(card);
+            customerCardsList.add(card);
         }
 
-        // Create main rounded panel - EXACTLY LIKE PRODUCT PANEL
+        layoutCardsInPanel(gridPanel);
+        setupGridResizeListener(gridPanel);
+        
+        jPanel2.revalidate();
+        jPanel2.repaint();
+    }
+    
+    /**
+     * Clears all customer cards
+     */
+    private void clearCustomerCards() {
+        for (lk.com.pos.privateclasses.RoundedPanel card : customerCardsList) {
+            removeAllListeners(card);
+        }
+        
+        customerCardsList.clear();
+        jPanel2.removeAll();
+    }
+    
+    /**
+     * Removes all listeners from component and children
+     */
+    private void removeAllListeners(Component component) {
+        for (java.awt.event.MouseListener ml : component.getMouseListeners()) {
+            component.removeMouseListener(ml);
+        }
+        
+        for (Component child : getAllComponents(component)) {
+            if (child instanceof JButton) {
+                JButton btn = (JButton) child;
+                for (java.awt.event.ActionListener al : btn.getActionListeners()) {
+                    btn.removeActionListener(al);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Gets all components recursively
+     */
+    private List<Component> getAllComponents(Component container) {
+        List<Component> list = new ArrayList<>();
+        if (container instanceof java.awt.Container) {
+            for (Component comp : ((java.awt.Container) container).getComponents()) {
+                list.add(comp);
+                if (comp instanceof java.awt.Container) {
+                    list.addAll(getAllComponents(comp));
+                }
+            }
+        }
+        return list;
+    }
+    
+    /**
+     * Shows empty state message
+     */
+    private void showEmptyState() {
+        jPanel2.setLayout(new BorderLayout());
+        JPanel messagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        messagePanel.setBackground(Colors.BACKGROUND);
+        messagePanel.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
+        
+        JLabel noCustomers = new JLabel(Strings.NO_CUSTOMERS);
+        noCustomers.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
+        noCustomers.setForeground(Colors.TEXT_SECONDARY);
+        noCustomers.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        messagePanel.add(noCustomers);
+        jPanel2.add(messagePanel, BorderLayout.CENTER);
+        jPanel2.revalidate();
+        jPanel2.repaint();
+    }
+    
+    /**
+     * Creates grid panel for cards
+     */
+    private JPanel createGridPanel() {
+        JPanel gridPanel = new JPanel();
+        gridPanel.setLayout(new GridLayout(0, currentColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
+        gridPanel.setBackground(Colors.BACKGROUND);
+        return gridPanel;
+    }
+    
+    /**
+     * Layouts cards in panel
+     */
+    private void layoutCardsInPanel(JPanel gridPanel) {
+        jPanel2.setLayout(new BorderLayout());
+        
+        JPanel mainContainer = new JPanel();
+        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
+        mainContainer.setBackground(Colors.BACKGROUND);
+        
+        JPanel paddingPanel = new JPanel(new BorderLayout());
+        paddingPanel.setBackground(Colors.BACKGROUND);
+        paddingPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+        paddingPanel.add(gridPanel, BorderLayout.NORTH);
+        
+        mainContainer.add(paddingPanel);
+        jPanel2.add(mainContainer, BorderLayout.NORTH);
+    }
+    
+    /**
+     * Sets up grid resize listener
+     */
+    private void setupGridResizeListener(final JPanel gridPanel) {
+        jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                int panelWidth = jPanel2.getWidth();
+                int newColumns = calculateColumns(panelWidth);
+
+                if (newColumns != currentColumns) {
+                    currentColumns = newColumns;
+                    gridPanel.setLayout(new GridLayout(0, newColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
+                    gridPanel.revalidate();
+                    gridPanel.repaint();
+                }
+            }
+        });
+    }
+    
+    /**
+     * Calculates number of columns based on width
+     */
+    private int calculateColumns(int panelWidth) {
+        int availableWidth = panelWidth - 50;
+
+        if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 3) {
+            return 3;
+        } else if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 2) {
+            return 2;
+        } else {
+            return 1;
+        }
+    }
+
+    
+    /**
+     * Custom Rounded Border Class
+     */
+    class RoundedBorder extends javax.swing.border.AbstractBorder {
+        private final Color color;
+        private final int thickness;
+        private final int arc;
+
+        public RoundedBorder(Color color, int thickness, int arc) {
+            this.color = color;
+            this.thickness = thickness;
+            this.arc = arc;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
+                                java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setColor(color);
+            g2d.setStroke(new BasicStroke(thickness));
+            
+            int offset = thickness / 2;
+            g2d.drawRoundRect(x + offset, y + offset, 
+                             width - thickness, height - thickness, arc, arc);
+            g2d.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            int inset = thickness + 2;
+            return new Insets(inset, inset, inset, inset);
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c, Insets insets) {
+            int inset = thickness + 2;
+            insets.left = insets.right = insets.top = insets.bottom = inset;
+            return insets;
+        }
+    }
+    
+    /**
+     * Creates customer card from data
+     */
+    private lk.com.pos.privateclasses.RoundedPanel createCustomerCard(CustomerCardData data) {
+        // Calculate outstanding and dates
+        double outstanding = data.totalCreditAmount - data.totalPaid;
+        boolean missedDueDate = checkMissedDueDate(data.finalDate, outstanding);
+        String displayDueDate = formatDueDate(data.finalDate);
+        String regDate = formatRegistrationDate(data.registrationDate);
+
+        // Create card
+        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.customerId, data.customerName);
+        
+        // Create content
+        JPanel contentPanel = createCardContent(data, outstanding, missedDueDate, displayDueDate, regDate);
+        
+        card.add(contentPanel, BorderLayout.CENTER);
+        return card;
+    }
+    
+    /**
+     * Checks if due date is missed
+     */
+    private boolean checkMissedDueDate(String finalDate, double outstanding) {
+        if (finalDate == null || outstanding <= 0) {
+            return false;
+        }
+        
+        try {
+            Date dueDate = DATE_FORMAT.parse(finalDate);
+            Date today = new Date();
+            return dueDate.before(today);
+        } catch (Exception e) {
+            System.err.println("Error parsing due date: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Formats due date for display
+     */
+    private String formatDueDate(String finalDate) {
+        if (finalDate == null) {
+            return Strings.NO_CREDIT;
+        }
+        
+        try {
+            Date dueDate = DATE_FORMAT.parse(finalDate);
+            return DISPLAY_DATE_FORMAT.format(dueDate);
+        } catch (Exception e) {
+            System.err.println("Error formatting due date: " + e.getMessage());
+            return Strings.NO_VALUE;
+        }
+    }
+    
+    /**
+     * Formats registration date for display
+     */
+    private String formatRegistrationDate(String registrationDate) {
+        if (registrationDate == null) {
+            return Strings.NO_VALUE;
+        }
+        
+        try {
+            Date reg = DATE_FORMAT.parse(registrationDate);
+            return DISPLAY_DATE_FORMAT.format(reg);
+        } catch (Exception e) {
+            System.err.println("Error formatting registration date: " + e.getMessage());
+            return Strings.NO_VALUE;
+        }
+    }
+    
+    /**
+     * Creates base card panel
+     */
+    private lk.com.pos.privateclasses.RoundedPanel createBaseCard(int customerId, String customerName) {
         lk.com.pos.privateclasses.RoundedPanel card = new lk.com.pos.privateclasses.RoundedPanel();
-        card.setLayout(new java.awt.BorderLayout());
-        card.setPreferredSize(new java.awt.Dimension(420, 470)); // Increased height for address section
-        card.setMaximumSize(new java.awt.Dimension(420, 470));
-        card.setMinimumSize(new java.awt.Dimension(380, 470));
-        card.setBackground(java.awt.Color.WHITE);
+        card.setLayout(new BorderLayout());
+        card.setPreferredSize(Dimensions.CARD_SIZE);
+        card.setMaximumSize(Dimensions.CARD_MAX_SIZE);
+        card.setMinimumSize(Dimensions.CARD_MIN_SIZE);
+        card.setBackground(Colors.CARD_WHITE);
         card.setBorderThickness(0);
-        card.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 18, 18, 18));
-
-        // Main content panel
-        javax.swing.JPanel contentPanel = new javax.swing.JPanel();
-        contentPanel.setLayout(new javax.swing.BoxLayout(contentPanel, javax.swing.BoxLayout.Y_AXIS));
-        contentPanel.setBackground(java.awt.Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
+            BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING, 
+                                          Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
+        ));
+        
+        // Store properties
+        card.putClientProperty("customerId", customerId);
+        card.putClientProperty("customerName", customerName);
+        
+        // Add mouse listeners
+        addCardMouseListeners(card);
+        
+        return card;
+    }
+    
+    /**
+     * Adds mouse listeners to card
+     */
+    private void addCardMouseListeners(lk.com.pos.privateclasses.RoundedPanel card) {
+        card.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                if (card != currentFocusedCard) {
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                        new RoundedBorder(Colors.TEAL_HOVER, 2, 15),
+                        BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
+                                                      Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
+                    ));
+                }
+                card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                if (card != currentFocusedCard) {
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                        new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
+                        BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
+                                                      Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
+                    ));
+                }
+                card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+            
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                handleCardClick(card);
+            }
+        });
+    }
+    
+    /**
+     * Handles card click
+     */
+    private void handleCardClick(lk.com.pos.privateclasses.RoundedPanel card) {
+        if (currentFocusedCard != null && currentFocusedCard != card) {
+            deselectCurrentCard();
+        }
+        
+        currentCardIndex = customerCardsList.indexOf(card);
+        selectCurrentCard();
+        updatePositionIndicator();
+        CustomerPanel.this.requestFocusInWindow();
+    }
+    
+    /**
+     * Creates card content panel
+     */
+    private JPanel createCardContent(CustomerCardData data, double outstanding, 
+                                    boolean missedDueDate, String displayDueDate, String regDate) {
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(Colors.CARD_WHITE);
         contentPanel.setOpaque(false);
 
-        // === HEADER SECTION ===
-        javax.swing.JPanel headerPanel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 0));
+        // Add sections
+        contentPanel.add(createHeaderSection(data.customerId, data.customerName));
+        contentPanel.add(Box.createVerticalStrut(8));
+        contentPanel.add(createStatusBadgeSection(data.status, missedDueDate, outstanding));
+        contentPanel.add(Box.createVerticalStrut(15));
+        contentPanel.add(createDetailsSectionHeader());
+        contentPanel.add(Box.createVerticalStrut(15));
+        contentPanel.add(createDetailsGrid(data.phone, data.nic, displayDueDate, regDate));
+        contentPanel.add(Box.createVerticalStrut(20));
+        
+        if (hasAddress(data.address)) {
+            contentPanel.add(createAddressSection(data.address));
+            contentPanel.add(Box.createVerticalStrut(15));
+        }
+        
+        contentPanel.add(createPaymentSectionHeader(data.customerId));
+        contentPanel.add(Box.createVerticalStrut(12));
+        contentPanel.add(createPaymentPanels(data.totalCreditAmount, data.totalPaid, outstanding));
+
+        return contentPanel;
+    }
+    
+    /**
+     * Creates header section
+     */
+    private JPanel createHeaderSection(int customerId, String customerName) {
+        JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setOpaque(false);
-        headerPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 40));
+        headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-        // Customer Name
-        javax.swing.JLabel nameLabel = new javax.swing.JLabel(customerName);
-        nameLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
-        nameLabel.setForeground(Color.decode("#1E293B"));
+        JLabel nameLabel = new JLabel(customerName);
+        nameLabel.setFont(Fonts.HEADER);
+        nameLabel.setForeground(Colors.TEXT_PRIMARY);
         nameLabel.setToolTipText(customerName);
-        headerPanel.add(nameLabel, java.awt.BorderLayout.CENTER);
+        headerPanel.add(nameLabel, BorderLayout.CENTER);
 
-        // Action buttons panel - EXACTLY LIKE PRODUCT PANEL
-        javax.swing.JPanel actionPanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
+        headerPanel.add(createActionButtons(customerId), BorderLayout.EAST);
+
+        return headerPanel;
+    }
+    
+    /**
+     * Creates action buttons panel
+     */
+    private JPanel createActionButtons(int customerId) {
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         actionPanel.setOpaque(false);
 
-        // Edit Button - Fixed size like product panel
-        javax.swing.JButton editButton = new javax.swing.JButton();
-        editButton.setPreferredSize(new java.awt.Dimension(30, 30));
-        editButton.setMinimumSize(new java.awt.Dimension(30, 30));
-        editButton.setMaximumSize(new java.awt.Dimension(30, 30));
-        editButton.setBackground(Color.decode("#EFF6FF"));
-        editButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        JButton editButton = createEditButton(customerId);
+        actionPanel.add(editButton);
+
+        return actionPanel;
+    }
+    
+    /**
+     * Creates edit button
+     */
+    private JButton createEditButton(int customerId) {
+        JButton editButton = new JButton();
+        editButton.setPreferredSize(Dimensions.ACTION_BUTTON_SIZE);
+        editButton.setMinimumSize(Dimensions.ACTION_BUTTON_SIZE);
+        editButton.setMaximumSize(Dimensions.ACTION_BUTTON_SIZE);
+        editButton.setBackground(Colors.BTN_EDIT_BG);
+        editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
         try {
             FlatSVGIcon editIcon = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 16, 16);
             editButton.setIcon(editIcon);
@@ -389,302 +1692,332 @@ public class CustomerPanel extends javax.swing.JPanel {
             editButton.setForeground(Color.decode("#3B82F6"));
             editButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
         }
-        editButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#BFDBFE"), 1));
+        
+        editButton.setBorder(BorderFactory.createLineBorder(Colors.BTN_EDIT_BORDER, 1));
         editButton.setFocusable(false);
-        editButton.addActionListener(e -> editCustomer(customerId));
+        editButton.setToolTipText("Edit Customer (E)");
+        editButton.addActionListener(e -> {
+            editCustomer(customerId);
+            CustomerPanel.this.requestFocusInWindow();
+        });
 
-        // Delete Button - Fixed size like product panel
-        javax.swing.JButton deleteButton = new javax.swing.JButton();
-        deleteButton.setPreferredSize(new java.awt.Dimension(30, 30));
-        deleteButton.setMinimumSize(new java.awt.Dimension(30, 30));
-        deleteButton.setMaximumSize(new java.awt.Dimension(30, 30));
-        deleteButton.setBackground(Color.decode("#FEF2F2"));
-        deleteButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        try {
-            FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 16, 16);
-            deleteButton.setIcon(deleteIcon);
-        } catch (Exception e) {
-            deleteButton.setText("×");
-            deleteButton.setForeground(Color.decode("#EF4444"));
-            deleteButton.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
-        }
-        deleteButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#FECACA"), 1));
-        deleteButton.setFocusable(false);
-        deleteButton.addActionListener(e -> deleteCustomer(customerId));
-
-        actionPanel.add(editButton);
-        actionPanel.add(deleteButton);
-        headerPanel.add(actionPanel, java.awt.BorderLayout.EAST);
-
-        contentPanel.add(headerPanel);
-        contentPanel.add(javax.swing.Box.createVerticalStrut(8));
-
-        // === STATUS AND BADGES ROW - EXACTLY LIKE PRODUCT PANEL ===
-        javax.swing.JPanel statusBadgePanel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 0));
+        return editButton;
+    }
+    
+    /**
+     * Creates status and badge section
+     */
+    private JPanel createStatusBadgeSection(String status, boolean missedDueDate, double outstanding) {
+        JPanel statusBadgePanel = new JPanel(new BorderLayout(10, 0));
         statusBadgePanel.setOpaque(false);
-        statusBadgePanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 30));
+        statusBadgePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 
-        // Status Label - Like supplier in product panel
-        javax.swing.JLabel statusLabel = new javax.swing.JLabel("● " + status);
-        statusLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
-        statusLabel.setForeground(Color.decode("#6366F1"));
+        JLabel statusLabel = new JLabel(status);
+        statusLabel.setFont(Fonts.STATUS);
+        statusLabel.setForeground(Colors.DETAIL_STATUS);
         statusLabel.setToolTipText("Status: " + status);
-        statusBadgePanel.add(statusLabel, java.awt.BorderLayout.WEST);
+        statusBadgePanel.add(statusLabel, BorderLayout.WEST);
 
-        // Status badges on right side - EXACTLY LIKE PRODUCT PANEL
-        javax.swing.JPanel badgePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
+        JPanel badgePanel = createBadgesPanel(missedDueDate, outstanding);
+        statusBadgePanel.add(badgePanel, BorderLayout.EAST);
+
+        return statusBadgePanel;
+    }
+    
+    /**
+     * Creates badges panel
+     */
+    private JPanel createBadgesPanel(boolean missedDueDate, double outstanding) {
+        JPanel badgePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         badgePanel.setOpaque(false);
 
-        // Missed Due Date Badge - EXACTLY LIKE PRODUCT PANEL'S EXPIRED BADGE
         if (missedDueDate) {
-            javax.swing.JLabel missedBadge = new javax.swing.JLabel("⚠ Missed Due Date");
-            missedBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
-            missedBadge.setForeground(Color.decode("#7C2D12"));
-            missedBadge.setBackground(Color.decode("#FED7AA"));
-            missedBadge.setOpaque(true);
-            missedBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-            missedBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                    javax.swing.BorderFactory.createLineBorder(Color.decode("#FB923C"), 1),
-                    javax.swing.BorderFactory.createEmptyBorder(4, 10, 4, 10)
-            ));
-            badgePanel.add(missedBadge);
+            badgePanel.add(createMissedDueDateBadge());
         }
 
-        // High Credit Risk Badge (if outstanding is high) - Like low stock badge
-        if (outstanding > 50000) {
-            javax.swing.JLabel highRiskBadge = new javax.swing.JLabel("📉 High Risk");
-            highRiskBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
-            highRiskBadge.setForeground(java.awt.Color.WHITE);
-            highRiskBadge.setBackground(Color.decode("#DC2626"));
-            highRiskBadge.setOpaque(true);
-            highRiskBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-            highRiskBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                    javax.swing.BorderFactory.createLineBorder(Color.decode("#FECACA"), 1),
-                    javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8)
-            ));
-            badgePanel.add(highRiskBadge);
+        if (outstanding > Business.HIGH_RISK_THRESHOLD) {
+            badgePanel.add(createHighRiskBadge());
         }
 
-        statusBadgePanel.add(badgePanel, java.awt.BorderLayout.EAST);
-
-        contentPanel.add(statusBadgePanel);
-        contentPanel.add(javax.swing.Box.createVerticalStrut(15));
-
-        // === CUSTOMER DETAILS HEADER ===
-        javax.swing.JPanel detailsHeaderPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
-        detailsHeaderPanel.setOpaque(false);
-        detailsHeaderPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 20));
-
-        javax.swing.JLabel detailsHeader = new javax.swing.JLabel("CUSTOMER DETAILS");
-        detailsHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
-        detailsHeader.setForeground(Color.decode("#94A3B8"));
-        detailsHeaderPanel.add(detailsHeader, java.awt.BorderLayout.WEST);
-
-        contentPanel.add(detailsHeaderPanel);
-        contentPanel.add(javax.swing.Box.createVerticalStrut(15));
-
-        // === DETAILS GRID - REMOVED STATUS AND CREDIT AMOUNT ===
-        javax.swing.JPanel detailsGrid = new javax.swing.JPanel(new java.awt.GridLayout(2, 2, 20, 15)); // Changed to 2 rows
-        detailsGrid.setOpaque(false);
-        detailsGrid.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 120)); // Reduced height
-
-        // Row 1: Phone, NIC
-        detailsGrid.add(createDetailPanel("Phone", formatPhoneNumber(phone), Color.decode("#8B5CF6")));
-        detailsGrid.add(createDetailPanel("NIC", nic, Color.decode("#EC4899")));
-
-        // Row 2: Due Date, Registered - REMOVED CREDIT AMOUNT AND STATUS
-        detailsGrid.add(createDetailPanel("Due Date", displayDueDate, Color.decode("#10B981")));
-        detailsGrid.add(createDetailPanel("Registered Date", regDate, Color.decode("#06B6D4")));
-
-        contentPanel.add(detailsGrid);
-        contentPanel.add(javax.swing.Box.createVerticalStrut(20));
-
-        // === ADDRESS SECTION - MOVED BELOW DETAILS GRID ===
-        if (address != null && !address.trim().isEmpty()) {
-            javax.swing.JPanel addressPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
-            addressPanel.setOpaque(false);
-            addressPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 50));
-            
-            javax.swing.JLabel addressTitle = new javax.swing.JLabel("📍 Address");
-            addressTitle.setFont(new java.awt.Font("Nunito SemiBold", 1, 13));
-            addressTitle.setForeground(Color.decode("#6366F1"));
-            addressTitle.setToolTipText("Customer Address");
-            
-            // Create address label with proper wrapping
-            javax.swing.JLabel addressLabel = new javax.swing.JLabel("<html><div style='width:360px;'>" + address + "</div></html>");
-            addressLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
-            addressLabel.setForeground(Color.decode("#1E293B"));
-            addressLabel.setToolTipText(address);
-            addressLabel.setVerticalAlignment(javax.swing.SwingConstants.TOP);
-            
-            addressPanel.add(addressTitle, java.awt.BorderLayout.NORTH);
-            addressPanel.add(javax.swing.Box.createVerticalStrut(5), java.awt.BorderLayout.CENTER);
-            addressPanel.add(addressLabel, java.awt.BorderLayout.CENTER);
-            
-            contentPanel.add(addressPanel);
-            contentPanel.add(javax.swing.Box.createVerticalStrut(15));
-        }
-
-        // === PAYMENT SUMMARY HEADER ===
-        javax.swing.JPanel paymentHeaderPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
-        paymentHeaderPanel.setOpaque(false);
-        paymentHeaderPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 25));
-
-        javax.swing.JLabel paymentHeader = new javax.swing.JLabel("💰 PAYMENT SUMMARY");
-        paymentHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
-        paymentHeader.setForeground(Color.decode("#94A3B8"));
-        paymentHeaderPanel.add(paymentHeader, java.awt.BorderLayout.WEST);
-        
-        // View Details Button - With colorful background
-        javax.swing.JButton paymentDetailsBtn = new javax.swing.JButton("View Details");
-        paymentDetailsBtn.setFont(new java.awt.Font("Nunito SemiBold", 0, 10)); // Smaller
-        paymentDetailsBtn.setForeground(Color.WHITE);
-        paymentDetailsBtn.setBackground(Color.decode("#8B5CF6")); // Purple background
-        paymentDetailsBtn.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            javax.swing.BorderFactory.createLineBorder(Color.decode("#7C3AED"), 1),
-            javax.swing.BorderFactory.createEmptyBorder(4, 10, 4, 10) // Reduced padding
+        return badgePanel;
+    }
+    
+    /**
+     * Creates missed due date badge
+     */
+    private JLabel createMissedDueDateBadge() {
+        JLabel badge = new JLabel("Missed Due Date");
+        badge.setFont(Fonts.BADGE);
+        badge.setForeground(Colors.BADGE_MISSED_FG);
+        badge.setBackground(Colors.BADGE_MISSED_BG);
+        badge.setOpaque(true);
+        badge.setHorizontalAlignment(SwingConstants.CENTER);
+        badge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Colors.BADGE_MISSED_BORDER, 1),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)
         ));
-        paymentDetailsBtn.setFocusable(false);
-        paymentDetailsBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        paymentDetailsBtn.addActionListener(e -> showPaymentDetails(customerId));
-        
-        // Add hover effect
-        paymentDetailsBtn.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                paymentDetailsBtn.setBackground(Color.decode("#7C3AED")); // Darker purple on hover
-            }
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                paymentDetailsBtn.setBackground(Color.decode("#8B5CF6")); // Original purple
-            }
-        });
-        
-        paymentHeaderPanel.add(paymentDetailsBtn, java.awt.BorderLayout.EAST);
-
-        contentPanel.add(paymentHeaderPanel);
-        contentPanel.add(javax.swing.Box.createVerticalStrut(12));
-
-        // === PAYMENT PANELS - EXACTLY LIKE PRODUCT PRICING PANELS ===
-        javax.swing.JPanel paymentPanel = new javax.swing.JPanel(new java.awt.GridLayout(1, 3, 10, 0));
-        paymentPanel.setOpaque(false);
-        paymentPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 65));
-
-        // Credit Amount - Blue theme
-        lk.com.pos.privateclasses.RoundedPanel creditPanel = createPaymentPanel(
-                "Amount Due",
-                totalCreditAmount,
-                Color.decode("#DBEAFE"),
-                Color.decode("#1E40AF")
-        );
-
-        // Paid Amount - Green theme
-        lk.com.pos.privateclasses.RoundedPanel paidPanel = createPaymentPanel(
-                "Paid Amount",
-                totalPaid,
-                Color.decode("#D1FAE5"),
-                Color.decode("#059669")
-        );
-
-        // Outstanding - Color based on amount
-        Color outstandingBg = outstanding > 0 ? Color.decode("#FEF3C7") : Color.decode("#D1FAE5");
-        Color outstandingText = outstanding > 0 ? Color.decode("#92400E") : Color.decode("#059669");
-        lk.com.pos.privateclasses.RoundedPanel outstandingPanel = createPaymentPanel(
-                "OutStanding",
-                outstanding,
-                outstandingBg,
-                outstandingText
-        );
-
-        paymentPanel.add(creditPanel);
-        paymentPanel.add(paidPanel);
-        paymentPanel.add(outstandingPanel);
-
-        contentPanel.add(paymentPanel);
-
-        card.add(contentPanel, java.awt.BorderLayout.CENTER);
-        return card;
+        return badge;
     }
-
-    private String getShortAddress(String address) {
-        if (address == null || address.trim().isEmpty()) return "No Address";
-        if (address.length() <= 25) return address;
-        return address.substring(0, 22) + "...";
+    
+    /**
+     * Creates high risk badge
+     */
+    private JLabel createHighRiskBadge() {
+        JLabel badge = new JLabel("High Risk");
+        badge.setFont(Fonts.BADGE_SMALL);
+        badge.setForeground(Colors.BADGE_HIGH_RISK_FG);
+        badge.setBackground(Colors.BADGE_HIGH_RISK_BG);
+        badge.setOpaque(true);
+        badge.setHorizontalAlignment(SwingConstants.CENTER);
+        badge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Colors.BADGE_HIGH_RISK_BORDER, 1),
+                BorderFactory.createEmptyBorder(3, 8, 3, 8)
+        ));
+        return badge;
     }
+    
+    /**
+     * Creates details section header
+     */
+    private JPanel createDetailsSectionHeader() {
+        JPanel detailsHeaderPanel = new JPanel(new BorderLayout());
+        detailsHeaderPanel.setOpaque(false);
+        detailsHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
-    private String formatPhoneNumber(String phone) {
-        if (phone == null || phone.trim().isEmpty()) return "N/A";
-        String cleaned = phone.replaceAll("[^0-9]", "");
-        if (cleaned.length() == 10) {
-            return cleaned.replaceFirst("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
-        }
-        return phone;
+        JLabel detailsHeader = new JLabel(Strings.SECTION_DETAILS);
+        detailsHeader.setFont(Fonts.SECTION_TITLE);
+        detailsHeader.setForeground(Colors.TEXT_MUTED);
+        detailsHeaderPanel.add(detailsHeader, BorderLayout.WEST);
+
+        return detailsHeaderPanel;
     }
+    
+    /**
+     * Creates details grid
+     */
+    private JPanel createDetailsGrid(String phone, String nic, String displayDueDate, String regDate) {
+        JPanel detailsGrid = new JPanel(new GridLayout(2, 2, 20, 15));
+        detailsGrid.setOpaque(false);
+        detailsGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
-    private javax.swing.JPanel createDetailPanel(String title, String value, Color accentColor) {
-        javax.swing.JPanel panel = new javax.swing.JPanel();
-        panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
+        detailsGrid.add(createDetailPanel("Phone", formatPhoneNumber(phone), Colors.DETAIL_PHONE));
+        detailsGrid.add(createDetailPanel("NIC", nic, Colors.DETAIL_NIC));
+        detailsGrid.add(createDetailPanel("Due Date", displayDueDate, Colors.DETAIL_DUE_DATE));
+        detailsGrid.add(createDetailPanel("Registered Date", regDate, Colors.DETAIL_REG_DATE));
+
+        return detailsGrid;
+    }
+    
+    /**
+     * Creates detail panel
+     */
+    private JPanel createDetailPanel(String title, String value, Color accentColor) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setOpaque(false);
 
-        javax.swing.JLabel titleLabel = new javax.swing.JLabel(title);
-        titleLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 13));
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(Fonts.DETAIL_TITLE);
         titleLabel.setForeground(accentColor);
-        titleLabel.setAlignmentX(javax.swing.JComponent.LEFT_ALIGNMENT);
+        titleLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
 
         String displayValue = value;
         if (value != null && value.length() > 25) {
             displayValue = "<html><div style='width:140px;'>" + value + "</div></html>";
         }
 
-        javax.swing.JLabel valueLabel = new javax.swing.JLabel(displayValue);
-        valueLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
-        valueLabel.setForeground(Color.decode("#1E293B"));
+        JLabel valueLabel = new JLabel(displayValue);
+        valueLabel.setFont(Fonts.DETAIL_VALUE);
+        valueLabel.setForeground(Colors.TEXT_PRIMARY);
         valueLabel.setToolTipText(value);
-        valueLabel.setAlignmentX(javax.swing.JComponent.LEFT_ALIGNMENT);
+        valueLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
 
         panel.add(titleLabel);
-        panel.add(javax.swing.Box.createVerticalStrut(5));
+        panel.add(Box.createVerticalStrut(5));
         panel.add(valueLabel);
 
         return panel;
     }
+    
+    /**
+     * Checks if address is valid
+     */
+    private boolean hasAddress(String address) {
+        return address != null && !address.trim().isEmpty();
+    }
+    
+    /**
+     * Creates address section
+     */
+    private JPanel createAddressSection(String address) {
+        JPanel addressPanel = new JPanel(new BorderLayout());
+        addressPanel.setOpaque(false);
+        addressPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        
+        JLabel addressTitle = new JLabel(Strings.ADDRESS_PREFIX);
+        addressTitle.setFont(Fonts.ADDRESS_TITLE);
+        addressTitle.setForeground(Colors.DETAIL_STATUS);
+        addressTitle.setToolTipText("Customer Address");
+        
+        JLabel addressLabel = new JLabel("<html><div style='width:360px;'>" + address + "</div></html>");
+        addressLabel.setFont(Fonts.DETAIL_VALUE);
+        addressLabel.setForeground(Colors.TEXT_PRIMARY);
+        addressLabel.setToolTipText(address);
+        addressLabel.setVerticalAlignment(SwingConstants.TOP);
+        
+        addressPanel.add(addressTitle, BorderLayout.NORTH);
+        addressPanel.add(Box.createVerticalStrut(5), BorderLayout.CENTER);
+        addressPanel.add(addressLabel, BorderLayout.CENTER);
+        
+        return addressPanel;
+    }
+    
+    /**
+     * Creates payment section header
+     */
+    private JPanel createPaymentSectionHeader(int customerId) {
+        JPanel paymentHeaderPanel = new JPanel(new BorderLayout());
+        paymentHeaderPanel.setOpaque(false);
+        paymentHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25));
 
-    private lk.com.pos.privateclasses.RoundedPanel createPaymentPanel(String title, double amount, Color bgColor, Color textColor) {
+        JLabel paymentHeader = new JLabel(Strings.SECTION_PAYMENT);
+        paymentHeader.setFont(Fonts.SECTION_TITLE);
+        paymentHeader.setForeground(Colors.TEXT_MUTED);
+        paymentHeaderPanel.add(paymentHeader, BorderLayout.WEST);
+        
+        JButton paymentDetailsBtn = createViewDetailsButton(customerId);
+        paymentHeaderPanel.add(paymentDetailsBtn, BorderLayout.EAST);
+
+        return paymentHeaderPanel;
+    }
+    
+    /**
+     * Creates view details button
+     */
+    private JButton createViewDetailsButton(int customerId) {
+        JButton btn = new JButton("View Details");
+        btn.setFont(new java.awt.Font("Nunito SemiBold", 0, 10));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(Colors.BTN_VIEW_BG);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Colors.BTN_VIEW_BORDER, 1),
+            BorderFactory.createEmptyBorder(4, 10, 4, 10)
+        ));
+        btn.setFocusable(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setToolTipText("View Credit Details (V)");
+        btn.addActionListener(e -> {
+            showPaymentDetails(customerId);
+            CustomerPanel.this.requestFocusInWindow();
+        });
+        
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btn.setBackground(Colors.BTN_VIEW_BG_HOVER);
+            }
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btn.setBackground(Colors.BTN_VIEW_BG);
+            }
+        });
+        
+        return btn;
+    }
+    
+    /**
+     * Creates payment panels
+     */
+    private JPanel createPaymentPanels(double totalCreditAmount, double totalPaid, double outstanding) {
+        JPanel paymentPanel = new JPanel(new GridLayout(1, 3, 10, 0));
+        paymentPanel.setOpaque(false);
+        paymentPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65));
+
+        lk.com.pos.privateclasses.RoundedPanel creditPanel = createPaymentPanel(
+                "Amount Due",
+                totalCreditAmount,
+                Colors.PAYMENT_DUE_BG,
+                Colors.PAYMENT_DUE_FG
+        );
+
+        lk.com.pos.privateclasses.RoundedPanel paidPanel = createPaymentPanel(
+                "Paid Amount",
+                totalPaid,
+                Colors.PAYMENT_PAID_BG,
+                Colors.PAYMENT_PAID_FG
+        );
+
+        Color outstandingBg = outstanding > 0 ? Colors.PAYMENT_OUTSTANDING_BG : Colors.PAYMENT_PAID_BG;
+        Color outstandingFg = outstanding > 0 ? Colors.PAYMENT_OUTSTANDING_FG : Colors.PAYMENT_PAID_FG;
+        lk.com.pos.privateclasses.RoundedPanel outstandingPanel = createPaymentPanel(
+                "OutStanding",
+                outstanding,
+                outstandingBg,
+                outstandingFg
+        );
+
+        paymentPanel.add(creditPanel);
+        paymentPanel.add(paidPanel);
+        paymentPanel.add(outstandingPanel);
+
+        return paymentPanel;
+    }
+    
+    /**
+     * Creates payment panel
+     */
+    private lk.com.pos.privateclasses.RoundedPanel createPaymentPanel(String title, double amount, 
+                                                                      Color bgColor, Color textColor) {
         lk.com.pos.privateclasses.RoundedPanel panel = new lk.com.pos.privateclasses.RoundedPanel();
         panel.setBackgroundColor(bgColor);
         panel.setBorderThickness(0);
-        panel.setLayout(new java.awt.GridBagLayout());
-        panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 5, 10, 5));
+        panel.setLayout(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 5, 10, 5));
 
-        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
+        GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.anchor = java.awt.GridBagConstraints.CENTER;
-        gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
 
-        // Title Label
-        javax.swing.JLabel titleLabel = new javax.swing.JLabel(title);
-        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 12));
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(Fonts.PAYMENT_TITLE);
         titleLabel.setForeground(textColor);
-        titleLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         panel.add(titleLabel, gbc);
 
-        // Amount Label with smart formatting
-        String formattedAmount = formatPrice(amount);
-
         gbc.gridy = 1;
-        gbc.insets = new java.awt.Insets(5, 0, 0, 0);
+        gbc.insets = new Insets(5, 0, 0, 0);
 
-        javax.swing.JLabel amountLabel = new javax.swing.JLabel(formattedAmount);
-        amountLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        JLabel amountLabel = new JLabel(formatPrice(amount));
+        amountLabel.setFont(Fonts.PAYMENT_AMOUNT);
         amountLabel.setForeground(textColor);
-        amountLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        amountLabel.setHorizontalAlignment(SwingConstants.CENTER);
         amountLabel.setToolTipText(title + ": Rs." + String.format("%.2f", amount));
         panel.add(amountLabel, gbc);
 
         return panel;
     }
 
-    // Smart price formatting - same as product panel
+    /**
+     * Formats phone number
+     */
+    private String formatPhoneNumber(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return Strings.NO_VALUE;
+        }
+        
+        String cleaned = phone.replaceAll("[^0-9]", "");
+        if (cleaned.length() == 10) {
+            return cleaned.replaceFirst("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
+        }
+        return phone;
+    }
+    
+    /**
+     * Formats price with smart display
+     */
     private String formatPrice(double price) {
         if (price >= 100000) {
             return String.format("Rs.%.1fK", price / 1000);
@@ -697,54 +2030,35 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
     }
 
+    /**
+     * Opens edit customer dialog
+     */
     private void editCustomer(int customerId) {
-        // TODO: Implement edit customer functionality
-        JOptionPane.showMessageDialog(this, 
-            "Edit customer with ID: " + customerId, 
-            "Edit Customer", 
-            JOptionPane.INFORMATION_MESSAGE);
+        if (customerId <= 0) {
+            System.err.println("Invalid customer ID: " + customerId);
+            return;
+        }
+        
+        UpdateCustomer updateCustomer = new UpdateCustomer(null, true, customerId);
+        updateCustomer.setLocationRelativeTo(null);
+        updateCustomer.setVisible(true);
+        performSearch();
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
     
+    /**
+     * Opens payment details dialog
+     */
     private void showPaymentDetails(int customerId) {
-        // TODO: Implement payment details view
-        JOptionPane.showMessageDialog(this, 
-            "Payment details for customer ID: " + customerId, 
-            "Payment Details", 
-            JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private void deleteCustomer(int customerId) {
-        int confirm = JOptionPane.showConfirmDialog(this,
-            "Are you sure you want to delete this customer?\nThis action cannot be undone.",
-            "Confirm Delete",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            try {
-                // Delete related credit_pay records first
-                MySQL.executeIUD("DELETE FROM credit_pay WHERE credit_id IN (SELECT credit_id FROM credit WHERE credit_customer_id = " + customerId + ")");
-                // Delete related credit records
-                MySQL.executeIUD("DELETE FROM credit WHERE credit_customer_id = " + customerId);
-                // Delete the customer
-                MySQL.executeIUD("DELETE FROM credit_customer WHERE customer_id = " + customerId);
-                
-                JOptionPane.showMessageDialog(this,
-                    "Customer deleted successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-                
-                // Reload customers
-                loadCustomers();
-                
-            } catch (Exception e) {
-                e.printStackTrace();
-                JOptionPane.showMessageDialog(this,
-                    "Error deleting customer: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-            }
+        if (customerId <= 0) {
+            System.err.println("Invalid customer ID: " + customerId);
+            return;
         }
+        
+        CreditView creditView = new CreditView(null, true, customerId);
+        creditView.setLocationRelativeTo(null);
+        creditView.setVisible(true);
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -796,7 +2110,6 @@ public class CustomerPanel extends javax.swing.JPanel {
         jPanel1.setBackground(new java.awt.Color(248, 250, 252));
 
         jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jTextField1.setText("Search By Customer Name or NIC");
         jTextField1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jTextField1ActionPerformed(evt);

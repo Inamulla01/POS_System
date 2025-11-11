@@ -13,6 +13,8 @@ import java.text.SimpleDateFormat;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.util.Date;
+import java.util.List;
+import java.util.ArrayList;
 
 public class SalesPanel extends javax.swing.JPanel {
 
@@ -21,16 +23,421 @@ public class SalesPanel extends javax.swing.JPanel {
     private int currentWidth = 0;
     private Timer searchTimer;
     
+    // Keyboard navigation
+    private List<JPanel> invoiceCardsList = new ArrayList<>();
+    private int currentCardIndex = -1;
+    private JPanel currentFocusedCard = null;
+    
+    private JPanel positionIndicator;
+    private JLabel positionLabel;
+    private Timer positionTimer;
+    
+    private JPanel keyboardHintsPanel;
+    private boolean hintsVisible = false;
+    
+    // Refresh cooldown
+    private long lastRefreshTime = 0;
+    private static final long REFRESH_COOLDOWN = 1000; // 1 second
+    
+    // Colors
+    private static final Color TEAL_BORDER_SELECTED = new Color(28, 181, 187);
+    private static final Color TEAL_BORDER_HOVER = new Color(60, 200, 206);
+    private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
+    
     public SalesPanel() {
         initComponents();
         setupPanel();
         customizeComponents();
+        createPositionIndicator();
+        createKeyboardHintsPanel();
+        setupKeyboardShortcuts();
         loadSalesData("", "All Time");
         setupEventListeners();
+        
+        SwingUtilities.invokeLater(() -> {
+            this.requestFocusInWindow();
+            showKeyboardHints();
+        });
+    }
+    
+    private void createPositionIndicator() {
+        positionIndicator = new JPanel();
+        positionIndicator.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 8));
+        positionIndicator.setBackground(new Color(31, 41, 55, 230));
+        positionIndicator.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(TEAL_BORDER_SELECTED, 2),
+            BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+        positionIndicator.setVisible(false);
+        
+        positionLabel = new JLabel();
+        positionLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        positionLabel.setForeground(Color.WHITE);
+        
+        positionIndicator.add(positionLabel);
+        
+        setLayout(new OverlayLayout(this) {
+            @Override
+            public void layoutContainer(Container target) {
+                super.layoutContainer(target);
+                
+                if (positionIndicator.isVisible()) {
+                    Dimension size = positionIndicator.getPreferredSize();
+                    int x = (getWidth() - size.width) / 2;
+                    int y = 80;
+                    positionIndicator.setBounds(x, y, size.width, size.height);
+                }
+                
+                if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
+                    Dimension size = keyboardHintsPanel.getPreferredSize();
+                    int x = getWidth() - size.width - 20;
+                    int y = getHeight() - size.height - 20;
+                    keyboardHintsPanel.setBounds(x, y, size.width, size.height);
+                }
+            }
+        });
+        
+        add(positionIndicator, Integer.valueOf(1000));
+    }
+
+    private void createKeyboardHintsPanel() {
+        keyboardHintsPanel = new JPanel();
+        keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
+        keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
+        keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(TEAL_BORDER_SELECTED, 2),
+            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+        ));
+        keyboardHintsPanel.setVisible(false);
+        
+        JLabel title = new JLabel("KEYBOARD SHORTCUTS");
+        title.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
+        title.setForeground(TEAL_BORDER_SELECTED);
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(title);
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(10));
+        
+        addHintRow("↑ ↓", "Navigate invoices", "#FFFFFF");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+R / F5", "Refresh", "#34D399");
+        addHintRow("Alt+1", "All Time", "#FB923C");
+        addHintRow("Alt+2", "Today", "#FCD34D");
+        addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
+        addHintRow("Alt+4", "Last 30 Days", "#F87171");
+        addHintRow("Alt+5", "Last 90 Days", "#A78BFA");
+        addHintRow("Esc", "Clear Search", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(10));
+        
+        JLabel closeHint = new JLabel("Press ? to hide");
+        closeHint.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
+        closeHint.setForeground(Color.decode("#9CA3AF"));
+        closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+        keyboardHintsPanel.add(closeHint);
+        
+        add(keyboardHintsPanel, Integer.valueOf(1001));
+    }
+
+    private void addHintRow(String key, String description, String keyColor) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
+        row.setOpaque(false);
+        row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(280, 25));
+        
+        JLabel keyLabel = new JLabel(key);
+        keyLabel.setFont(new Font("Consolas", Font.BOLD, 11));
+        keyLabel.setForeground(Color.decode(keyColor));
+        keyLabel.setPreferredSize(new Dimension(80, 20));
+        
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
+        descLabel.setForeground(Color.decode("#D1D5DB"));
+        
+        row.add(keyLabel);
+        row.add(descLabel);
+        keyboardHintsPanel.add(row);
+    }
+
+    private void showKeyboardHints() {
+        if (!hintsVisible) {
+            keyboardHintsPanel.setVisible(true);
+            hintsVisible = true;
+            revalidate();
+            repaint();
+            
+            Timer hideTimer = new Timer(5000, e -> {
+                keyboardHintsPanel.setVisible(false);
+                hintsVisible = false;
+                revalidate();
+                repaint();
+            });
+            hideTimer.setRepeats(false);
+            hideTimer.start();
+        } else {
+            keyboardHintsPanel.setVisible(false);
+            hintsVisible = false;
+            revalidate();
+            repaint();
+        }
+    }
+
+    private void showPositionIndicator(String text) {
+        positionLabel.setText(text);
+        positionIndicator.setVisible(true);
+        revalidate();
+        repaint();
+        
+        if (positionTimer != null && positionTimer.isRunning()) {
+            positionTimer.stop();
+        }
+        
+        positionTimer = new Timer(2000, e -> {
+            positionIndicator.setVisible(false);
+            revalidate();
+            repaint();
+        });
+        positionTimer.setRepeats(false);
+        positionTimer.start();
+    }
+
+    private void setupKeyboardShortcuts() {
+        this.setFocusable(true);
+        
+        int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
+        
+        // Navigation
+        registerKeyAction("UP", KeyEvent.VK_UP, 0, condition, () -> navigateCards(-1));
+        registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, condition, () -> navigateCards(1));
+        registerKeyAction("HOME", KeyEvent.VK_HOME, 0, condition, () -> navigateToFirst());
+        registerKeyAction("END", KeyEvent.VK_END, 0, condition, () -> navigateToLast());
+        
+        // Search
+        registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, () -> focusSearch());
+        registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, () -> {
+            if (!jTextField1.hasFocus()) {
+                focusSearch();
+            }
+        });
+        
+        // Refresh
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, () -> refreshSales());
+        registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshSales());
+        
+        // Period filters
+        registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
+        registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
+        registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(2));
+        registerKeyAction("ALT_4", KeyEvent.VK_4, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(3));
+        registerKeyAction("ALT_5", KeyEvent.VK_5, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(4));
+        
+        // Escape
+        registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
+        
+        // Help
+        registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, () -> showKeyboardHints());
+        
+        // Search field
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
+        jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                jTextField1.setText("");
+                handleSearch();
+                SalesPanel.this.requestFocusInWindow();
+            }
+        });
+        
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
+        jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!invoiceCardsList.isEmpty()) {
+                    SalesPanel.this.requestFocusInWindow();
+                    if (currentCardIndex == -1) {
+                        currentCardIndex = 0;
+                        selectCurrentCard();
+                        scrollToCard(currentCardIndex);
+                    }
+                }
+            }
+        });
+        
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                SwingUtilities.invokeLater(() -> SalesPanel.this.requestFocusInWindow());
+            }
+        });
+    }
+
+    private void registerKeyAction(String actionName, int keyCode, int modifiers, int condition, Runnable action) {
+        KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, modifiers);
+        this.getInputMap(condition).put(keyStroke, actionName);
+        this.getActionMap().put(actionName, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (jTextField1.hasFocus() && 
+                    keyCode != KeyEvent.VK_ESCAPE && 
+                    modifiers == 0 &&
+                    keyCode != KeyEvent.VK_SLASH) {
+                    return;
+                }
+                action.run();
+            }
+        });
+    }
+
+    private void navigateCards(int direction) {
+        if (invoiceCardsList.isEmpty()) {
+            showPositionIndicator("No invoices available");
+            return;
+        }
+        
+        if (currentCardIndex < 0) {
+            currentCardIndex = 0;
+            selectCurrentCard();
+            scrollToCard(currentCardIndex);
+            return;
+        }
+        
+        int newIndex = currentCardIndex + direction;
+        
+        if (newIndex < 0) {
+            showPositionIndicator("Already at the first invoice");
+            return;
+        }
+        
+        if (newIndex >= invoiceCardsList.size()) {
+            showPositionIndicator("Already at the last invoice");
+            return;
+        }
+        
+        deselectCard(currentCardIndex);
+        currentCardIndex = newIndex;
+        selectCurrentCard();
+        scrollToCard(currentCardIndex);
+    }
+
+    private void navigateToFirst() {
+        if (invoiceCardsList.isEmpty()) {
+            showPositionIndicator("No invoices available");
+            return;
+        }
+        
+        if (currentCardIndex >= 0) {
+            deselectCard(currentCardIndex);
+        }
+        currentCardIndex = 0;
+        selectCurrentCard();
+        scrollToCard(currentCardIndex);
+        showPositionIndicator("⬆️ First invoice");
+    }
+
+    private void navigateToLast() {
+        if (invoiceCardsList.isEmpty()) {
+            showPositionIndicator("No invoices available");
+            return;
+        }
+        
+        if (currentCardIndex >= 0) {
+            deselectCard(currentCardIndex);
+        }
+        currentCardIndex = invoiceCardsList.size() - 1;
+        selectCurrentCard();
+        scrollToCard(currentCardIndex);
+        showPositionIndicator("Last invoice");
+    }
+
+    private void selectCurrentCard() {
+        if (currentCardIndex >= 0 && currentCardIndex < invoiceCardsList.size()) {
+            JPanel card = invoiceCardsList.get(currentCardIndex);
+            card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundBorder(TEAL_BORDER_SELECTED, 3, 20),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            ));
+            currentFocusedCard = card;
+            
+            String invoiceNo = (String) card.getClientProperty("invoiceNo");
+            showPositionIndicator(String.format(" Invoice %d/%d: %s", 
+                currentCardIndex + 1, invoiceCardsList.size(), invoiceNo));
+        }
+    }
+
+    private void deselectCard(int index) {
+        if (index >= 0 && index < invoiceCardsList.size()) {
+            JPanel card = invoiceCardsList.get(index);
+            card.setBorder(BorderFactory.createCompoundBorder(
+                new ShadowBorder(),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            ));
+        }
+    }
+
+    private void scrollToCard(int index) {
+        if (index < 0 || index >= invoiceCardsList.size()) return;
+        
+        SwingUtilities.invokeLater(() -> {
+            try {
+                JPanel card = invoiceCardsList.get(index);
+                Rectangle bounds = card.getBounds();
+                Rectangle visible = jScrollPane1.getViewport().getViewRect();
+                
+                int targetY = bounds.y - 20;
+                
+                jScrollPane1.getViewport().setViewPosition(new Point(0, Math.max(0, targetY)));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void focusSearch() {
+        jTextField1.requestFocus();
+        jTextField1.selectAll();
+        showPositionIndicator("🔍 Search mode - Type to filter (Press ↓ to navigate)");
+    }
+
+    private void handleEscape() {
+        if (currentCardIndex >= 0) {
+            deselectCard(currentCardIndex);
+            currentFocusedCard = null;
+            currentCardIndex = -1;
+            showPositionIndicator("Invoice deselected");
+        } else if (!jTextField1.getText().isEmpty()) {
+            jTextField1.setText("");
+            handleSearch();
+            showPositionIndicator("Search cleared");
+        }
+        this.requestFocusInWindow();
+    }
+
+    private void refreshSales() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRefreshTime < REFRESH_COOLDOWN) {
+            showPositionIndicator("Please wait before refreshing again");
+            return;
+        }
+        
+        lastRefreshTime = currentTime;
+        handleSearch();
+        showPositionIndicator("Sales data refreshed");
+        this.requestFocusInWindow();
+    }
+
+    private void setPeriod(int index) {
+        if (index >= 0 && index < sortByDays.getItemCount()) {
+            sortByDays.setSelectedIndex(index);
+            handlePeriodFilter();
+            showPositionIndicator("Filter: " + sortByDays.getItemAt(index));
+            this.requestFocusInWindow();
+        }
     }
     
     private void setupEventListeners() {
-        // Responsive layout with smoother transitions
         this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -42,37 +449,37 @@ public class SalesPanel extends javax.swing.JPanel {
             }
         });
         
-        // Real-time search with debouncing (300ms delay)
         searchTimer = new Timer(300, e -> handleSearch());
         searchTimer.setRepeats(false);
         
-        jTextField1.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
+        jTextField1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                searchTimer.restart();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                searchTimer.restart();
+            }
+
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 searchTimer.restart();
             }
         });
         
-        // Period filter with visual feedback
         sortByDays.addActionListener(e -> {
             handlePeriodFilter();
+            this.requestFocusInWindow();
         });
     }
     
     private void handleSearch() {
         String searchText = jTextField1.getText().trim();
-        if (searchText.equals("🔍 Search by invoice number...")) {
-            searchText = "";
-        }
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         loadSalesData(searchText, selectedPeriod);
     }
     
     private void handlePeriodFilter() {
         String searchText = jTextField1.getText().trim();
-        if (searchText.equals("🔍 Search by invoice number...")) {
-            searchText = "";
-        }
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         loadSalesData(searchText, selectedPeriod);
     }
@@ -96,75 +503,19 @@ public class SalesPanel extends javax.swing.JPanel {
     }
     
     private void customizeComponents() {
-        // Enhanced search field with icon and better styling
-        jTextField1.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
-        jTextField1.setBorder(BorderFactory.createCompoundBorder(
-            new RoundBorder(new Color(203, 213, 225), 2, 12),
-            BorderFactory.createEmptyBorder(14, 48, 14, 16)
-        ));
-        jTextField1.setBackground(Color.WHITE);
-        jTextField1.setText("🔍 Search by invoice number...");
-        jTextField1.setForeground(new Color(148, 163, 184));
+        // Enhanced search field with FlatLaf styling (like StockPanel)
+        jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search by invoice number...");
+        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,             
+                new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
+        jTextField1.setToolTipText("Search invoices (Ctrl+F or /) - Press ? for help");
+        jTextField1.setForeground(Color.GRAY);
         
-        // Add hover and focus effects
-        jTextField1.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (!jTextField1.hasFocus()) {
-                    jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(new Color(59, 130, 246), 2, 12),
-                        BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                    ));
-                }
-            }
-            
-            @Override
-            public void mouseExited(MouseEvent e) {
-                if (!jTextField1.hasFocus()) {
-                    jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(new Color(203, 213, 225), 2, 12),
-                        BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                    ));
-                }
-            }
-        });
-        
-        jTextField1.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (jTextField1.getText().equals("🔍 Search by invoice number...")) {
-                    jTextField1.setText("");
-                    jTextField1.setForeground(new Color(30, 41, 59));
-                }
-                jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundBorder(new Color(59, 130, 246), 2, 12),
-                    BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                ));
-            }
-            
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (jTextField1.getText().isEmpty()) {
-                    jTextField1.setText("🔍 Search by invoice number...");
-                    jTextField1.setForeground(new Color(148, 163, 184));
-                }
-                jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundBorder(new Color(203, 213, 225), 2, 12),
-                    BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                ));
-            }
-        });
-        
-        // Enhanced combo box with better styling and emojis
+        // Enhanced combo box with FlatLaf styling
+        sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
-            "📅 All Time", "☀️ Today", "📊 Last 7 Days", "📈 Last 30 Days", "📆 Last 90 Days"
+            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days"
         }));
-        sortByDays.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
-        sortByDays.setBackground(Color.WHITE);
-        sortByDays.setBorder(BorderFactory.createCompoundBorder(
-            new RoundBorder(new Color(203, 213, 225), 2, 12),
-            BorderFactory.createEmptyBorder(12, 16, 12, 16)
-        ));
+        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+5)");
         
         roundedPanel1.setVisible(false);
         
@@ -175,31 +526,6 @@ public class SalesPanel extends javax.swing.JPanel {
                 "track: #F5F5F5;"
                 + "thumb: #1CB5BB;"
                 + "width: 8");
-        
-        // Custom scrollbar styling
-        jScrollPane1.getVerticalScrollBar().setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
-            @Override
-            protected void configureScrollBarColors() {
-                this.thumbColor = new Color(203, 213, 225);
-                this.trackColor = new Color(241, 245, 249);
-            }
-            
-            @Override
-            protected JButton createDecreaseButton(int orientation) {
-                return createZeroButton();
-            }
-            
-            @Override
-            protected JButton createIncreaseButton(int orientation) {
-                return createZeroButton();
-            }
-            
-            private JButton createZeroButton() {
-                JButton button = new JButton();
-                button.setPreferredSize(new Dimension(0, 0));
-                return button;
-            }
-        });
         
         roundedPanel1.setBackgroundColor(Color.decode("#E0F2FF"));
         roundedPanel1.setBorderThickness(0);
@@ -216,127 +542,185 @@ public class SalesPanel extends javax.swing.JPanel {
     }
     
     private void loadSalesData(String searchText, String period) {
-        // Clean up period text (remove emojis)
-        period = period.replace("📅 ", "").replace("☀️ ", "")
-                      .replace("📊 ", "").replace("📈 ", "").replace("📆 ", "");
+        period = period.replace("", "").replace("", "")
+                      .replace("", "").replace("", "").replace("", "");
         
-        jPanel2.removeAll();
-        JPanel loadingPanel = createLoadingPanel();
-        jPanel2.add(loadingPanel, BorderLayout.CENTER);
-        jPanel2.revalidate();
-        jPanel2.repaint();
+        clearInvoiceCards();
+        
+        // Removed loading panel creation and display
         
         String finalPeriod = period;
-        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+        String finalSearchText = searchText;
+        
+        SwingWorker<List<InvoiceData>, Void> worker = new SwingWorker<>() {
             @Override
-            protected Void doInBackground() throws Exception {
-                invoicesContainer = new JPanel();
-                invoicesContainer.setLayout(new BoxLayout(invoicesContainer, BoxLayout.Y_AXIS));
-                invoicesContainer.setBackground(new Color(248, 250, 252));
-                invoicesContainer.setOpaque(false);
-                invoicesContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-                
-                try {
-                    String baseQuery = "SELECT " +
-                        "s.sales_id, s.invoice_no, s.datetime, s.total, " +
-                        "s.discount_id, s.card_payment_id, " +
-                        "(SELECT COALESCE(SUM(si.discount_price), 0) FROM sale_item si WHERE si.sales_id = s.sales_id) as total_item_discount, " +
-                        "d.discount as sale_discount_amount, " +
-                        "dt.discount_type_id as sale_discount_type, " +
-                        "dt.discount_type as sale_discount_type_name, " +
-                        "pm.payment_method_name, u.name as cashier_name, " +
-                        "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
-                        "FROM sales s " +
-                        "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
-                        "INNER JOIN user u ON s.user_id = u.user_id " +
-                        "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id " +
-                        "LEFT JOIN discount d ON s.discount_id = d.discount_id " +
-                        "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id ";
-                    
-                    StringBuilder whereClause = new StringBuilder();
-                    String orderBy = " ORDER BY s.datetime DESC";
-                    
-                    if (!searchText.isEmpty() && !searchText.equals("🔍 Search by invoice number...")) {
-                        whereClause.append("WHERE s.invoice_no LIKE '%").append(searchText).append("%' ");
-                    }
-                    
-                    String dateFilter = getDateFilter(finalPeriod);
-                    if (!dateFilter.isEmpty()) {
-                        if (whereClause.length() == 0) {
-                            whereClause.append("WHERE ").append(dateFilter);
-                        } else {
-                            whereClause.append("AND ").append(dateFilter);
-                        }
-                    }
-                    
-                    String finalQuery = baseQuery + whereClause.toString() + orderBy;
-                    ResultSet rs = MySQL.executeSearch(finalQuery);
-                    
-                    int count = 0;
-                    while (rs.next()) {
-                        int salesId = rs.getInt("sales_id");
-                        String invoiceNo = rs.getString("invoice_no");
-                        String datetime = rs.getString("datetime");
-                        double total = rs.getDouble("total");
-                        double itemDiscount = rs.getDouble("total_item_discount");
-                        int discountId = rs.getInt("discount_id");
-                        double saleDiscountAmount = rs.getDouble("sale_discount_amount");
-                        int saleDiscountType = rs.getInt("sale_discount_type");
-                        String saleDiscountTypeName = rs.getString("sale_discount_type_name");
-                        String paymentMethod = rs.getString("payment_method_name");
-                        String cashierName = rs.getString("cashier_name");
-                        String customerName = rs.getString("customer_name");
-                        
-                        double calculatedSaleDiscount = calculateSaleDiscount(total, saleDiscountAmount, saleDiscountType, discountId);
-                        double totalDiscount = itemDiscount + calculatedSaleDiscount;
-                        
-                        JPanel invoiceCard = createInvoiceCard(salesId, invoiceNo, datetime, 
-                                                               total, itemDiscount, calculatedSaleDiscount, totalDiscount, 
-                                                               paymentMethod, cashierName, customerName, discountId);
-                        invoicesContainer.add(invoiceCard);
-                        invoicesContainer.add(Box.createRigidArea(new Dimension(0, 16)));
-                        count++;
-                    }
-                    
-                    if (count == 0) {
-                        invoicesContainer.add(createNoDataPanel());
-                    }
-                    
-                    rs.close();
-                    
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    invoicesContainer.add(createErrorPanel(e));
-                }
-                return null;
+            protected List<InvoiceData> doInBackground() throws Exception {
+                return fetchInvoicesFromDatabase(finalSearchText, finalPeriod);
             }
             
             @Override
             protected void done() {
                 try {
-                    jPanel2.removeAll();
-                    JPanel wrapperPanel = new JPanel(new BorderLayout());
-                    wrapperPanel.setBackground(new Color(248, 250, 252));
-                    wrapperPanel.add(invoicesContainer, BorderLayout.NORTH);
-                    jPanel2.add(wrapperPanel, BorderLayout.CENTER);
-                    jPanel2.revalidate();
-                    jPanel2.repaint();
+                    List<InvoiceData> invoices = get();
+                    displayInvoices(invoices);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    SwingUtilities.invokeLater(() -> {
+                        jPanel2.removeAll();
+                        jPanel2.add(createErrorPanel(e), BorderLayout.CENTER);
+                        jPanel2.revalidate();
+                        jPanel2.repaint();
+                    });
                 }
             }
         };
         
         worker.execute();
     }
+
+    private static class InvoiceData {
+        int salesId;
+        String invoiceNo;
+        String datetime;
+        double total;
+        double itemDiscount;
+        double saleDiscount;
+        double totalDiscount;
+        String paymentMethod;
+        String cashierName;
+        String customerName;
+        int discountId;
+    }
+
+    private List<InvoiceData> fetchInvoicesFromDatabase(String searchText, String period) throws Exception {
+        List<InvoiceData> invoices = new ArrayList<>();
+        
+        try {
+            String baseQuery = "SELECT " +
+                "s.sales_id, s.invoice_no, s.datetime, s.total, " +
+                "s.discount_id, s.card_payment_id, " +
+                "(SELECT COALESCE(SUM(si.discount_price), 0) FROM sale_item si WHERE si.sales_id = s.sales_id) as total_item_discount, " +
+                "d.discount as sale_discount_amount, " +
+                "dt.discount_type_id as sale_discount_type, " +
+                "dt.discount_type as sale_discount_type_name, " +
+                "pm.payment_method_name, u.name as cashier_name, " +
+                "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
+                "FROM sales s " +
+                "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
+                "INNER JOIN user u ON s.user_id = u.user_id " +
+                "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id " +
+                "LEFT JOIN discount d ON s.discount_id = d.discount_id " +
+                "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id ";
+            
+            StringBuilder whereClause = new StringBuilder();
+            
+            if (!searchText.isEmpty()) {
+                String escapedSearch = searchText.replace("'", "''")
+                                                 .replace("\\", "\\\\")
+                                                 .replace("%", "\\%")
+                                                 .replace("_", "\\_");
+                whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
+            }
+            
+            String dateFilter = getDateFilter(period);
+            if (!dateFilter.isEmpty()) {
+                if (whereClause.length() == 0) {
+                    whereClause.append("WHERE ").append(dateFilter);
+                } else {
+                    whereClause.append("AND ").append(dateFilter);
+                }
+            }
+            
+            String orderBy = " ORDER BY s.datetime DESC";
+            String finalQuery = baseQuery + whereClause.toString() + orderBy;
+            
+            ResultSet rs = MySQL.executeSearch(finalQuery);
+            
+            while (rs.next()) {
+                InvoiceData data = new InvoiceData();
+                data.salesId = rs.getInt("sales_id");
+                data.invoiceNo = rs.getString("invoice_no");
+                data.datetime = rs.getString("datetime");
+                data.total = rs.getDouble("total");
+                data.itemDiscount = rs.getDouble("total_item_discount");
+                data.discountId = rs.getInt("discount_id");
+                
+                double saleDiscountAmount = rs.getDouble("sale_discount_amount");
+                int saleDiscountType = rs.getInt("sale_discount_type");
+                
+                data.saleDiscount = calculateSaleDiscount(data.total, saleDiscountAmount, 
+                                                          saleDiscountType, data.discountId);
+                data.totalDiscount = data.itemDiscount + data.saleDiscount;
+                data.paymentMethod = rs.getString("payment_method_name");
+                data.cashierName = rs.getString("cashier_name");
+                data.customerName = rs.getString("customer_name");
+                
+                invoices.add(data);
+            }
+            
+            rs.close();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Exception("Database error: " + e.getMessage());
+        }
+        
+        return invoices;
+    }
+
+    private void displayInvoices(List<InvoiceData> invoices) {
+        invoicesContainer = new JPanel();
+        invoicesContainer.setLayout(new BoxLayout(invoicesContainer, BoxLayout.Y_AXIS));
+        invoicesContainer.setBackground(new Color(248, 250, 252));
+        invoicesContainer.setOpaque(false);
+        invoicesContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        clearInvoiceCards();
+        
+        if (invoices.isEmpty()) {
+            invoicesContainer.add(createNoDataPanel());
+        } else {
+            for (InvoiceData data : invoices) {
+                JPanel invoiceCard = createInvoiceCard(
+                    data.salesId, data.invoiceNo, data.datetime, 
+                    data.total, data.itemDiscount, data.saleDiscount, 
+                    data.totalDiscount, data.paymentMethod, 
+                    data.cashierName, data.customerName, data.discountId
+                );
+                invoiceCard.putClientProperty("invoiceNo", data.invoiceNo);
+                invoicesContainer.add(invoiceCard);
+                invoicesContainer.add(Box.createRigidArea(new Dimension(0, 16)));
+                invoiceCardsList.add(invoiceCard);
+            }
+        }
+        
+        jPanel2.removeAll();
+        JPanel wrapperPanel = new JPanel(new BorderLayout());
+        wrapperPanel.setBackground(new Color(248, 250, 252));
+        wrapperPanel.add(invoicesContainer, BorderLayout.NORTH);
+        jPanel2.add(wrapperPanel, BorderLayout.CENTER);
+        jPanel2.revalidate();
+        jPanel2.repaint();
+    }
+
+    private void clearInvoiceCards() {
+        for (JPanel card : invoiceCardsList) {
+            for (MouseListener ml : card.getMouseListeners()) {
+                card.removeMouseListener(ml);
+            }
+        }
+        invoiceCardsList.clear();
+        currentCardIndex = -1;
+        currentFocusedCard = null;
+    }
     
     private double calculateSaleDiscount(double total, double saleDiscountAmount, int saleDiscountType, int discountId) {
         double saleDiscount = 0;
         
         if (discountId > 0 && saleDiscountAmount > 0) {
-            if (saleDiscountType == 1) { // Percentage discount
+            if (saleDiscountType == 1) {
                 saleDiscount = (total * saleDiscountAmount) / 100;
-            } else if (saleDiscountType == 2) { // Fixed amount discount
+            } else if (saleDiscountType == 2) {
                 saleDiscount = saleDiscountAmount;
             }
         }
@@ -344,46 +728,7 @@ public class SalesPanel extends javax.swing.JPanel {
         return saleDiscount;
     }
     
-    private JPanel createLoadingPanel() {
-        JPanel loadingPanel = new JPanel();
-        loadingPanel.setBackground(new Color(248, 250, 252));
-        loadingPanel.setLayout(new BoxLayout(loadingPanel, BoxLayout.Y_AXIS));
-        loadingPanel.add(Box.createVerticalGlue());
-        
-        // Animated loading icon
-        JLabel iconLabel = new JLabel("⏳");
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadingPanel.add(iconLabel);
-        loadingPanel.add(Box.createRigidArea(new Dimension(0, 16)));
-        
-        JLabel loadingLabel = new JLabel("Loading your sales data...");
-        loadingLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 18));
-        loadingLabel.setForeground(new Color(71, 85, 105));
-        loadingLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadingPanel.add(loadingLabel);
-        loadingPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        
-        JLabel hintLabel = new JLabel("Please wait a moment");
-        hintLabel.setFont(new Font("Nunito", Font.PLAIN, 14));
-        hintLabel.setForeground(new Color(148, 163, 184));
-        hintLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadingPanel.add(hintLabel);
-        
-        loadingPanel.add(Box.createRigidArea(new Dimension(0, 20)));
-        
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        progressBar.setPreferredSize(new Dimension(250, 10));
-        progressBar.setMaximumSize(new Dimension(250, 10));
-        progressBar.setAlignmentX(Component.CENTER_ALIGNMENT);
-        progressBar.setForeground(new Color(59, 130, 246));
-        progressBar.setBackground(new Color(226, 232, 240));
-        progressBar.setBorderPainted(false);
-        loadingPanel.add(progressBar);
-        loadingPanel.add(Box.createVerticalGlue());
-        return loadingPanel;
-    }
+    // Removed createLoadingPanel method
     
     private JPanel createNoDataPanel() {
         JPanel noDataPanel = new JPanel();
@@ -391,8 +736,7 @@ public class SalesPanel extends javax.swing.JPanel {
         noDataPanel.setBackground(new Color(248, 250, 252));
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 60)));
         
-        // Large friendly icon
-        JLabel iconLabel = new JLabel("📋");
+        JLabel iconLabel = new JLabel("");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 64));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(iconLabel);
@@ -424,7 +768,7 @@ public class SalesPanel extends javax.swing.JPanel {
         errorPanel.setMaximumSize(new Dimension(500, 250));
         errorPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        JLabel iconLabel = new JLabel("⚠️");
+        JLabel iconLabel = new JLabel("️");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(iconLabel);
@@ -445,7 +789,7 @@ public class SalesPanel extends javax.swing.JPanel {
         errorPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         errorPanel.add(errorDetails);
         
-        JButton retryButton = new JButton("🔄 Retry");
+        JButton retryButton = new JButton("Retry");
         retryButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         retryButton.setForeground(Color.WHITE);
         retryButton.setBackground(new Color(220, 38, 38));
@@ -457,7 +801,6 @@ public class SalesPanel extends javax.swing.JPanel {
         errorPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         errorPanel.add(retryButton);
         
-        // Wrap in container panel
         JPanel container = new JPanel();
         container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
         container.setBackground(new Color(248, 250, 252));
@@ -494,7 +837,6 @@ public class SalesPanel extends javax.swing.JPanel {
         cardPanel.setBorderThickness(0);
         cardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         
-        // Add shadow effect
         cardPanel.setBorder(BorderFactory.createCompoundBorder(
             new ShadowBorder(),
             BorderFactory.createEmptyBorder(2, 2, 2, 2)
@@ -532,37 +874,40 @@ public class SalesPanel extends javax.swing.JPanel {
 
         cardPanel.add(contentPanel, BorderLayout.CENTER);
 
-        // Enhanced hover effects with smooth animation
         cardPanel.addMouseListener(new MouseAdapter() {
             private Timer hoverTimer;
             
             @Override
             public void mouseEntered(MouseEvent e) {
-                hoverTimer = new Timer(10, new ActionListener() {
-                    float alpha = 0f;
-                    @Override
-                    public void actionPerformed(ActionEvent evt) {
-                        alpha += 0.1f;
-                        if (alpha >= 1f) {
-                            alpha = 1f;
-                            ((Timer)evt.getSource()).stop();
+                if (cardPanel != currentFocusedCard) {
+                    hoverTimer = new Timer(10, new ActionListener() {
+                        float alpha = 0f;
+                        @Override
+                        public void actionPerformed(ActionEvent evt) {
+                            alpha += 0.1f;
+                            if (alpha >= 1f) {
+                                alpha = 1f;
+                                ((Timer)evt.getSource()).stop();
+                            }
+                            Color baseColor = new Color(245, 247, 250);
+                            cardPanel.setBackground(baseColor);
+                            contentPanel.setBackground(baseColor);
+                            cardPanel.repaint();
                         }
-                        Color baseColor = new Color(245, 247, 250);
-                        cardPanel.setBackground(baseColor);
-                        contentPanel.setBackground(baseColor);
-                        cardPanel.repaint();
-                    }
-                });
-                hoverTimer.start();
+                    });
+                    hoverTimer.start();
+                }
                 cardPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
             
             @Override
             public void mouseExited(MouseEvent e) {
                 if (hoverTimer != null) hoverTimer.stop();
-                cardPanel.setBackground(Color.WHITE);
-                contentPanel.setBackground(Color.WHITE);
-                cardPanel.repaint();
+                if (cardPanel != currentFocusedCard) {
+                    cardPanel.setBackground(Color.WHITE);
+                    contentPanel.setBackground(Color.WHITE);
+                    cardPanel.repaint();
+                }
                 cardPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             }
             
@@ -578,6 +923,20 @@ public class SalesPanel extends javax.swing.JPanel {
                 cardPanel.setBackground(new Color(248, 250, 252));
                 contentPanel.setBackground(new Color(248, 250, 252));
                 cardPanel.repaint();
+            }
+            
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (currentFocusedCard != null && currentFocusedCard != cardPanel) {
+                    int oldIndex = invoiceCardsList.indexOf(currentFocusedCard);
+                    if (oldIndex >= 0) {
+                        deselectCard(oldIndex);
+                    }
+                }
+                
+                currentCardIndex = invoiceCardsList.indexOf(cardPanel);
+                selectCurrentCard();
+                SalesPanel.this.requestFocusInWindow();
             }
         });
 
@@ -672,7 +1031,6 @@ public class SalesPanel extends javax.swing.JPanel {
                     return new ImageIcon(scaledImage);
                 }
             } catch (Exception ex) {
-                // All attempts failed
             }
         }
         return null;
@@ -693,7 +1051,7 @@ public class SalesPanel extends javax.swing.JPanel {
         g2d.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
         
         FontMetrics fm = g2d.getFontMetrics();
-        String text = "📄";
+        String text = "";
         int textWidth = fm.stringWidth(text);
         int textHeight = fm.getHeight();
         
@@ -716,7 +1074,7 @@ public class SalesPanel extends javax.swing.JPanel {
         headerPanel.setOpaque(false);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         
-        JLabel itemsHeader = new JLabel("📦 ITEMS");
+        JLabel itemsHeader = new JLabel("ITEMS");
         itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
         itemsHeader.setForeground(new Color(71, 85, 105));
         itemsHeader.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
@@ -754,7 +1112,7 @@ public class SalesPanel extends javax.swing.JPanel {
             discountPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
             discountPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
             
-            JLabel discountHeader = new JLabel("💰 DISCOUNTS APPLIED");
+            JLabel discountHeader = new JLabel("DISCOUNTS APPLIED");
             discountHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
             discountHeader.setForeground(new Color(146, 64, 14));
             discountPanel.add(discountHeader);
@@ -877,16 +1235,16 @@ public class SalesPanel extends javax.swing.JPanel {
         
         if (normalizedPayment.contains("CASH")) {
             paymentBadge.setBackground(new Color(34, 197, 94));
-            paymentBadge.setText("💵 CASH");
+            paymentBadge.setText("CASH");
         } else if (normalizedPayment.contains("CARD") || normalizedPayment.contains("CREDIT CARD")) {
             paymentBadge.setBackground(new Color(59, 130, 246));
-            paymentBadge.setText("💳 CARD");
+            paymentBadge.setText("CARD");
         } else if (normalizedPayment.contains("CREDIT") || normalizedPayment.contains("ACCOUNT")) {
             paymentBadge.setBackground(new Color(234, 88, 12));
-            paymentBadge.setText("📊 CREDIT");
+            paymentBadge.setText("CREDIT");
         } else if (normalizedPayment.contains("ONLINE") || normalizedPayment.contains("DIGITAL")) {
             paymentBadge.setBackground(new Color(168, 85, 247));
-            paymentBadge.setText("🌐 ONLINE");
+            paymentBadge.setText("ONLINE");
         } else {
             paymentBadge.setBackground(new Color(100, 116, 139));
             paymentBadge.setText(normalizedPayment.length() > 8 ? 
@@ -912,8 +1270,7 @@ public class SalesPanel extends javax.swing.JPanel {
             pst.setInt(1, salesId);
             ResultSet rs = pst.executeQuery();
             
-            // Store all items in a list first
-            java.util.List<ItemData> items = new java.util.ArrayList<>();
+            List<ItemData> items = new ArrayList<>();
             
             while (rs.next()) {
                 String productName = rs.getString("product_name");
@@ -929,9 +1286,8 @@ public class SalesPanel extends javax.swing.JPanel {
             rs.close();
             pst.close();
             
-            // Now add items to panel with separators
             if (items.isEmpty()) {
-                JLabel noItemsLabel = new JLabel("📭 No items in this sale");
+                JLabel noItemsLabel = new JLabel("No items in this sale");
                 noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
                 noItemsLabel.setForeground(new Color(148, 163, 184));
                 noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -943,7 +1299,6 @@ public class SalesPanel extends javax.swing.JPanel {
                                                      item.discountPrice, item.total, item.batchNo);
                     itemsListPanel.add(itemCard);
                     
-                    // Add separator between items (but not after the last one)
                     if (i < items.size() - 1) {
                         JSeparator separator = new JSeparator();
                         separator.setForeground(new Color(229, 231, 235));
@@ -956,7 +1311,7 @@ public class SalesPanel extends javax.swing.JPanel {
             
         } catch (Exception e) {
             e.printStackTrace();
-            JLabel errorLabel = new JLabel("⚠️ Error loading items");
+            JLabel errorLabel = new JLabel("Error loading items");
             errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
             errorLabel.setForeground(new Color(220, 38, 38));
             errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -964,7 +1319,6 @@ public class SalesPanel extends javax.swing.JPanel {
         }
     }
     
-    // Helper class to store item data
     private static class ItemData {
         String productName;
         int qty;
@@ -1025,7 +1379,7 @@ public class SalesPanel extends javax.swing.JPanel {
         extraInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         if (batchNo != null && !batchNo.isEmpty()) {
-            JLabel batchLabel = new JLabel("🏷️ Batch: " + batchNo);
+            JLabel batchLabel = new JLabel("Batch: " + batchNo);
             batchLabel.setFont(new Font("Nunito", Font.PLAIN, 11));
             batchLabel.setForeground(new Color(148, 163, 184));
             extraInfoPanel.add(batchLabel);
@@ -1064,7 +1418,6 @@ public class SalesPanel extends javax.swing.JPanel {
         }
     }
     
-    // Custom border classes for rounded corners and shadows
     static class RoundBorder extends AbstractBorder {
         private Color color;
         private int thickness;
@@ -1100,7 +1453,6 @@ public class SalesPanel extends javax.swing.JPanel {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             
-            // Draw shadow layers for depth effect
             for (int i = 0; i < 4; i++) {
                 g2d.setColor(new Color(0, 0, 0, 5 - i));
                 g2d.drawRoundRect(x + i, y + i, width - 2*i - 1, height - 2*i - 1, 20, 20);
@@ -1142,6 +1494,8 @@ public class SalesPanel extends javax.swing.JPanel {
         sortByDays = new javax.swing.JComboBox<>();
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
+
+        jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
 
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -1347,7 +1701,7 @@ public class SalesPanel extends javax.swing.JPanel {
 
         sortByDays.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         sortByDays.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        sortByDays.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Sort by Days", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        sortByDays.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
         sortByDays.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 sortByDaysActionPerformed(evt);
@@ -1361,23 +1715,23 @@ public class SalesPanel extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 949, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 955, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jTextField1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByDays, 0, 503, Short.MAX_VALUE)
-                        .addGap(216, 216, 216)))
-                .addContainerGap())
+                        .addComponent(sortByDays, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGap(19, 19, 19)))
+                .addGap(0, 0, 0))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 47, Short.MAX_VALUE)
+                    .addComponent(sortByDays))
                 .addGap(18, 18, 18)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 427, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 431, Short.MAX_VALUE)
                 .addGap(17, 17, 17))
         );
 

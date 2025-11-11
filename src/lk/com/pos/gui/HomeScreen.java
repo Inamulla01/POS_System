@@ -175,7 +175,7 @@ public class HomeScreen extends JFrame {
 
         // New icons for additional buttons
         notificationIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
-        returnIcon = new FlatSVGIcon("lk/com/pos/icon/return.svg", 20, 20);
+        returnIcon = new FlatSVGIcon("lk/com/pos/icon/return.svg", 17, 17);
         productIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
 
         // Initialize navigation bar icons

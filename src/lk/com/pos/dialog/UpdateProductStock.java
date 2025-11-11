@@ -1546,7 +1546,7 @@ private void saveProductAndStock() {
                 + "qty = ?, "
                 + "suppliers_id = ?, "
                 + "manufacture_date = " + mfgDateStr + ", "
-                + "expiry_date = " + expDateStr + " "
+                + "expriy_date = " + expDateStr + " "
                 + "WHERE stock_id = ? AND product_id = ?";
 
         pstUpdateStock = conn.prepareStatement(stockUpdateQuery);

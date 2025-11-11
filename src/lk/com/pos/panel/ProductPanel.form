@@ -84,7 +84,6 @@
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito SemiBold" size="16" style="1"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="Search By Product Name Or Barcode"/>
           </Properties>
         </Component>
         <Component class="javax.swing.JButton" name="addProductDialog">

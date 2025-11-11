@@ -24,7 +24,7 @@ import raven.toast.Notifications;
 public class UpdateSupplier extends javax.swing.JDialog {
 
     private int supplierId;
-    
+
     /**
      * Creates new form UpdateSupplier
      */
@@ -33,7 +33,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         initComponents();
         initializeDialog();
     }
-    
+
     // Constructor with supplier ID to load data
     public UpdateSupplier(java.awt.Frame parent, boolean modal, int supplierId) {
         super(parent, modal);
@@ -42,28 +42,27 @@ public class UpdateSupplier extends javax.swing.JDialog {
         initializeDialog();
         loadSupplierData();
     }
-    
+
     private void initializeDialog() {
         setLocationRelativeTo(getParent());
         setupKeyboardNavigation();
         setupButtonStyles();
         setupTooltips();
-        
+
         // Enable registration number field
         jTextField4.setEnabled(true);
         jTextField4.setEditable(true);
-        
+
         // Set initial focus
         jTextField1.requestFocus();
     }
 
     // ---------------- KEYBOARD NAVIGATION SETUP ----------------
-
     private boolean areAllRequiredFieldsFilled() {
-        return !jTextField1.getText().trim().isEmpty() &&
-               !jTextField2.getText().trim().isEmpty() &&
-               !jTextField3.getText().trim().isEmpty() &&
-               !jTextField4.getText().trim().isEmpty();
+        return !jTextField1.getText().trim().isEmpty()
+                && !jTextField2.getText().trim().isEmpty()
+                && !jTextField3.getText().trim().isEmpty()
+                && !jTextField4.getText().trim().isEmpty();
     }
 
     // ---------------- BUTTON STYLES AND EFFECTS ----------------
@@ -271,7 +270,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         jTextField1.requestFocus();
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form reset to original values!");
     }
-    
+
     private void loadSupplierData() {
         try {
             Connection conn = MySQL.getConnection();
@@ -279,14 +278,14 @@ public class UpdateSupplier extends javax.swing.JDialog {
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setInt(1, supplierId);
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next()) {
                 jTextField1.setText(rs.getString("suppliers_name"));
                 jTextField2.setText(rs.getString("suppliers_mobile"));
                 jTextField3.setText(rs.getString("suppliers_address"));
                 jTextField4.setText(rs.getString("suppliers_reg_no"));
             }
-            
+
             rs.close();
             pst.close();
         } catch (Exception e) {
@@ -295,11 +294,11 @@ public class UpdateSupplier extends javax.swing.JDialog {
                     "Error loading supplier data: " + e.getMessage());
         }
     }
-    
+
     private boolean isValidSriLankanMobile(String mobile) {
         // Remove any spaces or dashes
         String cleanedMobile = mobile.replaceAll("[\\s-]", "");
-        
+
         // Use your exact regex pattern for Sri Lankan mobile validation
         if (!cleanedMobile.matches("^(0{1})(7{1})([0|1|2|4|5|6|7|8]{1})([0-9]{7})$")) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -308,7 +307,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         }
         return true;
     }
-    
+
     private boolean isSupplierNameExists(String name) {
         try {
             Connection conn = MySQL.getConnection();
@@ -317,13 +316,13 @@ public class UpdateSupplier extends javax.swing.JDialog {
             pst.setString(1, name);
             pst.setInt(2, supplierId);
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next() && rs.getInt(1) > 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Supplier name already exists!");
                 return true;
             }
-            
+
             rs.close();
             pst.close();
         } catch (Exception e) {
@@ -340,13 +339,13 @@ public class UpdateSupplier extends javax.swing.JDialog {
             pst.setString(1, regNo);
             pst.setInt(2, supplierId);
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next() && rs.getInt(1) > 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Registration number already exists!");
                 return true;
             }
-            
+
             rs.close();
             pst.close();
         } catch (Exception e) {
@@ -486,23 +485,23 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
         // Set up Escape key to close dialog
         getRootPane().registerKeyboardAction(
-            evt -> dispose(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
+                evt -> dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         // Set up Ctrl+Enter to update from anywhere
         getRootPane().registerKeyboardAction(
-            evt -> updateSupplier(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
+                evt -> updateSupplier(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         // Set up F1 key for refresh/clear form
         getRootPane().registerKeyboardAction(
-            evt -> clearForm(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
+                evt -> clearForm(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
         );
     }
 
@@ -540,31 +539,85 @@ public class UpdateSupplier extends javax.swing.JDialog {
         try {
             Connection conn = MySQL.getConnection();
             String sql = "UPDATE suppliers SET suppliers_name = ?, suppliers_mobile = ?, suppliers_address = ?, suppliers_reg_no = ? WHERE suppliers_id = ?";
-            
+
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setString(1, name);
             pst.setString(2, mobile);
             pst.setString(3, address);
             pst.setString(4, regNo);
             pst.setInt(5, supplierId);
-            
+
             int rowsAffected = pst.executeUpdate();
-            
+
             if (rowsAffected > 0) {
+                // Add notification for supplier update
+                addSupplierUpdateNotification(name);
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Supplier updated successfully!");
+                        "Supplier updated successfully!");
                 this.dispose(); // Close the dialog after successful update
             } else {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Failed to update supplier!");
+                        "Failed to update supplier!");
             }
-            
+
             pst.close();
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error: " + e.getMessage());
+        }
+    }
+
+// Add this new method for handling notifications
+    private void addSupplierUpdateNotification(String supplierName) {
+        try {
+            Connection conn = MySQL.getConnection();
+
+            // Check if message already exists in messages table
+            String checkMessageSql = "SELECT message_id FROM messages WHERE message_text = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkMessageSql);
+            String messageText = "Supplier '" + supplierName + "' has been updated in the system.";
+            checkStmt.setString(1, messageText);
+
+            ResultSet rs = checkStmt.executeQuery();
+            int messageId;
+
+            if (rs.next()) {
+                // Message already exists, get its ID
+                messageId = rs.getInt("message_id");
+            } else {
+                // Message doesn't exist, insert new message
+                String insertMessageSql = "INSERT INTO messages (message_text, message_type, created_date) VALUES (?, 'supplier_update', NOW())";
+                PreparedStatement insertStmt = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                insertStmt.setString(1, messageText);
+                insertStmt.executeUpdate();
+
+                // Get the generated message ID
+                ResultSet generatedKeys = insertStmt.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    messageId = generatedKeys.getInt(1);
+                } else {
+                    throw new Exception("Creating message failed, no ID obtained.");
+                }
+                insertStmt.close();
+            }
+
+            rs.close();
+            checkStmt.close();
+
+            // Insert notification with the message ID
+            String insertNotificationSql = "INSERT INTO notifications (message_id, notification_date, is_read) VALUES (?, NOW(), 0)";
+            PreparedStatement notificationStmt = conn.prepareStatement(insertNotificationSql);
+            notificationStmt.setInt(1, messageId);
+            notificationStmt.executeUpdate();
+            notificationStmt.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Don't show error to user for notification failure, just log it
+            System.err.println("Failed to add notification: " + e.getMessage());
         }
     }
 

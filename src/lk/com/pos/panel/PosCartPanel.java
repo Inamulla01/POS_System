@@ -2,11 +2,18 @@ package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -27,17 +34,28 @@ import javax.swing.text.DocumentFilter;
 import java.sql.ResultSet;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JFrame;
+import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddCredit;
 import lk.com.pos.dialog.CardPayDialog;
 import lk.com.pos.dialog.DiscountDialog;
 import lk.com.pos.dialog.ExchangeProductDialog;
-import lk.com.pos.dialog.HoldDialog;
 import lk.com.pos.privateclasses.Invoice;
 import raven.toast.Notifications;
 
 public class PosCartPanel extends javax.swing.JPanel {
+
+    private java.util.List<Invoice> recentInvoices = new ArrayList<>();
+    private javax.swing.JPopupMenu notificationPopup = new javax.swing.JPopupMenu();
+    private Invoice selectedInvoice;
+    private boolean invoiceSelected = false;
+    private java.util.List<JPanel> invoiceCardsList = new ArrayList<>();
+    private int currentFocusedIndex = -1;
 
     private static final Color TEAL_COLOR = new Color(28, 181, 187);
     private static final Color TEXT_GRAY = new Color(102, 102, 102);
@@ -49,6 +67,18 @@ public class PosCartPanel extends javax.swing.JPanel {
     private Map<String, CartItem> cartItems = new HashMap<>();
     private JLabel noProductsLabel;
     private CartListener cartListener;
+
+    // Interface for callback
+    public interface InvoiceSelectionListener {
+
+        void onInvoiceSelected(Invoice invoice, String action);
+    }
+
+    private InvoiceSelectionListener invoiceSelectionListener;
+
+    public void setInvoiceSelectionListener(InvoiceSelectionListener listener) {
+        this.invoiceSelectionListener = listener;
+    }
 
     public PosCartPanel() {
         initComponents();
@@ -78,7 +108,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         jPanel2.putClientProperty(FlatClientProperties.STYLE, "arc:20;");
         jPanel2.setBorder(BorderFactory.createEmptyBorder());
-        // ✅ ADD: Center the panel inside scroll pane
         jPanel10.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
 
         clearCartBtn.addActionListener(evt -> clearCart());
@@ -97,18 +126,12 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
-        // Add payment method change listener
         paymentcombo.addActionListener(evt -> togglePaymentButtons());
-// Set initial state
         togglePaymentButtons();
 
         ((AbstractDocument) jTextField2.getDocument()).setDocumentFilter(new NumericDocumentFilter());
 
         loadPaymentMethods();
-        //loadCustomers();
-
-//        paymentcombo.addActionListener(evt -> toggleCustomerCombo());
-//        toggleCustomerCombo();
         showNoProductsMessage();
     }
 
@@ -138,48 +161,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
-//    private void loadCustomers() {
-//        try {
-//            coustomerCombo.removeAllItems();
-//            coustomerCombo.addItem("Select Customer");
-//
-//            Connection connection = lk.com.pos.connection.MySQL.getConnection();
-//            String query = "SELECT * FROM credit_customer ORDER BY customer_name ASC";
-//            PreparedStatement pst = connection.prepareStatement(query);
-//            ResultSet rs = pst.executeQuery();
-//
-//            while (rs.next()) {
-//                String customerName = rs.getString("customer_name");
-//                String customerPhone = rs.getString("customer_phone_no");
-//                coustomerCombo.addItem(customerName + " - " + customerPhone);
-//            }
-//
-//            rs.close();
-//            pst.close();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            JOptionPane.showMessageDialog(this,
-//                    "Error loading customers: " + e.getMessage(),
-//                    "Database Error",
-//                    JOptionPane.ERROR_MESSAGE);
-//        }
-//    }
-//    private void toggleCustomerCombo() {
-//        String selectedPayment = (String) paymentcombo.getSelectedItem();
-//
-//        if (selectedPayment != null && selectedPayment.equalsIgnoreCase("Credit Payment")) {
-//            coustomerCombo.setVisible(true);
-//            jButton8.setVisible(true);
-//            jButton9.setVisible(true);
-//        } else {
-//            coustomerCombo.setVisible(false);
-//            jButton8.setVisible(false);
-//            jButton9.setVisible(false);
-//        }
-//
-//        revalidate();
-//        repaint();
-//    }
     private class NumericDocumentFilter extends DocumentFilter {
 
         @Override
@@ -211,7 +192,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     public void addToCart(int productId, String productName, String brandName,
-            String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) { // ✅ ADD lastPrice parameter
+            String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) {
 
         String cartKey = productId + "_" + batchNo;
 
@@ -229,7 +210,7 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         } else {
             CartItem newItem = new CartItem(productId, productName, brandName,
-                    batchNo, qty, sellingPrice, barcode, lastPrice); // ✅ PASS last_price
+                    batchNo, qty, sellingPrice, barcode, lastPrice);
             cartItems.put(cartKey, newItem);
             updateCartPanel();
         }
@@ -249,12 +230,10 @@ public class PosCartPanel extends javax.swing.JPanel {
                 cardPayBtn.setVisible(false);
                 creditCustomerBtn.setVisible(false);
             } else {
-                // For "Select Payment Method" or any other option, hide both
                 cardPayBtn.setVisible(false);
                 creditCustomerBtn.setVisible(false);
             }
         } else {
-            // If nothing is selected, hide both
             cardPayBtn.setVisible(false);
             creditCustomerBtn.setVisible(false);
         }
@@ -349,7 +328,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         ));
         card.setLayout(new java.awt.BorderLayout(10, 10));
 
-        // Top panel - Product name and delete button
         JPanel topPanel = new JPanel(new java.awt.BorderLayout());
         topPanel.setOpaque(false);
 
@@ -370,11 +348,9 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         card.add(topPanel, java.awt.BorderLayout.NORTH);
 
-        // Middle panel - Quantity controls and discount per unit
         JPanel middlePanel = new JPanel(new java.awt.BorderLayout(15, 0));
         middlePanel.setOpaque(false);
 
-        // Quantity control
         JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 10));
         qtyPanel.setOpaque(false);
 
@@ -415,7 +391,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         middlePanel.add(qtyPanel, java.awt.BorderLayout.WEST);
 
-        // Discount input panel with label (Per Unit Discount)
         JPanel discountContainer = new JPanel();
         discountContainer.setLayout(new javax.swing.BoxLayout(discountContainer, javax.swing.BoxLayout.Y_AXIS));
         discountContainer.setOpaque(false);
@@ -428,7 +403,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         discountContainer.add(javax.swing.Box.createRigidArea(new Dimension(0, 3)));
 
-        // ✅ FIX: Show exactly what's stored (per-unit discount)
         double perUnitDiscount = item.getDiscountPrice();
 
         JTextField discountField = new JTextField(String.format("%.2f", perUnitDiscount));
@@ -440,8 +414,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         ((AbstractDocument) discountField.getDocument()).setDocumentFilter(new NumericDocumentFilter());
 
-        // Real-time discount validation
-        // Real-time discount validation with last_price
         discountField.getDocument().addDocumentListener(new DocumentListener() {
             private void validateDiscount() {
                 try {
@@ -453,12 +425,9 @@ public class PosCartPanel extends javax.swing.JPanel {
                         return;
                     }
 
-                    // User enters per-unit discount
                     double discountInput = Double.parseDouble(text);
                     double unitPrice = item.getUnitPrice();
-                    double lastPrice = item.getLastPrice(); // ✅ GET last_price from CartItem
-
-                    // Calculate final price after discount
+                    double lastPrice = item.getLastPrice();
                     double finalPricePerUnit = unitPrice - discountInput;
 
                     if (discountInput < 0) {
@@ -468,7 +437,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                         discountField.setForeground(ERROR_COLOR);
                         discountField.setToolTipText("Max discount per unit: Rs." + String.format("%.2f", unitPrice));
                     } else if (finalPricePerUnit < lastPrice) {
-                        // ✅ Check if discounted price is below last_price
                         discountField.setForeground(ERROR_COLOR);
                         double maxAllowedDiscount = unitPrice - lastPrice;
                         discountField.setToolTipText(String.format(
@@ -523,11 +491,10 @@ public class PosCartPanel extends javax.swing.JPanel {
 
                     double discountInput = Double.parseDouble(text);
                     double unitPrice = item.getUnitPrice();
-                    double lastPrice = item.getLastPrice(); // ✅ GET last_price
+                    double lastPrice = item.getLastPrice();
                     double finalPricePerUnit = unitPrice - discountInput;
 
                     if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                        // Restore current value
                         discountField.setText(String.format("%.2f", item.getDiscountPrice()));
                         discountField.setForeground(Color.BLACK);
 
@@ -558,59 +525,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
-// ENTER key handler with last_price validation
-        discountField.getInputMap().put(javax.swing.KeyStroke.getKeyStroke("ENTER"), "applyDiscount");
-        discountField.getActionMap().put("applyDiscount", new javax.swing.AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                try {
-                    String text = discountField.getText().trim();
-                    if (text.isEmpty()) {
-                        item.setDiscountPrice(0);
-                        discountField.setText("0.00");
-                        updateTotals();
-                        return;
-                    }
-
-                    double discountInput = Double.parseDouble(text);
-                    double unitPrice = item.getUnitPrice();
-                    double lastPrice = item.getLastPrice(); // ✅ GET last_price
-                    double finalPricePerUnit = unitPrice - discountInput;
-
-                    if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                        String message;
-                        if (discountInput < 0) {
-                            message = "Discount cannot be negative";
-                        } else if (discountInput > unitPrice) {
-                            message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
-                        } else {
-                            double maxAllowedDiscount = unitPrice - lastPrice;
-                            message = String.format(
-                                    "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                                    finalPricePerUnit, lastPrice, maxAllowedDiscount
-                            );
-                        }
-
-                        JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
-
-                    item.setDiscountPrice(discountInput);
-                    discountField.setText(String.format("%.2f", discountInput));
-                    updateTotals();
-
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(null, "Invalid discount value.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        });
-
         discountContainer.add(discountField);
         middlePanel.add(discountContainer, java.awt.BorderLayout.EAST);
 
         card.add(middlePanel, java.awt.BorderLayout.CENTER);
 
-        // Bottom panel - Price calculation
         JPanel bottomPanel = new JPanel(new java.awt.BorderLayout(10, 0));
         bottomPanel.setOpaque(false);
 
@@ -618,7 +537,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         calcPanel.setLayout(new javax.swing.BoxLayout(calcPanel, javax.swing.BoxLayout.Y_AXIS));
         calcPanel.setOpaque(false);
 
-        // Base price calculation
         JLabel basePriceLabel = new JLabel(String.format("Rs.%.2f × %d = Rs.%.2f",
                 item.getUnitPrice(), item.getQuantity(), item.getUnitPrice() * item.getQuantity()));
         basePriceLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
@@ -626,9 +544,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         basePriceLabel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
         calcPanel.add(basePriceLabel);
 
-        // ✅ FIX: Show discount calculation correctly
         if (item.getDiscountPrice() > 0) {
-            // getDiscountPrice() stores per-unit discount
             double discountPerUnit = item.getDiscountPrice();
             double totalDiscount = discountPerUnit * item.getQuantity();
 
@@ -644,7 +560,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         bottomPanel.add(calcPanel, java.awt.BorderLayout.CENTER);
 
-        // Right side - Total price
         JLabel lblPrice = new JLabel(String.format("Rs.%.2f", item.getTotalPrice()));
         lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
         lblPrice.setForeground(TEAL_COLOR);
@@ -761,17 +676,6 @@ public class PosCartPanel extends javax.swing.JPanel {
             return false;
         }
 
-//        if (selectedPayment.equalsIgnoreCase("Credit Payment")) {
-//            String selectedCustomer = (String) coustomerCombo.getSelectedItem();
-//            if (selectedCustomer == null || selectedCustomer.equals("Select Customer")) {
-//                JOptionPane.showMessageDialog(this,
-//                        "Please select a customer for credit payment.",
-//                        "Missing Customer",
-//                        JOptionPane.WARNING_MESSAGE);
-//                coustomerCombo.requestFocus();
-//                return false;
-//            }
-//        }
         try {
             String amountText = jTextField2.getText().trim();
             if (amountText.isEmpty()) {
@@ -809,6 +713,771 @@ public class PosCartPanel extends javax.swing.JPanel {
         jTextField2.setText("");
         paymentcombo.setSelectedIndex(0);
         updateCartPanel();
+    }
+
+    // SWITCH INVOICE PANEL METHODS
+    private void showSwitchInvoicePanel() {
+        loadRecentInvoices();
+        invoiceCardsList.clear();
+        currentFocusedIndex = -1;
+
+        notificationPopup.removeAll();
+        notificationPopup.setPreferredSize(new Dimension(480, 500));
+
+        // Header Panel
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 12));
+        headerPanel.setBackground(new Color(0x1CB5BB));
+
+        JLabel titleLabel = new JLabel("Switch Invoice");
+        titleLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        titleLabel.setForeground(Color.WHITE);
+
+        // Right side panel for buttons
+        JPanel rightButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        rightButtonPanel.setBackground(new Color(0x1CB5BB));
+
+        // Refresh button
+        final FlatSVGIcon refreshIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 18, 18);
+        refreshIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return Color.WHITE;
+            }
+        });
+
+        JButton refreshButton = new JButton(refreshIcon);
+        refreshButton.setContentAreaFilled(false);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setFocusPainted(false);
+        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        refreshButton.setToolTipText("Refresh");
+
+        refreshButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                refreshIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0xFFE0E0);
+                    }
+                });
+                refreshButton.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                refreshIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return Color.WHITE;
+                    }
+                });
+                refreshButton.repaint();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                loadRecentInvoices();
+                showSwitchInvoicePanel();
+            }
+        });
+
+        // Close icon
+        final FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 18, 18);
+        closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return Color.WHITE;
+            }
+        });
+
+        JButton closeButton = new JButton(closeIcon);
+        closeButton.setContentAreaFilled(false);
+        closeButton.setBorderPainted(false);
+        closeButton.setFocusPainted(false);
+        closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        closeButton.setToolTipText("Close");
+
+        closeButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0xFFE0E0);
+                    }
+                });
+                closeButton.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return Color.WHITE;
+                    }
+                });
+                closeButton.repaint();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                notificationPopup.setVisible(false);
+            }
+        });
+
+        rightButtonPanel.add(refreshButton);
+        rightButtonPanel.add(closeButton);
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(rightButtonPanel, BorderLayout.EAST);
+
+        // Subtitle Panel
+        JPanel subtitlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        subtitlePanel.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        subtitlePanel.setBackground(new Color(0xF8F9FA));
+
+        JLabel subtitleLabel = new JLabel("Recent Invoices (Last 24 Hours) ");
+        subtitleLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+        subtitleLabel.setForeground(new Color(0x666666));
+
+        JLabel countLabel = new JLabel(recentInvoices.size() + " found");
+        countLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 12));
+        countLabel.setForeground(new Color(0x1CB5BB));
+
+        subtitlePanel.add(subtitleLabel);
+        subtitlePanel.add(countLabel);
+
+        // Content Panel with Scroll
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(Color.WHITE);
+
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setPreferredSize(new Dimension(480, 400));
+
+        if (recentInvoices.isEmpty()) {
+            JPanel emptyPanel = new JPanel(new BorderLayout());
+            emptyPanel.setBorder(BorderFactory.createEmptyBorder(40, 20, 40, 20));
+            emptyPanel.setBackground(Color.WHITE);
+
+            JLabel emptyLabel = new JLabel("No invoices found in the last 24 hours", JLabel.CENTER);
+            emptyLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
+            emptyLabel.setForeground(new Color(0x999999));
+            emptyPanel.add(emptyLabel, BorderLayout.CENTER);
+
+            contentPanel.add(emptyPanel);
+        } else {
+            for (int i = 0; i < recentInvoices.size(); i++) {
+                Invoice invoice = recentInvoices.get(i);
+                JPanel invoiceCard = createInvoiceCard(invoice, i);
+                invoiceCardsList.add(invoiceCard);
+                contentPanel.add(invoiceCard);
+                contentPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+            }
+        }
+
+        notificationPopup.setLayout(new BorderLayout());
+        notificationPopup.add(headerPanel, BorderLayout.NORTH);
+
+        // Create a wrapper panel to hold subtitle and scroll pane
+        JPanel mainContentPanel = new JPanel(new BorderLayout());
+        mainContentPanel.add(subtitlePanel, BorderLayout.NORTH);
+        mainContentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        notificationPopup.add(mainContentPanel, BorderLayout.CENTER);
+
+        // Add keyboard listener
+        notificationPopup.setFocusable(true);
+        notificationPopup.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleKeyboardNavigation(evt, scrollPane);
+            }
+        });
+
+        java.awt.Point buttonLoc = switchBtn.getLocationOnScreen();
+        int x = buttonLoc.x - (notificationPopup.getPreferredSize().width - switchBtn.getWidth()) / 2;
+        int y = buttonLoc.y + switchBtn.getHeight();
+
+        notificationPopup.setLocation(x, y);
+        notificationPopup.setVisible(true);
+        notificationPopup.requestFocus();
+
+        // Auto-focus first item if available
+        if (!invoiceCardsList.isEmpty()) {
+            setFocusedCard(0, scrollPane);
+        }
+    }
+
+    private void handleKeyboardNavigation(java.awt.event.KeyEvent evt, JScrollPane scrollPane) {
+        if (invoiceCardsList.isEmpty()) {
+            return;
+        }
+
+        int keyCode = evt.getKeyCode();
+
+        if (keyCode == java.awt.event.KeyEvent.VK_DOWN) {
+            // Move down
+            if (currentFocusedIndex < invoiceCardsList.size() - 1) {
+                setFocusedCard(currentFocusedIndex + 1, scrollPane);
+            }
+            evt.consume();
+        } else if (keyCode == java.awt.event.KeyEvent.VK_UP) {
+            // Move up
+            if (currentFocusedIndex > 0) {
+                setFocusedCard(currentFocusedIndex - 1, scrollPane);
+            }
+            evt.consume();
+        } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
+            // Select current invoice
+            if (currentFocusedIndex >= 0 && currentFocusedIndex < recentInvoices.size()) {
+                Invoice invoice = recentInvoices.get(currentFocusedIndex);
+                String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
+                notificationPopup.setVisible(false);
+                handleInvoiceAction(invoice, buttonText);
+            }
+            evt.consume();
+        } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
+            // Close popup
+            notificationPopup.setVisible(false);
+            evt.consume();
+        }
+    }
+
+    private void setFocusedCard(int index, JScrollPane scrollPane) {
+        if (index < 0 || index >= invoiceCardsList.size()) {
+            return;
+        }
+
+        // Remove focus from previous card
+        if (currentFocusedIndex >= 0 && currentFocusedIndex < invoiceCardsList.size()) {
+            JPanel prevCard = invoiceCardsList.get(currentFocusedIndex);
+            resetCardAppearance(prevCard, recentInvoices.get(currentFocusedIndex));
+        }
+
+        // Set focus to new card
+        currentFocusedIndex = index;
+        JPanel currentCard = invoiceCardsList.get(currentFocusedIndex);
+        Invoice invoice = recentInvoices.get(currentFocusedIndex);
+        applyFocusedCardAppearance(currentCard, invoice);
+
+        // Scroll to make the focused card visible
+        SwingUtilities.invokeLater(() -> {
+            currentCard.scrollRectToVisible(currentCard.getBounds());
+        });
+    }
+
+    private void resetCardAppearance(JPanel card, Invoice invoice) {
+        card.setBackground(Color.WHITE);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xE0E0E0), 1),
+                BorderFactory.createEmptyBorder(12, 16, 12, 16)
+        ));
+
+        // Reset all panel backgrounds
+        for (java.awt.Component comp : card.getComponents()) {
+            if (comp instanceof JPanel) {
+                setAllBackgrounds((JPanel) comp, Color.WHITE);
+            }
+        }
+    }
+
+    private void applyFocusedCardAppearance(JPanel card, Invoice invoice) {
+        String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
+        Color[] buttonColors = getButtonColors(buttonText);
+        Color borderColor = buttonColors[0];
+
+        card.setBackground(new Color(0xF8F9FA));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(borderColor, 2),
+                BorderFactory.createEmptyBorder(11, 15, 11, 15)
+        ));
+
+        // Set all panel backgrounds
+        for (java.awt.Component comp : card.getComponents()) {
+            if (comp instanceof JPanel) {
+                setAllBackgrounds((JPanel) comp, new Color(0xF8F9FA));
+            }
+        }
+    }
+
+    private void setAllBackgrounds(JPanel panel, Color color) {
+        panel.setBackground(color);
+        for (java.awt.Component comp : panel.getComponents()) {
+            if (comp instanceof JPanel) {
+                setAllBackgrounds((JPanel) comp, color);
+            }
+        }
+    }
+
+    private JPanel createInvoiceCard(Invoice invoice, int index) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xE0E0E0), 1),
+                BorderFactory.createEmptyBorder(12, 16, 12, 16)
+        ));
+        card.setBackground(Color.WHITE);
+        card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        card.setMaximumSize(new Dimension(460, 100));
+
+        // Left side - Invoice info
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBackground(Color.WHITE);
+        infoPanel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+
+        // Invoice number and status
+        JPanel topInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        topInfoPanel.setBackground(Color.WHITE);
+
+        JLabel invoiceLabel = new JLabel(invoice.getInvoiceNo());
+        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        invoiceLabel.setForeground(new Color(0x333333));
+
+        JLabel statusLabel = new JLabel("(" + invoice.getStatus() + ")");
+        statusLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+
+        Color statusColor;
+        switch (invoice.getStatus().toLowerCase()) {
+            case "completed":
+                statusColor = new Color(0x4CAF50);
+                break;
+            case "hold":
+                statusColor = new Color(0xFF9800);
+                break;
+            case "pending":
+                statusColor = new Color(0x2196F3);
+                break;
+            default:
+                statusColor = new Color(0x666666);
+        }
+        statusLabel.setForeground(statusColor);
+
+        topInfoPanel.add(invoiceLabel);
+        topInfoPanel.add(Box.createRigidArea(new Dimension(8, 0)));
+        topInfoPanel.add(statusLabel);
+
+        // Date and amount
+        JLabel dateLabel = new JLabel(invoice.getDate().toString());
+        dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
+        dateLabel.setForeground(new Color(0x999999));
+
+        JLabel amountLabel = new JLabel("Rs. " + String.format("%.2f", invoice.getTotal()));
+        amountLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        amountLabel.setForeground(new Color(0x1CB5BB));
+
+        infoPanel.add(topInfoPanel);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        infoPanel.add(dateLabel);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 2)));
+        infoPanel.add(amountLabel);
+
+        // Right side - Action button
+        String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
+        GradientActionButton actionButton = new GradientActionButton(buttonText, invoice);
+        actionButton.addActionListener(e -> {
+            notificationPopup.setVisible(false);
+            handleInvoiceAction(invoice, buttonText);
+        });
+
+        // Get button colors based on status
+        Color[] buttonColors = getButtonColors(buttonText);
+        Color borderColor = buttonColors[0];
+
+        card.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                notificationPopup.setVisible(false);
+                handleInvoiceAction(invoice, buttonText);
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (currentFocusedIndex != index) {
+                    card.setBackground(new Color(0xF8F9FA));
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(borderColor, 2),
+                            BorderFactory.createEmptyBorder(11, 15, 11, 15)
+                    ));
+                    infoPanel.setBackground(new Color(0xF8F9FA));
+                    topInfoPanel.setBackground(new Color(0xF8F9FA));
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (currentFocusedIndex != index) {
+                    card.setBackground(Color.WHITE);
+                    card.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(new Color(0xE0E0E0), 1),
+                            BorderFactory.createEmptyBorder(12, 16, 12, 16)
+                    ));
+                    infoPanel.setBackground(Color.WHITE);
+                    topInfoPanel.setBackground(Color.WHITE);
+                }
+            }
+        });
+
+        card.add(infoPanel, BorderLayout.CENTER);
+        card.add(actionButton, BorderLayout.EAST);
+
+        return card;
+    }
+
+    private String getButtonTextBasedOnStatus(String status) {
+        if ("Completed".equalsIgnoreCase(status)) {
+            return "View";
+        } else if ("Hold".equalsIgnoreCase(status)) {
+            return "Switch";
+        } else {
+            return "Open";
+        }
+    }
+
+    private Color[] getButtonColors(String buttonText) {
+        Color topColor, bottomColor;
+
+        switch (buttonText) {
+            case "Switch":
+                topColor = new Color(255, 193, 7);
+                bottomColor = new Color(255, 152, 0);
+                break;
+            case "View":
+                topColor = new Color(105, 240, 174);
+                bottomColor = new Color(76, 175, 80);
+                break;
+            case "Open":
+                topColor = new Color(100, 181, 246);
+                bottomColor = new Color(30, 136, 229);
+                break;
+            default:
+                topColor = new Color(100, 181, 246);
+                bottomColor = new Color(30, 136, 229);
+                break;
+        }
+
+        return new Color[]{topColor, bottomColor};
+    }
+
+    // Custom gradient button class
+    class GradientActionButton extends JButton {
+
+        private Invoice invoice;
+        private boolean isHovered = false;
+
+        public GradientActionButton(String text, Invoice invoice) {
+            super(text);
+            this.invoice = invoice;
+            setupButton();
+        }
+
+        private void setupButton() {
+            setFont(new Font("Nunito SemiBold", Font.BOLD, 12));
+            setFocusPainted(false);
+            setBorderPainted(true);
+            setContentAreaFilled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            setPreferredSize(new Dimension(100, 15));
+
+            // Set initial border and text color
+            Color[] colors = getButtonColors(getText());
+            setBorder(BorderFactory.createLineBorder(colors[0], 2));
+            setForeground(colors[0]);
+
+            setupButtonIcon();
+
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    isHovered = true;
+                    setForeground(Color.WHITE);
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    isHovered = false;
+                    Color[] colors = getButtonColors(getText());
+                    setForeground(colors[0]);
+                    repaint();
+                }
+            });
+        }
+
+        private void setupButtonIcon() {
+            String buttonText = getText();
+            String iconPath;
+
+            switch (buttonText) {
+                case "Switch":
+                    iconPath = "lk/com/pos/icon/exchange.svg";
+                    break;
+                case "View":
+                    iconPath = "lk/com/pos/icon/eye-open.svg";
+                    break;
+                case "Open":
+                    iconPath = "lk/com/pos/icon/exchange.svg";
+                    break;
+                default:
+                    iconPath = "lk/com/pos/icon/exchange.svg";
+                    break;
+            }
+
+            try {
+                FlatSVGIcon icon = new FlatSVGIcon(iconPath, 16, 16);
+                final Color[] colors = getButtonColors(getText());
+
+                icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> colors[0]));
+                setIcon(icon);
+
+                // Update icon color on hover
+                addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                        repaint();
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> colors[0]));
+                        repaint();
+                    }
+                });
+            } catch (Exception e) {
+                System.err.println("Error loading icon: " + iconPath + " - " + e.getMessage());
+            }
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            if (isHovered) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                int width = getWidth();
+                int height = getHeight();
+
+                Color[] colors = getButtonColors(getText());
+                Color topColor = colors[0];
+                Color bottomColor = colors[1];
+
+                GradientPaint gradient = new GradientPaint(0, 0, topColor, width, 0, bottomColor);
+                g2.setPaint(gradient);
+                g2.fillRoundRect(0, 0, width, height, 8, 8);
+
+                g2.dispose();
+            }
+            super.paintComponent(g);
+        }
+    }
+
+    private void handleInvoiceAction(Invoice invoice, String action) {
+        this.selectedInvoice = invoice;
+        this.invoiceSelected = true;
+
+        if (invoiceSelectionListener != null) {
+            invoiceSelectionListener.onInvoiceSelected(invoice, action);
+        }
+
+        switch (action) {
+            case "Switch":
+                handleSwitchAction(invoice);
+                break;
+            case "View":
+                handleViewAction(invoice);
+                break;
+            case "Open":
+                handleOpenAction(invoice);
+                break;
+            default:
+                handleDefaultAction(invoice, action);
+                break;
+        }
+    }
+
+    private void handleSwitchAction(Invoice invoice) {
+        int response = JOptionPane.showConfirmDialog(this,
+                "Switch to invoice: " + invoice.getInvoiceNo() + "?\n"
+                + "Amount: Rs. " + String.format("%.2f", invoice.getTotal()) + "\n"
+                + "Date: " + invoice.getDate(),
+                "Switch Invoice",
+                JOptionPane.YES_NO_OPTION);
+
+        if (response == JOptionPane.YES_OPTION) {
+            openInvoicePanel(invoice);
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                    "Successfully switched to invoice: " + invoice.getInvoiceNo());
+        }
+    }
+
+    private void handleViewAction(Invoice invoice) {
+        try {
+            String detailQuery
+                    = "SELECT si.qty, p.product_name, si.price, si.discount_price, si.total "
+                    + "FROM sale_item si "
+                    + "INNER JOIN stock st ON si.stock_id = st.stock_id "
+                    + "INNER JOIN product p ON st.product_id = p.product_id "
+                    + "WHERE si.sales_id = " + invoice.getSalesId();
+
+            ResultSet rs = MySQL.executeSearch(detailQuery);
+
+            StringBuilder details = new StringBuilder();
+            details.append("Invoice Details:\n");
+            details.append("ID: ").append(invoice.getInvoiceNo()).append("\n");
+            details.append("Status: ").append(invoice.getStatus()).append("\n");
+            details.append("Amount: Rs. ").append(String.format("%.2f", invoice.getTotal())).append("\n");
+            details.append("Date: ").append(invoice.getDate()).append("\n\n");
+            details.append("Items:\n");
+
+            double itemTotal = 0;
+            while (rs.next()) {
+                String productName = rs.getString("product_name");
+                int qty = rs.getInt("qty");
+                double price = rs.getDouble("price");
+                double discount = rs.getDouble("discount_price");
+                double total = rs.getDouble("total");
+
+                details.append(String.format("- %s x%d: Rs. %.2f (Discount: Rs. %.2f) = Rs. %.2f\n",
+                        productName, qty, price, discount, total));
+                itemTotal += total;
+            }
+
+            details.append("\nTotal: Rs. ").append(String.format("%.2f", itemTotal));
+
+            JOptionPane.showMessageDialog(this,
+                    details.toString(),
+                    "View Invoice - " + invoice.getInvoiceNo(),
+                    JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error loading invoice details: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void handleOpenAction(Invoice invoice) {
+        JOptionPane.showMessageDialog(this,
+                "Opening invoice: " + invoice.getInvoiceNo() + "\n"
+                + "This invoice is in " + invoice.getStatus() + " status.",
+                "Open Invoice",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void handleDefaultAction(Invoice invoice, String action) {
+        JOptionPane.showMessageDialog(this,
+                action + " action for invoice: " + invoice.getInvoiceNo(),
+                action + " Invoice",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public Invoice getSelectedInvoice() {
+        return selectedInvoice;
+    }
+
+    public boolean isInvoiceSelected() {
+        return invoiceSelected;
+    }
+
+    private void loadRecentInvoices() {
+        recentInvoices = new ArrayList<>();
+
+        try {
+            String query = "SELECT s.sales_id, s.invoice_no, s.datetime, s.total, "
+                    + "s.status_id, st.status_type, "
+                    + "u.user_id "
+                    + "FROM sales s "
+                    + "INNER JOIN i_status st ON s.status_id = st.status_id "
+                    + "INNER JOIN user u ON s.user_id = u.user_id "
+                    + "WHERE s.datetime >= DATE_SUB(NOW(), INTERVAL 24 HOUR) "
+                    + "ORDER BY "
+                    + "CASE "
+                    + "    WHEN st.status_type = 'Hold' THEN 1 "
+                    + "    WHEN st.status_type = 'Completed' THEN 2 "
+                    + "    ELSE 3 "
+                    + "END, "
+                    + "s.datetime DESC";
+
+            ResultSet rs = MySQL.executeSearch(query);
+
+            while (rs.next()) {
+                Invoice invoice = new Invoice(
+                        rs.getInt("sales_id"),
+                        rs.getString("invoice_no"),
+                        rs.getTimestamp("datetime"),
+                        rs.getString("status_type"),
+                        rs.getDouble("total"),
+                        null,
+                        "Cash",
+                        rs.getInt("user_id")
+                );
+                recentInvoices.add(invoice);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error loading invoices: " + e.getMessage());
+            JOptionPane.showMessageDialog(this,
+                    "Error loading invoices: " + e.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    public void openInvoicePanel(Invoice invoice) {
+        cartItems.clear();
+        loadInvoiceItems(invoice);
+        updateCartPanel();
+    }
+
+    private void loadInvoiceItems(Invoice invoice) {
+        try {
+            String detailQuery
+                    = "SELECT si.qty, p.product_name, p.brand_name, st.batch_no, "
+                    + "si.price, si.discount_price, si.total, st.barcode, "
+                    + "st.selling_price as last_price, p.product_id, st.stock_id "
+                    + "FROM sale_item si "
+                    + "INNER JOIN stock st ON si.stock_id = st.stock_id "
+                    + "INNER JOIN product p ON st.product_id = p.product_id "
+                    + "WHERE si.sales_id = " + invoice.getSalesId();
+
+            ResultSet rs = MySQL.executeSearch(detailQuery);
+
+            while (rs.next()) {
+                int productId = rs.getInt("product_id");
+                String productName = rs.getString("product_name");
+                String brandName = rs.getString("brand_name");
+                String batchNo = rs.getString("batch_no");
+                int qty = rs.getInt("qty");
+                double sellingPrice = rs.getDouble("price");
+                String barcode = rs.getString("barcode");
+                double lastPrice = rs.getDouble("last_price");
+                double discountPrice = rs.getDouble("discount_price");
+
+                String cartKey = productId + "_" + batchNo;
+
+                CartItem item = new CartItem(productId, productName, brandName,
+                        batchNo, qty, sellingPrice, barcode, lastPrice);
+                item.setDiscountPrice(discountPrice);
+
+                cartItems.put(cartKey, item);
+            }
+
+            updateTotals();
+
+        } catch (Exception e) {
+            System.err.println("Error loading invoice items: " + e.getMessage());
+            JOptionPane.showMessageDialog(this,
+                    "Error loading invoice items: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -853,7 +1522,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         cartCount = new javax.swing.JLabel();
         jButton3 = new javax.swing.JButton();
         jButton2 = new javax.swing.JButton();
-        jButton4 = new javax.swing.JButton();
+        switchBtn = new javax.swing.JButton();
 
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1213,11 +1882,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
-        jButton4.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton4.setText("S");
-        jButton4.addActionListener(new java.awt.event.ActionListener() {
+        switchBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        switchBtn.setText("S");
+        switchBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton4ActionPerformed(evt);
+                switchBtnActionPerformed(evt);
             }
         });
 
@@ -1230,7 +1899,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(switchBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -1248,7 +1917,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                             .addComponent(jButton1)
                             .addComponent(clearCartBtn)
                             .addComponent(jButton3)
-                            .addComponent(jButton4)
+                            .addComponent(switchBtn)
                             .addComponent(jButton2)))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addComponent(cartCount)
@@ -1382,25 +2051,9 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     }//GEN-LAST:event_jButton2ActionPerformed
 
-    private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
-           JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        HoldDialog holdDialog = new HoldDialog(parentFrame, true); // 'this' refers to your main JFrame
-    holdDialog.setVisible(true);
-    
-    // After dialog closes, check if an invoice was selected
-    if (holdDialog.isInvoiceSelected()) {
-        Invoice selectedInvoice = holdDialog.getSelectedInvoice();
-        
-        // Use the selected invoice
-        System.out.println("Selected Invoice: " + selectedInvoice.getInvoiceNo());
-        System.out.println("Amount: Rs. " + selectedInvoice.getTotal());
-        System.out.println("Status: " + selectedInvoice.getStatus());
-        
-
-    } else {
-        System.out.println("No invoice was selected or dialog was cancelled");
-    }
-    }//GEN-LAST:event_jButton4ActionPerformed
+    private void switchBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_switchBtnActionPerformed
+        showSwitchInvoicePanel();
+    }//GEN-LAST:event_switchBtnActionPerformed
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         ExchangeProductDialog dialog = new ExchangeProductDialog(parentFrame, true);
@@ -1429,7 +2082,6 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
-    private javax.swing.JButton jButton4;
     private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel21;
@@ -1450,5 +2102,6 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JLabel productCount1;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel3;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel4;
+    private javax.swing.JButton switchBtn;
     // End of variables declaration//GEN-END:variables
 }

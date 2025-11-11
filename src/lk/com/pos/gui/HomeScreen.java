@@ -1963,7 +1963,7 @@ public class HomeScreen extends JFrame {
 //
 //                // Insert into notifocation table
 //                if (massageId > 0) {
-//                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, " + massageId + ")");
+//                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 4, " + massageId + ")");
 //
 //                }
 //

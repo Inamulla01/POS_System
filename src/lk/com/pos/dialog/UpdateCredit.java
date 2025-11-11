@@ -785,6 +785,9 @@ public class UpdateCredit extends javax.swing.JDialog {
         }
         isUpdating = true;
 
+        java.sql.Connection conn = null;
+        java.sql.PreparedStatement pst = null;
+
         try {
             if (!validateInputs()) {
                 isUpdating = false;
@@ -804,12 +807,42 @@ public class UpdateCredit extends javax.swing.JDialog {
 
             double amount = Double.parseDouble(address.getText().trim());
 
+            // Get database connection
+            conn = MySQL.getConnection();
+
+            // Start transaction
+            conn.setAutoCommit(false);
+
+            // First, get the old credit data for comparison
+            String oldDataSql = "SELECT cc.customer_name, c.credit_given_date, c.credit_final_date, c.credit_amout "
+                    + "FROM credit c "
+                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
+                    + "WHERE c.credit_id = ?";
+            java.sql.PreparedStatement pstOld = conn.prepareStatement(oldDataSql);
+            pstOld.setInt(1, creditId);
+            java.sql.ResultSet rs = pstOld.executeQuery();
+
+            String oldCustomerName = "";
+            String oldGivenDate = "";
+            String oldFinalDate = "";
+            double oldAmount = 0.0;
+
+            if (rs.next()) {
+                oldCustomerName = rs.getString("customer_name");
+                oldGivenDate = rs.getString("credit_given_date");
+                oldFinalDate = rs.getString("credit_final_date");
+                oldAmount = rs.getDouble("credit_amout");
+            }
+            pstOld.close();
+
+            // Get new customer name for comparison
+            String newCustomerName = SupplierCombo.getSelectedItem().toString();
+
             // FIXED: Correct field name from credit_amout to credit_amout
             String query = "UPDATE credit SET credit_given_date = ?, credit_final_date = ?, credit_amout = ?, credit_customer_id = ? "
                     + "WHERE credit_id = ?";
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(query);
+            pst = conn.prepareStatement(query);
             pst.setString(1, givenDateStr);
             pst.setString(2, finalDateStr);
             pst.setDouble(3, amount);
@@ -819,19 +852,145 @@ public class UpdateCredit extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
+                // Create notification for credit update
+                createCreditUpdateNotification(oldCustomerName, newCustomerName, oldGivenDate, givenDateStr,
+                        oldFinalDate, finalDateStr, oldAmount, amount, conn);
+
+                // Commit transaction
+                conn.commit();
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit updated successfully!");
                 dispose(); // Close the dialog after successful update
             } else {
+                conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update credit!");
             }
 
-            pst.close();
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating credit: " + e.getMessage());
             e.printStackTrace();
         } finally {
+            // Close resources
+            try {
+                if (pst != null) {
+                    pst.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             // Always reset the flag
             isUpdating = false;
+        }
+    }
+
+    private void createCreditUpdateNotification(String oldCustomerName, String newCustomerName,
+            String oldGivenDate, String newGivenDate,
+            String oldFinalDate, String newFinalDate,
+            double oldAmount, double newAmount,
+            java.sql.Connection conn) {
+        java.sql.PreparedStatement pstMassage = null;
+        java.sql.PreparedStatement pstNotification = null;
+
+        try {
+            // Build detailed change message
+            StringBuilder changes = new StringBuilder();
+
+            // Check what was changed
+            if (!oldCustomerName.equals(newCustomerName)) {
+                changes.append("Customer: ").append(oldCustomerName).append(" → ").append(newCustomerName).append("; ");
+            }
+            if (!oldGivenDate.equals(newGivenDate)) {
+                changes.append("Given Date: ").append(oldGivenDate).append(" → ").append(newGivenDate).append("; ");
+            }
+            if (!oldFinalDate.equals(newFinalDate)) {
+                changes.append("Final Date: ").append(oldFinalDate).append(" → ").append(newFinalDate).append("; ");
+            }
+            if (oldAmount != newAmount) {
+                changes.append(String.format("Amount: Rs.%,.2f → Rs.%,.2f", oldAmount, newAmount)).append("; ");
+            }
+
+            // Remove trailing semicolon and space if present
+            if (changes.length() > 0) {
+                changes.setLength(changes.length() - 2);
+            }
+
+            String messageText;
+            if (changes.length() > 0) {
+                messageText = String.format("Credit updated for %s: %s", newCustomerName, changes.toString());
+            } else {
+                messageText = String.format("Credit updated for %s: No changes detected", newCustomerName);
+            }
+
+            // Check if this exact message already exists to avoid duplicates
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            java.sql.ResultSet rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message already exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                // Get the generated massage_id
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new java.sql.SQLException("Failed to get generated massage ID");
+                }
+            }
+
+            // Insert notification (msg_type_id 17 = 'Edit Credit' from your msg_type table)
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
+            pstNotification.setInt(2, 17); // msg_type_id 17 = 'Edit Credit'
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+            System.out.println("Credit update notification created successfully for: " + newCustomerName);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Don't throw exception here - we don't want notification failure to affect credit update
+            System.err.println("Failed to create credit update notification: " + e.getMessage());
+        } finally {
+            // Close resources
+            try {
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -1142,7 +1301,7 @@ public class UpdateCredit extends javax.swing.JDialog {
     }//GEN-LAST:event_updateBtnActionPerformed
 
     private void updateBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_updateBtnKeyPressed
-     if (evt.getKeyCode() != KeyEvent.VK_ENTER) {
+        if (evt.getKeyCode() != KeyEvent.VK_ENTER) {
             handleArrowNavigation(evt, updateBtn);
         }
     }//GEN-LAST:event_updateBtnKeyPressed
@@ -1192,7 +1351,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             }
         } else {
             handleArrowNavigation(evt, SupplierCombo);
-        }   
+        }
     }//GEN-LAST:event_SupplierComboKeyPressed
 
     private void addNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCustomerActionPerformed

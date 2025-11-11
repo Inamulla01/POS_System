@@ -870,6 +870,14 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
         isUpdating = true;
 
+        Connection conn = null;
+        PreparedStatement pstUpdate = null;
+        PreparedStatement pstCheckMessage = null;
+        PreparedStatement pstInsertMessage = null;
+        PreparedStatement pstInsertNotification = null;
+        PreparedStatement pstGetCustomerInfo = null;
+        ResultSet rs = null;
+
         try {
             if (!validateInputs()) {
                 isUpdating = false;
@@ -888,30 +896,130 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
             double amount = Double.parseDouble(address.getText().trim());
 
-            String query = "UPDATE credit_pay SET credit_pay_date = ?, credit_pay_amount = ?, credit_id = ? "
+            conn = MySQL.getConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            // 1. Get customer information for notification message
+            String customerSql = "SELECT cc.customer_name, cp.credit_pay_amount as old_amount "
+                    + "FROM credit_pay cp "
+                    + "JOIN credit c ON cp.credit_id = c.credit_id "
+                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
+                    + "WHERE cp.credit_pay_id = ?";
+            pstGetCustomerInfo = conn.prepareStatement(customerSql);
+            pstGetCustomerInfo.setInt(1, creditPayId);
+            rs = pstGetCustomerInfo.executeQuery();
+
+            String customerName = "Unknown Customer";
+            double oldAmount = 0.0;
+
+            if (rs.next()) {
+                customerName = rs.getString("customer_name");
+                oldAmount = rs.getDouble("old_amount");
+            }
+            rs.close();
+            pstGetCustomerInfo.close();
+
+            // 2. Update the credit payment
+            String updateSql = "UPDATE credit_pay SET credit_pay_date = ?, credit_pay_amount = ?, credit_id = ? "
                     + "WHERE credit_pay_id = ?";
+            pstUpdate = conn.prepareStatement(updateSql);
+            pstUpdate.setString(1, paymentDateStr);
+            pstUpdate.setDouble(2, amount);
+            pstUpdate.setInt(3, selectedCreditId);
+            pstUpdate.setInt(4, creditPayId);
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(query);
-            pst.setString(1, paymentDateStr);
-            pst.setDouble(2, amount);
-            pst.setInt(3, selectedCreditId);
-            pst.setInt(4, creditPayId);
-
-            int rowsAffected = pst.executeUpdate();
+            int rowsAffected = pstUpdate.executeUpdate();
 
             if (rowsAffected > 0) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit payment updated successfully!");
+                // 3. Create notification message
+                String messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f",
+                        customerName, oldAmount, amount);
+
+                // Check if message already exists in massage table
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstCheckMessage = conn.prepareStatement(checkMessageSql);
+                pstCheckMessage.setString(1, messageText);
+                rs = pstCheckMessage.executeQuery();
+
+                int messageId;
+
+                if (rs.next()) {
+                    // Message already exists, get the existing massage_id
+                    messageId = rs.getInt("massage_id");
+                } else {
+                    // Message doesn't exist, insert new message
+                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                    pstInsertMessage.setString(1, messageText);
+                    pstInsertMessage.executeUpdate();
+
+                    // Get the generated message ID
+                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        messageId = generatedKeys.getInt(1);
+                    } else {
+                        throw new Exception("Failed to get generated message ID");
+                    }
+                    generatedKeys.close();
+                }
+
+                // 4. Insert notification (msg_type_id 18 for "Edit Credit Pay")
+                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 18, ?)";
+                pstInsertNotification = conn.prepareStatement(notificationSql);
+                pstInsertNotification.setInt(1, messageId);
+                pstInsertNotification.executeUpdate();
+
+                // Commit transaction
+                conn.commit();
+
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Credit payment updated successfully!");
                 dispose(); // Close the dialog after successful update
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update credit payment!");
+                conn.rollback();
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to update credit payment!");
             }
 
-            pst.close();
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating credit payment: " + e.getMessage());
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error updating credit payment: " + e.getMessage());
             e.printStackTrace();
         } finally {
+            // Close all resources
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstUpdate != null) {
+                    pstUpdate.close();
+                }
+                if (pstGetCustomerInfo != null) {
+                    pstGetCustomerInfo.close();
+                }
+                if (pstCheckMessage != null) {
+                    pstCheckMessage.close();
+                }
+                if (pstInsertMessage != null) {
+                    pstInsertMessage.close();
+                }
+                if (pstInsertNotification != null) {
+                    pstInsertNotification.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             // Always reset the flag
             isUpdating = false;
         }

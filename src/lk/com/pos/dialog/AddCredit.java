@@ -119,7 +119,6 @@ public class AddCredit extends javax.swing.JDialog {
         );
 
         // REMOVED: Ctrl+Enter shortcut to prevent duplicate saves
-
         // Set initial focus
         SupplierCombo.requestFocusInWindow();
     }
@@ -698,7 +697,7 @@ public class AddCredit extends javax.swing.JDialog {
             ResultSet rs = MySQL.executeSearch(sql);
             Vector<String> customers = new Vector<>();
             customers.add("Select Customer");
-            
+
             int count = 0;
             while (rs.next()) {
                 int customerId = rs.getInt("customer_id");
@@ -713,14 +712,14 @@ public class AddCredit extends javax.swing.JDialog {
                 customerIdMap.put(displayText, customerId);
                 count++;
             }
-            
+
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             SupplierCombo.setModel(dcm);
-            
+
             // Debug output
             System.out.println("Successfully loaded " + count + " customers into selector");
             System.out.println("Combo box now has " + SupplierCombo.getItemCount() + " items");
-            
+
         } catch (Exception e) {
             System.err.println("Error loading customers: " + e.getMessage());
             e.printStackTrace();
@@ -732,13 +731,13 @@ public class AddCredit extends javax.swing.JDialog {
     private int getCustomerId(String displayText) {
         // Use the mapping to get the customer ID
         Integer customerId = customerIdMap.get(displayText);
-        
+
         if (customerId == null) {
             System.err.println("Customer ID not found for: " + displayText);
             System.err.println("Available mappings: " + customerIdMap);
             return -1;
         }
-        
+
         System.out.println("Found Customer ID: " + customerId + " for: " + displayText);
         return customerId;
     }
@@ -791,16 +790,19 @@ public class AddCredit extends javax.swing.JDialog {
             System.out.println("Save already in progress, skipping duplicate call...");
             return;
         }
-        
+
         System.out.println("saveCredit() called at: " + new Date()); // Debug output
-        
+
         if (!validateInputs()) {
             return;
         }
 
+        Connection conn = null;
+        PreparedStatement pst = null;
+
         try {
             isSaving = true; // Set flag to prevent duplicate saves
-            
+
             String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
             this.customerId = getCustomerId(selectedDisplayText); // Set the customer ID to return
             if (this.customerId == -1) {
@@ -815,11 +817,15 @@ public class AddCredit extends javax.swing.JDialog {
 
             double amount = Double.parseDouble(address.getText().trim());
 
+            conn = MySQL.getConnection();
+
+            // Start transaction
+            conn.setAutoCommit(false);
+
             String query = "INSERT INTO credit (credit_given_date, credit_final_date, credit_amout, credit_customer_id) "
                     + "VALUES (?, ?, ?, ?)";
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(query);
+            pst = conn.prepareStatement(query);
             pst.setString(1, givenDateStr);
             pst.setString(2, finalDateStr);
             pst.setDouble(3, amount);
@@ -828,18 +834,113 @@ public class AddCredit extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
+                // Create notification for new credit
+                createCreditNotification(selectedDisplayText, amount, conn);
+
+                // Commit transaction
+                conn.commit();
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit added successfully!");
                 dispose(); // Close the dialog after successful save
             } else {
+                conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit!");
             }
 
-            pst.close();
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit: " + e.getMessage());
             e.printStackTrace();
         } finally {
+            // Close resources
+            try {
+                if (pst != null) {
+                    pst.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             isSaving = false; // Always reset the flag
+        }
+    }
+
+    private void createCreditNotification(String customerName, double amount, Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
+
+        try {
+            // Create the message
+            String messageText = "New credit added for " + customerName + ": Rs." + String.format("%,.2f", amount);
+
+            // Check if this exact message already exists to avoid duplicates
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            ResultSet rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message already exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                // Get the generated massage_id
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new Exception("Failed to get generated massage ID");
+                }
+            }
+
+            // Insert notification (msg_type_id 11 = 'Add New Credit' from your msg_type table)
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
+            pstNotification.setInt(2, 11); // msg_type_id 11 = 'Add New Credit'
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+            System.out.println("Credit notification created successfully for customer: " + customerName);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Don't throw exception here - we don't want notification failure to affect credit creation
+            System.err.println("Failed to create credit notification: " + e.getMessage());
+        } finally {
+            // Close resources
+            try {
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -887,6 +988,7 @@ public class AddCredit extends javax.swing.JDialog {
         manufactureDate.getDateEditor().getUiComponent().setFocusable(true);
         expriyDate.getDateEditor().getUiComponent().setFocusable(true);
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

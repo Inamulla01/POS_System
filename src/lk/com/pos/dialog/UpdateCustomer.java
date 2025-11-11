@@ -28,7 +28,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
     private int customerId;
     private boolean isUpdating = false; // Flag to prevent multiple updates
-    
+
     /**
      * Creates new form UpdateCustomer
      */
@@ -37,7 +37,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
         initComponents();
         initializeDialog();
     }
-    
+
     // Constructor with customer ID to load data
     public UpdateCustomer(java.awt.Frame parent, boolean modal, int customerId) {
         super(parent, modal);
@@ -46,25 +46,24 @@ public class UpdateCustomer extends javax.swing.JDialog {
         initializeDialog();
         loadCustomerData();
     }
-    
+
     private void initializeDialog() {
         setLocationRelativeTo(getParent());
         setupKeyboardNavigation();
         setupButtonStyles();
         setupTooltips();
         setupSaveButton();
-        
+
         // Set initial focus
         name.requestFocus();
     }
 
     // ---------------- KEYBOARD NAVIGATION SETUP ----------------
-
     private boolean areAllRequiredFieldsFilled() {
-        return !name.getText().trim().isEmpty() &&
-               !phoneNo.getText().trim().isEmpty() &&
-               !address.getText().trim().isEmpty() &&
-               !nic.getText().trim().isEmpty();
+        return !name.getText().trim().isEmpty()
+                && !phoneNo.getText().trim().isEmpty()
+                && !address.getText().trim().isEmpty()
+                && !nic.getText().trim().isEmpty();
     }
 
     // ---------------- BUTTON STYLES AND EFFECTS ----------------
@@ -316,7 +315,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
         name.requestFocus();
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form reset to original values!");
     }
-    
+
     private void loadCustomerData() {
         try {
             Connection conn = MySQL.getConnection();
@@ -324,19 +323,19 @@ public class UpdateCustomer extends javax.swing.JDialog {
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setInt(1, customerId);
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next()) {
                 name.setText(rs.getString("customer_name"));
                 phoneNo.setText(rs.getString("customer_phone_no"));
                 address.setText(rs.getString("customer_address"));
                 nic.setText(rs.getString("nic"));
-                
+
                 // NIC field is now ENABLED and can be edited
                 nic.setEnabled(true);
                 nic.setBackground(Color.WHITE);
                 nic.setToolTipText("Type NIC number and press ENTER to move to buttons");
             }
-            
+
             rs.close();
             pst.close();
         } catch (Exception e) {
@@ -345,11 +344,11 @@ public class UpdateCustomer extends javax.swing.JDialog {
                     "Error loading customer data: " + e.getMessage());
         }
     }
-    
+
     private boolean isValidSriLankanMobile(String mobile) {
         // Remove any spaces or dashes
         String cleanedMobile = mobile.replaceAll("[\\s-]", "");
-        
+
         // Use your exact regex pattern for Sri Lankan mobile validation
         if (!cleanedMobile.matches("^(0{1})(7{1})([0|1|2|4|5|6|7|8]{1})([0-9]{7})$")) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -358,7 +357,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
         }
         return true;
     }
-    
+
     private boolean isCustomerNameExists(String customerName) {
         try {
             Connection conn = MySQL.getConnection();
@@ -367,13 +366,13 @@ public class UpdateCustomer extends javax.swing.JDialog {
             pst.setString(1, customerName);
             pst.setInt(2, customerId);
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next() && rs.getInt(1) > 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Customer name already exists!");
                 return true;
             }
-            
+
             rs.close();
             pst.close();
         } catch (Exception e) {
@@ -559,23 +558,23 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
         // Set up Escape key to close dialog
         getRootPane().registerKeyboardAction(
-            evt -> dispose(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
+                evt -> dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         // Set up F1 key for credit functions
         getRootPane().registerKeyboardAction(
-            evt -> openCreditPayment(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
+                evt -> openCreditPayment(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         // Set up Alt+C to clear form
         getRootPane().registerKeyboardAction(
-            evt -> clearForm(),
-            KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.ALT_DOWN_MASK),
-            JComponent.WHEN_IN_FOCUSED_WINDOW
+                evt -> clearForm(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.ALT_DOWN_MASK),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
         );
     }
 
@@ -599,6 +598,14 @@ public class UpdateCustomer extends javax.swing.JDialog {
             return;
         }
         isUpdating = true;
+
+        Connection conn = null;
+        PreparedStatement pstUpdate = null;
+        PreparedStatement pstGetOldData = null;
+        PreparedStatement pstCheckMessage = null;
+        PreparedStatement pstInsertMessage = null;
+        PreparedStatement pstInsertNotification = null;
+        ResultSet rs = null;
 
         try {
             String customerName = name.getText().trim();
@@ -628,34 +635,165 @@ public class UpdateCustomer extends javax.swing.JDialog {
                 return;
             }
 
-            Connection conn = MySQL.getConnection();
-            String sql = "UPDATE credit_customer SET customer_name = ?, customer_phone_no = ?, customer_address = ?, nic = ? WHERE customer_id = ?";
-            
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, customerName);
-            pst.setString(2, mobile);
-            pst.setString(3, customerAddress);
-            pst.setString(4, nicNumber);
-            pst.setInt(5, customerId);
-            
-            int rowsAffected = pst.executeUpdate();
-            
+            conn = MySQL.getConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            // 1. Get old customer data for notification message
+            String getOldDataSql = "SELECT customer_name, customer_phone_no, customer_address, nic FROM credit_customer WHERE customer_id = ?";
+            pstGetOldData = conn.prepareStatement(getOldDataSql);
+            pstGetOldData.setInt(1, customerId);
+            rs = pstGetOldData.executeQuery();
+
+            String oldName = "";
+            String oldPhone = "";
+            String oldAddress = "";
+            String oldNic = "";
+
+            if (rs.next()) {
+                oldName = rs.getString("customer_name");
+                oldPhone = rs.getString("customer_phone_no");
+                oldAddress = rs.getString("customer_address");
+                oldNic = rs.getString("nic");
+            }
+            rs.close();
+            pstGetOldData.close();
+
+            // 2. Update the customer
+            String updateSql = "UPDATE credit_customer SET customer_name = ?, customer_phone_no = ?, customer_address = ?, nic = ? WHERE customer_id = ?";
+            pstUpdate = conn.prepareStatement(updateSql);
+            pstUpdate.setString(1, customerName);
+            pstUpdate.setString(2, mobile);
+            pstUpdate.setString(3, customerAddress);
+            pstUpdate.setString(4, nicNumber);
+            pstUpdate.setInt(5, customerId);
+
+            int rowsAffected = pstUpdate.executeUpdate();
+
             if (rowsAffected > 0) {
+                // 3. Create notification message with changes
+                StringBuilder messageBuilder = new StringBuilder();
+                messageBuilder.append("Customer updated: ").append(oldName);
+
+                // Add changed fields to the message
+                boolean hasChanges = false;
+                if (!oldName.equals(customerName)) {
+                    messageBuilder.append(" [Name: ").append(oldName).append(" → ").append(customerName).append("]");
+                    hasChanges = true;
+                }
+                if (!oldPhone.equals(mobile)) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[Phone: ").append(oldPhone).append(" → ").append(mobile).append("]");
+                    hasChanges = true;
+                }
+                if (!oldAddress.equals(customerAddress)) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[Address: ").append(oldAddress).append(" → ").append(customerAddress).append("]");
+                    hasChanges = true;
+                }
+                if (!oldNic.equals(nicNumber)) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[NIC: ").append(oldNic).append(" → ").append(nicNumber).append("]");
+                    hasChanges = true;
+                }
+
+                // If no specific changes detected, just show general update message
+                if (!hasChanges) {
+                    messageBuilder.append(" - Details updated");
+                }
+
+                String messageText = messageBuilder.toString();
+
+                // 4. Check if message already exists in massage table
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstCheckMessage = conn.prepareStatement(checkMessageSql);
+                pstCheckMessage.setString(1, messageText);
+                rs = pstCheckMessage.executeQuery();
+
+                int messageId;
+
+                if (rs.next()) {
+                    // Message already exists, get the existing massage_id
+                    messageId = rs.getInt("massage_id");
+                } else {
+                    // Message doesn't exist, insert new message
+                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                    pstInsertMessage.setString(1, messageText);
+                    pstInsertMessage.executeUpdate();
+
+                    // Get the generated message ID
+                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        messageId = generatedKeys.getInt(1);
+                    } else {
+                        throw new Exception("Failed to get generated message ID");
+                    }
+                    generatedKeys.close();
+                }
+
+                // 5. Insert notification (msg_type_id 20 for "Edit Customer")
+                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 20, ?)";
+                pstInsertNotification = conn.prepareStatement(notificationSql);
+                pstInsertNotification.setInt(1, messageId);
+                pstInsertNotification.executeUpdate();
+
+                // Commit transaction
+                conn.commit();
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Customer updated successfully!");
+                        "Customer updated successfully!");
                 this.dispose(); // Close the dialog after successful update
             } else {
+                conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Failed to update customer!");
+                        "Failed to update customer!");
             }
-            
-            pst.close();
-            
+
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error: " + e.getMessage());
         } finally {
+            // Close all resources
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstUpdate != null) {
+                    pstUpdate.close();
+                }
+                if (pstGetOldData != null) {
+                    pstGetOldData.close();
+                }
+                if (pstCheckMessage != null) {
+                    pstCheckMessage.close();
+                }
+                if (pstInsertMessage != null) {
+                    pstInsertMessage.close();
+                }
+                if (pstInsertNotification != null) {
+                    pstInsertNotification.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             // Always reset the flag
             isUpdating = false;
         }

@@ -7,7 +7,7 @@ import java.sql.ResultSet;
 import javax.swing.BorderFactory;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewProduct;
-import lk.com.pos.dialog.UpdateProduct;
+import lk.com.pos.dialog.UpdateProductStock;
 
 public class ProductPanel extends javax.swing.JPanel {
 
@@ -507,7 +507,7 @@ public class ProductPanel extends javax.swing.JPanel {
             
             if (rs.next()) {
                 int stockId = rs.getInt("stock_id");
-                UpdateProduct updateProduct = new UpdateProduct(null, true, productId, stockId);
+                UpdateProductStock updateProduct = new UpdateProductStock(null, true, productId, stockId);
                 updateProduct.setLocationRelativeTo(null);
                 updateProduct.setVisible(true);
                 SearchFilters();

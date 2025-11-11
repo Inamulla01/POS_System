@@ -19,6 +19,9 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.PlainDocument;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -37,35 +40,70 @@ public class AddNewProduct extends javax.swing.JDialog {
         AutoCompleteDecorator.decorate(categoryCombo);
         AutoCompleteDecorator.decorate(brandCombo);
     }
-private void addEnterKeyNavigation() {
-    // Map components to their next focus targets for Enter key
-    java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
-    enterNavigationMap.put(productInput, categoryCombo);
-    enterNavigationMap.put(categoryCombo, brandCombo);
-    enterNavigationMap.put(brandCombo, barcodeInput);
-    // REMOVED barcodeInput from here - it has custom logic
-    enterNavigationMap.put(cancelBtn, clearFormBtn);
-    enterNavigationMap.put(clearFormBtn, saveBtn);
-    enterNavigationMap.put(saveBtn, productInput);
 
-    // Add key listeners to all components except combo boxes and barcodeInput
-    for (java.awt.Component component : enterNavigationMap.keySet()) {
-        if (component != categoryCombo && component != brandCombo && component != barcodeInput) {
-            component.addKeyListener(new java.awt.event.KeyAdapter() {
-                @Override
-                public void keyPressed(java.awt.event.KeyEvent evt) {
-                    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                        java.awt.Component nextComponent = enterNavigationMap.get(component);
-                        if (nextComponent != null) {
-                            nextComponent.requestFocusInWindow();
-                        }
-                        evt.consume();
-                    }
+    private void setupProductInputLimit() {
+        // Create a custom document that limits input to 35 characters
+        productInput.setDocument(new PlainDocument() {
+            @Override
+            public void insertString(int offset, String str, AttributeSet attr) throws BadLocationException {
+                if (str == null) {
+                    return;
                 }
-            });
+
+                String currentText = getText(0, getLength());
+                String newText = currentText.substring(0, offset) + str + currentText.substring(offset);
+
+                if (newText.length() <= 35) {
+                    super.insertString(offset, str, attr);
+                } else {
+                    // If adding this string would exceed limit, only add what fits
+                    int availableChars = 35 - currentText.length();
+                    if (availableChars > 0) {
+                        super.insertString(offset, str.substring(0, availableChars), attr);
+                    }
+                    // Show warning notification
+                    SwingUtilities.invokeLater(() -> {
+                        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                                "Product name limited to 35 characters");
+                    });
+                }
+            }
+        });
+
+        // Set tooltip to inform user about the limit
+        productInput.setToolTipText("<html>Type product name (max 35 characters) and press ENTER to move to next field</html>");
+    }
+
+    private void addEnterKeyNavigation() {
+        // Map components to their next focus targets for Enter key
+        java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
+        enterNavigationMap.put(productInput, categoryCombo);
+        enterNavigationMap.put(categoryCombo, brandCombo);
+        enterNavigationMap.put(brandCombo, barcodeInput);
+        // REMOVED barcodeInput from here - it has custom logic
+        enterNavigationMap.put(cancelBtn, clearFormBtn);
+        enterNavigationMap.put(clearFormBtn, saveBtn);
+        enterNavigationMap.put(saveBtn, productInput);
+
+        // Add key listeners to all components except combo boxes and barcodeInput
+        for (java.awt.Component component : enterNavigationMap.keySet()) {
+            if (component != categoryCombo && component != brandCombo && component != barcodeInput) {
+                component.addKeyListener(new java.awt.event.KeyAdapter() {
+                    @Override
+                    public void keyPressed(java.awt.event.KeyEvent evt) {
+                        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                            java.awt.Component nextComponent = enterNavigationMap.get(component);
+                            if (nextComponent != null) {
+                                nextComponent.requestFocusInWindow();
+                            }
+                            evt.consume();
+                        }
+                    }
+                });
+            }
         }
     }
-}
+
     private boolean allFieldsFilled() {
         boolean filled = !productInput.getText().trim().isEmpty()
                 && categoryCombo.getSelectedIndex() > 0
@@ -113,6 +151,7 @@ private void addEnterKeyNavigation() {
 
     private void initializeDialog() {
         setLocationRelativeTo(getParent());
+        setupProductInputLimit(); // Add character limit for product name
         loadCategoryCombo();
         loadBrandCombo();
         setupFocusTraversal();
@@ -194,7 +233,7 @@ private void addEnterKeyNavigation() {
         );
 
         // Setup tooltips
-        productInput.setToolTipText("Type product name and press ENTER to move to next field");
+        productInput.setToolTipText("<html>Type product name (max 35 characters) and press ENTER to move to next field</html>");
         categoryCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to brand<br>Press <b>F1</b> to add new category</html>");
         brandCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to barcode<br>Press <b>F2</b> to add new brand</html>");
         barcodeInput.setToolTipText("<html>Type barcode and press ENTER to move to buttons<br>Press <b>F3</b> to generate barcode<br>Press <b>F4</b> to print barcode</html>");
@@ -540,26 +579,26 @@ private void addEnterKeyNavigation() {
             }
         });
 
-barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
-    @Override
-    public void keyPressed(java.awt.event.KeyEvent evt) {
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            // Check if all fields are filled
-            if (allFieldsFilled()) {
-                // All fields filled - go directly to Save button
-                System.out.println("All fields filled - going to Save button");
-                saveBtn.requestFocusInWindow();
-            } else {
-                // Not all fields filled - go to cancel button
-                System.out.println("Not all fields filled - going to Cancel button");
-                cancelBtn.requestFocusInWindow();
+        barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    // Check if all fields are filled
+                    if (allFieldsFilled()) {
+                        // All fields filled - go directly to Save button
+                        System.out.println("All fields filled - going to Save button");
+                        saveBtn.requestFocusInWindow();
+                    } else {
+                        // Not all fields filled - go to cancel button
+                        System.out.println("Not all fields filled - going to Cancel button");
+                        cancelBtn.requestFocusInWindow();
+                    }
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, barcodeInput);
+                }
             }
-            evt.consume();
-        } else {
-            handleArrowNavigation(evt, barcodeInput);
-        }
-    }
-});
+        });
         saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -794,6 +833,13 @@ barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
             return false;
         }
 
+        if (productInput.getText().trim().length() > 35) {
+            productInput.requestFocus();
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Product name cannot exceed 35 characters");
+            return false;
+        }
+
         if (categoryCombo.getSelectedIndex() <= 0) {
             categoryCombo.requestFocus();
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -825,6 +871,11 @@ barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
 
         try {
             String productName = productInput.getText().trim();
+
+            // Ensure the product name doesn't exceed 35 characters
+            if (productName.length() > 35) {
+                productName = productName.substring(0, 35);
+            }
 
             int brandId = 0;
             ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
@@ -1253,19 +1304,19 @@ barcodeInput.addKeyListener(new java.awt.event.KeyAdapter() {
     }//GEN-LAST:event_addNewBrandActionPerformed
 
     private void barcodeInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_barcodeInputKeyPressed
-    if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-        // Check if all fields are filled
-        if (allFieldsFilled()) {
-            // All fields filled - go directly to Save button
-            saveBtn.requestFocusInWindow();
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            // Check if all fields are filled
+            if (allFieldsFilled()) {
+                // All fields filled - go directly to Save button
+                saveBtn.requestFocusInWindow();
+            } else {
+                // Not all fields filled - go to cancel button
+                cancelBtn.requestFocusInWindow();
+            }
+            evt.consume();
         } else {
-            // Not all fields filled - go to cancel button
-            cancelBtn.requestFocusInWindow();
+            handleArrowNavigation(evt, barcodeInput);
         }
-        evt.consume();
-    } else {
-        handleArrowNavigation(evt, barcodeInput);
-    }
     }//GEN-LAST:event_barcodeInputKeyPressed
 
     private void categoryComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_categoryComboKeyPressed

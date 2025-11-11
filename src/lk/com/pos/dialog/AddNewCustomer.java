@@ -744,28 +744,46 @@ public class AddNewCustomer extends javax.swing.JDialog {
             String nicNumber = nic.getText().trim();
 
             Connection conn = MySQL.getConnection();
-            String sql = "INSERT INTO credit_customer (customer_name, customer_phone_no, customer_address, nic, date_time, status_id) VALUES (?, ?, ?, ?, NOW(), ?)";
 
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, customerName);
-            pst.setString(2, mobile);
-            pst.setString(3, customerAddress);
-            pst.setString(4, nicNumber.trim().toUpperCase()); // Store NIC in uppercase
-            pst.setInt(5, 1); // status_id = 1 (Active)
+            // Start transaction
+            conn.setAutoCommit(false);
 
-            int rowsAffected = pst.executeUpdate();
+            try {
+                // Insert customer
+                String sql = "INSERT INTO credit_customer (customer_name, customer_phone_no, customer_address, nic, date_time, status_id) VALUES (?, ?, ?, ?, NOW(), ?)";
+                PreparedStatement pst = conn.prepareStatement(sql);
+                pst.setString(1, customerName);
+                pst.setString(2, mobile);
+                pst.setString(3, customerAddress);
+                pst.setString(4, nicNumber.trim().toUpperCase()); // Store NIC in uppercase
+                pst.setInt(5, 1); // status_id = 1 (Active)
 
-            if (rowsAffected > 0) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Customer added successfully!");
-                clearFields();
-                this.dispose(); // Close the dialog after successful save
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to add customer!");
+                int rowsAffected = pst.executeUpdate();
+                pst.close();
+
+                if (rowsAffected > 0) {
+                    // Create notification for new customer
+                    createCustomerNotification(customerName, conn);
+
+                    // Commit transaction
+                    conn.commit();
+
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                            "Customer added successfully!");
+                    clearFields();
+                    this.dispose(); // Close the dialog after successful save
+                } else {
+                    conn.rollback();
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                            "Failed to add customer!");
+                }
+
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-
-            pst.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -777,11 +795,80 @@ public class AddNewCustomer extends javax.swing.JDialog {
         }
     }
 
+    private void createCustomerNotification(String customerName, Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
+
+        try {
+            // Create the message
+            String messageText = "New customer added: " + customerName;
+
+            // Check if this exact message already exists to avoid duplicates
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            ResultSet rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message already exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                // Get the generated massage_id
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new Exception("Failed to get generated massage ID");
+                }
+            }
+
+            // Insert notification (msg_type_id 19 = 'Add New Customer' from your msg_type table)
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
+            pstNotification.setInt(2, 19); // msg_type_id 19 = 'Add New Customer'
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Don't throw exception here - we don't want notification failure to affect customer creation
+            System.err.println("Failed to create notification: " + e.getMessage());
+        } finally {
+            // Close resources
+            try {
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void clearForm() {
         clearFields();
         name.requestFocus();
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form cleared!");
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1016,7 +1103,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }//GEN-LAST:event_saveBtnActionPerformed
 
     private void saveBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_saveBtnKeyPressed
-       if (evt.getKeyCode() != KeyEvent.VK_ENTER) {
+        if (evt.getKeyCode() != KeyEvent.VK_ENTER) {
             handleArrowNavigation(evt, saveBtn);
         }
     }//GEN-LAST:event_saveBtnKeyPressed

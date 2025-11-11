@@ -592,6 +592,9 @@ public class AddSupplier extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
+                // Add notification for new supplier
+                addSupplierNotification(supplierName, mobile);
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                         "Supplier added successfully!");
                 clearFields();
@@ -608,6 +611,67 @@ public class AddSupplier extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error: " + e.getMessage());
         }
+    }
+
+    private void addSupplierNotification(String supplierName, String phoneNo) {
+        try {
+            // Create the notification message
+            String message = "New supplier added: " + supplierName + " (Phone: " + phoneNo + ")";
+
+            int messageId;
+
+            // Check if the message already exists in the massage table
+            String checkMessageQuery = "SELECT massage_id FROM massage WHERE massage = '" + message + "'";
+            ResultSet checkRs = MySQL.executeSearch(checkMessageQuery);
+
+            if (checkRs.next()) {
+                // Message already exists, get the existing ID
+                messageId = checkRs.getInt("massage_id");
+                checkRs.close();
+            } else {
+                // Message doesn't exist, insert new one
+                String insertMessageQuery = "INSERT INTO massage (massage) VALUES ('" + message + "')";
+                MySQL.executeIUD(insertMessageQuery);
+
+                // Get the last inserted message ID
+                ResultSet messageRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as message_id");
+                if (messageRs.next()) {
+                    messageId = messageRs.getInt("message_id");
+                } else {
+                    // Fallback if LAST_INSERT_ID() doesn't work
+                    messageId = getMaxMessageId();
+                }
+                if (messageRs != null) {
+                    messageRs.close();
+                }
+            }
+
+            // Insert into notifocation table
+            // msg_type_id 10 corresponds to 'Add New Supplier' based on your msg_type table
+            String insertNotificationQuery = String.format(
+                    "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
+                    + "VALUES (1, NOW(), 10, %d)", messageId
+            );
+
+            MySQL.executeIUD(insertNotificationQuery);
+
+        } catch (Exception e) {
+            System.err.println("Error creating supplier notification: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+// Helper method to get the maximum message ID as fallback
+    private int getMaxMessageId() {
+        try {
+            ResultSet rs = MySQL.executeSearch("SELECT MAX(massage_id) as max_id FROM massage");
+            if (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting max message ID: " + e.getMessage());
+        }
+        return 0;
     }
 
     @SuppressWarnings("unchecked")

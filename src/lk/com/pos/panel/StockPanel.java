@@ -14,7 +14,7 @@ import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewProduct;
 import lk.com.pos.dialog.AddNewStock;
 import lk.com.pos.dialog.PrintProductLabel;
-import lk.com.pos.dialog.UpdateProduct;
+import lk.com.pos.dialog.UpdateProductStock;
 import lk.com.pos.gui.HomeScreen;
 
 public class StockPanel extends javax.swing.JPanel {
@@ -795,7 +795,7 @@ public class StockPanel extends javax.swing.JPanel {
     }
 
     private void editProduct(int productId, int stockId) {
-        UpdateProduct updateProduct = new UpdateProduct(null, true, productId, stockId);
+        UpdateProductStock updateProduct = new UpdateProductStock(null, true, productId, stockId);
         updateProduct.setLocationRelativeTo(null);
         updateProduct.setVisible(true);
         SearchFilters();

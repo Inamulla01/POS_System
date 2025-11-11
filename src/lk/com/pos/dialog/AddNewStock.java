@@ -144,7 +144,7 @@ public class AddNewStock extends javax.swing.JDialog {
         addNewProduct.setFocusable(false);
         addNewSupplier.setFocusable(false);
         generateBatchBtn.setFocusable(false);
-        
+
         // Set focus to product combo box when dialog opens
         productNameCombo.requestFocusInWindow();
     }
@@ -1181,10 +1181,44 @@ public class AddNewStock extends javax.swing.JDialog {
 
             MySQL.executeIUD(query);
 
+            // Add notification for new stock
+            addStockNotification(productNameCombo.getSelectedItem().toString(), batchNo, quantity);
+
             clearForm();
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving stock: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void addStockNotification(String productName, String batchNo, int quantity) {
+        try {
+            // Create the notification message
+            String message = "New stock added: " + productName + " (Batch: " + batchNo + ", Qty: " + quantity + ")";
+
+            // Insert into massage table
+            String insertMessageQuery = "INSERT INTO massage (massage) VALUES ('" + message + "')";
+            MySQL.executeIUD(insertMessageQuery);
+
+            // Get the last inserted message ID
+            ResultSet messageRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as message_id");
+            int messageId = 0;
+            if (messageRs.next()) {
+                messageId = messageRs.getInt("message_id");
+            }
+
+            // Insert into notifocation table
+            // msg_type_id 9 corresponds to 'Add New Stock' based on your msg_type table
+            String insertNotificationQuery = String.format(
+                    "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
+                    + "VALUES (1, NOW(), 9, %d)", messageId
+            );
+
+            MySQL.executeIUD(insertNotificationQuery);
+
+        } catch (Exception e) {
+            System.err.println("Error creating stock notification: " + e.getMessage());
             e.printStackTrace();
         }
     }

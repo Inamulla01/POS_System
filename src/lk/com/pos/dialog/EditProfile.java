@@ -1005,40 +1005,176 @@ public class EditProfile extends javax.swing.JDialog {
         }
     }
 
-    private void updateUser() {
-        try {
-            String newPassword = new String(newPasswordField.getPassword());
-            String roleName = userRoleCombo.getSelectedItem().toString();
-            int roleId = getRoleId(roleName);
+private void updateUser() {
+    java.sql.Connection conn = null;
+    java.sql.PreparedStatement pst = null;
+    
+    try {
+        String newPassword = new String(newPasswordField.getPassword());
+        String roleName = userRoleCombo.getSelectedItem().toString();
+        int roleId = getRoleId(roleName);
 
-            if (roleId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Invalid role selected!");
-                return;
-            }
+        if (roleId == -1) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Invalid role selected!");
+            return;
+        }
 
-            String sql;
-            if (!newPassword.isEmpty() && newPasswordField.isVisible()) {
-                // Update password and role
-                String hashedPassword = hashPassword(newPassword);
-                sql = "UPDATE user SET password = '" + hashedPassword + "', role_id = " + roleId
-                        + " WHERE user_id = " + currentUserId;
-            } else {
-                // Update only role
-                sql = "UPDATE user SET role_id = " + roleId + " WHERE user_id = " + currentUserId;
-            }
+        // Get database connection
+        conn = MySQL.getConnection();
+        
+        // Start transaction
+        conn.setAutoCommit(false);
+        
+        String sql;
+        boolean passwordChanged = false;
+        
+        if (!newPassword.isEmpty() && newPasswordField.isVisible()) {
+            // Update password and role
+            String hashedPassword = hashPassword(newPassword);
+            sql = "UPDATE user SET password = ?, role_id = ? WHERE user_id = ?";
+            pst = conn.prepareStatement(sql);
+            pst.setString(1, hashedPassword);
+            pst.setInt(2, roleId);
+            pst.setInt(3, currentUserId);
+            passwordChanged = true;
+        } else {
+            // Update only role
+            sql = "UPDATE user SET role_id = ? WHERE user_id = ?";
+            pst = conn.prepareStatement(sql);
+            pst.setInt(1, roleId);
+            pst.setInt(2, currentUserId);
+        }
 
-            MySQL.executeIUD(sql);
+        int rowsAffected = pst.executeUpdate();
 
+        if (rowsAffected > 0) {
+            // Create notification for profile update
+            createProfileUpdateNotification(passwordChanged, roleName, conn);
+            
+            // Commit transaction
+            conn.commit();
+            
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                     "Profile updated successfully!");
             this.dispose();
-        } catch (Exception e) {
+        } else {
+            conn.rollback();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error updating profile: " + e.getMessage());
+                    "Failed to update profile!");
+        }
+
+    } catch (Exception e) {
+        try {
+            if (conn != null) {
+                conn.rollback();
+            }
+        } catch (Exception rollbackEx) {
+            rollbackEx.printStackTrace();
+        }
+        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                "Error updating profile: " + e.getMessage());
+        e.printStackTrace();
+    } finally {
+        // Close resources
+        try {
+            if (pst != null) pst.close();
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
+}
 
+private void createProfileUpdateNotification(boolean passwordChanged, String newRole, java.sql.Connection conn) {
+    java.sql.PreparedStatement pstMassage = null;
+    java.sql.PreparedStatement pstNotification = null;
+    
+    try {
+        // Get old role for comparison
+        String oldRole = "";
+        java.sql.PreparedStatement pstOldRole = conn.prepareStatement("SELECT r.role_name FROM user u JOIN role r ON u.role_id = r.role_id WHERE u.user_id = ?");
+        pstOldRole.setInt(1, currentUserId);
+        java.sql.ResultSet rs = pstOldRole.executeQuery();
+        if (rs.next()) {
+            oldRole = rs.getString("role_name");
+        }
+        pstOldRole.close();
+        
+        // Create the message based on what was changed
+        String messageText;
+        if (passwordChanged && !oldRole.equals(newRole)) {
+            messageText = String.format("Profile updated for %s: Password changed and role changed from %s to %s", 
+                                      currentUsername, oldRole, newRole);
+        } else if (passwordChanged) {
+            messageText = String.format("Profile updated for %s: Password changed", currentUsername);
+        } else if (!oldRole.equals(newRole)) {
+            messageText = String.format("Profile updated for %s: Role changed from %s to %s", 
+                                      currentUsername, oldRole, newRole);
+        } else {
+            messageText = String.format("Profile updated for %s: No significant changes detected", currentUsername);
+        }
+        
+        // Check if this exact message already exists to avoid duplicates
+        String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+        pstMassage = conn.prepareStatement(checkSql);
+        pstMassage.setString(1, messageText);
+        rs = pstMassage.executeQuery();
+        
+        int massageId;
+        if (rs.next() && rs.getInt(1) > 0) {
+            // Message already exists, get its ID
+            String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+            pstMassage.close();
+            pstMassage = conn.prepareStatement(getSql);
+            pstMassage.setString(1, messageText);
+            rs = pstMassage.executeQuery();
+            rs.next();
+            massageId = rs.getInt(1);
+        } else {
+            // Insert new message
+            pstMassage.close();
+            String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+            pstMassage = conn.prepareStatement(insertMassageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
+            pstMassage.setString(1, messageText);
+            pstMassage.executeUpdate();
+            
+            // Get the generated massage_id
+            rs = pstMassage.getGeneratedKeys();
+            if (rs.next()) {
+                massageId = rs.getInt(1);
+            } else {
+                throw new java.sql.SQLException("Failed to get generated massage ID");
+            }
+        }
+        
+        // Insert notification (msg_type_id 22 = 'Edit Profile' from your msg_type table)
+        String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+        pstNotification = conn.prepareStatement(notificationSql);
+        pstNotification.setInt(1, 1); // is_read = 1 (unread)
+        pstNotification.setInt(2, 22); // msg_type_id 22 = 'Edit Profile'
+        pstNotification.setInt(3, massageId);
+        pstNotification.executeUpdate();
+        
+        System.out.println("Profile update notification created successfully for: " + currentUsername);
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        // Don't throw exception here - we don't want notification failure to affect profile update
+        System.err.println("Failed to create profile update notification: " + e.getMessage());
+    } finally {
+        // Close resources
+        try {
+            if (pstMassage != null) pstMassage.close();
+            if (pstNotification != null) pstNotification.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
     private void clearForm() {
         newPasswordField.setText("");
         confirmPasswordField.setText("");

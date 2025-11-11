@@ -400,50 +400,118 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
         return false;
     }
 
-    private void saveCategory() {
-        String categoryName = category.getText().trim();
+private void saveCategory() {
+    String categoryName = category.getText().trim();
 
-        // Basic validation
-        if (categoryName.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter category name!");
-            category.requestFocus();
-            return;
-        }
+    // Basic validation
+    if (categoryName.isEmpty()) {
+        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                "Please enter category name!");
+        category.requestFocus();
+        return;
+    }
 
-        // Check if category name already exists
-        if (isCategoryNameExists(categoryName)) {
-            category.requestFocus();
-            return;
-        }
+    // Check if category name already exists
+    if (isCategoryNameExists(categoryName)) {
+        category.requestFocus();
+        return;
+    }
 
-        try {
-            Connection conn = MySQL.getConnection();
-            String sql = "INSERT INTO category (category_name) VALUES (?)";
+    Connection conn = null;
+    PreparedStatement pstCategory = null;
+    PreparedStatement pstCheckMessage = null;
+    PreparedStatement pstInsertMessage = null;
+    PreparedStatement pstInsertNotification = null;
+    ResultSet rs = null;
 
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, categoryName);
+    try {
+        conn = MySQL.getConnection();
+        conn.setAutoCommit(false); // Start transaction
 
-            int rowsAffected = pst.executeUpdate();
+        // 1. Insert the new category
+        String categorySql = "INSERT INTO category (category_name) VALUES (?)";
+        pstCategory = conn.prepareStatement(categorySql, PreparedStatement.RETURN_GENERATED_KEYS);
+        pstCategory.setString(1, categoryName);
 
-            if (rowsAffected > 0) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Category added successfully!");
-                clearFields();
-                this.dispose(); // Close the dialog after successful save
+        int rowsAffected = pstCategory.executeUpdate();
+
+        if (rowsAffected > 0) {
+            // 2. Check if message already exists in massage table
+            String messageText = "New category added: " + categoryName;
+            String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+            pstCheckMessage = conn.prepareStatement(checkMessageSql);
+            pstCheckMessage.setString(1, messageText);
+            rs = pstCheckMessage.executeQuery();
+
+            int messageId;
+            
+            if (rs.next()) {
+                // Message already exists, get the existing massage_id
+                messageId = rs.getInt("massage_id");
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to add category!");
+                // Message doesn't exist, insert new message
+                String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstInsertMessage.setString(1, messageText);
+                pstInsertMessage.executeUpdate();
+                
+                // Get the generated message ID
+                ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    messageId = generatedKeys.getInt(1);
+                } else {
+                    throw new Exception("Failed to get generated message ID");
+                }
+                generatedKeys.close();
             }
 
-            pst.close();
+            // 3. Insert notification (msg_type_id 23 for "Add New Category")
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 23, ?)";
+            pstInsertNotification = conn.prepareStatement(notificationSql);
+            pstInsertNotification.setInt(1, messageId);
+            pstInsertNotification.executeUpdate();
 
+            // Commit transaction
+            conn.commit();
+
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                    "Category added successfully!");
+            clearFields();
+            this.dispose(); // Close the dialog after successful save
+        } else {
+            conn.rollback();
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Failed to add category!");
+        }
+
+    } catch (Exception e) {
+        try {
+            if (conn != null) {
+                conn.rollback();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        e.printStackTrace();
+        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                "Database error: " + e.getMessage());
+    } finally {
+        // Close all resources
+        try {
+            if (rs != null) rs.close();
+            if (pstCategory != null) pstCategory.close();
+            if (pstCheckMessage != null) pstCheckMessage.close();
+            if (pstInsertMessage != null) pstInsertMessage.close();
+            if (pstInsertNotification != null) pstInsertNotification.close();
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Database error: " + e.getMessage());
         }
     }
+}
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

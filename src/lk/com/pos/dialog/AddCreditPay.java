@@ -619,7 +619,7 @@ public class AddCreditPay extends javax.swing.JDialog {
         try {
             // Clear the mapping first
             creditIdMap.clear();
-            
+
             // Load ALL credits (including fully paid ones)
             String sql = "SELECT c.credit_id, cc.customer_name, c.credit_amout, "
                     + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
@@ -643,7 +643,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                 String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
                         customerName, creditAmount, paidAmount, remaining);
                 credits.add(displayText);
-                
+
                 // Store the mapping between display text and credit ID
                 creditIdMap.put(displayText, creditId);
             }
@@ -778,6 +778,9 @@ public class AddCreditPay extends javax.swing.JDialog {
 
         isSaving = true;
 
+        Connection conn = null;
+        PreparedStatement pst = null;
+
         try {
             if (!validateInputs()) {
                 isSaving = false;
@@ -796,10 +799,14 @@ public class AddCreditPay extends javax.swing.JDialog {
 
             double amount = Double.parseDouble(address.getText().trim());
 
+            conn = MySQL.getConnection();
+
+            // Start transaction
+            conn.setAutoCommit(false);
+
             String query = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_id) VALUES (?, ?, ?)";
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(query);
+            pst = conn.prepareStatement(query);
             pst.setString(1, paymentDateStr);
             pst.setDouble(2, amount);
             pst.setInt(3, selectedCreditId);
@@ -807,19 +814,142 @@ public class AddCreditPay extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
+                // Create notification for credit payment
+                createCreditPaymentNotification(selectedCreditId, amount, conn);
+
+                // Commit transaction
+                conn.commit();
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit payment added successfully!");
                 dispose(); // Close the dialog after successful save
             } else {
+                conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit payment!");
             }
 
-            pst.close();
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit payment: " + e.getMessage());
             e.printStackTrace();
         } finally {
+            // Close resources
+            try {
+                if (pst != null) {
+                    pst.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             // Always reset the flag
             isSaving = false;
+        }
+    }
+
+    private void createCreditPaymentNotification(int creditId, double amount, Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
+        PreparedStatement pstCreditInfo = null;
+
+        try {
+            // First, get customer name and credit details for the notification message
+            String creditInfoSql = "SELECT cc.customer_name, c.credit_amout, "
+                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid "
+                    + "FROM credit c "
+                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
+                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                    + "WHERE c.credit_id = ? "
+                    + "GROUP BY cc.customer_name, c.credit_amout";
+
+            pstCreditInfo = conn.prepareStatement(creditInfoSql);
+            pstCreditInfo.setInt(1, creditId);
+            ResultSet rs = pstCreditInfo.executeQuery();
+
+            String customerName = "Unknown Customer";
+            double totalCredit = 0.0;
+            double totalPaid = 0.0;
+
+            if (rs.next()) {
+                customerName = rs.getString("customer_name");
+                totalCredit = rs.getDouble("credit_amout");
+                totalPaid = rs.getDouble("total_paid");
+            }
+
+            // Create the message
+            String messageText = String.format("Credit payment received from %s: Rs.%,.2f (Total Credit: Rs.%,.2f, Remaining: Rs.%,.2f)",
+                    customerName, amount, totalCredit, (totalCredit - totalPaid));
+
+            // Check if this exact message already exists to avoid duplicates
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message already exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                // Get the generated massage_id
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new Exception("Failed to get generated massage ID");
+                }
+            }
+
+            // Insert notification (msg_type_id 12 = 'Credit Payed' from your msg_type table)
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
+            pstNotification.setInt(2, 12); // msg_type_id 12 = 'Credit Payed'
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+            System.out.println("Credit payment notification created successfully for customer: " + customerName);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Don't throw exception here - we don't want notification failure to affect credit payment creation
+            System.err.println("Failed to create credit payment notification: " + e.getMessage());
+        } finally {
+            // Close resources
+            try {
+                if (pstCreditInfo != null) {
+                    pstCreditInfo.close();
+                }
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -870,6 +1000,7 @@ public class AddCreditPay extends javax.swing.JDialog {
             System.err.println("Error in focus traversal setup: " + e.getMessage());
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1165,7 +1296,7 @@ public class AddCreditPay extends javax.swing.JDialog {
     }//GEN-LAST:event_addressActionPerformed
 
     private void addNewCreditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCreditActionPerformed
-             openAddNewCredit();
+        openAddNewCredit();
     }//GEN-LAST:event_addNewCreditActionPerformed
 
     private void addNewCreditKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCreditKeyPressed

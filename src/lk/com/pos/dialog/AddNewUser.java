@@ -896,6 +896,9 @@ public class AddNewUser extends javax.swing.JDialog {
     }
 
     private void saveUser() {
+        java.sql.Connection conn = null;
+        java.sql.PreparedStatement pst = null;
+
         try {
             String formattedUsername = formatUsername(userNameField.getText().trim());
             String password = new String(passwordField.getPassword());
@@ -917,15 +920,132 @@ public class AddNewUser extends javax.swing.JDialog {
             }
 
             String hashedPassword = hashPassword(password);
-            MySQL.executeIUD("INSERT INTO user (name, password, role_id) VALUES ('"
-                    + formattedUsername + "', '" + hashedPassword + "', " + roleId + ")");
 
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "User '" + formattedUsername + "' added successfully!");
-            clearForm();
+            // Get database connection
+            conn = MySQL.getConnection();
+
+            // Start transaction
+            conn.setAutoCommit(false);
+
+            // Insert user
+            String insertUserSQL = "INSERT INTO user (name, password, role_id) VALUES (?, ?, ?)";
+            pst = conn.prepareStatement(insertUserSQL);
+            pst.setString(1, formattedUsername);
+            pst.setString(2, hashedPassword);
+            pst.setInt(3, roleId);
+
+            int rowsAffected = pst.executeUpdate();
+
+            if (rowsAffected > 0) {
+                // Create notification for new user
+                createUserNotification(formattedUsername, roleName, conn);
+
+                // Commit transaction
+                conn.commit();
+
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "User '" + formattedUsername + "' added successfully!");
+                clearForm();
+            } else {
+                conn.rollback();
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to add user!");
+            }
+
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving user: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            try {
+                if (pst != null) {
+                    pst.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void createUserNotification(String username, String roleName, java.sql.Connection conn) {
+        java.sql.PreparedStatement pstMassage = null;
+        java.sql.PreparedStatement pstNotification = null;
+
+        try {
+            // Create the message
+            String messageText = "New user account created: " + username + " (" + roleName + ")";
+
+            // Check if this exact message already exists to avoid duplicates
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            java.sql.ResultSet rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message already exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                // Get the generated massage_id
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new java.sql.SQLException("Failed to get generated massage ID");
+                }
+            }
+
+            // Insert notification (msg_type_id 21 = 'Add New User' from your msg_type table)
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
+            pstNotification.setInt(2, 21); // msg_type_id 21 = 'Add New User'
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+            System.out.println("User notification created successfully for: " + username);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Don't throw exception here - we don't want notification failure to affect user creation
+            System.err.println("Failed to create user notification: " + e.getMessage());
+        } finally {
+            // Close resources
+            try {
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

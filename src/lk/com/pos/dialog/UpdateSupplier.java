@@ -62,6 +62,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         return !jTextField1.getText().trim().isEmpty()
                 && !jTextField2.getText().trim().isEmpty()
                 && !jTextField3.getText().trim().isEmpty()
+                && !companyfield.getText().trim().isEmpty()
                 && !jTextField4.getText().trim().isEmpty();
     }
 
@@ -258,6 +259,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         jTextField1.setToolTipText("Type supplier name and press ENTER to move to next field");
         jTextField2.setToolTipText("Type phone number and press ENTER to move to next field");
         jTextField3.setToolTipText("Type address and press ENTER to move to next field");
+        companyfield.setToolTipText("Type company name and press ENTER to move to next field");
         jTextField4.setToolTipText("Type registration number and press ENTER to move to buttons");
         updateBtn.setToolTipText("Click to update supplier (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
@@ -283,6 +285,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
                 jTextField1.setText(rs.getString("suppliers_name"));
                 jTextField2.setText(rs.getString("suppliers_mobile"));
                 jTextField3.setText(rs.getString("suppliers_address"));
+                companyfield.setText(rs.getString("Company"));
                 jTextField4.setText(rs.getString("suppliers_reg_no"));
             }
 
@@ -393,16 +396,35 @@ public class UpdateSupplier extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    jTextField4.requestFocus();
+                    companyfield.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     jTextField2.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    jTextField4.requestFocus();
+                    companyfield.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
                     jTextField2.requestFocus();
+                    evt.consume();
+                }
+            }
+        });
+
+        companyfield.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    jTextField3.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    jTextField4.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    jTextField3.requestFocus();
                     evt.consume();
                 }
             }
@@ -420,7 +442,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    jTextField3.requestFocus();
+                    companyfield.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
                     // When all fields are filled, go directly to update button
@@ -431,7 +453,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    jTextField3.requestFocus();
+                    companyfield.requestFocus();
                     evt.consume();
                 }
             }
@@ -509,10 +531,11 @@ public class UpdateSupplier extends javax.swing.JDialog {
         String name = jTextField1.getText().trim();
         String mobile = jTextField2.getText().trim();
         String address = jTextField3.getText().trim();
+        String company = companyfield.getText().trim();
         String regNo = jTextField4.getText().trim();
 
         // Basic validation
-        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty() || regNo.isEmpty()) {
+        if (name.isEmpty() || mobile.isEmpty() || address.isEmpty() || company.isEmpty() || regNo.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     "Please fill all required fields!");
             return;
@@ -538,14 +561,15 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
         try {
             Connection conn = MySQL.getConnection();
-            String sql = "UPDATE suppliers SET suppliers_name = ?, suppliers_mobile = ?, suppliers_address = ?, suppliers_reg_no = ? WHERE suppliers_id = ?";
+            String sql = "UPDATE suppliers SET suppliers_name = ?, suppliers_mobile = ?, suppliers_address = ?, Company = ?, suppliers_reg_no = ? WHERE suppliers_id = ?";
 
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setString(1, name);
             pst.setString(2, mobile);
             pst.setString(3, address);
-            pst.setString(4, regNo);
-            pst.setInt(5, supplierId);
+            pst.setString(4, company);
+            pst.setString(5, regNo);
+            pst.setInt(6, supplierId);
 
             int rowsAffected = pst.executeUpdate();
 
@@ -570,7 +594,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         }
     }
 
-// Add this new method for handling notifications
+    // Add this new method for handling notifications
     private void addSupplierUpdateNotification(String supplierName) {
         try {
             Connection conn = MySQL.getConnection();
@@ -635,6 +659,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
         cancelBtn = new javax.swing.JButton();
         updateBtn = new javax.swing.JButton();
         refreshBtn = new javax.swing.JButton();
+        companyfield = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Customer");
@@ -714,6 +739,15 @@ public class UpdateSupplier extends javax.swing.JDialog {
             }
         });
 
+        companyfield.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        companyfield.setText("Colombo 8");
+        companyfield.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Company Name  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        companyfield.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                companyfieldActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -729,11 +763,12 @@ public class UpdateSupplier extends javax.swing.JDialog {
                                 .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                 .addComponent(jLabel2)
-                                .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                                     .addComponent(jTextField2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 333, Short.MAX_VALUE)
-                                    .addComponent(jTextField3, javax.swing.GroupLayout.Alignment.LEADING))
-                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                    .addComponent(jTextField3, javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(companyfield, javax.swing.GroupLayout.Alignment.LEADING))
+                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addContainerGap(21, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -756,13 +791,15 @@ public class UpdateSupplier extends javax.swing.JDialog {
                 .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(7, 7, 7)
                 .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(companyfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(21, Short.MAX_VALUE))
+                .addContainerGap(22, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -806,6 +843,10 @@ public class UpdateSupplier extends javax.swing.JDialog {
     private void refreshBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_refreshBtnKeyPressed
         clearForm();
     }//GEN-LAST:event_refreshBtnKeyPressed
+
+    private void companyfieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_companyfieldActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_companyfieldActionPerformed
 
     /**
      * @param args the command line arguments
@@ -851,6 +892,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton cancelBtn;
+    private javax.swing.JTextField companyfield;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator2;

@@ -51,7 +51,7 @@ import raven.toast.Notifications;
 public class PosCartPanel extends javax.swing.JPanel {
 
     private java.util.List<Invoice> recentInvoices = new ArrayList<>();
-    private javax.swing.JPopupMenu notificationPopup = new javax.swing.JPopupMenu();
+    private javax.swing.JDialog notificationDialog;
     private Invoice selectedInvoice;
     private boolean invoiceSelected = false;
     private java.util.List<JPanel> invoiceCardsList = new ArrayList<>();
@@ -715,14 +715,58 @@ public class PosCartPanel extends javax.swing.JPanel {
         updateCartPanel();
     }
 
-    // SWITCH INVOICE PANEL METHODS
+    // Enhanced dialog positioning to ensure it stays on screen
+    private void positionDialog(javax.swing.JDialog dialog, java.awt.Component relativeTo) {
+        java.awt.Point buttonLoc = relativeTo.getLocationOnScreen();
+        int dialogWidth = dialog.getPreferredSize().width;
+        int dialogHeight = dialog.getPreferredSize().height;
+
+        // Get screen dimensions
+        java.awt.GraphicsConfiguration gc = relativeTo.getGraphicsConfiguration();
+        java.awt.Rectangle screenBounds = gc.getBounds();
+
+        // Calculate initial position (centered below the button)
+        int x = buttonLoc.x - (dialogWidth - relativeTo.getWidth()) / 2;
+        int y = buttonLoc.y + relativeTo.getHeight();
+
+        // Ensure dialog stays within screen bounds
+        if (x + dialogWidth > screenBounds.x + screenBounds.width) {
+            x = screenBounds.x + screenBounds.width - dialogWidth - 10; // 10px margin from right edge
+        }
+        if (x < screenBounds.x) {
+            x = screenBounds.x + 10; // 10px margin from left edge
+        }
+        if (y + dialogHeight > screenBounds.y + screenBounds.height) {
+            y = screenBounds.y + screenBounds.height - dialogHeight - 10; // 10px margin from bottom
+            // If it still doesn't fit, try above the button
+            if (y < buttonLoc.y) {
+                y = buttonLoc.y - dialogHeight - 10; // 10px above the button
+            }
+        }
+        if (y < screenBounds.y) {
+            y = screenBounds.y + 10; // 10px margin from top
+        }
+
+        dialog.setLocation(x, y);
+    }
+
+    // ENHANCED SWITCH INVOICE PANEL WITH JDialog FOR BETTER CLICK-OUTSIDE BEHAVIOR
     private void showSwitchInvoicePanel() {
         loadRecentInvoices();
         invoiceCardsList.clear();
         currentFocusedIndex = -1;
 
-        notificationPopup.removeAll();
-        notificationPopup.setPreferredSize(new Dimension(480, 500));
+        // Create a dialog instead of popup for better behavior
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        notificationDialog = new javax.swing.JDialog(parentFrame, false); // non-modal
+        notificationDialog.setUndecorated(true);
+        notificationDialog.setPreferredSize(new Dimension(480, 500));
+        notificationDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent background
+
+        // Main content panel
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
+        mainPanel.setBorder(BorderFactory.createLineBorder(new Color(0x1CB5BB), 2));
 
         // Header Panel
         JPanel headerPanel = new JPanel(new BorderLayout());
@@ -783,6 +827,16 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
+        // Help button
+        JButton helpButton = new JButton("?");
+        helpButton.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        helpButton.setForeground(Color.WHITE);
+        helpButton.setBackground(new Color(0x1CB5BB));
+        helpButton.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        helpButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        helpButton.setToolTipText("Keyboard Help");
+        helpButton.addActionListener(e -> showKeyboardHelp());
+
         // Close icon
         final FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 18, 18);
         closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
@@ -824,11 +878,13 @@ public class PosCartPanel extends javax.swing.JPanel {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                notificationPopup.setVisible(false);
+                notificationDialog.setVisible(false);
+                notificationDialog.dispose();
             }
         });
 
         rightButtonPanel.add(refreshButton);
+        rightButtonPanel.add(helpButton);
         rightButtonPanel.add(closeButton);
 
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -881,32 +937,61 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         }
 
-        notificationPopup.setLayout(new BorderLayout());
-        notificationPopup.add(headerPanel, BorderLayout.NORTH);
-
         // Create a wrapper panel to hold subtitle and scroll pane
         JPanel mainContentPanel = new JPanel(new BorderLayout());
         mainContentPanel.add(subtitlePanel, BorderLayout.NORTH);
         mainContentPanel.add(scrollPane, BorderLayout.CENTER);
 
-        notificationPopup.add(mainContentPanel, BorderLayout.CENTER);
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(mainContentPanel, BorderLayout.CENTER);
 
-        // Add keyboard listener
-        notificationPopup.setFocusable(true);
-        notificationPopup.addKeyListener(new java.awt.event.KeyAdapter() {
+        notificationDialog.add(mainPanel);
+        notificationDialog.pack();
+
+        // Enhanced keyboard setup
+        setupEnhancedKeyboardNavigation(scrollPane);
+
+        // Use the new positioning method
+        positionDialog(notificationDialog, switchBtn);
+
+        // Enhanced window focus listener to close when focus is lost
+        notificationDialog.addWindowFocusListener(new java.awt.event.WindowAdapter() {
+            private boolean gainedFocusOnce = false;
+
             @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                handleKeyboardNavigation(evt, scrollPane);
+            public void windowGainedFocus(java.awt.event.WindowEvent e) {
+                gainedFocusOnce = true;
+            }
+
+            @Override
+            public void windowLostFocus(java.awt.event.WindowEvent e) {
+                // Only close if focus was gained at least once (to handle initial focus issues)
+                if (gainedFocusOnce) {
+                    // Small delay to handle click events properly
+                    javax.swing.Timer timer = new javax.swing.Timer(100, evt -> {
+                        if (!notificationDialog.isFocusOwner()
+                                && !isChildComponentFocused(notificationDialog)) {
+                            notificationDialog.setVisible(false);
+                            notificationDialog.dispose();
+                        }
+                    });
+                    timer.setRepeats(false);
+                    timer.start();
+                }
+            }
+
+            private boolean isChildComponentFocused(java.awt.Window window) {
+                java.awt.Component focusOwner = java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+                if (focusOwner == null) {
+                    return false;
+                }
+
+                // Check if the focused component is within our dialog
+                return javax.swing.SwingUtilities.isDescendingFrom(focusOwner, window);
             }
         });
 
-        java.awt.Point buttonLoc = switchBtn.getLocationOnScreen();
-        int x = buttonLoc.x - (notificationPopup.getPreferredSize().width - switchBtn.getWidth()) / 2;
-        int y = buttonLoc.y + switchBtn.getHeight();
-
-        notificationPopup.setLocation(x, y);
-        notificationPopup.setVisible(true);
-        notificationPopup.requestFocus();
+        notificationDialog.setVisible(true);
 
         // Auto-focus first item if available
         if (!invoiceCardsList.isEmpty()) {
@@ -914,38 +999,113 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
-    private void handleKeyboardNavigation(java.awt.event.KeyEvent evt, JScrollPane scrollPane) {
+    // Enhanced keyboard setup
+    private void setupEnhancedKeyboardNavigation(JScrollPane scrollPane) {
+        // Create key listener
+        java.awt.event.KeyListener keyListener = new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleEnhancedKeyboardNavigation(evt, scrollPane);
+            }
+        };
+
+        // Add to dialog
+        notificationDialog.addKeyListener(keyListener);
+        notificationDialog.setFocusable(true);
+
+        // Request focus
+        SwingUtilities.invokeLater(() -> {
+            notificationDialog.requestFocusInWindow();
+        });
+    }
+
+    // Enhanced keyboard navigation handler
+    private void handleEnhancedKeyboardNavigation(java.awt.event.KeyEvent evt, JScrollPane scrollPane) {
         if (invoiceCardsList.isEmpty()) {
             return;
         }
 
         int keyCode = evt.getKeyCode();
 
-        if (keyCode == java.awt.event.KeyEvent.VK_DOWN) {
-            // Move down
-            if (currentFocusedIndex < invoiceCardsList.size() - 1) {
-                setFocusedCard(currentFocusedIndex + 1, scrollPane);
-            }
-            evt.consume();
-        } else if (keyCode == java.awt.event.KeyEvent.VK_UP) {
-            // Move up
-            if (currentFocusedIndex > 0) {
-                setFocusedCard(currentFocusedIndex - 1, scrollPane);
-            }
-            evt.consume();
-        } else if (keyCode == java.awt.event.KeyEvent.VK_ENTER) {
-            // Select current invoice
-            if (currentFocusedIndex >= 0 && currentFocusedIndex < recentInvoices.size()) {
-                Invoice invoice = recentInvoices.get(currentFocusedIndex);
-                String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
-                notificationPopup.setVisible(false);
-                handleInvoiceAction(invoice, buttonText);
-            }
-            evt.consume();
-        } else if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
-            // Close popup
-            notificationPopup.setVisible(false);
-            evt.consume();
+        switch (keyCode) {
+            case java.awt.event.KeyEvent.VK_DOWN:
+                // Move down with wrap-around
+                if (currentFocusedIndex < invoiceCardsList.size() - 1) {
+                    setFocusedCard(currentFocusedIndex + 1, scrollPane);
+                } else {
+                    setFocusedCard(0, scrollPane); // Wrap to top
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_UP:
+                // Move up with wrap-around
+                if (currentFocusedIndex > 0) {
+                    setFocusedCard(currentFocusedIndex - 1, scrollPane);
+                } else {
+                    setFocusedCard(invoiceCardsList.size() - 1, scrollPane); // Wrap to bottom
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_ENTER:
+                // Select current invoice
+                if (currentFocusedIndex >= 0 && currentFocusedIndex < recentInvoices.size()) {
+                    Invoice invoice = recentInvoices.get(currentFocusedIndex);
+                    String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
+                    notificationDialog.setVisible(false);
+                    notificationDialog.dispose();
+                    handleInvoiceAction(invoice, buttonText);
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_ESCAPE:
+                // Close dialog
+                notificationDialog.setVisible(false);
+                notificationDialog.dispose();
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_HOME:
+                // Jump to first item
+                if (!invoiceCardsList.isEmpty()) {
+                    setFocusedCard(0, scrollPane);
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_END:
+                // Jump to last item
+                if (!invoiceCardsList.isEmpty()) {
+                    setFocusedCard(invoiceCardsList.size() - 1, scrollPane);
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_PAGE_DOWN:
+                // Page down - move by 5 items
+                if (!invoiceCardsList.isEmpty()) {
+                    int newIndex = Math.min(currentFocusedIndex + 5, invoiceCardsList.size() - 1);
+                    setFocusedCard(newIndex, scrollPane);
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_PAGE_UP:
+                // Page up - move by 5 items
+                if (!invoiceCardsList.isEmpty()) {
+                    int newIndex = Math.max(currentFocusedIndex - 5, 0);
+                    setFocusedCard(newIndex, scrollPane);
+                }
+                evt.consume();
+                break;
+
+            case java.awt.event.KeyEvent.VK_F1:
+                // Show help
+                showKeyboardHelp();
+                evt.consume();
+                break;
         }
     }
 
@@ -1015,6 +1175,21 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
+    // Keyboard help method
+    private void showKeyboardHelp() {
+        String helpText = "<html><div style='text-align: center;'><b>Keyboard Shortcuts</b></div><br>"
+                + "• <b>↑ / ↓</b> - Navigate invoices<br>"
+                + "• <b>Enter</b> - Select invoice<br>"
+                + "• <b>Home</b> - First invoice<br>"
+                + "• <b>End</b> - Last invoice<br>"
+                + "• <b>Page Up/Down</b> - Jump 5 invoices<br>"
+                + "• <b>F1</b> - Show this help<br>"
+                + "• <b>Escape</b> - Close window</html>";
+
+        JOptionPane.showMessageDialog(this, helpText, "Keyboard Help",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private JPanel createInvoiceCard(Invoice invoice, int index) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBorder(BorderFactory.createCompoundBorder(
@@ -1081,7 +1256,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
         GradientActionButton actionButton = new GradientActionButton(buttonText, invoice);
         actionButton.addActionListener(e -> {
-            notificationPopup.setVisible(false);
+            if (notificationDialog != null) {
+                notificationDialog.setVisible(false);
+                notificationDialog.dispose();
+            }
             handleInvoiceAction(invoice, buttonText);
         });
 
@@ -1092,7 +1270,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                notificationPopup.setVisible(false);
+                if (notificationDialog != null) {
+                    notificationDialog.setVisible(false);
+                    notificationDialog.dispose();
+                }
                 handleInvoiceAction(invoice, buttonText);
             }
 
@@ -1316,53 +1497,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
-    private void handleViewAction(Invoice invoice) {
-        try {
-            String detailQuery
-                    = "SELECT si.qty, p.product_name, si.price, si.discount_price, si.total "
-                    + "FROM sale_item si "
-                    + "INNER JOIN stock st ON si.stock_id = st.stock_id "
-                    + "INNER JOIN product p ON st.product_id = p.product_id "
-                    + "WHERE si.sales_id = " + invoice.getSalesId();
-
-            ResultSet rs = MySQL.executeSearch(detailQuery);
-
-            StringBuilder details = new StringBuilder();
-            details.append("Invoice Details:\n");
-            details.append("ID: ").append(invoice.getInvoiceNo()).append("\n");
-            details.append("Status: ").append(invoice.getStatus()).append("\n");
-            details.append("Amount: Rs. ").append(String.format("%.2f", invoice.getTotal())).append("\n");
-            details.append("Date: ").append(invoice.getDate()).append("\n\n");
-            details.append("Items:\n");
-
-            double itemTotal = 0;
-            while (rs.next()) {
-                String productName = rs.getString("product_name");
-                int qty = rs.getInt("qty");
-                double price = rs.getDouble("price");
-                double discount = rs.getDouble("discount_price");
-                double total = rs.getDouble("total");
-
-                details.append(String.format("- %s x%d: Rs. %.2f (Discount: Rs. %.2f) = Rs. %.2f\n",
-                        productName, qty, price, discount, total));
-                itemTotal += total;
-            }
-
-            details.append("\nTotal: Rs. ").append(String.format("%.2f", itemTotal));
-
-            JOptionPane.showMessageDialog(this,
-                    details.toString(),
-                    "View Invoice - " + invoice.getInvoiceNo(),
-                    JOptionPane.INFORMATION_MESSAGE);
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error loading invoice details: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
     private void handleOpenAction(Invoice invoice) {
         JOptionPane.showMessageDialog(this,
                 "Opening invoice: " + invoice.getInvoiceNo() + "\n"
@@ -1436,15 +1570,65 @@ public class PosCartPanel extends javax.swing.JPanel {
         updateCartPanel();
     }
 
+    private void handleViewAction(Invoice invoice) {
+        try {
+            String detailQuery
+                    = "SELECT si.qty, p.product_name, b.brand_name, si.price, si.discount_price, si.total "
+                    + "FROM sale_item si "
+                    + "INNER JOIN stock st ON si.stock_id = st.stock_id "
+                    + "INNER JOIN product p ON st.product_id = p.product_id "
+                    + "INNER JOIN brand b ON p.brand_id = b.brand_id "
+                    + "WHERE si.sales_id = " + invoice.getSalesId();
+
+            ResultSet rs = MySQL.executeSearch(detailQuery);
+
+            StringBuilder details = new StringBuilder();
+            details.append("Invoice Details:\n");
+            details.append("ID: ").append(invoice.getInvoiceNo()).append("\n");
+            details.append("Status: ").append(invoice.getStatus()).append("\n");
+            details.append("Amount: Rs. ").append(String.format("%.2f", invoice.getTotal())).append("\n");
+            details.append("Date: ").append(invoice.getDate()).append("\n\n");
+            details.append("Items:\n");
+
+            double itemTotal = 0;
+            while (rs.next()) {
+                String productName = rs.getString("product_name");
+                String brandName = rs.getString("brand_name");
+                int qty = rs.getInt("qty");
+                double price = rs.getDouble("price");
+                double discount = rs.getDouble("discount_price");
+                double total = rs.getDouble("total");
+
+                details.append(String.format("- %s (%s) x%d: Rs. %.2f (Discount: Rs. %.2f) = Rs. %.2f\n",
+                        productName, brandName, qty, price, discount, total));
+                itemTotal += total;
+            }
+
+            details.append("\nTotal: Rs. ").append(String.format("%.2f", itemTotal));
+
+            JOptionPane.showMessageDialog(this,
+                    details.toString(),
+                    "View Invoice - " + invoice.getInvoiceNo(),
+                    JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error loading invoice details: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void loadInvoiceItems(Invoice invoice) {
         try {
             String detailQuery
-                    = "SELECT si.qty, p.product_name, p.brand_name, st.batch_no, "
-                    + "si.price, si.discount_price, si.total, st.barcode, "
+                    = "SELECT si.qty, p.product_name, b.brand_name, st.batch_no, "
+                    + "si.price, si.discount_price, si.total, p.barcode, " // Fixed: changed st.barcode to p.barcode
                     + "st.selling_price as last_price, p.product_id, st.stock_id "
                     + "FROM sale_item si "
                     + "INNER JOIN stock st ON si.stock_id = st.stock_id "
                     + "INNER JOIN product p ON st.product_id = p.product_id "
+                    + "INNER JOIN brand b ON p.brand_id = b.brand_id "
                     + "WHERE si.sales_id = " + invoice.getSalesId();
 
             ResultSet rs = MySQL.executeSearch(detailQuery);
@@ -1456,7 +1640,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                 String batchNo = rs.getString("batch_no");
                 int qty = rs.getInt("qty");
                 double sellingPrice = rs.getDouble("price");
-                String barcode = rs.getString("barcode");
+                String barcode = rs.getString("barcode");  // Now this will work
                 double lastPrice = rs.getDouble("last_price");
                 double discountPrice = rs.getDouble("discount_price");
 

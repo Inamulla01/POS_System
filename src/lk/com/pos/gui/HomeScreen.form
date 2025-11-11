@@ -79,7 +79,7 @@
                       <Component id="menuBtn" min="-2" pref="40" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="helloLabel" min="-2" pref="276" max="-2" attributes="0"/>
-                      <EmptySpace pref="57" max="32767" attributes="0"/>
+                      <EmptySpace pref="63" max="32767" attributes="0"/>
                       <Component id="keyBtn" min="-2" pref="40" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="calBtn" min="-2" pref="40" max="-2" attributes="0"/>
@@ -294,20 +294,24 @@
                               <Group type="103" groupAlignment="0" max="-2" attributes="0">
                                   <Component id="dashboardBtn" alignment="0" pref="231" max="32767" attributes="0"/>
                                   <Component id="posBtn" alignment="0" pref="231" max="32767" attributes="0"/>
-                                  <Component id="supplierBtn" alignment="0" pref="231" max="32767" attributes="0"/>
-                                  <Component id="salesBtn" alignment="0" pref="231" max="32767" attributes="0"/>
-                                  <Component id="creditBtn" alignment="0" pref="231" max="32767" attributes="0"/>
                                   <Component id="stockBtn" alignment="0" pref="231" max="32767" attributes="0"/>
                                   <Component id="logo" alignment="0" max="32767" attributes="0"/>
                               </Group>
-                              <EmptySpace min="0" pref="6" max="32767" attributes="0"/>
+                              <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
                           </Group>
-                          <Group type="102" attributes="0">
-                              <EmptySpace max="-2" attributes="0"/>
+                          <Group type="102" alignment="1" attributes="0">
+                              <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
                               <Group type="103" groupAlignment="0" attributes="0">
-                                  <Component id="notificasionBtn" alignment="0" pref="231" max="32767" attributes="0"/>
-                                  <Component id="returnBtn" pref="231" max="32767" attributes="0"/>
-                                  <Component id="productBtn" pref="231" max="32767" attributes="0"/>
+                                  <Component id="productBtn" alignment="0" min="-2" pref="231" max="-2" attributes="0"/>
+                                  <Group type="103" alignment="0" groupAlignment="0" max="-2" attributes="0">
+                                      <Component id="notificasionBtn" alignment="0" pref="231" max="32767" attributes="0"/>
+                                      <Component id="returnBtn" alignment="0" pref="231" max="32767" attributes="0"/>
+                                  </Group>
+                                  <Group type="103" alignment="0" groupAlignment="0" max="-2" attributes="0">
+                                      <Component id="supplierBtn" alignment="0" max="32767" attributes="0"/>
+                                      <Component id="salesBtn" alignment="0" max="32767" attributes="0"/>
+                                      <Component id="creditBtn" alignment="0" min="-2" pref="231" max="-2" attributes="0"/>
+                                  </Group>
                               </Group>
                           </Group>
                       </Group>
@@ -325,19 +329,19 @@
                       <Component id="posBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="stockBtn" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
+                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
+                      <Component id="productBtn" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="salesBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="creditBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="supplierBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                      <Component id="notificasionBtn" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="returnBtn" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                      <Component id="productBtn" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace type="separate" pref="43" max="32767" attributes="0"/>
+                      <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
+                      <Component id="notificasionBtn" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace pref="81" max="32767" attributes="0"/>
                       <Component id="signOutBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="17" max="-2" attributes="0"/>
                   </Group>
@@ -536,7 +540,7 @@
                 <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
                   <Font name="Nunito SemiBold" size="14" style="1"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value="Notification"/>
+                <Property name="text" type="java.lang.String" value=" Notification"/>
                 <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
                   <Border info="null"/>
                 </Property>
@@ -561,7 +565,7 @@
                 <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
                   <Font name="Nunito SemiBold" size="14" style="1"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value="Return"/>
+                <Property name="text" type="java.lang.String" value=" Return"/>
                 <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
                   <Border info="null"/>
                 </Property>
@@ -586,7 +590,7 @@
                 <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
                   <Font name="Nunito SemiBold" size="14" style="1"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value="Product"/>
+                <Property name="text" type="java.lang.String" value=" Product"/>
                 <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
                   <Border info="null"/>
                 </Property>

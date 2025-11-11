@@ -59,6 +59,7 @@ public class AddSupplier extends javax.swing.JDialog {
         java.util.List<java.awt.Component> order = java.util.Arrays.asList(name,
                 phoneNo,
                 address,
+                companyfield,
                 registerNo,
                 cancelBtn,
                 saveBtn
@@ -90,6 +91,13 @@ public class AddSupplier extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 handleArrowNavigation(evt, address);
+            }
+        });
+
+        companyfield.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                handleArrowNavigation(evt, companyfield);
             }
         });
 
@@ -150,6 +158,8 @@ public class AddSupplier extends javax.swing.JDialog {
         } else if (source == phoneNo) {
             address.requestFocusInWindow();
         } else if (source == address) {
+            companyfield.requestFocusInWindow();
+        } else if (source == companyfield) {
             registerNo.requestFocusInWindow();
         } else if (source == registerNo) {
             // When all fields are filled, go directly to save button
@@ -172,8 +182,10 @@ public class AddSupplier extends javax.swing.JDialog {
             name.requestFocusInWindow();
         } else if (source == address) {
             phoneNo.requestFocusInWindow();
-        } else if (source == registerNo) {
+        } else if (source == companyfield) {
             address.requestFocusInWindow();
+        } else if (source == registerNo) {
+            companyfield.requestFocusInWindow();
         } else if (source == cancelBtn) {
             registerNo.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -191,6 +203,8 @@ public class AddSupplier extends javax.swing.JDialog {
         } else if (source == phoneNo) {
             address.requestFocusInWindow();
         } else if (source == address) {
+            companyfield.requestFocusInWindow();
+        } else if (source == companyfield) {
             registerNo.requestFocusInWindow();
         } else if (source == registerNo) {
             // When all fields are filled, go directly to save button
@@ -213,8 +227,10 @@ public class AddSupplier extends javax.swing.JDialog {
             name.requestFocusInWindow();
         } else if (source == address) {
             phoneNo.requestFocusInWindow();
-        } else if (source == registerNo) {
+        } else if (source == companyfield) {
             address.requestFocusInWindow();
+        } else if (source == registerNo) {
+            companyfield.requestFocusInWindow();
         } else if (source == cancelBtn) {
             registerNo.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -231,7 +247,8 @@ public class AddSupplier extends javax.swing.JDialog {
         java.util.Map<java.awt.Component, java.awt.Component> enterNavigationMap = new java.util.HashMap<>();
         enterNavigationMap.put(name, phoneNo);
         enterNavigationMap.put(phoneNo, address);
-        enterNavigationMap.put(address, registerNo);
+        enterNavigationMap.put(address, companyfield);
+        enterNavigationMap.put(companyfield, registerNo);
 
         // Special handling for registerNo field - go to save if all fields filled
         enterNavigationMap.put(registerNo, null);
@@ -269,6 +286,7 @@ public class AddSupplier extends javax.swing.JDialog {
         return !name.getText().trim().isEmpty()
                 && !phoneNo.getText().trim().isEmpty()
                 && !address.getText().trim().isEmpty()
+                && !companyfield.getText().trim().isEmpty()
                 && !registerNo.getText().trim().isEmpty();
     }
 
@@ -362,6 +380,7 @@ public class AddSupplier extends javax.swing.JDialog {
         refreshBtn.setFocusPainted(false);
         refreshBtn.setOpaque(false);
         refreshBtn.setFocusable(false);
+        refreshBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         FlatSVGIcon categoryIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
         categoryIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
@@ -465,12 +484,28 @@ public class AddSupplier extends javax.swing.JDialog {
                 cancelBtn.repaint();
             }
         });
+
+        // Focus listeners for refreshBtn
+        refreshBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                refreshBtn.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                refreshBtn.setIcon(normalIcon);
+            }
+        });
     }
 
     private void setupTooltips() {
         name.setToolTipText("Type supplier name and press ENTER to move to next field");
         phoneNo.setToolTipText("Type phone number and press ENTER to move to next field");
         address.setToolTipText("Type address and press ENTER to move to next field");
+        companyfield.setToolTipText("Type company name and press ENTER to move to next field");
         registerNo.setToolTipText("Type register number and press ENTER to move to buttons");
         saveBtn.setToolTipText("Click to save supplier (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
@@ -482,6 +517,7 @@ public class AddSupplier extends javax.swing.JDialog {
         name.setText("");
         phoneNo.setText("");
         address.setText("");
+        companyfield.setText("");
         registerNo.setText("");
     }
 
@@ -552,10 +588,11 @@ public class AddSupplier extends javax.swing.JDialog {
         String supplierName = name.getText().trim();
         String mobile = phoneNo.getText().trim();
         String supplierAddress = address.getText().trim();
+        String company = companyfield.getText().trim();
         String regNo = registerNo.getText().trim();
 
         // Basic validation
-        if (supplierName.isEmpty() || mobile.isEmpty() || supplierAddress.isEmpty() || regNo.isEmpty()) {
+        if (supplierName.isEmpty() || mobile.isEmpty() || supplierAddress.isEmpty() || company.isEmpty() || regNo.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     "Please fill all required fields!");
             return;
@@ -581,13 +618,14 @@ public class AddSupplier extends javax.swing.JDialog {
 
         try {
             Connection conn = MySQL.getConnection();
-            String sql = "INSERT INTO suppliers (suppliers_name, suppliers_mobile, suppliers_address, suppliers_reg_no) VALUES (?, ?, ?, ?)";
+            String sql = "INSERT INTO suppliers (suppliers_name, suppliers_mobile, suppliers_address, Company, suppliers_reg_no) VALUES (?, ?, ?, ?, ?)";
 
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setString(1, supplierName);
             pst.setString(2, mobile);
             pst.setString(3, supplierAddress);
-            pst.setString(4, regNo);
+            pst.setString(4, company);
+            pst.setString(5, regNo);
 
             int rowsAffected = pst.executeUpdate();
 
@@ -673,7 +711,6 @@ public class AddSupplier extends javax.swing.JDialog {
         }
         return 0;
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -688,6 +725,7 @@ public class AddSupplier extends javax.swing.JDialog {
         jLabel2 = new javax.swing.JLabel();
         jSeparator2 = new javax.swing.JSeparator();
         refreshBtn = new javax.swing.JButton();
+        companyfield = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Add New Supplier");
@@ -765,6 +803,15 @@ public class AddSupplier extends javax.swing.JDialog {
             }
         });
 
+        companyfield.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        companyfield.setText("Colombo 8");
+        companyfield.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Company Name  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        companyfield.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                companyfieldActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -773,18 +820,19 @@ public class AddSupplier extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jLabel2)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel2)
+                            .addComponent(name, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                .addGroup(jPanel1Layout.createSequentialGroup()
+                                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addComponent(registerNo, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                                     .addComponent(phoneNo, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 333, Short.MAX_VALUE)
-                                    .addComponent(address, javax.swing.GroupLayout.Alignment.LEADING))
-                                .addComponent(name, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                    .addComponent(address, javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(companyfield, javax.swing.GroupLayout.Alignment.LEADING))))
                         .addContainerGap(24, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -808,12 +856,14 @@ public class AddSupplier extends javax.swing.JDialog {
                 .addGap(7, 7, 7)
                 .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(companyfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(registerNo, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(22, Short.MAX_VALUE))
+                .addGap(22, 22, 22))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -858,6 +908,10 @@ public class AddSupplier extends javax.swing.JDialog {
     private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
         this.dispose();
     }//GEN-LAST:event_cancelBtnActionPerformed
+
+    private void companyfieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_companyfieldActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_companyfieldActionPerformed
 
     /**
      * @param args the command line arguments
@@ -904,6 +958,7 @@ public class AddSupplier extends javax.swing.JDialog {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField address;
     private javax.swing.JButton cancelBtn;
+    private javax.swing.JTextField companyfield;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator2;

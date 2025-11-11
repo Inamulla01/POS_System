@@ -12,6 +12,9 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.AWTEvent;
+import java.awt.Toolkit;
+import java.awt.event.AWTEventListener;
 import java.io.File;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -42,7 +45,6 @@ public class HomeScreen extends JFrame {
     // ===== SESSION CODE COMMENTED OUT =====
     // int userId = Session.getInstance().getUserId();
     // String roleName = Session.getInstance().getRoleName();
-    
     // Temporary hardcoded values for testing (remove when session is restored)
     int userId = 1;
     String roleName = "Admin";
@@ -50,6 +52,7 @@ public class HomeScreen extends JFrame {
 
     // Icons
     private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
+    private FlatSVGIcon notificationIcon, returnIcon, productIcon;
     private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon;
 
     // Sidebar animation
@@ -89,9 +92,11 @@ public class HomeScreen extends JFrame {
     private Color signOutHoverBottom = new Color(200, 0, 0);
 
     private JPopupMenu profilePopup;
+    private AWTEventListener profilePopupMouseListener;
 
     private JLabel notificationBadge;
     private JPopupMenu notificationPopup;
+    private AWTEventListener notificationPopupMouseListener;
 
     // Track hover state for each button
     private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
@@ -106,7 +111,6 @@ public class HomeScreen extends JFrame {
         //     return;
         // }
         // ===== END SESSION CODE =====
-        
         loadPanels();
         init();
         initSidebarSlider();
@@ -125,7 +129,6 @@ public class HomeScreen extends JFrame {
     //     return isValid;
     // }
     // ===== END SESSION CODE =====
-
     // ===== REDIRECT TO LOGIN METHOD COMMENTED OUT =====
     // private void redirectToLogin() {
     //     // Dispose current frame first
@@ -140,18 +143,16 @@ public class HomeScreen extends JFrame {
     //     });
     // }
     // ===== END SESSION CODE =====
-
     private void init() {
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-        
+
         // ===== SESSION VALIDATION COMMENTED OUT =====
         // if (!hasValidSession()) {
         //     redirectToLogin();
         //     return;
         // }
         // ===== END SESSION CODE =====
-
         try {
             ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + userId);
             if (rs.next()) {
@@ -167,11 +168,15 @@ public class HomeScreen extends JFrame {
         supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
         salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
         creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
-        stockIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
+        stockIcon = new FlatSVGIcon("lk/com/pos/icon/graph.svg", 25, 25);
         menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
         calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24);
-        
+
+        // New icons for additional buttons
+        notificationIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
+        returnIcon = new FlatSVGIcon("lk/com/pos/icon/return.svg", 20, 20);
+        productIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
 
         // Initialize navigation bar icons
         navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
@@ -188,7 +193,7 @@ public class HomeScreen extends JFrame {
 
         setupProfileDropdown();
 
-        // Track hover states
+        // Track hover states for all buttons
         buttonHoverStates.put(dashboardBtn, false);
         buttonHoverStates.put(posBtn, false);
         buttonHoverStates.put(supplierBtn, false);
@@ -198,14 +203,19 @@ public class HomeScreen extends JFrame {
         buttonHoverStates.put(calBtn, false);
         buttonHoverStates.put(signOutBtn, false);
         buttonHoverStates.put(notificasionBtn, false);
+        buttonHoverStates.put(returnBtn, false);
+        buttonHoverStates.put(productBtn, false);
 
-        // Setup hover buttons for sidebar
+        // Setup hover buttons for sidebar - all buttons with same design
         setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(salesBtn, salesIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(creditBtn, creditIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(stockBtn, stockIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(notificasionBtn, notificationIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(returnBtn, returnIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(productBtn, productIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
         // Setup menu button for sidebar expand/collapse
@@ -214,13 +224,16 @@ public class HomeScreen extends JFrame {
         // Logo setup
         updateLogo();
 
-        // Button padding
+        // Button padding for all buttons
         dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
         salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
         creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 23, 0, 0));
+        notificasionBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        returnBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        productBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
         signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
 
         // Set sidebar collapsed at startup
@@ -238,7 +251,10 @@ public class HomeScreen extends JFrame {
         // Set dashboard as default active button
         setActiveButton(dashboardBtn);
         showDashboardPanel();
-        updateShortcutIconVisibility();
+
+        // Always show shortcut icon
+        keyBtn.setVisible(true);
+
         setupNotificationSystem();
         loadUnreadNotifications();
 
@@ -282,28 +298,56 @@ public class HomeScreen extends JFrame {
         badgePanel.add(notificationBadge);
         bellBtn.add(badgePanel, BorderLayout.NORTH);
 
-        // 🔔 Toggle popup
+        // Add popup menu listener to handle outside clicks
+        notificationPopup.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                // Add global mouse listener to detect clicks outside
+                notificationPopupMouseListener = new AWTEventListener() {
+                    @Override
+                    public void eventDispatched(AWTEvent event) {
+                        if (event instanceof MouseEvent) {
+                            MouseEvent me = (MouseEvent) event;
+                            if (me.getID() == MouseEvent.MOUSE_PRESSED) {
+                                // Check if click is outside the popup and bell button
+                                if (!notificationPopup.isShowing()
+                                        || (me.getSource() != bellBtn
+                                        && !SwingUtilities.isDescendingFrom(me.getComponent(), notificationPopup))) {
+                                    notificationPopup.setVisible(false);
+                                    markAllNotificationsAsRead();
+                                }
+                            }
+                        }
+                    }
+                };
+                Toolkit.getDefaultToolkit().addAWTEventListener(notificationPopupMouseListener, AWTEvent.MOUSE_EVENT_MASK);
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                // Remove the listener when popup closes
+                if (notificationPopupMouseListener != null) {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(notificationPopupMouseListener);
+                }
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+                if (notificationPopupMouseListener != null) {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(notificationPopupMouseListener);
+                }
+            }
+        });
+
+        // Toggle popup
         bellBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (notificationPopup.isVisible()) {
                     notificationPopup.setVisible(false);
-                    // ✅ Mark as read when popup closes
                     markAllNotificationsAsRead();
                 } else {
                     showNotifications();
-                }
-            }
-        });
-
-        // 🪟 Close popup when window loses focus
-        addWindowFocusListener(new WindowAdapter() {
-            @Override
-            public void windowLostFocus(WindowEvent e) {
-                if (notificationPopup.isVisible()) {
-                    notificationPopup.setVisible(false);
-                    // ✅ Mark as read when popup closes
-                    markAllNotificationsAsRead();
                 }
             }
         });
@@ -351,7 +395,6 @@ public class HomeScreen extends JFrame {
             closeButton.setToolTipText("Close");
             closeButton.addActionListener(e -> {
                 notificationPopup.setVisible(false);
-                // ✅ Mark all as read when ❌ is clicked
                 markAllNotificationsAsRead();
             });
 
@@ -404,17 +447,60 @@ public class HomeScreen extends JFrame {
                 }
                 firstItem = false;
 
-                // Select icon based on type
+                // Select icon based on type with comprehensive mapping
                 FlatSVGIcon icon;
                 switch (type) {
-                    case "success":
-                        icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
-                        break;
-                    case "warning":
+                    case "expired soon":
+                    case "expired":
                         icon = new FlatSVGIcon("lk/com/pos/icon/warning.svg", 18, 18);
                         break;
-                    default:
+                    case "low stock":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/low-stock.svg", 18, 18);
+                        break;
+                    case "loged in":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
+                        break;
+                    case "log out":
                         icon = new FlatSVGIcon("lk/com/pos/icon/info.svg", 18, 18);
+                        break;
+                    case "missed due date":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/warning.svg", 18, 18);
+                        break;
+                    case "add new product":
+                    case "add new stock":
+                    case "add new supplier":
+                    case "add new credit":
+                    case "add new customer":
+                    case "add new user":
+                    case "add new category":
+                    case "add new brand":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
+                        break;
+                    case "credit payed":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
+                        break;
+                    case "complete sale":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
+                        break;
+                    case "edit product/stock":
+                    case "edit supplier":
+                    case "edit credit":
+                    case "edit credit pay":
+                    case "edit customer":
+                    case "edit profile":
+                        icon = new FlatSVGIcon("lk/com/pos/icon/info.svg", 18, 18);
+                        break;
+                    default:
+                        // Fallback to basic icons based on common patterns
+                        if (type.contains("success") || type.contains("complete")) {
+                            icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
+                        } else if (type.contains("warning") || type.contains("expired") || type.contains("low")) {
+                            icon = new FlatSVGIcon("lk/com/pos/icon/warning.svg", 18, 18);
+                        } else if (type.contains("error") || type.contains("missed")) {
+                            icon = new FlatSVGIcon("lk/com/pos/icon/error.svg", 18, 18);
+                        } else {
+                            icon = new FlatSVGIcon("lk/com/pos/icon/info.svg", 18, 18);
+                        }
                         break;
                 }
 
@@ -435,7 +521,7 @@ public class HomeScreen extends JFrame {
                 JLabel msgLabel = new JLabel("<html><div style='width: 400px;'>" + message + "</div></html>");
                 msgLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
 
-                // Format time
+                // Format time with relative time
                 String formattedTime = formatNotificationTime(time);
                 JLabel timeLabel = new JLabel(formattedTime);
                 timeLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
@@ -493,79 +579,11 @@ public class HomeScreen extends JFrame {
             notificationPopup.repaint();
 
         } catch (SQLException e) {
-
             notificationBadge.setVisible(false);
         }
     }
 
     private void showNotifications() {
-        loadUnreadNotifications();
-
-        notificationPopup.removeAll();
-
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
-        headerPanel.setBackground(new Color(0xF8F9FA));
-
-        JLabel titleLabel = new JLabel("Notifications");
-        titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
-        titleLabel.setForeground(new Color(0x333333));
-
-        // ❌ Close icon
-        final FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 16, 16);
-        closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-            @Override
-            public Color filter(Color color) {
-                return new Color(0x666666);
-            }
-        });
-
-        JButton closeButton = new JButton(closeIcon);
-        closeButton.setContentAreaFilled(false);
-        closeButton.setBorderPainted(false);
-        closeButton.setFocusPainted(false);
-        closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        closeButton.setToolTipText("Close");
-
-        // Hover effect
-        closeButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return Color.RED;
-                    }
-                });
-                closeButton.repaint();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return new Color(0x666666);
-                    }
-                });
-                closeButton.repaint();
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                notificationPopup.setVisible(false);
-                // ✅ Mark as read when ❌ clicked
-                markAllNotificationsAsRead();
-            }
-        });
-
-        headerPanel.add(titleLabel, BorderLayout.WEST);
-        headerPanel.add(closeButton, BorderLayout.EAST);
-
-        notificationPopup.add(headerPanel);
-        notificationPopup.add(new JSeparator());
-
-        // Load notifications list
         loadUnreadNotifications();
 
         // Show popup
@@ -592,7 +610,7 @@ public class HomeScreen extends JFrame {
             MySQL.executeIUD("UPDATE notifocation SET is_read = 0 WHERE id = " + id);
             loadUnreadNotifications();
         } catch (Exception e) {
-
+            // Silent fail
         }
     }
 
@@ -611,15 +629,42 @@ public class HomeScreen extends JFrame {
                 return dbTime;
             }
 
-            SimpleDateFormat displayFormat = new SimpleDateFormat("MMM dd, HH:mm");
-            Date date = dbFormat.parse(dbTime);
-            return displayFormat.format(date);
+            Date notificationDate = dbFormat.parse(dbTime);
+            return getRelativeTime(notificationDate);
 
         } catch (Exception e) {
+            // Fallback to simple format if parsing fails
             if (dbTime != null && dbTime.length() > 16) {
-                return dbTime.substring(5, 16);
+                return dbTime.substring(5, 16).replace("T", " ");
             }
             return dbTime;
+        }
+    }
+
+    private String getRelativeTime(Date past) {
+        long diff = System.currentTimeMillis() - past.getTime();
+        long seconds = diff / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        long days = hours / 24;
+        long weeks = days / 7;
+        long months = days / 30;
+        long years = days / 365;
+
+        if (years > 0) {
+            return years + " year" + (years > 1 ? "s" : "") + " ago";
+        } else if (months > 0) {
+            return months + " month" + (months > 1 ? "s" : "") + " ago";
+        } else if (weeks > 0) {
+            return weeks + " week" + (weeks > 1 ? "s" : "") + " ago";
+        } else if (days > 0) {
+            return days + " day" + (days > 1 ? "s" : "") + " ago";
+        } else if (hours > 0) {
+            return hours + " hour" + (hours > 1 ? "s" : "") + " ago";
+        } else if (minutes > 0) {
+            return minutes + " minute" + (minutes > 1 ? "s" : "") + " ago";
+        } else {
+            return "Just now";
         }
     }
 
@@ -806,9 +851,9 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(salesPanel, "sales_panel");
         this.cardPanel.add(customerManagementPanel, "customer_management_panel");
         this.cardPanel.add(stockPanel, "stock_panel");
-        this.cardPanel.add(notificationPanel,"notification_Panel");
-        this.cardPanel.add(retuenPanel,"retuen_Panel");
-        this.cardPanel.add(productPanel,"product_Panel");
+        this.cardPanel.add(notificationPanel, "notification_Panel");
+        this.cardPanel.add(retuenPanel, "retuen_Panel");
+        this.cardPanel.add(productPanel, "product_Panel");
 
         SwingUtilities.updateComponentTreeUI(cardPanel);
     }
@@ -821,7 +866,6 @@ public class HomeScreen extends JFrame {
         if (button != signOutBtn) {
             activeButton = button;
             setButtonToActive(button);
-            updateShortcutIconVisibility();
         }
     }
 
@@ -832,6 +876,9 @@ public class HomeScreen extends JFrame {
         resetButtonToNormal(salesBtn);
         resetButtonToNormal(creditBtn);
         resetButtonToNormal(stockBtn);
+        resetButtonToNormal(notificasionBtn);
+        resetButtonToNormal(returnBtn);
+        resetButtonToNormal(productBtn);
         resetButtonToNormal(calBtn);
         resetButtonToNormal(signOutBtn);
     }
@@ -901,61 +948,65 @@ public class HomeScreen extends JFrame {
         if (button == stockBtn) {
             return stockIcon;
         }
+        if (button == notificasionBtn) {
+            return notificationIcon;
+        }
+        if (button == returnBtn) {
+            return returnIcon;
+        }
+        if (button == productBtn) {
+            return productIcon;
+        }
         if (button == signOutBtn) {
             return signOutIcon;
         }
-        
+
         return null;
     }
 
     private void showDashboardPanel() {
         contentPanelLayout.show(cardPanel, "dashboard_panel");
         setActiveButton(dashboardBtn);
-        updateShortcutIconVisibility();
     }
 
     private void showPOSPanel() {
         contentPanelLayout.show(cardPanel, "pos_panel");
         setActiveButton(posBtn);
-        updateShortcutIconVisibility();
     }
-    
-    private void showNotificationPanel(){
+
+    private void showNotificationPanel() {
         contentPanelLayout.show(cardPanel, "notification_Panel");
-        
+        setActiveButton(notificasionBtn);
     }
 
     private void showSupplierPanel() {
         contentPanelLayout.show(cardPanel, "supplier_panel");
         setActiveButton(supplierBtn);
-        updateShortcutIconVisibility();
     }
 
     private void showSalesPanel() {
         contentPanelLayout.show(cardPanel, "sales_panel");
         setActiveButton(salesBtn);
-        updateShortcutIconVisibility();
     }
 
     private void showCustomerManagementPanel() {
         contentPanelLayout.show(cardPanel, "customer_management_panel");
         setActiveButton(creditBtn);
-        updateShortcutIconVisibility();
     }
 
     private void showStockPanel() {
         contentPanelLayout.show(cardPanel, "stock_panel");
         setActiveButton(stockBtn);
-        updateShortcutIconVisibility();
     }
-    
-    private void showProductPanel(){
+
+    private void showProductPanel() {
         contentPanelLayout.show(cardPanel, "product_Panel");
-        
+        setActiveButton(productBtn);
     }
-    
-    private void showReturnPanel(){
+
+    private void showReturnPanel() {
         contentPanelLayout.show(cardPanel, "retuen_Panel");
+        setActiveButton(returnBtn);
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1083,6 +1134,9 @@ public class HomeScreen extends JFrame {
         salesBtn.setText(visible ? " Sales" : "");
         creditBtn.setText(visible ? " Credit Customers" : "");
         stockBtn.setText(visible ? " Stocks" : "");
+        notificasionBtn.setText(visible ? " Notification" : "");
+        returnBtn.setText(visible ? " Return" : "");
+        productBtn.setText(visible ? " Product" : "");
         signOutBtn.setText(visible ? " Sign Out" : "");
     }
 
@@ -1098,22 +1152,6 @@ public class HomeScreen extends JFrame {
             logo.setIcon(new FlatSVGIcon("lk/com/pos/img/pos_small_logo_1.svg", 50, 47));
             logo.setHorizontalAlignment(SwingConstants.LEADING); // aligns to start (left)
         }
-    }
-
-    private void updateShortcutIconVisibility() {
-        // Show shortcut icon only when POS panel is active, hide otherwise
-        boolean isPOSPanelActive = (activeButton == posBtn);
-        keyBtn.setVisible(isPOSPanelActive);
-
-        // Also adjust the layout spacing when icon is hidden
-        if (!isPOSPanelActive) {
-            keyBtn.setPreferredSize(new Dimension(0, 40));
-        } else {
-            keyBtn.setPreferredSize(new Dimension(75, 40));
-        }
-
-        navPanel.revalidate();
-        navPanel.repaint();
     }
 
     private void updateMenuIcon(boolean sidebarOpening) {
@@ -1184,54 +1222,22 @@ public class HomeScreen extends JFrame {
         addUserItem.setOpaque(true);
         editProfileItem.setOpaque(true);
 
-        // FIXED: Use a single MouseAdapter instance for both items to track state properly
-        MouseAdapter menuItemHoverHandler = new MouseAdapter() {
+        // Use custom UI for proper hover effects
+        addUserItem.setUI(new BasicMenuItemUI() {
             @Override
-            public void mouseEntered(MouseEvent e) {
-                JMenuItem item = (JMenuItem) e.getSource();
-                // Force set colors directly
-                item.setBackground(new Color(0xE8F4FD));
-                item.setForeground(new Color(0x12B5A6));
-
-                // Update icon color
-                Icon icon = item.getIcon();
-                if (icon instanceof FlatSVGIcon) {
-                    FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
-                    svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                        @Override
-                        public Color filter(Color color) {
-                            return new Color(0x12B5A6);
-                        }
-                    });
-                }
-                item.repaint();
+            public void update(Graphics g, JComponent c) {
+                configureHoverColors((JMenuItem) c);
+                super.update(g, c);
             }
+        });
 
+        editProfileItem.setUI(new BasicMenuItemUI() {
             @Override
-            public void mouseExited(MouseEvent e) {
-                JMenuItem item = (JMenuItem) e.getSource();
-                // Force reset colors directly
-                item.setBackground(Color.WHITE);
-                item.setForeground(Color.BLACK);
-
-                // Reset icon color
-                Icon icon = item.getIcon();
-                if (icon instanceof FlatSVGIcon) {
-                    FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
-                    svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                        @Override
-                        public Color filter(Color color) {
-                            return new Color(0x666666);
-                        }
-                    });
-                }
-                item.repaint();
+            public void update(Graphics g, JComponent c) {
+                configureHoverColors((JMenuItem) c);
+                super.update(g, c);
             }
-        };
-
-        // Add hover listeners to both items
-        addUserItem.addMouseListener(menuItemHoverHandler);
-        editProfileItem.addMouseListener(menuItemHoverHandler);
+        });
 
         // Add action listeners
         addUserItem.addActionListener(e -> {
@@ -1246,64 +1252,84 @@ public class HomeScreen extends JFrame {
         profilePopup.add(addUserItem);
         profilePopup.add(editProfileItem);
 
-        // Setup profile button to toggle popup on click
-        profileBtn.addActionListener(e -> toggleProfilePopup());
-
-        // FIXED: Add proper popup listener to reset everything when popup opens
+        // Add popup menu listener to close when clicking outside
         profilePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                // Reset ALL properties when popup opens
-                resetAllMenuItemsCompletely();
+                // Add global mouse listener to detect clicks outside
+                profilePopupMouseListener = new AWTEventListener() {
+                    @Override
+                    public void eventDispatched(AWTEvent event) {
+                        if (event instanceof MouseEvent) {
+                            MouseEvent me = (MouseEvent) event;
+                            if (me.getID() == MouseEvent.MOUSE_PRESSED) {
+                                // Check if click is outside the popup and profile button
+                                if (!profilePopup.isShowing()
+                                        || (me.getSource() != profileBtn
+                                        && !SwingUtilities.isDescendingFrom(me.getComponent(), profilePopup))) {
+                                    profilePopup.setVisible(false);
+                                }
+                            }
+                        }
+                    }
+                };
+                Toolkit.getDefaultToolkit().addAWTEventListener(profilePopupMouseListener, AWTEvent.MOUSE_EVENT_MASK);
             }
 
             @Override
             public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
-                // Reset ALL properties when popup closes
-                resetAllMenuItemsCompletely();
+                // Remove the listener when popup closes
+                if (profilePopupMouseListener != null) {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(profilePopupMouseListener);
+                }
             }
 
             @Override
             public void popupMenuCanceled(PopupMenuEvent e) {
-                resetAllMenuItemsCompletely();
+                if (profilePopupMouseListener != null) {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(profilePopupMouseListener);
+                }
             }
         });
-    }
 
-    // FIXED: Completely reset all menu item properties
-    private void resetAllMenuItemsCompletely() {
-        for (Component comp : profilePopup.getComponents()) {
-            if (comp instanceof JMenuItem) {
-                JMenuItem item = (JMenuItem) comp;
-
-                // Reset background and foreground
-                item.setBackground(Color.WHITE);
-                item.setForeground(Color.BLACK);
-
-                // Reset icon color
-                Icon icon = item.getIcon();
-                if (icon instanceof FlatSVGIcon) {
-                    FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
-                    svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                        @Override
-                        public Color filter(Color color) {
-                            return new Color(0x666666);
-                        }
-                    });
-                }
-
-                // Force repaint
-                item.repaint();
-            }
-        }
-    }
-
-    private void toggleProfilePopup() {
-        if (profilePopup != null) {
+        // Setup profile button to show popup on click
+        profileBtn.addActionListener(e -> {
             if (profilePopup.isVisible()) {
                 profilePopup.setVisible(false);
             } else {
                 showProfilePopup();
+            }
+        });
+    }
+
+    private void configureHoverColors(JMenuItem item) {
+        if (item.getModel().isRollover()) {
+            item.setBackground(new Color(0xE8F4FD));
+            item.setForeground(new Color(0x12B5A6));
+            // Update icon color on hover
+            Icon icon = item.getIcon();
+            if (icon instanceof FlatSVGIcon) {
+                FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
+                svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0x12B5A6);
+                    }
+                });
+            }
+        } else {
+            item.setBackground(Color.WHITE);
+            item.setForeground(Color.BLACK);
+            // Reset icon color
+            Icon icon = item.getIcon();
+            if (icon instanceof FlatSVGIcon) {
+                FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
+                svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0x666666);
+                    }
+                });
             }
         }
     }
@@ -1311,7 +1337,25 @@ public class HomeScreen extends JFrame {
     private void showProfilePopup() {
         if (profilePopup != null) {
             // Reset everything before showing
-            resetAllMenuItemsCompletely();
+            for (Component comp : profilePopup.getComponents()) {
+                if (comp instanceof JMenuItem) {
+                    JMenuItem item = (JMenuItem) comp;
+                    item.setBackground(Color.WHITE);
+                    item.setForeground(Color.BLACK);
+
+                    // Reset icon color
+                    Icon icon = item.getIcon();
+                    if (icon instanceof FlatSVGIcon) {
+                        FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
+                        svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                            @Override
+                            public Color filter(Color color) {
+                                return new Color(0x666666);
+                            }
+                        });
+                    }
+                }
+            }
 
             // Calculate position relative to the profile button
             Point buttonLoc = profileBtn.getLocationOnScreen();
@@ -1320,7 +1364,7 @@ public class HomeScreen extends JFrame {
 
             profilePopup.setLocation(x, y);
             profilePopup.setVisible(true);
-            profilePopup.setInvoker(profileBtn);
+            profilePopup.requestFocusInWindow();
         }
     }
 
@@ -1469,7 +1513,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(helloLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 57, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1604,7 +1648,7 @@ public class HomeScreen extends JFrame {
         });
 
         notificasionBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        notificasionBtn.setText("Notification");
+        notificasionBtn.setText(" Notification");
         notificasionBtn.setBorder(null);
         notificasionBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         notificasionBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -1618,7 +1662,7 @@ public class HomeScreen extends JFrame {
         });
 
         returnBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        returnBtn.setText("Return");
+        returnBtn.setText(" Return");
         returnBtn.setBorder(null);
         returnBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         returnBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -1632,7 +1676,7 @@ public class HomeScreen extends JFrame {
         });
 
         productBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        productBtn.setText("Product");
+        productBtn.setText(" Product");
         productBtn.setBorder(null);
         productBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         productBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -1656,18 +1700,20 @@ public class HomeScreen extends JFrame {
                         .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addComponent(dashboardBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
                             .addComponent(posBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
                             .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
                             .addComponent(logo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGap(0, 6, Short.MAX_VALUE))
-                    .addGroup(sidePenalLayout.createSequentialGroup()
-                        .addContainerGap()
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, sidePenalLayout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
                         .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(productBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))))
+                            .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                                .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))
+                            .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                 .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
@@ -1680,19 +1726,19 @@ public class HomeScreen extends JFrame {
                 .addComponent(posBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(stockBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(12, 12, 12)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(salesBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(supplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 43, Short.MAX_VALUE)
+                .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 81, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -2032,13 +2078,13 @@ public class HomeScreen extends JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-              //  Session session = Session.getInstance();
-               // if (session.getUserId() == 0 || session.getRoleName() == null) {
-                    // Session invalid, go directly to login
-               //     new LogIn().setVisible(true);
+                //  Session session = Session.getInstance();
+                // if (session.getUserId() == 0 || session.getRoleName() == null) {
+                // Session invalid, go directly to login
+                //     new LogIn().setVisible(true);
                 //} else {
-                    // Session valid, create HomeScreen
-                    new HomeScreen().setVisible(true);
+                // Session valid, create HomeScreen
+                new HomeScreen().setVisible(true);
                 //}
             }
         });

@@ -24,8 +24,12 @@ public class PrintProductLabel extends javax.swing.JDialog {
 
         jPanel1 = new javax.swing.JPanel();
         barcodetext = new javax.swing.JTextField();
-        jButton1 = new javax.swing.JButton();
-        jTextField2 = new javax.swing.JTextField();
+        printBtn = new javax.swing.JButton();
+        printQty = new javax.swing.JTextField();
+        businessName = new javax.swing.JCheckBox();
+        productName = new javax.swing.JCheckBox();
+        productPrice = new javax.swing.JCheckBox();
+        printType = new javax.swing.JComboBox<>();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -33,10 +37,32 @@ public class PrintProductLabel extends javax.swing.JDialog {
 
         barcodetext.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
 
-        jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton1.setText("Print");
+        printBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        printBtn.setText("Print");
 
-        jTextField2.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        printQty.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+
+        businessName.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        businessName.setForeground(new java.awt.Color(0, 0, 0));
+        businessName.setText("Business Name");
+
+        productName.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        productName.setForeground(new java.awt.Color(0, 0, 0));
+        productName.setText("Product Name");
+        productName.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productNameActionPerformed(evt);
+            }
+        });
+
+        productPrice.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
+        productPrice.setForeground(new java.awt.Color(0, 0, 0));
+        productPrice.setText("Product Price");
+        productPrice.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productPriceActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -44,13 +70,20 @@ public class PrintProductLabel extends javax.swing.JDialog {
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(21, 21, 21)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                    .addComponent(barcodetext)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(printType, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 266, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(printQty, javax.swing.GroupLayout.PREFERRED_SIZE, 266, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(18, Short.MAX_VALUE))
+                        .addComponent(printBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(businessName)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(productName)
+                        .addGap(18, 18, 18)
+                        .addComponent(productPrice))
+                    .addComponent(barcodetext))
+                .addContainerGap(22, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -59,9 +92,16 @@ public class PrintProductLabel extends javax.swing.JDialog {
                 .addComponent(barcodetext, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, 50, Short.MAX_VALUE))
-                .addGap(13, 13, 13))
+                    .addComponent(businessName)
+                    .addComponent(productName)
+                    .addComponent(productPrice))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(printType, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(printQty, javax.swing.GroupLayout.DEFAULT_SIZE, 47, Short.MAX_VALUE)
+                    .addComponent(printBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(15, 15, 15))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -72,13 +112,19 @@ public class PrintProductLabel extends javax.swing.JDialog {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 0, Short.MAX_VALUE))
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void productNameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productNameActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productNameActionPerformed
+
+    private void productPriceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productPriceActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productPriceActionPerformed
 
     /**
      * @param args the command line arguments
@@ -124,8 +170,12 @@ public class PrintProductLabel extends javax.swing.JDialog {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField barcodetext;
-    private javax.swing.JButton jButton1;
+    private javax.swing.JCheckBox businessName;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JTextField jTextField2;
+    private javax.swing.JButton printBtn;
+    private javax.swing.JTextField printQty;
+    private javax.swing.JComboBox<String> printType;
+    private javax.swing.JCheckBox productName;
+    private javax.swing.JCheckBox productPrice;
     // End of variables declaration//GEN-END:variables
 }

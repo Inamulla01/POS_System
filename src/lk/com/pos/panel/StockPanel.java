@@ -1714,12 +1714,12 @@ public class StockPanel extends javax.swing.JPanel {
 
         return panel;
     }
-
+//HASAN
     // UPDATED METHOD: Now accepts productName and sellingPrice
     private void openBarcodeDialog(String barcode, String productName, double sellingPrice) {
-       // PrintProductLabel dialog = new PrintProductLabel(null, true, barcode, productName, sellingPrice);
-        //dialog.setLocationRelativeTo(null);
-        //dialog.setVisible(true);
+        PrintProductLabel dialog = new PrintProductLabel(null, true, barcode, productName, sellingPrice);
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
     }
 
     private javax.swing.JPanel createDetailPanel(String title, String value, Color accentColor) {

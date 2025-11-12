@@ -1,9 +1,13 @@
 package lk.com.pos.dialog;
 
+import com.formdev.flatlaf.FlatLightLaf;
+
 
 public class PrintProductLabel extends javax.swing.JDialog {
     
     private String barcode; // Add this field to store barcode
+    private String prdName;
+    private double sellPrice;
 
     public PrintProductLabel(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -11,17 +15,19 @@ public class PrintProductLabel extends javax.swing.JDialog {
     }
     
    
-    public PrintProductLabel(java.awt.Frame parent, boolean modal, String barcode) {
+    public PrintProductLabel(java.awt.Frame parent, boolean modal, String barcode, String productName, double sellingPrice) {
         super(parent, modal);
         this.barcode = barcode; // Store the barcode
         initComponents();
         barcodetext.setText(barcode);
+        prdNameText.setText(productName);
     }
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jToggleButton1 = new javax.swing.JToggleButton();
         jPanel1 = new javax.swing.JPanel();
         barcodetext = new javax.swing.JTextField();
         printBtn = new javax.swing.JButton();
@@ -30,6 +36,9 @@ public class PrintProductLabel extends javax.swing.JDialog {
         productName = new javax.swing.JCheckBox();
         productPrice = new javax.swing.JCheckBox();
         printType = new javax.swing.JComboBox<>();
+        prdNameText = new javax.swing.JTextField();
+
+        jToggleButton1.setText("jToggleButton1");
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -49,20 +58,12 @@ public class PrintProductLabel extends javax.swing.JDialog {
         productName.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
         productName.setForeground(new java.awt.Color(0, 0, 0));
         productName.setText("Product Name");
-        productName.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                productNameActionPerformed(evt);
-            }
-        });
 
         productPrice.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
         productPrice.setForeground(new java.awt.Color(0, 0, 0));
         productPrice.setText("Product Price");
-        productPrice.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                productPriceActionPerformed(evt);
-            }
-        });
+
+        prdNameText.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -76,21 +77,26 @@ public class PrintProductLabel extends javax.swing.JDialog {
                         .addComponent(printQty, javax.swing.GroupLayout.PREFERRED_SIZE, 266, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(printBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(businessName)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(productName)
-                        .addGap(18, 18, 18)
-                        .addComponent(productPrice))
-                    .addComponent(barcodetext))
+                    .addComponent(barcodetext)
+                    .addComponent(prdNameText))
                 .addContainerGap(22, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(businessName)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(productName)
+                .addGap(18, 18, 18)
+                .addComponent(productPrice)
+                .addGap(34, 34, 34))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(16, 16, 16)
+                .addContainerGap(16, Short.MAX_VALUE)
+                .addComponent(prdNameText, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(barcodetext, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(businessName)
                     .addComponent(productName)
@@ -99,9 +105,9 @@ public class PrintProductLabel extends javax.swing.JDialog {
                 .addComponent(printType, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(printQty, javax.swing.GroupLayout.DEFAULT_SIZE, 47, Short.MAX_VALUE)
-                    .addComponent(printBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addGap(15, 15, 15))
+                    .addComponent(printQty)
+                    .addComponent(printBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(14, 14, 14))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -118,40 +124,11 @@ public class PrintProductLabel extends javax.swing.JDialog {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void productNameActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productNameActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_productNameActionPerformed
-
-    private void productPriceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productPriceActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_productPriceActionPerformed
-
     /**
      * @param args the command line arguments
      */
     public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(PrintProductLabel.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(PrintProductLabel.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(PrintProductLabel.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(PrintProductLabel.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
-        //</editor-fold>
+        FlatLightLaf.setup();
 
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
@@ -172,6 +149,8 @@ public class PrintProductLabel extends javax.swing.JDialog {
     private javax.swing.JTextField barcodetext;
     private javax.swing.JCheckBox businessName;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JToggleButton jToggleButton1;
+    private javax.swing.JTextField prdNameText;
     private javax.swing.JButton printBtn;
     private javax.swing.JTextField printQty;
     private javax.swing.JComboBox<String> printType;

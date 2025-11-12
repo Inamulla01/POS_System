@@ -12,6 +12,7 @@ public class PrintProductLabel extends javax.swing.JDialog {
     public PrintProductLabel(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
+       
     }
     
    
@@ -19,8 +20,11 @@ public class PrintProductLabel extends javax.swing.JDialog {
         super(parent, modal);
         this.barcode = barcode; // Store the barcode
         initComponents();
+         
         barcodetext.setText(barcode);
         prdNameText.setText(productName);
+        barcodetext.setEditable(false);
+        prdNameText.setEditable(false);
     }
 
     @SuppressWarnings("unchecked")

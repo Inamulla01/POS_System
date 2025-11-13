@@ -118,6 +118,13 @@ public class ReturnPanel extends javax.swing.JPanel {
         keyboardHintsPanel.add(title);
         
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
+             keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        JLabel periodTitle = new JLabel("PERIOD FILTERS");
+        periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        periodTitle.setForeground(Color.decode("#FB923C"));
+        periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(periodTitle);
+        keyboardHintsPanel.add(Box.createVerticalStrut(4));  
         
         addHintRow("↑ ↓", "Navigate returns", "#FFFFFF");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
@@ -127,13 +134,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Ctrl+P", "Return Report", "#10B981");
         addHintRow("Ctrl+R", "Return Report", "#10B981");
         
-        keyboardHintsPanel.add(Box.createVerticalStrut(8));
-        JLabel periodTitle = new JLabel("PERIOD FILTERS");
-        periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        periodTitle.setForeground(Color.decode("#FB923C"));
-        periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        keyboardHintsPanel.add(periodTitle);
-        keyboardHintsPanel.add(Box.createVerticalStrut(4));
+
         
         addHintRow("Alt+1", "All Time", "#FB923C");
         addHintRow("Alt+2", "Today", "#FCD34D");
@@ -145,13 +146,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
         
-        keyboardHintsPanel.add(Box.createVerticalStrut(8));
-        JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
-        reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        reasonTitle.setForeground(Color.decode("#F472B6"));
-        reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        keyboardHintsPanel.add(reasonTitle);
-        keyboardHintsPanel.add(Box.createVerticalStrut(4));
+
         
         addHintRow("Shift+1", "All Reasons", "#9CA3AF");
         addHintRow("Shift+2", "Damaged", "#EF4444");
@@ -164,7 +159,13 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Shift+9", "Defective", "#EF4444");
         addHintRow("Shift+0", "Late Delivery", "#60A5FA");
         addHintRow("Shift+-", "Other", "#F472B6");
-        
+                keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
+        reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        reasonTitle.setForeground(Color.decode("#F472B6"));
+        reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(reasonTitle);
+        keyboardHintsPanel.add(Box.createVerticalStrut(4));
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         addHintRow("Esc", "Clear All Filters", "#EF4444");
         addHintRow("?", "Toggle Help", "#EF4444");

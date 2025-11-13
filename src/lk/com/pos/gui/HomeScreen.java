@@ -98,6 +98,11 @@ public class HomeScreen extends JFrame {
     private JPopupMenu notificationPopup;
     private AWTEventListener notificationPopupMouseListener;
 
+    // Shortcut panel variables
+    private JPopupMenu shortcutPopup;
+    private AWTEventListener shortcutPopupMouseListener;
+    private String currentPanelName = "Dashboard";
+
     // Track hover state for each button
     private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
 
@@ -117,32 +122,6 @@ public class HomeScreen extends JFrame {
 
     }
 
-    // ===== SESSION VALIDATION METHOD COMMENTED OUT =====
-    // private boolean hasValidSession() {
-    //     Session session = Session.getInstance();
-    //     boolean isValid = session.getUserId() != 0 && session.getRoleName() != null;
-    //
-    //     if (!isValid) {
-    //         System.out.println("Invalid session - UserId: " + session.getUserId() + ", Role: " + session.getRoleName());
-    //     }
-    //
-    //     return isValid;
-    // }
-    // ===== END SESSION CODE =====
-    // ===== REDIRECT TO LOGIN METHOD COMMENTED OUT =====
-    // private void redirectToLogin() {
-    //     // Dispose current frame first
-    //     this.dispose();
-    //
-    //     // Create login screen and show notification there
-    //     SwingUtilities.invokeLater(() -> {
-    //         LogIn login = new LogIn();
-    //         login.setVisible(true);
-    //         // Show notification on the login screen
-    //         Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Session expired! Please login again.");
-    //     });
-    // }
-    // ===== END SESSION CODE =====
     private void init() {
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -192,6 +171,7 @@ public class HomeScreen extends JFrame {
         setupNavButtonWithHoverText(calBtn, calculatorIcon, "Calculator");
 
         setupProfileDropdown();
+        setupShortcutSystem(); // Initialize shortcut system
 
         // Track hover states for all buttons
         buttonHoverStates.put(dashboardBtn, false);
@@ -268,6 +248,410 @@ public class HomeScreen extends JFrame {
 
     }
 
+    private void setupShortcutSystem() {
+        shortcutPopup = new JPopupMenu();
+        shortcutPopup.setFocusable(false);
+
+        // Add popup menu listener to handle outside clicks
+        shortcutPopup.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                // Add global mouse listener to detect clicks outside
+                shortcutPopupMouseListener = new AWTEventListener() {
+                    @Override
+                    public void eventDispatched(AWTEvent event) {
+                        if (event instanceof MouseEvent) {
+                            MouseEvent me = (MouseEvent) event;
+                            if (me.getID() == MouseEvent.MOUSE_PRESSED) {
+                                // Check if click is outside the popup and key button
+                                if (!shortcutPopup.isShowing()
+                                        || (me.getSource() != keyBtn
+                                        && !SwingUtilities.isDescendingFrom(me.getComponent(), shortcutPopup))) {
+                                    shortcutPopup.setVisible(false);
+                                }
+                            }
+                        }
+                    }
+                };
+                Toolkit.getDefaultToolkit().addAWTEventListener(shortcutPopupMouseListener, AWTEvent.MOUSE_EVENT_MASK);
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                // Remove the listener when popup closes
+                if (shortcutPopupMouseListener != null) {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(shortcutPopupMouseListener);
+                }
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+                if (shortcutPopupMouseListener != null) {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(shortcutPopupMouseListener);
+                }
+            }
+        });
+
+        // Toggle popup on button click
+        keyBtn.addActionListener(e -> {
+            if (shortcutPopup.isVisible()) {
+                shortcutPopup.setVisible(false);
+            } else {
+                showShortcuts();
+            }
+        });
+    }
+
+    private void showShortcuts() {
+        shortcutPopup.removeAll();
+
+        // Create header panel with title and close button
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
+        headerPanel.setBackground(new Color(0xF8F9FA));
+
+        // Title
+        JLabel titleLabel = new JLabel("Keyboard Shortcuts - " + currentPanelName);
+        titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        titleLabel.setForeground(new Color(0x333333));
+
+        // Close button
+        FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 16, 16);
+        closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return new Color(0x666666);
+            }
+        });
+
+        JButton closeButton = new JButton(closeIcon);
+        closeButton.setContentAreaFilled(false);
+        closeButton.setBorderPainted(false);
+        closeButton.setFocusPainted(false);
+        closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        closeButton.setToolTipText("Close");
+        closeButton.addActionListener(e -> {
+            shortcutPopup.setVisible(false);
+        });
+
+        // Add hover effect to close button
+        closeButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0xFF0000);
+                    }
+                });
+                closeButton.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                    @Override
+                    public Color filter(Color color) {
+                        return new Color(0x666666);
+                    }
+                });
+                closeButton.repaint();
+            }
+        });
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(closeButton, BorderLayout.EAST);
+
+        shortcutPopup.add(headerPanel);
+
+        // Add separator after header
+        JSeparator headerSeparator = new JSeparator();
+        headerSeparator.setForeground(new Color(0xDDDDDD));
+        shortcutPopup.add(headerSeparator);
+
+        // Add shortcuts based on current panel
+        loadShortcutsForPanel(currentPanelName);
+
+        // Pack the popup to calculate proper size
+        shortcutPopup.pack();
+
+        // Show popup below the key button
+        Point buttonLoc = keyBtn.getLocationOnScreen();
+        int x = buttonLoc.x - (shortcutPopup.getPreferredSize().width - keyBtn.getWidth()) / 2;
+        int y = buttonLoc.y + keyBtn.getHeight();
+
+        shortcutPopup.setLocation(x, y);
+        shortcutPopup.setVisible(true);
+        shortcutPopup.requestFocus();
+    }
+
+    private void loadShortcutsForPanel(String panelName) {
+        switch (panelName) {
+            case "Customer":
+                addCustomerShortcuts();
+                break;
+            case "Product":
+                addProductShortcuts();
+                break;
+            case "Sales":
+                addSalesShortcuts();
+                break;
+            case "Stock":
+                addStockShortcuts();
+                break;
+            case "Supplier":
+                addSupplierShortcuts();
+                break;
+            case "POS":
+                addPOSShortcuts();
+                break;
+            case "Dashboard":
+                addDashboardShortcuts();
+                break;
+            case "Return":
+                addReturnShortcuts();
+                break;
+            case "Notification":
+                addNotificationShortcuts();
+                break;
+            default:
+                addGeneralShortcuts();
+                break;
+        }
+    }
+
+    private void addHintRow(String keys, String description, String color) {
+        JPanel hintPanel = new JPanel(new BorderLayout(10, 0));
+        hintPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        hintPanel.setBackground(Color.WHITE);
+        hintPanel.setPreferredSize(new Dimension(350, 35));
+
+        // Key combination with colored background
+        JLabel keyLabel = new JLabel(keys);
+        keyLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
+        keyLabel.setForeground(Color.WHITE);
+        keyLabel.setOpaque(true);
+        keyLabel.setBackground(Color.decode(color));
+        keyLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode(color).darker(), 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
+        keyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        keyLabel.setPreferredSize(new Dimension(100, 25));
+
+        // Description
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+        descLabel.setForeground(new Color(0x333333));
+
+        hintPanel.add(keyLabel, BorderLayout.WEST);
+        hintPanel.add(descLabel, BorderLayout.CENTER);
+
+        shortcutPopup.add(hintPanel);
+    }
+
+    private void addArrowHintRow(String description) {
+        JPanel hintPanel = new JPanel(new BorderLayout(10, 0));
+        hintPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        hintPanel.setBackground(Color.WHITE);
+        hintPanel.setPreferredSize(new Dimension(350, 35));
+
+        // Key combination for arrows with light background and dark text
+        JLabel keyLabel = new JLabel("← → ↑ ↓");
+        keyLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
+        keyLabel.setForeground(Color.BLACK);
+        keyLabel.setOpaque(true);
+        keyLabel.setBackground(new Color(0xE5E7EB)); // Light gray background
+        keyLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0xD1D5DB), 1),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
+        keyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        keyLabel.setPreferredSize(new Dimension(100, 25));
+
+        // Description
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+        descLabel.setForeground(new Color(0x333333));
+
+        hintPanel.add(keyLabel, BorderLayout.WEST);
+        hintPanel.add(descLabel, BorderLayout.CENTER);
+
+        shortcutPopup.add(hintPanel);
+    }
+
+    private void addCustomerShortcuts() {
+        addArrowHintRow("Navigate cards");
+        addHintRow("V", "View Credit Details", "#FCD34D");
+        addHintRow("E", "Edit Customer", "#1CB5BB");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+N/Alt+A", "Add Customer", "#60D5F2");
+        addHintRow("Ctrl+R", "Customer Report", "#10B981");
+        addHintRow("Ctrl+P", "Customer Report", "#10B981");
+        addHintRow("F5", "Refresh Data", "#06B6D4");
+        addHintRow("Alt+1", "Due Amount (Default)", "#FB923C");
+        addHintRow("Alt+2", "Missed Due Date", "#EF4444");
+        addHintRow("Alt+3", "No Due", "#6366F1");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addProductShortcuts() {
+        addArrowHintRow("Navigate cards");
+        addHintRow("E", "Edit Product", "#1CB5BB");
+        addHintRow("D", "Deactivate Product", "#F87171");
+        addHintRow("R", "Activate Product", "#10B981");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+N/Alt+A", "Add Product", "#60D5F2");
+        addHintRow("Ctrl+R/P", "Product Report", "#34D399");
+        addHintRow("F5", "Refresh List", "#FB923C");
+        addHintRow("Alt+1", "Active Products", "#FB923C");
+        addHintRow("Alt+2", "Inactive Products", "#FB923C");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addSalesShortcuts() {
+        addHintRow("↑ ↓", "Navigate invoices", "#E5E7EB");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("F5", "Refresh", "#34D399");
+        addHintRow("Ctrl+P", "Sales Report", "#10B981");
+        addHintRow("Ctrl+R", "Sales Report", "#10B981");
+        addHintRow("Alt+1", "All Time", "#FB923C");
+        addHintRow("Alt+2", "Today", "#FCD34D");
+        addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
+        addHintRow("Alt+4", "Last 30 Days", "#F87171");
+        addHintRow("Alt+5", "Last 90 Days", "#A78BFA");
+        addHintRow("Alt+6", "1 Year", "#34D399");
+        addHintRow("Alt+7", "2 Years", "#60A5FA");
+        addHintRow("Alt+8", "5 Years", "#F472B6");
+        addHintRow("Alt+9", "10 Years", "#FBBF24");
+        addHintRow("Esc", "Clear All Filters", "#EF4444");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addStockShortcuts() {
+        addArrowHintRow("Navigate cards");
+        addHintRow("Ctrl+← →", "Previous/Next Batch", "#A78BFA");
+        addHintRow("B", "Show Barcode", "#FCD34D");
+        addHintRow("E", "Edit Product", "#1CB5BB");
+        addHintRow("D", "Deactivate Product", "#F87171");
+        addHintRow("R", "Reactivate Product", "#10B981");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+N", "Add Stock", "#34D399");
+        addHintRow("Ctrl+R/P", "Stock Report", "#34D399");
+        addHintRow("F5", "Refresh List", "#FB923C");
+        addHintRow("Alt+1-4", "Quick Filters", "#FB923C");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addSupplierShortcuts() {
+        addArrowHintRow("Navigate cards");
+        addHintRow("V", "View Details", "#FCD34D");
+        addHintRow("E", "Edit Supplier", "#1CB5BB");
+        addHintRow("D", "Deactivate Supplier", "#F87171");
+        addHintRow("R", "Reactivate Supplier", "#10B981");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+N", "Add New Supplier", "#1CB5BB");
+        addHintRow("Alt+A", "Add New Supplier", "#1CB5BB");
+        addHintRow("Ctrl+R", "Supplier Report", "#10B981");
+        addHintRow("Ctrl+P", "Supplier Report", "#10B981");
+        addHintRow("F5", "Refresh Data", "#06B6D4");
+        addHintRow("Alt+1", "Due Amount", "#FB923C");
+        addHintRow("Alt+2", "No Due", "#FB923C");
+        addHintRow("Alt+3", "Active", "#FB923C");
+        addHintRow("Alt+4", "Inactive", "#FB923C");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addPOSShortcuts() {
+        addHintRow("F1", "New Sale", "#10B981");
+        addHintRow("F2", "Add Customer", "#1CB5BB");
+        addHintRow("F3", "Apply Discount", "#FCD34D");
+        addHintRow("F4", "Payment", "#A78BFA");
+        addHintRow("F5", "Refresh Products", "#34D399");
+        addHintRow("F6", "Search Product", "#60D5F2");
+        addHintRow("F7", "View Cart", "#FB923C");
+        addHintRow("F8", "Clear Cart", "#EF4444");
+        addHintRow("F9", "Print Receipt", "#6366F1");
+        addHintRow("F10", "Save & Close", "#06B6D4");
+        addHintRow("Ctrl+Q", "Quick Sale", "#10B981");
+        addHintRow("Ctrl+D", "Daily Report", "#1CB5BB");
+        addHintRow("Esc", "Cancel/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addDashboardShortcuts() {
+        addHintRow("F5", "Refresh Dashboard", "#06B6D4");
+        addHintRow("Ctrl+1", "Sales Overview", "#10B981");
+        addHintRow("Ctrl+2", "Stock Alert", "#EF4444");
+        addHintRow("Ctrl+3", "Recent Activity", "#1CB5BB");
+        addHintRow("Ctrl+4", "Performance", "#FCD34D");
+        addHintRow("Ctrl+P", "Print Report", "#A78BFA");
+        addHintRow("Ctrl+E", "Export Data", "#34D399");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addReturnShortcuts() {
+        addHintRow("↑ ↓", "Navigate returns", "#E5E7EB");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("F5", "Refresh", "#34D399");
+        addHintRow("Alt+A", "Return Product", "#EF4444");
+        addHintRow("Ctrl+N", "Return Product", "#EF4444");
+        addHintRow("Ctrl+P", "Return Report", "#10B981");
+        addHintRow("Ctrl+R", "Return Report", "#10B981");
+        
+        addHintRow("Alt+1", "All Time", "#FB923C");
+        addHintRow("Alt+2", "Today", "#FCD34D");
+        addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
+        addHintRow("Alt+4", "Last 30 Days", "#F87171");
+        addHintRow("Alt+5", "Last 90 Days", "#A78BFA");
+        addHintRow("Alt+6", "1 Year", "#34D399");
+        addHintRow("Alt+7", "2 Years", "#60A5FA");
+        addHintRow("Alt+8", "5 Years", "#F472B6");
+        addHintRow("Alt+9", "10 Years", "#FBBF24");
+        
+        addHintRow("Shift+1", "All Reasons", "#9CA3AF");
+        addHintRow("Shift+2", "Damaged", "#EF4444");
+        addHintRow("Shift+3", "Wrong Item", "#F59E0B");
+        addHintRow("Shift+4", "Changed Mind", "#3B82F6");
+        addHintRow("Shift+5", "Expired", "#FCD34D");
+        addHintRow("Shift+6", "Incorrect Size", "#A78BFA");
+        addHintRow("Shift+7", "Malfunction", "#FB923C");
+        addHintRow("Shift+8", "Packaging", "#34D399");
+        addHintRow("Shift+9", "Defective", "#EF4444");
+        addHintRow("Shift+0", "Late Delivery", "#60A5FA");
+        addHintRow("Shift+-", "Other", "#F472B6");
+        addHintRow("Esc", "Cancel/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addNotificationShortcuts() {
+        addHintRow("F5", "Refresh Notifications", "#06B6D4");
+        addHintRow("Ctrl+M", "Mark All Read", "#10B981");
+        addHintRow("Ctrl+A", "Select All", "#1CB5BB");
+        addHintRow("Delete", "Clear Notifications", "#EF4444");
+        addHintRow("Esc", "Close/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addGeneralShortcuts() {
+        addHintRow("Ctrl+D", "Dashboard", "#10B981");
+        addHintRow("Ctrl+P", "POS", "#1CB5BB");
+        addHintRow("Ctrl+S", "Sales", "#FCD34D");
+        addHintRow("Ctrl+T", "Stock", "#A78BFA");
+        addHintRow("Ctrl+U", "Supplier", "#34D399");
+        addHintRow("Ctrl+C", "Customer", "#60D5F2");
+        addHintRow("Ctrl+R", "Product", "#FB923C");
+        addHintRow("Ctrl+N", "Notifications", "#EF4444");
+        addHintRow("Ctrl+Q", "Quick Calculator", "#6366F1");
+        addHintRow("F1", "Help", "#06B6D4");
+        addHintRow("F11", "Fullscreen", "#1CB5BB");
+        addHintRow("Esc", "Close/Back", "#9CA3AF");
+    }
+
     private void setupNotificationSystem() {
         notificationPopup = new JPopupMenu();
         notificationPopup.setFocusable(false);
@@ -340,15 +724,12 @@ public class HomeScreen extends JFrame {
         });
 
         // Toggle popup
-        bellBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (notificationPopup.isVisible()) {
-                    notificationPopup.setVisible(false);
-                    markAllNotificationsAsRead();
-                } else {
-                    showNotifications();
-                }
+        bellBtn.addActionListener(e -> {
+            if (notificationPopup.isVisible()) {
+                notificationPopup.setVisible(false);
+                markAllNotificationsAsRead();
+            } else {
+                showNotifications();
             }
         });
     }
@@ -859,6 +1240,9 @@ public class HomeScreen extends JFrame {
     }
 
     private void setActiveButton(JButton button) {
+        // Close all popups when switching panels
+        closeAllPopups();
+        
         // Reset all navigation buttons to normal first
         resetAllButtonsToNormal();
 
@@ -967,46 +1351,55 @@ public class HomeScreen extends JFrame {
     private void showDashboardPanel() {
         contentPanelLayout.show(cardPanel, "dashboard_panel");
         setActiveButton(dashboardBtn);
+        currentPanelName = "Dashboard";
     }
 
     private void showPOSPanel() {
         contentPanelLayout.show(cardPanel, "pos_panel");
         setActiveButton(posBtn);
+        currentPanelName = "POS";
     }
 
     private void showNotificationPanel() {
         contentPanelLayout.show(cardPanel, "notification_Panel");
         setActiveButton(notificasionBtn);
+        currentPanelName = "Notification";
     }
 
     private void showSupplierPanel() {
         contentPanelLayout.show(cardPanel, "supplier_panel");
         setActiveButton(supplierBtn);
+        currentPanelName = "Supplier";
     }
 
     private void showSalesPanel() {
         contentPanelLayout.show(cardPanel, "sales_panel");
         setActiveButton(salesBtn);
+        currentPanelName = "Sales";
     }
 
     private void showCustomerManagementPanel() {
         contentPanelLayout.show(cardPanel, "customer_management_panel");
         setActiveButton(creditBtn);
+        currentPanelName = "Customer";
     }
 
     private void showStockPanel() {
         contentPanelLayout.show(cardPanel, "stock_panel");
         setActiveButton(stockBtn);
+        currentPanelName = "Stock";
     }
 
     private void showProductPanel() {
         contentPanelLayout.show(cardPanel, "product_Panel");
         setActiveButton(productBtn);
+        currentPanelName = "Product";
     }
 
     private void showReturnPanel() {
         contentPanelLayout.show(cardPanel, "retuen_Panel");
         setActiveButton(returnBtn);
+        currentPanelName = "Return";
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1180,64 +1573,28 @@ public class HomeScreen extends JFrame {
         }
     }
 
+    // NEW METHOD: Close all popups when switching panels or windows
+    private void closeAllPopups() {
+        if (notificationPopup != null && notificationPopup.isVisible()) {
+            notificationPopup.setVisible(false);
+            markAllNotificationsAsRead();
+        }
+        if (shortcutPopup != null && shortcutPopup.isVisible()) {
+            shortcutPopup.setVisible(false);
+        }
+        if (profilePopup != null && profilePopup.isVisible()) {
+            profilePopup.setVisible(false);
+        }
+    }
+
     private void setupProfileDropdown() {
         profilePopup = new JPopupMenu();
         profilePopup.setFocusable(false);
+        profilePopup.setBorder(BorderFactory.createLineBorder(new Color(0xDDDDDD), 1));
 
         // Create menu items
-        JMenuItem addUserItem = new JMenuItem("Add New User");
-        JMenuItem editProfileItem = new JMenuItem("Edit Profile");
-
-        // Set fonts and styles
-        Font menuFont = new Font("Nunito SemiBold", Font.PLAIN, 13);
-        addUserItem.setFont(menuFont);
-        editProfileItem.setFont(menuFont);
-
-        // Set icons for menu items
-        FlatSVGIcon addUserIcon = new FlatSVGIcon("lk/com/pos/icon/user-add.svg", 16, 16);
-        FlatSVGIcon editProfileIcon = new FlatSVGIcon("lk/com/pos/icon/user-edit.svg", 16, 16);
-
-        // Set initial icon colors
-        addUserIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-            @Override
-            public Color filter(Color color) {
-                return new Color(0x666666);
-            }
-        });
-        editProfileIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-            @Override
-            public Color filter(Color color) {
-                return new Color(0x666666);
-            }
-        });
-
-        addUserItem.setIcon(addUserIcon);
-        editProfileItem.setIcon(editProfileIcon);
-
-        // Set initial backgrounds and make sure they're opaque
-        addUserItem.setBackground(Color.WHITE);
-        editProfileItem.setBackground(Color.WHITE);
-        addUserItem.setForeground(Color.BLACK);
-        editProfileItem.setForeground(Color.BLACK);
-        addUserItem.setOpaque(true);
-        editProfileItem.setOpaque(true);
-
-        // Use custom UI for proper hover effects
-        addUserItem.setUI(new BasicMenuItemUI() {
-            @Override
-            public void update(Graphics g, JComponent c) {
-                configureHoverColors((JMenuItem) c);
-                super.update(g, c);
-            }
-        });
-
-        editProfileItem.setUI(new BasicMenuItemUI() {
-            @Override
-            public void update(Graphics g, JComponent c) {
-                configureHoverColors((JMenuItem) c);
-                super.update(g, c);
-            }
-        });
+        JMenuItem addUserItem = createProfileMenuItem("Add New User", "lk/com/pos/icon/user-add.svg");
+        JMenuItem editProfileItem = createProfileMenuItem("Edit Profile", "lk/com/pos/icon/user-edit.svg");
 
         // Add action listeners
         addUserItem.addActionListener(e -> {
@@ -1302,47 +1659,111 @@ public class HomeScreen extends JFrame {
         });
     }
 
-    private void configureHoverColors(JMenuItem item) {
-        if (item.getModel().isRollover()) {
-            item.setBackground(new Color(0xE8F4FD));
-            item.setForeground(new Color(0x12B5A6));
-            // Update icon color on hover
-            Icon icon = item.getIcon();
-            if (icon instanceof FlatSVGIcon) {
-                FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
-                svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return new Color(0x12B5A6);
-                    }
-                });
+    private JMenuItem createProfileMenuItem(String text, String iconPath) {
+        JMenuItem menuItem = new JMenuItem(text);
+        menuItem.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+        menuItem.setForeground(new Color(0x333333));
+        menuItem.setBackground(Color.WHITE);
+        menuItem.setOpaque(true);
+        menuItem.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        menuItem.setPreferredSize(new Dimension(180, 35));
+
+        // Set icon
+        FlatSVGIcon icon = new FlatSVGIcon(iconPath, 16, 16);
+        icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+            @Override
+            public Color filter(Color color) {
+                return new Color(0x666666);
             }
-        } else {
-            item.setBackground(Color.WHITE);
-            item.setForeground(Color.BLACK);
-            // Reset icon color
-            Icon icon = item.getIcon();
-            if (icon instanceof FlatSVGIcon) {
-                FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
-                svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
-                    @Override
-                    public Color filter(Color color) {
-                        return new Color(0x666666);
-                    }
-                });
+        });
+        menuItem.setIcon(icon);
+
+        // Create custom UI for hover effects
+        menuItem.setUI(new BasicMenuItemUI() {
+            @Override
+            public void update(Graphics g, JComponent c) {
+                configureMenuItemHover((JMenuItem) c);
+                super.update(g, c);
             }
-        }
+
+            @Override
+            protected void paintBackground(Graphics g, JMenuItem menuItem, Color bgColor) {
+                ButtonModel model = menuItem.getModel();
+                Color oldColor = g.getColor();
+                
+                if (model.isRollover() || model.isArmed()) {
+                    // Use the same gradient effect as dashboard buttons
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    
+                    GradientPaint gradient = new GradientPaint(
+                        0, 0, hoverTop, 
+                        menuItem.getWidth(), 0, hoverBottom
+                    );
+                    g2.setPaint(gradient);
+                    g2.fillRect(0, 0, menuItem.getWidth(), menuItem.getHeight());
+                    
+                    // Set text and icon to white on hover
+                    menuItem.setForeground(Color.WHITE);
+                    Icon itemIcon = menuItem.getIcon();
+                    if (itemIcon instanceof FlatSVGIcon) {
+                        FlatSVGIcon svgIcon = (FlatSVGIcon) itemIcon;
+                        svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                            @Override
+                            public Color filter(Color color) {
+                                return Color.WHITE;
+                            }
+                        });
+                    }
+                } else {
+                    // Normal state
+                    g.setColor(menuItem.getBackground());
+                    g.fillRect(0, 0, menuItem.getWidth(), menuItem.getHeight());
+                    
+                    // Reset to normal colors
+                    menuItem.setForeground(new Color(0x333333));
+                    Icon itemIcon = menuItem.getIcon();
+                    if (itemIcon instanceof FlatSVGIcon) {
+                        FlatSVGIcon svgIcon = (FlatSVGIcon) itemIcon;
+                        svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
+                            @Override
+                            public Color filter(Color color) {
+                                return new Color(0x666666);
+                            }
+                        });
+                    }
+                }
+                g.setColor(oldColor);
+            }
+        });
+
+        return menuItem;
+    }
+
+    private void configureMenuItemHover(JMenuItem menuItem) {
+        // Ensure proper hover state handling
+        menuItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                menuItem.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                menuItem.repaint();
+            }
+        });
     }
 
     private void showProfilePopup() {
         if (profilePopup != null) {
-            // Reset everything before showing
+            // Reset all menu items to normal state before showing
             for (Component comp : profilePopup.getComponents()) {
                 if (comp instanceof JMenuItem) {
                     JMenuItem item = (JMenuItem) comp;
+                    item.setForeground(new Color(0x333333));
                     item.setBackground(Color.WHITE);
-                    item.setForeground(Color.BLACK);
-
+                    
                     // Reset icon color
                     Icon icon = item.getIcon();
                     if (icon instanceof FlatSVGIcon) {
@@ -1357,6 +1778,9 @@ public class HomeScreen extends JFrame {
                 }
             }
 
+            // Pack to ensure proper sizing
+            profilePopup.pack();
+            
             // Calculate position relative to the profile button
             Point buttonLoc = profileBtn.getLocationOnScreen();
             int x = buttonLoc.x - (profilePopup.getPreferredSize().width - profileBtn.getWidth()) / 2;
@@ -1946,7 +2370,7 @@ public class HomeScreen extends JFrame {
     }//GEN-LAST:event_profileBtnActionPerformed
 
     private void keyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_keyBtnActionPerformed
-        // TODO add your handling code here:
+        showShortcuts();
     }//GEN-LAST:event_keyBtnActionPerformed
 
     private void formWindowActivated(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowActivated

@@ -17,32 +17,156 @@ import java.util.Vector;
  *
  * @author moham
  */
-public class AddNewLossStock extends javax.swing.JDialog {
+public class UpdateLossStock extends javax.swing.JDialog {
+
+    private int stockLossId;
+    private int originalStockId;
+    private int originalQty;
+    private int originalReasonId;
 
     /**
-     * Creates new form AddNewLossStock
+     * Creates new form UpdateLossStock
      */
-    public AddNewLossStock(java.awt.Frame parent, boolean modal) {
+    public UpdateLossStock(java.awt.Frame parent, boolean modal, int stockLossId) {
         super(parent, modal);
+        this.stockLossId = stockLossId;
         initComponents();
         initializeDialog();
     }
 
     private void initializeDialog() {
         setLocationRelativeTo(getParent());
-        
-        // Load data
+
+        // Load data first
         loadStocks();
         loadLossReasons();
-        
+
+        // Then load existing stock loss data
+        loadStockLossData();
+
         // Setup keyboard navigation and styling
         setupKeyboardNavigation();
         setupButtonStyles();
         setupTooltips();
         setupFocusTraversal();
-        
+
         // Set initial focus
         stockCombo.requestFocusInWindow();
+    }
+
+    // ---------------- LOAD EXISTING STOCK LOSS DATA ----------------
+    private void loadStockLossData() {
+        try {
+            String query = "SELECT sl.qty, sl.stock_id, sl.return_reason_id, "
+                    + "s.batch_no, p.product_name, rr.reason "
+                    + "FROM stock_loss sl "
+                    + "JOIN stock s ON sl.stock_id = s.stock_id "
+                    + "JOIN product p ON s.product_id = p.product_id "
+                    + "JOIN return_reason rr ON sl.return_reason_id = rr.return_reason_id "
+                    + "WHERE sl.stock_loss_id = " + stockLossId;
+
+            ResultSet rs = MySQL.executeSearch(query);
+
+            if (rs.next()) {
+                // Store original values
+                originalStockId = rs.getInt("stock_id");
+                originalQty = rs.getInt("qty");
+                originalReasonId = rs.getInt("return_reason_id");
+
+                // Set quantity
+                qty.setText(String.valueOf(originalQty));
+
+                // Select the stock in combo box
+                selectStockInComboBox(originalStockId);
+
+                // Select the reason in combo box
+                selectReasonInComboBox(originalReasonId);
+
+                System.out.println("Loaded stock loss data: StockID=" + originalStockId
+                        + ", Qty=" + originalQty + ", ReasonID=" + originalReasonId);
+
+            } else {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Stock loss record not found!");
+                dispose();
+            }
+
+        } catch (Exception e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error loading stock loss data: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void selectStockInComboBox(int stockId) {
+        try {
+            // First get the stock details for the given stockId
+            String query = "SELECT s.batch_no, p.product_name, s.qty "
+                    + "FROM stock s "
+                    + "JOIN product p ON s.product_id = p.product_id "
+                    + "WHERE s.stock_id = " + stockId;
+
+            ResultSet rs = MySQL.executeSearch(query);
+            if (rs.next()) {
+                String batchNo = rs.getString("batch_no");
+                String productName = rs.getString("product_name");
+                int availableQty = rs.getInt("qty");
+
+                String stockDisplay = batchNo + " - " + productName + " (Available: " + availableQty + ")";
+
+                // Now find this exact string in the combo box
+                for (int i = 0; i < stockCombo.getItemCount(); i++) {
+                    String item = stockCombo.getItemAt(i);
+                    if (item.equals(stockDisplay)) {
+                        stockCombo.setSelectedIndex(i);
+                        System.out.println("Found and selected stock: " + stockDisplay);
+                        return;
+                    }
+                }
+
+                // If not found, try partial match
+                for (int i = 0; i < stockCombo.getItemCount(); i++) {
+                    String item = stockCombo.getItemAt(i);
+                    if (item.contains(batchNo) && item.contains(productName)) {
+                        stockCombo.setSelectedIndex(i);
+                        System.out.println("Found and selected stock (partial match): " + item);
+                        return;
+                    }
+                }
+
+                System.out.println("Stock not found in combo box: " + stockDisplay);
+            }
+        } catch (Exception e) {
+            System.err.println("Error selecting stock in combo box: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void selectReasonInComboBox(int reasonId) {
+        try {
+            // First get the reason text for the given reasonId
+            String query = "SELECT reason FROM return_reason WHERE return_reason_id = " + reasonId;
+            ResultSet rs = MySQL.executeSearch(query);
+
+            if (rs.next()) {
+                String reasonText = rs.getString("reason");
+
+                // Now find this exact reason in the combo box
+                for (int i = 0; i < reasonCombo.getItemCount(); i++) {
+                    String item = reasonCombo.getItemAt(i);
+                    if (item.equals(reasonText)) {
+                        reasonCombo.setSelectedIndex(i);
+                        System.out.println("Found and selected reason: " + reasonText);
+                        return;
+                    }
+                }
+
+                System.out.println("Reason not found in combo box: " + reasonText);
+            }
+        } catch (Exception e) {
+            System.err.println("Error selecting reason in combo box: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     // ---------------- KEYBOARD NAVIGATION SETUP ----------------
@@ -66,7 +190,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     }
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     if (!stockCombo.isPopupVisible()) {
-                        saveBtn.requestFocusInWindow();
+                        updateBtn.requestFocusInWindow();
                         evt.consume();
                     }
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
@@ -117,9 +241,8 @@ public class AddNewLossStock extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    // When all fields are filled, go directly to save button
                     if (areAllRequiredFieldsFilled()) {
-                        saveBtn.requestFocusInWindow();
+                        updateBtn.requestFocusInWindow();
                     } else {
                         cancelBtn.requestFocusInWindow();
                     }
@@ -128,17 +251,15 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     reasonCombo.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    // When all fields are filled, go directly to save button
                     if (areAllRequiredFieldsFilled()) {
-                        saveBtn.requestFocusInWindow();
+                        updateBtn.requestFocusInWindow();
                     } else {
                         cancelBtn.requestFocusInWindow();
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    // When all fields are filled, go directly to save button
                     if (areAllRequiredFieldsFilled()) {
-                        saveBtn.requestFocusInWindow();
+                        updateBtn.requestFocusInWindow();
                     } else {
                         cancelBtn.requestFocusInWindow();
                     }
@@ -152,12 +273,12 @@ public class AddNewLossStock extends javax.swing.JDialog {
             }
         });
 
-        // Save button keyboard navigation
-        saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        // Update button keyboard navigation
+        updateBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    saveStockLoss();
+                    updateStockLoss();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     qty.requestFocusInWindow();
@@ -172,7 +293,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     cancelBtn.requestFocusInWindow();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, saveBtn);
+                    handleArrowNavigation(evt, updateBtn);
                 }
             }
         });
@@ -194,7 +315,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     cancelBtn.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    saveBtn.requestFocusInWindow();
+                    updateBtn.requestFocusInWindow();
                     evt.consume();
                 } else {
                     handleArrowNavigation(evt, refreshBtn);
@@ -216,7 +337,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     refreshBtn.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    saveBtn.requestFocusInWindow();
+                    updateBtn.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
                     refreshBtn.requestFocusInWindow();
@@ -234,14 +355,12 @@ public class AddNewLossStock extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        // Set up Ctrl+Enter to save from anywhere
         getRootPane().registerKeyboardAction(
-                evt -> saveStockLoss(),
+                evt -> updateStockLoss(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        // Set up F5 to refresh data from anywhere
         getRootPane().registerKeyboardAction(
                 evt -> refreshData(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
@@ -277,22 +396,22 @@ public class AddNewLossStock extends javax.swing.JDialog {
             qty.requestFocusInWindow();
         } else if (source == qty) {
             if (areAllRequiredFieldsFilled()) {
-                saveBtn.requestFocusInWindow();
+                updateBtn.requestFocusInWindow();
             } else {
                 cancelBtn.requestFocusInWindow();
             }
         } else if (source == cancelBtn) {
             refreshBtn.requestFocusInWindow();
         } else if (source == refreshBtn) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
+            updateBtn.requestFocusInWindow();
+        } else if (source == updateBtn) {
             stockCombo.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
         if (source == stockCombo) {
-            saveBtn.requestFocusInWindow();
+            updateBtn.requestFocusInWindow();
         } else if (source == reasonCombo) {
             stockCombo.requestFocusInWindow();
         } else if (source == qty) {
@@ -301,7 +420,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
             qty.requestFocusInWindow();
         } else if (source == refreshBtn) {
             cancelBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
+        } else if (source == updateBtn) {
             refreshBtn.requestFocusInWindow();
         }
     }
@@ -317,15 +436,15 @@ public class AddNewLossStock extends javax.swing.JDialog {
             }
         } else if (source == qty) {
             if (areAllRequiredFieldsFilled()) {
-                saveBtn.requestFocusInWindow();
+                updateBtn.requestFocusInWindow();
             } else {
                 cancelBtn.requestFocusInWindow();
             }
         } else if (source == cancelBtn) {
             refreshBtn.requestFocusInWindow();
         } else if (source == refreshBtn) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
+            updateBtn.requestFocusInWindow();
+        } else if (source == updateBtn) {
             stockCombo.requestFocusInWindow();
         }
     }
@@ -333,7 +452,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
     private void handleUpArrow(java.awt.Component source) {
         if (source == stockCombo) {
             if (!stockCombo.isPopupVisible()) {
-                saveBtn.requestFocusInWindow();
+                updateBtn.requestFocusInWindow();
             }
         } else if (source == reasonCombo) {
             if (!reasonCombo.isPopupVisible()) {
@@ -345,7 +464,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
             qty.requestFocusInWindow();
         } else if (source == refreshBtn) {
             cancelBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
+        } else if (source == updateBtn) {
             refreshBtn.requestFocusInWindow();
         }
     }
@@ -359,11 +478,9 @@ public class AddNewLossStock extends javax.swing.JDialog {
 
     // ---------------- BUTTON STYLES AND EFFECTS ----------------
     private void setupButtonStyles() {
-        // Setup gradient buttons for Save and Cancel
-        setupGradientButton(saveBtn);
+        setupGradientButton(updateBtn);
         setupGradientButton(cancelBtn);
 
-        // Setup refresh button with the same style as AddSupplier
         refreshBtn.setBorderPainted(false);
         refreshBtn.setContentAreaFilled(false);
         refreshBtn.setFocusPainted(false);
@@ -371,10 +488,10 @@ public class AddNewLossStock extends javax.swing.JDialog {
         refreshBtn.setFocusable(false);
         refreshBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Create icons with original blue color for action buttons
-        FlatSVGIcon saveIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
-        saveIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-        saveBtn.setIcon(saveIcon);
+        // Create icons
+        FlatSVGIcon updateIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+        updateIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        updateBtn.setIcon(updateIcon);
 
         FlatSVGIcon refreshIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
         refreshIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
@@ -384,7 +501,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(cancelIcon);
 
-        // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
         setupButtonFocusListeners();
     }
@@ -406,57 +522,47 @@ public class AddNewLossStock extends javax.swing.JDialog {
 
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                // Check button state
                 boolean isHover = button.getModel().isRollover();
                 boolean isPressed = button.getModel().isPressed();
                 boolean isFocused = button.hasFocus();
 
-                // Default state - transparent with blue border
                 if (!isFocused && !isHover && !isPressed) {
-                    g2.setColor(new Color(0, 0, 0, 0)); // Transparent
+                    g2.setColor(new Color(0, 0, 0, 0));
                     g2.fillRoundRect(0, 0, w, h, 5, 5);
-
-                    // Draw border
                     g2.setColor(Color.decode("#0893B0"));
                     g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
                 } else {
-                    // Gradient colors for hover/focus/pressed state
-                    Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
-                    Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
-
-                    // Draw gradient
+                    Color topColor = new Color(0x12, 0xB5, 0xA6);
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0);
                     GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
                     g2.setPaint(gp);
                     g2.fillRoundRect(0, 0, w, h, 5, 5);
                 }
 
-                // Draw button text
                 super.paint(g, c);
             }
         });
     }
 
     private void setupButtonMouseListeners() {
-        // Mouse listeners for saveBtn
-        saveBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+        updateBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                saveBtn.setForeground(Color.WHITE);
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                updateBtn.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
                 hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                saveBtn.setIcon(hoverIcon);
-                saveBtn.repaint();
+                updateBtn.setIcon(hoverIcon);
+                updateBtn.repaint();
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                saveBtn.setForeground(Color.decode("#0893B0"));
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                updateBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                saveBtn.setIcon(normalIcon);
-                saveBtn.repaint();
+                updateBtn.setIcon(normalIcon);
+                updateBtn.repaint();
             }
         });
 
-        // Mouse listeners for refreshBtn
         refreshBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
@@ -471,7 +577,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for cancelBtn
         cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 cancelBtn.setForeground(Color.WHITE);
@@ -492,26 +597,24 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }
 
     private void setupButtonFocusListeners() {
-        // Focus listeners for saveBtn
-        saveBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+        updateBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
-                saveBtn.setForeground(Color.WHITE);
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                updateBtn.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
                 focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                saveBtn.setIcon(focusedIcon);
-                saveBtn.repaint();
+                updateBtn.setIcon(focusedIcon);
+                updateBtn.repaint();
             }
 
             public void focusLost(java.awt.event.FocusEvent evt) {
-                saveBtn.setForeground(Color.decode("#0893B0"));
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                updateBtn.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                saveBtn.setIcon(normalIcon);
-                saveBtn.repaint();
+                updateBtn.setIcon(normalIcon);
+                updateBtn.repaint();
             }
         });
 
-        // Focus listeners for refreshBtn
         refreshBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/refresh.svg", 25, 25);
@@ -526,7 +629,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for cancelBtn
         cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 cancelBtn.setForeground(Color.WHITE);
@@ -547,18 +649,16 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }
 
     private void setupTooltips() {
-        stockCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field</html>");
-        reasonCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field</html>");
-        qty.setToolTipText("Type quantity and press ENTER to move to next field");
-        saveBtn.setToolTipText("Click to save stock loss (or press ENTER when focused)");
-        refreshBtn.setToolTipText("Click to refresh data (or press F5 or ENTER when focused)");
-        cancelBtn.setToolTipText("Click to cancel (or press ESC)");
+        stockCombo.setToolTipText("Select stock item");
+        reasonCombo.setToolTipText("Select loss reason");
+        qty.setToolTipText("Enter quantity");
+        updateBtn.setToolTipText("Update stock loss record");
+        refreshBtn.setToolTipText("Refresh data");
+        cancelBtn.setToolTipText("Close dialog");
     }
 
-    // ---------------- FOCUS TRAVERSAL SETUP ----------------
     private void setupFocusTraversal() {
         try {
-            // Set up proper focus traversal
             java.util.Set<AWTKeyStroke> forwardKeys = cancelBtn.getFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS);
             java.util.Set<AWTKeyStroke> newForwardKeys = new java.util.HashSet<>(forwardKeys);
             newForwardKeys.add(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0));
@@ -574,11 +674,9 @@ public class AddNewLossStock extends javax.swing.JDialog {
         PreparedStatement pstNotification = null;
 
         try {
-            // Build detailed message
-            String messageText = String.format("Stock loss recorded: %s (Batch: %s) - %s (Qty: %d, Value: Rs.%,.2f)", 
+            String messageText = String.format("Stock loss updated: %s (Batch: %s) - %s (Qty: %d, Value: Rs.%,.2f)",
                     productName, batchNo, reason, quantity, quantity * sellingPrice);
 
-            // Check if this exact message already exists to avoid duplicates
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
             pstMassage.setString(1, messageText);
@@ -586,7 +684,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
 
             int massageId;
             if (rs.next() && rs.getInt(1) > 0) {
-                // Message already exists, get its ID
                 String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
                 pstMassage.close();
                 pstMassage = conn.prepareStatement(getSql);
@@ -595,14 +692,12 @@ public class AddNewLossStock extends javax.swing.JDialog {
                 rs.next();
                 massageId = rs.getInt(1);
             } else {
-                // Insert new message
                 pstMassage.close();
                 String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
                 pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
                 pstMassage.setString(1, messageText);
                 pstMassage.executeUpdate();
 
-                // Get the generated massage_id
                 rs = pstMassage.getGeneratedKeys();
                 if (rs.next()) {
                     massageId = rs.getInt(1);
@@ -611,20 +706,17 @@ public class AddNewLossStock extends javax.swing.JDialog {
                 }
             }
 
-            // Insert notification (msg_type_id 25 = 'Stock Loss' from your msg_type table)
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1); // is_read = 1 (unread)
-            pstNotification.setInt(2, 25); // msg_type_id 25 = 'Stock Loss'
+            pstNotification.setInt(1, 1);
+            pstNotification.setInt(2, 25);
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
             e.printStackTrace();
-            // Don't throw exception here - we don't want notification failure to affect stock loss recording
             System.err.println("Failed to create stock loss notification: " + e.getMessage());
         } finally {
-            // Close resources
             try {
                 if (pstMassage != null) {
                     pstMassage.close();
@@ -639,18 +731,18 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }
 
     private String getProductNameAndBatch(int stockId) throws SQLException {
-        String query = "SELECT p.product_name, s.batch_no, s.selling_price " +
-                     "FROM stock s " +
-                     "JOIN product p ON s.product_id = p.product_id " +
-                     "WHERE s.stock_id = " + stockId;
+        String query = "SELECT p.product_name, s.batch_no, s.selling_price "
+                + "FROM stock s "
+                + "JOIN product p ON s.product_id = p.product_id "
+                + "WHERE s.stock_id = " + stockId;
         ResultSet rs = MySQL.executeSearch(query);
-        
+
         if (rs.next()) {
-            return rs.getString("product_name") + "|" + 
-                   rs.getString("batch_no") + "|" + 
-                   rs.getDouble("selling_price");
+            return rs.getString("product_name") + "|"
+                    + rs.getString("batch_no") + "|"
+                    + rs.getDouble("selling_price");
         }
-        
+
         throw new SQLException("Product details not found for stock ID: " + stockId);
     }
 
@@ -711,12 +803,13 @@ public class AddNewLossStock extends javax.swing.JDialog {
     private void refreshData() {
         loadStocks();
         loadLossReasons();
+        loadStockLossData();
         Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                 "Data refreshed successfully!");
         stockCombo.requestFocusInWindow();
     }
 
-    private void saveStockLoss() {
+    private void updateStockLoss() {
         // Validation
         if (stockCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -741,8 +834,8 @@ public class AddNewLossStock extends javax.swing.JDialog {
 
         Connection conn = null;
         try {
-            int qtyValue = Integer.parseInt(qty.getText().trim());
-            if (qtyValue <= 0) {
+            int newQty = Integer.parseInt(qty.getText().trim());
+            if (newQty <= 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Quantity must be greater than 0!");
                 qty.requestFocus();
@@ -751,14 +844,29 @@ public class AddNewLossStock extends javax.swing.JDialog {
 
             // Get selected stock details
             String selectedStock = (String) stockCombo.getSelectedItem();
-            int stockId = extractStockId(selectedStock);
+            int newStockId = extractStockId(selectedStock);
             int availableQty = extractAvailableQty(selectedStock);
 
-            if (qtyValue > availableQty) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Quantity cannot exceed available stock. Available: " + availableQty);
-                qty.requestFocus();
-                return;
+            // Calculate the difference in quantity
+            int qtyDifference = newQty - originalQty;
+
+            // For stock change, we need to handle both old and new stock
+            if (newStockId != originalStockId) {
+                // If stock changed, we need to revert old stock and apply to new stock
+                if (newQty > availableQty) {
+                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                            "Quantity cannot exceed available stock. Available: " + availableQty);
+                    qty.requestFocus();
+                    return;
+                }
+            } else {
+                // Same stock, check if increased quantity is available
+                if (qtyDifference > availableQty) {
+                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                            "Increased quantity cannot exceed available stock. Available: " + availableQty);
+                    qty.requestFocus();
+                    return;
+                }
             }
 
             // Get reason ID
@@ -771,7 +879,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                 return;
             }
 
-            // Get user from session and validate user exists
+            // Get user from session
             Session session = Session.getInstance();
             int userId = session.getUserId();
 
@@ -783,7 +891,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
             }
 
             // Get product details for notification
-            String productDetails = getProductNameAndBatch(stockId);
+            String productDetails = getProductNameAndBatch(newStockId);
             String[] details = productDetails.split("\\|");
             String productName = details[0];
             String batchNo = details[1];
@@ -796,26 +904,34 @@ public class AddNewLossStock extends javax.swing.JDialog {
             conn.setAutoCommit(false);
 
             try {
-                // Insert into stock_loss table
-                String insertLossQuery = "INSERT INTO stock_loss (qty, stock_id, stock_loss_date, return_reason_id, user_id) "
-                        + "VALUES (" + qtyValue + ", " + stockId + ", NOW(), " + reasonId + ", " + userId + ")";
-                MySQL.executeIUD(insertLossQuery);
+                // Revert the original stock loss (add back the original quantity to stock)
+                String revertStockQuery = "UPDATE stock SET qty = qty + " + originalQty + " WHERE stock_id = " + originalStockId;
+                MySQL.executeIUD(revertStockQuery);
 
-                // Update stock table - decrease quantity
-                String updateStockQuery = "UPDATE stock SET qty = qty - " + qtyValue + " WHERE stock_id = " + stockId;
-                MySQL.executeIUD(updateStockQuery);
+                // Apply the new stock loss (subtract the new quantity from stock)
+                String applyStockQuery = "UPDATE stock SET qty = qty - " + newQty + " WHERE stock_id = " + newStockId;
+                MySQL.executeIUD(applyStockQuery);
 
-                // Create notification for stock loss
-                createStockLossNotification(productName, batchNo, selectedReason, qtyValue, sellingPrice, conn);
+                // Update the stock_loss record
+                String updateLossQuery = "UPDATE stock_loss SET qty = " + newQty + ", "
+                        + "stock_id = " + newStockId + ", "
+                        + "return_reason_id = " + reasonId + ", "
+                        + "user_id = " + userId + ", "
+                        + "stock_loss_date = NOW() "
+                        + "WHERE stock_loss_id = " + stockLossId;
+                MySQL.executeIUD(updateLossQuery);
+
+                // Create notification for stock loss update
+                createStockLossNotification(productName, batchNo, selectedReason, newQty, sellingPrice, conn);
 
                 // Commit transaction
                 conn.commit();
 
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Stock loss added successfully!");
+                        "Stock loss updated successfully!");
 
-                // Reset form
-                resetForm();
+                // Close dialog
+                dispose();
 
             } catch (SQLException ex) {
                 // Rollback transaction in case of error
@@ -827,12 +943,11 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     rollbackEx.printStackTrace();
                 }
 
-                // Check if it's a foreign key constraint violation
                 if (ex.getMessage().contains("foreign key constraint") && ex.getMessage().contains("user_id")) {
                     Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                             "Invalid user account. Please contact administrator!");
                 } else {
-                    throw ex; // Re-throw other SQL exceptions
+                    throw ex;
                 }
             } finally {
                 try {
@@ -849,14 +964,13 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     "Please enter a valid number for quantity!");
         } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error adding stock loss: " + e.getMessage());
+                    "Error updating stock loss: " + e.getMessage());
             e.printStackTrace();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            // Close connection if it was opened
             try {
                 if (conn != null) {
                     conn.close();
@@ -867,12 +981,11 @@ public class AddNewLossStock extends javax.swing.JDialog {
         }
     }
 
-    // Add this method to validate if user exists in database
     private boolean isValidUser(int userId) {
         try {
             String query = "SELECT user_id FROM user WHERE user_id = " + userId;
             ResultSet rs = MySQL.executeSearch(query);
-            return rs.next(); // Returns true if user exists
+            return rs.next();
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
@@ -880,10 +993,11 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }
 
     private int extractStockId(String stockText) throws SQLException {
-        // Extract stock ID from the combo box text
-        // Format: "batchNo - productName (Available: qty)"
-        String batchNo = stockText.split(" - ")[0];
+        if (stockText.equals("Select Stock")) {
+            throw new SQLException("Not a valid stock item");
+        }
 
+        String batchNo = stockText.split(" - ")[0];
         String query = "SELECT stock_id FROM stock WHERE batch_no = '" + batchNo + "'";
         ResultSet rs = MySQL.executeSearch(query);
 
@@ -895,14 +1009,20 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }
 
     private int extractAvailableQty(String stockText) {
-        // Extract available quantity from the combo box text
-        // Format: "batchNo - productName (Available: qty)"
+        if (stockText.equals("Select Stock")) {
+            return 0;
+        }
+
         String qtyPart = stockText.split("Available: ")[1];
         qtyPart = qtyPart.replace(")", "");
         return Integer.parseInt(qtyPart.trim());
     }
 
     private int getReasonId(String reason) throws SQLException {
+        if (reason.equals("Select Reason")) {
+            return -1;
+        }
+
         String query = "SELECT return_reason_id FROM return_reason WHERE reason = '" + reason + "'";
         ResultSet rs = MySQL.executeSearch(query);
 
@@ -913,13 +1033,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
         return -1;
     }
 
-    private void resetForm() {
-        stockCombo.setSelectedIndex(0);
-        reasonCombo.setSelectedIndex(0);
-        qty.setText("");
-        loadStocks(); // Reload stocks to reflect updated quantities
-    }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -927,7 +1040,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
         jPanel1 = new javax.swing.JPanel();
         qty = new javax.swing.JTextField();
         cancelBtn = new javax.swing.JButton();
-        saveBtn = new javax.swing.JButton();
+        updateBtn = new javax.swing.JButton();
         jLabel2 = new javax.swing.JLabel();
         jSeparator2 = new javax.swing.JSeparator();
         refreshBtn = new javax.swing.JButton();
@@ -935,7 +1048,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
         reasonCombo = new javax.swing.JComboBox<>();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("Add Stock Loss");
+        setTitle("Edit Stock Loss");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -957,19 +1070,19 @@ public class AddNewLossStock extends javax.swing.JDialog {
             }
         });
 
-        saveBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        saveBtn.setForeground(new java.awt.Color(8, 147, 176));
-        saveBtn.setText("Save");
-        saveBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
-        saveBtn.addActionListener(new java.awt.event.ActionListener() {
+        updateBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        updateBtn.setForeground(new java.awt.Color(8, 147, 176));
+        updateBtn.setText("Update");
+        updateBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        updateBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                saveBtnActionPerformed(evt);
+                updateBtnActionPerformed(evt);
             }
         });
 
         jLabel2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel2.setForeground(new java.awt.Color(8, 147, 176));
-        jLabel2.setText("Add Stock Loss");
+        jLabel2.setText("Edit Stock Loss");
 
         jSeparator2.setForeground(new java.awt.Color(0, 137, 176));
 
@@ -1026,17 +1139,14 @@ public class AddNewLossStock extends javax.swing.JDialog {
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(21, 21, 21)
+                .addGap(20, 20, 20)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGap(1, 1, 1)
                         .addComponent(jLabel2)
-                        .addContainerGap(264, Short.MAX_VALUE))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 163, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 161, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                                     .addGroup(jPanel1Layout.createSequentialGroup()
@@ -1045,11 +1155,16 @@ public class AddNewLossStock extends javax.swing.JDialog {
                                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
                                         .addGap(390, 390, 390)
                                         .addComponent(refreshBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addComponent(stockCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 424, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                    .addComponent(reasonCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 320, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(qty, javax.swing.GroupLayout.PREFERRED_SIZE, 93, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                .addGroup(jPanel1Layout.createSequentialGroup()
+                                    .addGap(95, 95, 95)
+                                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 163, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 161, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(stockCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 424, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                                .addComponent(reasonCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 320, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(qty)))
                         .addGap(0, 23, Short.MAX_VALUE))))
         );
         jPanel1Layout.setVerticalGroup(
@@ -1063,15 +1178,15 @@ public class AddNewLossStock extends javax.swing.JDialog {
                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(8, 8, 8)
                 .addComponent(stockCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(qty, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(reasonCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(20, 20, 20)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addGap(20, 20, 20))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1089,18 +1204,18 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }// </editor-fold>//GEN-END:initComponents
 
     private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
-        dispose();    }//GEN-LAST:event_cancelBtnActionPerformed
+        this.dispose();
+    }//GEN-LAST:event_cancelBtnActionPerformed
 
-    private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed
-        saveStockLoss();
-    }//GEN-LAST:event_saveBtnActionPerformed
+    private void updateBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_updateBtnActionPerformed
+        updateStockLoss();
+    }//GEN-LAST:event_updateBtnActionPerformed
 
     private void refreshBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_refreshBtnActionPerformed
-        saveStockLoss();
+        refreshData();
     }//GEN-LAST:event_refreshBtnActionPerformed
 
     private void refreshBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_refreshBtnKeyPressed
-        refreshData();
     }//GEN-LAST:event_refreshBtnKeyPressed
 
     private void stockComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockComboActionPerformed
@@ -1120,16 +1235,16 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }//GEN-LAST:event_reasonComboActionPerformed
 
     private void reasonComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_reasonComboKeyPressed
-
+        // TODO add your handling code here:
     }//GEN-LAST:event_reasonComboKeyPressed
 
     private void reasonComboKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_reasonComboKeyReleased
-
+        // TODO add your handling code here:
     }//GEN-LAST:event_reasonComboKeyReleased
 
     private void qtyKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_qtyKeyPressed
         if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
-            saveStockLoss();
+            updateStockLoss();
         }
     }//GEN-LAST:event_qtyKeyPressed
 
@@ -1150,20 +1265,20 @@ public class AddNewLossStock extends javax.swing.JDialog {
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(AddNewLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(AddNewLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(AddNewLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(AddNewLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateLossStock.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
 
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                AddNewLossStock dialog = new AddNewLossStock(new javax.swing.JFrame(), true);
+                UpdateLossStock dialog = new UpdateLossStock(new javax.swing.JFrame(), true, 1);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {
@@ -1183,7 +1298,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
     private javax.swing.JTextField qty;
     private javax.swing.JComboBox<String> reasonCombo;
     private javax.swing.JButton refreshBtn;
-    private javax.swing.JButton saveBtn;
     private javax.swing.JComboBox<String> stockCombo;
+    private javax.swing.JButton updateBtn;
     // End of variables declaration//GEN-END:variables
 }

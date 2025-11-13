@@ -598,12 +598,12 @@ public class CreditView extends javax.swing.JDialog {
             java.util.Date givenDate, java.util.Date finalDate,
             boolean hasPayments) {
         JPanel panel = new JPanel();
-        panel.setBackground(new Color(248,250,252));
+        panel.setBackground(new Color(248, 250, 252));
         panel.setBorder(BorderFactory.createLineBorder(DEFAULT_BORDER_COLOR, 1));
         panel.setLayout(null);
 
         // Credit ID Label (since we don't have invoice_no anymore)
-        JLabel creditLabel = new JLabel(String.format("#CRD"+ creditId));
+        JLabel creditLabel = new JLabel(String.format("#CRD" + creditId));
         creditLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 16));
         creditLabel.setBounds(14, 9, 297, 23);
         panel.add(creditLabel);
@@ -1129,7 +1129,7 @@ public class CreditView extends javax.swing.JDialog {
             public void run() {
                 // This main method is for testing only
                 // In your actual application, use: new CreditView(parent, modal, customerId)
-                CreditView dialog = new CreditView(new javax.swing.JFrame(), true , 3); // Example customer ID
+                CreditView dialog = new CreditView(new javax.swing.JFrame(), true, 3); // Example customer ID
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {

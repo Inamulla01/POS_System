@@ -2,6 +2,7 @@ package lk.com.pos.dialog;
 
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialogpanel.ExchangeProduct;
+import lk.com.pos.session.Session;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import javax.swing.*;
 import java.awt.*;
@@ -27,7 +28,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private String invoiceDiscountType = null;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy, HH.mm.ss");
     private int currentSalesId = -1;
-    private int currentUserId = 1;
+    private int currentUserId = -1;
     private int currentCreditCustomerId = -1;
     private double currentCreditAmount = 0.0;
     private boolean isCreditPayment = false;
@@ -46,6 +47,9 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         setupKeyboardNavigation();
         loadInvoices();
         loadReturnReasons();
+        
+        // Initialize user from session
+        initializeUserFromSession();
 
         productsPanel.setLayout(new BoxLayout(productsPanel, BoxLayout.Y_AXIS));
         showNoInvoiceSelectedMessage();
@@ -54,6 +58,11 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     // Method to get the generated return ID
     public int getGeneratedReturnId() {
         return generatedReturnId;
+    }
+
+    private void initializeUserFromSession() {
+        Session session = Session.getInstance();
+        currentUserId = session.getUserId();
     }
 
     private void setupButtonStyles() {
@@ -1405,7 +1414,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             double totalRefundAmount = calculateRefundAmount();
             double totalDiscountPrice = calculateTotalDiscountPrice();
 
-            // Insert into return table
+            // Insert into return table - USING SESSION USER ID
             String returnQuery = "INSERT INTO `return` (return_date, total_return_amount, return_reason_id, "
                     + "status_id, sales_id, user_id, total_discount_price) "
                     + "VALUES (NOW(), ?, ?, 1, ?, ?, ?)";
@@ -1414,7 +1423,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             returnStmt.setDouble(1, totalRefundAmount);
             returnStmt.setInt(2, reasonId);
             returnStmt.setInt(3, currentSalesId);
-            returnStmt.setInt(4, currentUserId);
+            returnStmt.setInt(4, currentUserId); // USING SESSION USER ID HERE
             returnStmt.setDouble(5, totalDiscountPrice);
 
             int affectedRows = returnStmt.executeUpdate();
@@ -1479,7 +1488,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
                                         // Handle stock based on return reason
                                         if (isStockLoss) {
-                                            // Add to stock_loss table
+                                            // Add to stock_loss table - USING SESSION USER ID
                                             String stockLossQuery = "INSERT INTO stock_loss (qty, stock_id, stock_loss_date, "
                                                     + "return_reason_id, user_id, sales_id) "
                                                     + "VALUES (?, ?, NOW(), ?, ?, ?)";
@@ -1488,7 +1497,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                             stockLossStmt.setInt(1, exchangeQty);
                                             stockLossStmt.setInt(2, stockId);
                                             stockLossStmt.setInt(3, reasonId);
-                                            stockLossStmt.setInt(4, currentUserId);
+                                            stockLossStmt.setInt(4, currentUserId); // USING SESSION USER ID HERE
                                             stockLossStmt.setInt(5, currentSalesId);
 
                                             stockLossStmt.executeUpdate();
@@ -1546,7 +1555,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
                                 // Handle stock based on return reason
                                 if (isStockLoss) {
-                                    // Add to stock_loss table
+                                    // Add to stock_loss table - USING SESSION USER ID
                                     String stockLossQuery = "INSERT INTO stock_loss (qty, stock_id, stock_loss_date, "
                                             + "return_reason_id, user_id, sales_id) "
                                             + "VALUES (?, ?, NOW(), ?, ?, ?)";
@@ -1555,7 +1564,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                     stockLossStmt.setInt(1, exchangeQty);
                                     stockLossStmt.setInt(2, stockId);
                                     stockLossStmt.setInt(3, reasonId);
-                                    stockLossStmt.setInt(4, currentUserId);
+                                    stockLossStmt.setInt(4, currentUserId); // USING SESSION USER ID HERE
                                     stockLossStmt.setInt(5, currentSalesId);
 
                                     stockLossStmt.executeUpdate();
@@ -1992,6 +2001,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
     private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed
 
+   
         if (invoiceNo.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, "Please enter an invoice number",
                     "Warning", JOptionPane.WARNING_MESSAGE);

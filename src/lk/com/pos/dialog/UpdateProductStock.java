@@ -20,6 +20,9 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.PlainDocument;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -119,7 +122,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
                 // REMOVED: Batch number field is now ENABLED and can be changed
                 batchNoInput.setEnabled(true);
                 batchNoInput.setBackground(Color.WHITE);
-                batchNoInput.setToolTipText("<html>Batch number - you can type your own or press <b>F3</b> to generate new one</html>");
+                batchNoInput.setToolTipText("<html>Batch number - you can type your own or press <b>F6</b> to generate new one</html>");
 
                 purchasePrice.setText(String.valueOf(stockRs.getDouble("purchase_price")));
                 lastPrice.setText(String.valueOf(stockRs.getDouble("last_price")));
@@ -177,9 +180,43 @@ public class UpdateProductStock extends javax.swing.JDialog {
         }
     }
 
+    private void setupProductInputLimit() {
+        // Create a custom document that limits input to 35 characters
+        productInput.setDocument(new PlainDocument() {
+            @Override
+            public void insertString(int offset, String str, AttributeSet attr) throws BadLocationException {
+                if (str == null) {
+                    return;
+                }
+
+                String currentText = getText(0, getLength());
+                String newText = currentText.substring(0, offset) + str + currentText.substring(offset);
+
+                if (newText.length() <= 35) {
+                    super.insertString(offset, str, attr);
+                } else {
+                    // If adding this string would exceed limit, only add what fits
+                    int availableChars = 35 - currentText.length();
+                    if (availableChars > 0) {
+                        super.insertString(offset, str.substring(0, availableChars), attr);
+                    }
+                    // Show warning notification
+                    SwingUtilities.invokeLater(() -> {
+                        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                                "Product name limited to 35 characters");
+                    });
+                }
+            }
+        });
+
+        // Set tooltip to inform user about the limit
+        productInput.setToolTipText("<html>Type product name (max 35 characters) and press ENTER to move to next field</html>");
+    }
+
     private void initializeDialog() {
         setLocationRelativeTo(getParent());
         setTitle("Update Product & Stock");
+        setupProductInputLimit(); // Add character limit for product name
         loadCategoryCombo();
         loadBrandCombo();
         loadSupplierCombo();
@@ -306,7 +343,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
         );
 
         // Setup tooltips
-        productInput.setToolTipText("Type product name and press ENTER to move to next field");
+        productInput.setToolTipText("<html>Type product name (max 35 characters) and press ENTER to move to next field</html>");
         categoryCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to brand<br>Press <b>F2</b> to add new category</html>");
         brandCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to supplier<br>Press <b>F3</b> to add new brand</html>");
         SupplierCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to purchase price<br>Press <b>F4</b> to add new supplier</html>");
@@ -520,7 +557,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
             }
         });
 
-        // Special handling for batch number input with F3
+        // Special handling for batch number input with F6
         batchNoInput.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -1353,6 +1390,13 @@ public class UpdateProductStock extends javax.swing.JDialog {
             return false;
         }
 
+        if (productInput.getText().trim().length() > 35) {
+            productInput.requestFocus();
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Product name cannot exceed 35 characters");
+            return false;
+        }
+
         if (categoryCombo.getSelectedIndex() <= 0) {
             categoryCombo.requestFocus();
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
@@ -1426,6 +1470,12 @@ private void saveProductAndStock() {
     try {
         // Get current data for notification message
         String productName = productInput.getText().trim();
+
+        // Ensure the product name doesn't exceed 35 characters
+        if (productName.length() > 35) {
+            productName = productName.substring(0, 35);
+        }
+
         String batchNoValue = batchNoInput.getText().trim();
         
         // Get old data for comparison
@@ -1685,6 +1735,7 @@ private void saveProductAndStock() {
         }
     }
 }
+
     private void clearForm() {
         // Reload original data
         loadProductData();

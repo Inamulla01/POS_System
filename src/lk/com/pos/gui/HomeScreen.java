@@ -455,7 +455,7 @@ public class HomeScreen extends JFrame {
                         icon = new FlatSVGIcon("lk/com/pos/icon/warning.svg", 18, 18);
                         break;
                     case "low stock":
-                        icon = new FlatSVGIcon("lk/com/pos/icon/low-stock.svg", 18, 18);
+                        icon = new FlatSVGIcon("lk/com/pos/icon/graph-down.svg", 18, 18);
                         break;
                     case "loged in":
                         icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);

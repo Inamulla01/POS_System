@@ -120,13 +120,19 @@ public class SalesPanel extends javax.swing.JPanel {
         
         addHintRow("↑ ↓", "Navigate invoices", "#FFFFFF");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
-        addHintRow("Ctrl+R / F5", "Refresh", "#34D399");
+        addHintRow("F5", "Refresh", "#34D399");
+        addHintRow("Ctrl+P", "Sales Report", "#10B981");
+        addHintRow("Ctrl+R", "Sales Report", "#10B981");
         addHintRow("Alt+1", "All Time", "#FB923C");
         addHintRow("Alt+2", "Today", "#FCD34D");
         addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
         addHintRow("Alt+4", "Last 30 Days", "#F87171");
         addHintRow("Alt+5", "Last 90 Days", "#A78BFA");
-        addHintRow("Esc", "Clear Search", "#9CA3AF");
+        addHintRow("Alt+6", "1 Year", "#34D399");
+        addHintRow("Alt+7", "2 Years", "#60A5FA");
+        addHintRow("Alt+8", "5 Years", "#F472B6");
+        addHintRow("Alt+9", "10 Years", "#FBBF24");
+        addHintRow("Esc", "Clear All Filters", "#EF4444");
         addHintRow("?", "Toggle Help", "#1CB5BB");
         
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
@@ -222,17 +228,24 @@ public class SalesPanel extends javax.swing.JPanel {
         });
         
         // Refresh
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, () -> refreshSales());
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshSales());
         
-        // Period filters
+        // Sales Report - CTRL+P and CTRL+R
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openSalesReport);
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openSalesReport);
+        
+        // Period filters (Extended)
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
         registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(2));
         registerKeyAction("ALT_4", KeyEvent.VK_4, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(3));
         registerKeyAction("ALT_5", KeyEvent.VK_5, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(4));
+        registerKeyAction("ALT_6", KeyEvent.VK_6, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(5));
+        registerKeyAction("ALT_7", KeyEvent.VK_7, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(6));
+        registerKeyAction("ALT_8", KeyEvent.VK_8, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(7));
+        registerKeyAction("ALT_9", KeyEvent.VK_9, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(8));
         
-        // Escape
+        // Escape - UPDATED TO CLEAR ALL FILTERS
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
         
         // Help
@@ -244,9 +257,7 @@ public class SalesPanel extends javax.swing.JPanel {
         jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                jTextField1.setText("");
-                handleSearch();
-                SalesPanel.this.requestFocusInWindow();
+                clearAllFilters();
             }
         });
         
@@ -307,12 +318,12 @@ public class SalesPanel extends javax.swing.JPanel {
         int newIndex = currentCardIndex + direction;
         
         if (newIndex < 0) {
-            showPositionIndicator("Already at the first invoice");
+            showPositionIndicator("⬆️ Already at the first invoice");
             return;
         }
         
         if (newIndex >= invoiceCardsList.size()) {
-            showPositionIndicator("Already at the last invoice");
+            showPositionIndicator("⬇️ Already at the last invoice");
             return;
         }
         
@@ -334,7 +345,7 @@ public class SalesPanel extends javax.swing.JPanel {
         currentCardIndex = 0;
         selectCurrentCard();
         scrollToCard(currentCardIndex);
-        showPositionIndicator("⬆️ First invoice");
+        showPositionIndicator("First invoice");
     }
 
     private void navigateToLast() {
@@ -349,7 +360,7 @@ public class SalesPanel extends javax.swing.JPanel {
         currentCardIndex = invoiceCardsList.size() - 1;
         selectCurrentCard();
         scrollToCard(currentCardIndex);
-        showPositionIndicator("Last invoice");
+        showPositionIndicator("⬇️ Last invoice");
     }
 
     private void selectCurrentCard() {
@@ -362,7 +373,7 @@ public class SalesPanel extends javax.swing.JPanel {
             currentFocusedCard = card;
             
             String invoiceNo = (String) card.getClientProperty("invoiceNo");
-            showPositionIndicator(String.format(" Invoice %d/%d: %s", 
+            showPositionIndicator(String.format("Invoice %d/%d: %s", 
                 currentCardIndex + 1, invoiceCardsList.size(), invoiceNo));
         }
     }
@@ -401,18 +412,38 @@ public class SalesPanel extends javax.swing.JPanel {
         showPositionIndicator("🔍 Search mode - Type to filter (Press ↓ to navigate)");
     }
 
+    /**
+     * UPDATED: Handles Escape key - Clears ALL filters including period dropdown
+     */
     private void handleEscape() {
         if (currentCardIndex >= 0) {
+            // Deselect invoice card
             deselectCard(currentCardIndex);
             currentFocusedCard = null;
             currentCardIndex = -1;
-            showPositionIndicator("Invoice deselected");
-        } else if (!jTextField1.getText().isEmpty()) {
-            jTextField1.setText("");
-            handleSearch();
-            showPositionIndicator("Search cleared");
+            showPositionIndicator("Card deselected");
+        } else if (!jTextField1.getText().isEmpty() || sortByDays.getSelectedIndex() != 0) {
+            // Clear all filters
+            clearAllFilters();
         }
         this.requestFocusInWindow();
+    }
+
+    /**
+     * NEW METHOD: Clears all filters (search text + period dropdown)
+     */
+    private void clearAllFilters() {
+        boolean wasFiltered = !jTextField1.getText().isEmpty() || sortByDays.getSelectedIndex() != 0;
+        
+        jTextField1.setText("");
+        sortByDays.setSelectedIndex(0); // Reset to "All Time"
+        
+        if (wasFiltered) {
+            handleSearch();
+            showPositionIndicator("✅ All filters cleared - Showing all invoices");
+        }
+        
+        SalesPanel.this.requestFocusInWindow();
     }
 
     private void refreshSales() {
@@ -426,6 +457,15 @@ public class SalesPanel extends javax.swing.JPanel {
         handleSearch();
         showPositionIndicator("Sales data refreshed");
         this.requestFocusInWindow();
+    }
+
+    /**
+     * NEW METHOD: Opens Sales Report
+     */
+    private void openSalesReport() {
+        salesReportBtn.doClick();
+        showPositionIndicator("Opening Sales Report");
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
 
     private void setPeriod(int index) {
@@ -507,15 +547,19 @@ public class SalesPanel extends javax.swing.JPanel {
         jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search by invoice number...");
         jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,             
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
-        jTextField1.setToolTipText("Search invoices (Ctrl+F or /) - Press ? for help");
+        jTextField1.setToolTipText("Search invoices (Ctrl+F or /) - Press ESC to clear all filters");
         jTextField1.setForeground(Color.GRAY);
         
-        // Enhanced combo box with FlatLaf styling
+        // Enhanced combo box with FlatLaf styling - UPDATED WITH NEW PERIODS
         sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
-            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days"
+            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", 
+            "1 Year", "2 Years", "5 Years", "10 Years"
         }));
-        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+5)");
+        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+9) - Press ESC to reset");
+        
+        // Sales Report Button Tooltip - UPDATED
+        salesReportBtn.setToolTipText("Generate Sales Report (Ctrl+P or Ctrl+R)");
         
         roundedPanel1.setVisible(false);
         
@@ -543,11 +587,9 @@ public class SalesPanel extends javax.swing.JPanel {
     
     private void loadSalesData(String searchText, String period) {
         period = period.replace("", "").replace("", "")
-                      .replace("", "").replace("", "").replace("", "");
+                      .replace("", "").replace("️", "").replace("", "");
         
         clearInvoiceCards();
-        
-        // Removed loading panel creation and display
         
         String finalPeriod = period;
         String finalSearchText = searchText;
@@ -728,8 +770,6 @@ public class SalesPanel extends javax.swing.JPanel {
         return saleDiscount;
     }
     
-    // Removed createLoadingPanel method
-    
     private JPanel createNoDataPanel() {
         JPanel noDataPanel = new JPanel();
         noDataPanel.setLayout(new BoxLayout(noDataPanel, BoxLayout.Y_AXIS));
@@ -821,6 +861,14 @@ public class SalesPanel extends javax.swing.JPanel {
                 return "s.datetime >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
             case "Last 90 Days":
                 return "s.datetime >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+            case "1 Year":
+                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
+            case "2 Years":
+                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 2 YEAR)";
+            case "5 Years":
+                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 5 YEAR)";
+            case "10 Years":
+                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 10 YEAR)";
             default:
                 return "";
         }
@@ -1021,6 +1069,7 @@ public class SalesPanel extends javax.swing.JPanel {
     private ImageIcon loadInvoiceIcon() {
         try {
             FlatSVGIcon svgIcon = new FlatSVGIcon("lk/com/pos/icon/invoice.svg", 28, 28);
+            svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#22C55E")));
             return new ImageIcon(svgIcon.getImage());
         } catch (Exception e) {
             try {
@@ -1492,6 +1541,7 @@ public class SalesPanel extends javax.swing.JPanel {
         date = new javax.swing.JLabel();
         jLabel12 = new javax.swing.JLabel();
         sortByDays = new javax.swing.JComboBox<>();
+        salesReportBtn = new javax.swing.JButton();
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1708,6 +1758,14 @@ public class SalesPanel extends javax.swing.JPanel {
             }
         });
 
+        salesReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        salesReportBtn.setText("Sales Report");
+        salesReportBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                salesReportBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -1717,21 +1775,25 @@ public class SalesPanel extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 955, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 463, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(sortByDays, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGap(19, 19, 19)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(salesReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(16, 16, 16)))
                 .addGap(0, 0, 0))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 47, Short.MAX_VALUE)
-                    .addComponent(sortByDays))
-                .addGap(18, 18, 18)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 431, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(sortByDays, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(salesReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(17, 17, 17)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 432, Short.MAX_VALUE)
                 .addGap(17, 17, 17))
         );
 
@@ -1752,6 +1814,10 @@ public class SalesPanel extends javax.swing.JPanel {
     private void sortByDaysActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sortByDaysActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_sortByDaysActionPerformed
+
+    private void salesReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_salesReportBtnActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_salesReportBtnActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -1775,6 +1841,7 @@ public class SalesPanel extends javax.swing.JPanel {
     private lk.com.pos.privateclasses.RoundedPanel productPanel;
     private javax.swing.JLabel productprice;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel1;
+    private javax.swing.JButton salesReportBtn;
     private javax.swing.JComboBox<String> sortByDays;
     private javax.swing.JLabel total;
     // End of variables declaration//GEN-END:variables

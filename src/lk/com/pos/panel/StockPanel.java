@@ -31,6 +31,7 @@ import javax.swing.JOptionPane;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewStock;
 import lk.com.pos.dialog.PrintProductLabel;
+import lk.com.pos.dialog.UpdateProduct;
 import lk.com.pos.dialog.UpdateProductStock;
 
 public class StockPanel extends javax.swing.JPanel {
@@ -64,6 +65,11 @@ public class StockPanel extends javax.swing.JPanel {
     private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
     private static final Color BATCH_HIGHLIGHT = new Color(255, 243, 205); // Light yellow for same product
 
+    // UPDATED: Responsive card dimensions
+    private int cardWidth = 420;
+    private int cardHeight = 480;
+    private int gridGap = 25;
+
     // Data class to hold product information
     private static class ProductCardData {
         int productId, stockId, pStatusId, qty;
@@ -71,6 +77,7 @@ public class StockPanel extends javax.swing.JPanel {
         String expiryDate, batchNo, barcode;
         double purchasePrice, lastPrice, sellingPrice;
         int batchIndex, totalBatches;
+        int priorityScore; // ADDED: For smart sorting
     }
 
     public StockPanel() {
@@ -122,7 +129,9 @@ public class StockPanel extends javax.swing.JPanel {
         productSearchBar.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         
-        addProductDialog.setToolTipText("Add Stock (Ctrl+N or Alt+A)");
+        addStockBtn.setToolTipText("Add Stock (Ctrl+N or Alt+A)");
+        // ADDED: Tooltip for the report button
+        stockReportBtn.setToolTipText("Generate Stock Report (Ctrl+R or Ctrl+P)");
         productSearchBar.setToolTipText("Search products (Ctrl+F or /) - Press ? for help");
         expiringRadioBtn.setToolTipText("Filter expiring products (Alt+1)");
         lowStockRadioBtn.setToolTipText("Filter low stock products (Alt+2)");
@@ -180,7 +189,7 @@ public class StockPanel extends javax.swing.JPanel {
         centerPanel.setOpaque(false);
         centerPanel.setLayout(new javax.swing.BoxLayout(centerPanel, javax.swing.BoxLayout.Y_AXIS));
         
-        loadingLabel = new JLabel("⏳ Loading products...");
+        loadingLabel = new JLabel("Loading products...");
         loadingLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
         loadingLabel.setForeground(TEAL_BORDER_SELECTED);
         loadingLabel.setHorizontalAlignment(JLabel.CENTER);
@@ -268,7 +277,7 @@ public class StockPanel extends javax.swing.JPanel {
         ));
         keyboardHintsPanel.setVisible(false);
         
-        JLabel title = new JLabel("⌨️ KEYBOARD SHORTCUTS");
+        JLabel title = new JLabel("KEYBOARD SHORTCUTS");
         title.setFont(new java.awt.Font("Nunito ExtraBold", 1, 13));
         title.setForeground(TEAL_BORDER_SELECTED);
         title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
@@ -276,6 +285,7 @@ public class StockPanel extends javax.swing.JPanel {
         
         keyboardHintsPanel.add(javax.swing.Box.createVerticalStrut(10));
         
+        // MODIFIED: Updated help hints
         addHintRow("← → ↑ ↓", "Navigate cards", "#FFFFFF");
         addHintRow("Ctrl+← →", "Previous/Next Batch", "#A78BFA");
         addHintRow("B", "Show Barcode", "#FCD34D");
@@ -284,6 +294,8 @@ public class StockPanel extends javax.swing.JPanel {
         addHintRow("R", "Reactivate Product", "#10B981");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
         addHintRow("Ctrl+N", "Add Stock", "#34D399");
+        addHintRow("Ctrl+R/P", "Stock Report", "#34D399");
+        addHintRow("F5", "Refresh List", "#FB923C");
         addHintRow("Alt+1-4", "Quick Filters", "#FB923C");
         addHintRow("Esc", "Clear/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
@@ -396,10 +408,16 @@ public class StockPanel extends javax.swing.JPanel {
         });
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
         
-        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, () -> addProductDialogActionPerformed(null));
-        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, () -> addProductDialogActionPerformed(null));
-        
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, () -> refreshProducts());
+        // FIXED: Changed addProductDialogActionPerformed to addStockBtnActionPerformed
+        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, () -> addStockBtnActionPerformed(null));
+        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, () -> addStockBtnActionPerformed(null));
+
+        // MODIFIED: Report and Refresh shortcuts as per user request
+        // Ctrl+R = Report (semantic: R for Report)
+        // Ctrl+P = Report (semantic: P for Print/Report)
+        // F5 = Refresh (universal standard)
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, () -> generateStockReport());
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, () -> generateStockReport());
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshProducts());
         
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(expiringRadioBtn));
@@ -467,7 +485,7 @@ public class StockPanel extends javax.swing.JPanel {
 
     private void navigateToNextBatch() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -495,7 +513,7 @@ public class StockPanel extends javax.swing.JPanel {
         if (batchCount != null && batchCount > 1) {
             showPositionIndicator("Already at last batch of this product");
         } else {
-            showPositionIndicator("This product has only one batch");
+            showPositionIndicator("ℹ️ This product has only one batch");
         }
     }
 
@@ -529,7 +547,7 @@ public class StockPanel extends javax.swing.JPanel {
         if (batchCount != null && batchCount > 1) {
             showPositionIndicator("Already at first batch of this product");
         } else {
-            showPositionIndicator("This product has only one batch");
+            showPositionIndicator("ℹ️ This product has only one batch");
         }
     }
 
@@ -675,7 +693,7 @@ public class StockPanel extends javax.swing.JPanel {
             
             String batchInfo = "";
             if (batchCount != null && batchCount > 1 && batchIndex != null) {
-                batchInfo = String.format(" | 📦 Batch %d/%d (Ctrl+←/→)", batchIndex, batchCount);
+                batchInfo = String.format(" | Batch %d/%d (Ctrl+←/→)", batchIndex, batchCount);
             }
             
             String actionKey = "D: Deactivate";
@@ -683,7 +701,7 @@ public class StockPanel extends javax.swing.JPanel {
                 actionKey = "R: Reactivate";
             }
             
-            String text = String.format("📍 Card %d/%d (Row %d/%d, Col %d)%s | B: Barcode | E: Edit | %s", 
+            String text = String.format("Card %d/%d (Row %d/%d, Col %d)%s | B: Barcode | E: Edit | %s", 
                 currentCardIndex + 1, 
                 productCardsList.size(),
                 row,
@@ -801,7 +819,6 @@ public class StockPanel extends javax.swing.JPanel {
         });
     }
 
-    // UPDATED METHOD: Now accepts productName and sellingPrice
     private void openBarcodeForSelectedCard() {
         if (currentCardIndex >= 0 && currentCardIndex < productCardsList.size()) {
             lk.com.pos.privateclasses.RoundedPanel card = productCardsList.get(currentCardIndex);
@@ -831,7 +848,7 @@ public class StockPanel extends javax.swing.JPanel {
                 SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
             }
         } else {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
         }
     }
 
@@ -852,7 +869,7 @@ public class StockPanel extends javax.swing.JPanel {
                 SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
             }
         } else {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
         }
     }
 
@@ -872,7 +889,7 @@ public class StockPanel extends javax.swing.JPanel {
                 SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
             }
         } else {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
         }
     }
 
@@ -885,12 +902,12 @@ public class StockPanel extends javax.swing.JPanel {
     private void handleEscape() {
         if (currentCardIndex >= 0) {
             deselectCurrentCard();
-            showPositionIndicator("✓ Card deselected");
+            showPositionIndicator("Card deselected");
         } else if (!productSearchBar.getText().isEmpty() || buttonGroup1.getSelection() != null) {
             productSearchBar.setText("");
             buttonGroup1.clearSelection();
             SearchFilters();
-            showPositionIndicator("✓ Filters cleared");
+            showPositionIndicator("Filters cleared");
         }
         this.requestFocusInWindow();
     }
@@ -898,30 +915,30 @@ public class StockPanel extends javax.swing.JPanel {
     private void refreshProducts() {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastRefreshTime < REFRESH_COOLDOWN) {
-            showPositionIndicator("⏳ Please wait before refreshing again");
+            showPositionIndicator("Please wait before refreshing again");
             return;
         }
         
         lastRefreshTime = currentTime;
         SearchFilters();
-        showPositionIndicator("✓ Products refreshed");
+        showPositionIndicator("Products refreshed");
         this.requestFocusInWindow();
     }
 
     private void clearFilters() {
         buttonGroup1.clearSelection();
         SearchFilters();
-        showPositionIndicator("✓ All filters cleared");
+        showPositionIndicator("All filters cleared");
         this.requestFocusInWindow();
     }
 
     private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
         if (radioBtn.isSelected()) {
             buttonGroup1.clearSelection();
-            showPositionIndicator("✓ Filter removed: " + radioBtn.getText());
+            showPositionIndicator("Filter removed: " + radioBtn.getText());
         } else {
             radioBtn.setSelected(true);
-            showPositionIndicator("✓ Filter applied: " + radioBtn.getText());
+            showPositionIndicator("Filter applied: " + radioBtn.getText());
         }
         SearchFilters();
         this.requestFocusInWindow();
@@ -1031,11 +1048,12 @@ public class StockPanel extends javax.swing.JPanel {
         worker.execute();
     }
 
+    // ============ UPDATED: Smart Sorting & Responsive Query ============
     private List<ProductCardData> fetchProductsFromDatabase(String productSearch, String status) throws Exception {
         List<ProductCardData> products = new ArrayList<>();
         
         try {
-            // STEP 1: Count batches per product - SAFE QUERY (no user input)
+            // STEP 1: Count batches per product
             String countQuery = "SELECT product_id, COUNT(*) as batch_count "
                     + "FROM stock WHERE qty > 0 GROUP BY product_id";
             
@@ -1045,13 +1063,20 @@ public class StockPanel extends javax.swing.JPanel {
                 productBatchCount.put(countRs.getInt("product_id"), countRs.getInt("batch_count"));
             }
             
-            // STEP 2: Build main query safely
+            // STEP 2: Build main query with SMART ORDERING
             StringBuilder query = new StringBuilder(
                 "SELECT product.product_id, product.product_name, suppliers.suppliers_name, "
                 + "brand.brand_name, category.category_name, "
                 + "stock.qty, stock.expriy_date, stock.batch_no, product.barcode, "
                 + "stock.purchase_price, stock.last_price, stock.selling_price, "
-                + "stock.stock_id, product.p_status_id "
+                + "stock.stock_id, product.p_status_id, "
+                // ADDED: Priority calculation for smart sorting
+                + "CASE "
+                + "  WHEN stock.expriy_date < CURDATE() THEN 1 "  // Expired = Priority 1 (highest)
+                + "  WHEN stock.qty < 10 THEN 2 "                  // Low stock = Priority 2
+                + "  WHEN stock.expriy_date <= DATE_ADD(CURDATE(), INTERVAL 3 MONTH) THEN 3 "  // Expiring soon = Priority 3
+                + "  ELSE 4 "                                      // Normal = Priority 4
+                + "END as priority "
                 + "FROM product "
                 + "JOIN stock ON stock.product_id = product.product_id "
                 + "JOIN category ON category.category_id = product.category_id "
@@ -1061,14 +1086,14 @@ public class StockPanel extends javax.swing.JPanel {
                 + "WHERE stock.qty > 0 "
             );
 
-            // Status filter - SAFE (controlled by application)
+            // Status filter
             if ("Inactive".equals(status)) {
                 query.append("AND product.p_status_id = 2 ");
             } else {
                 query.append("AND product.p_status_id = 1 ");
             }
 
-            // Search filter - ESCAPED to prevent SQL injection
+            // Search filter with SQL injection protection
             if (productSearch != null && !productSearch.trim().isEmpty()
                     && !productSearch.equals("Search By Product Name Or Barcode")) {
                 String escapedSearch = productSearch.replace("'", "''")
@@ -1082,7 +1107,7 @@ public class StockPanel extends javax.swing.JPanel {
                      .append("%') ");
             }
 
-            // Status-specific filters - SAFE (controlled values)
+            // Status-specific filters
             if ("Low Stock".equals(status)) {
                 query.append("AND stock.qty < 10 ");
             }
@@ -1097,7 +1122,9 @@ public class StockPanel extends javax.swing.JPanel {
                 query.append("AND stock.expriy_date < CURDATE() ");
             }
 
-            query.append("ORDER BY product.product_name, stock.expriy_date");
+            // ============ UPDATED: SMART ORDERING ============
+            // Order by: 1) Priority (critical items first), 2) Product name, 3) Expiry date
+            query.append("ORDER BY priority ASC, product.product_name ASC, stock.expriy_date ASC");
 
             ResultSet rs = MySQL.executeSearch(query.toString());
 
@@ -1122,6 +1149,9 @@ public class StockPanel extends javax.swing.JPanel {
                 data.purchasePrice = rs.getDouble("purchase_price");
                 data.lastPrice = rs.getDouble("last_price");
                 data.sellingPrice = rs.getDouble("selling_price");
+                
+                // Get priority score for potential client-side sorting
+                data.priorityScore = rs.getInt("priority");
                 
                 int batchIdx = currentBatchIndex.getOrDefault(data.productId, 0) + 1;
                 currentBatchIndex.put(data.productId, batchIdx);
@@ -1151,6 +1181,7 @@ public class StockPanel extends javax.swing.JPanel {
             return;
         }
 
+        // UPDATED: Calculate responsive columns based on current panel width
         currentColumns = calculateColumns(jPanel2.getWidth());
         
         final JPanel gridPanel = createGridPanel();
@@ -1232,11 +1263,11 @@ public class StockPanel extends javax.swing.JPanel {
 
     private String getEmptyStateMessage() {
         if (expiringRadioBtn.isSelected()) {
-            return "No expiring soon products with stock available";
+            return "No expiring soon products - Everything is good!";
         } else if (lowStockRadioBtn.isSelected()) {
-            return "No low stock products available";
+            return "No low stock products - Inventory is healthy!";
         } else if (expiredRadioBtn.isSelected()) {
-            return "No expired products with stock available";
+            return "No expired products - Great inventory management!";
         } else if (inactiveRadioBtn.isSelected()) {
             return "No inactive products with stock available";
         }
@@ -1245,9 +1276,11 @@ public class StockPanel extends javax.swing.JPanel {
 
     private JPanel createGridPanel() {
         JPanel gridPanel = new JPanel();
-        gridPanel.setLayout(new java.awt.GridLayout(0, currentColumns, 25, 25));
+        // UPDATED: Responsive grid gap
+        int responsiveGap = Math.max(15, Math.min(gridGap, jPanel2.getWidth() / 50));
+        gridPanel.setLayout(new java.awt.GridLayout(0, currentColumns, responsiveGap, responsiveGap));
         gridPanel.setBackground(Color.decode("#F8FAFC"));
-        gridPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+        gridPanel.setBorder(BorderFactory.createEmptyBorder(responsiveGap, responsiveGap, responsiveGap, responsiveGap));
         return gridPanel;
     }
 
@@ -1260,7 +1293,10 @@ public class StockPanel extends javax.swing.JPanel {
 
                 if (newColumns != currentColumns) {
                     currentColumns = newColumns;
-                    gridPanel.setLayout(new java.awt.GridLayout(0, newColumns, 25, 25));
+                    // UPDATED: Responsive grid gap on resize
+                    int responsiveGap = Math.max(15, Math.min(gridGap, panelWidth / 50));
+                    gridPanel.setLayout(new java.awt.GridLayout(0, newColumns, responsiveGap, responsiveGap));
+                    gridPanel.setBorder(BorderFactory.createEmptyBorder(responsiveGap, responsiveGap, responsiveGap, responsiveGap));
                     gridPanel.revalidate();
                     gridPanel.repaint();
                 }
@@ -1268,11 +1304,18 @@ public class StockPanel extends javax.swing.JPanel {
         });
     }
 
+    // UPDATED: More responsive column calculation
     private int calculateColumns(int panelWidth) {
+        // Subtract scrollbar and padding
         int availableWidth = panelWidth - 50;
-        int cardWithGap = 445;
+        
+        // Dynamic card width based on screen size
+        int responsiveCardWidth = Math.max(350, Math.min(cardWidth, availableWidth / 2));
+        int cardWithGap = responsiveCardWidth + gridGap;
 
-        if (availableWidth >= cardWithGap * 3) {
+        if (availableWidth >= cardWithGap * 4) {
+            return 4;  // Extra large screens
+        } else if (availableWidth >= cardWithGap * 3) {
             return 3;
         } else if (availableWidth >= cardWithGap * 2) {
             return 2;
@@ -1290,11 +1333,13 @@ public class StockPanel extends javax.swing.JPanel {
 
         lk.com.pos.privateclasses.RoundedPanel card = new lk.com.pos.privateclasses.RoundedPanel();
         card.setLayout(new java.awt.BorderLayout());
-        card.setPreferredSize(new java.awt.Dimension(420, 480));
-        card.setMaximumSize(new java.awt.Dimension(420, 480));
-        card.setMinimumSize(new java.awt.Dimension(380, 480));
         
-        // Store all properties in the card - UPDATED: Added sellingPrice
+        // UPDATED: More flexible card sizing
+        card.setPreferredSize(new java.awt.Dimension(cardWidth, cardHeight));
+        card.setMaximumSize(new java.awt.Dimension(cardWidth + 50, cardHeight + 50));
+        card.setMinimumSize(new java.awt.Dimension(cardWidth - 70, cardHeight - 50));
+        
+        // Store all properties in the card
         card.putClientProperty("productId", productId);
         card.putClientProperty("productName", productName);
         card.putClientProperty("stockId", stockId);
@@ -1302,7 +1347,7 @@ public class StockPanel extends javax.swing.JPanel {
         card.putClientProperty("barcode", barcode);
         card.putClientProperty("batchIndex", batchIndex);
         card.putClientProperty("totalBatches", totalBatches);
-        card.putClientProperty("sellingPrice", sellingPrice); // ADDED THIS LINE
+        card.putClientProperty("sellingPrice", sellingPrice);
         
         if (pStatusId == 2) {
             card.setBackground(Color.decode("#F8F9FA"));
@@ -1390,7 +1435,7 @@ public class StockPanel extends javax.swing.JPanel {
         editButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#BFDBFE"), 1));
         editButton.setFocusable(false);
         
-        editButton.setToolTipText("Edit Product");
+        editButton.setToolTipText("Edit Product (E)");
         editButton.addActionListener(e -> {
             editProduct(productId, stockId);
             StockPanel.this.requestFocusInWindow();
@@ -1545,7 +1590,7 @@ public class StockPanel extends javax.swing.JPanel {
                 lowStockBadge.setOpaque(true);
                 lowStockBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
                 lowStockBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                        javax.swing.BorderFactory.createLineBorder(Color.decode("#FDE047"), 1),
+                        javax.swing.BorderFactory.createLineBorder(Color.decode("#FCA5A5"), 1),
                         javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8)
                 ));
                 badgePanel.add(lowStockBadge);
@@ -1589,7 +1634,6 @@ public class StockPanel extends javax.swing.JPanel {
 
         detailsGrid.add(createDetailPanel("Batch No", batchNo, 
             pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#06B6D4")));
-        // UPDATED: Pass productName and sellingPrice to createBarcodePanel
         detailsGrid.add(createBarcodePanel(barcode, pStatusId, productName, sellingPrice));
 
         contentPanel.add(detailsGrid);
@@ -1646,7 +1690,6 @@ public class StockPanel extends javax.swing.JPanel {
         return card;
     }
 
-    // UPDATED METHOD: Now accepts productName and sellingPrice as parameters
     private javax.swing.JPanel createBarcodePanel(String barcode, int pStatusId, String productName, double sellingPrice) {
         javax.swing.JPanel panel = new javax.swing.JPanel();
         panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
@@ -1680,9 +1723,8 @@ public class StockPanel extends javax.swing.JPanel {
                 barcodeBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
                 barcodeBtn.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#FECACA"), 1));
                 barcodeBtn.setFocusable(false);
-                barcodeBtn.setToolTipText("View Barcode Details & Copy");
+                barcodeBtn.setToolTipText("View Barcode Details & Copy (B)");
                 
-                // UPDATED: Pass productName and sellingPrice to openBarcodeDialog
                 barcodeBtn.addActionListener(e -> {
                     openBarcodeDialog(barcode, productName, sellingPrice);
                     StockPanel.this.requestFocusInWindow();
@@ -1696,8 +1738,7 @@ public class StockPanel extends javax.swing.JPanel {
                 barcodeBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
                 barcodeBtn.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#FECACA"), 1));
                 barcodeBtn.setFocusable(false);
-                barcodeBtn.setToolTipText("View Barcode Details & Copy");
-                // UPDATED: Pass productName and sellingPrice to openBarcodeDialog
+                barcodeBtn.setToolTipText("View Barcode Details & Copy (B)");
                 barcodeBtn.addActionListener(ev -> {
                     openBarcodeDialog(barcode, productName, sellingPrice);
                     StockPanel.this.requestFocusInWindow();
@@ -1714,12 +1755,11 @@ public class StockPanel extends javax.swing.JPanel {
 
         return panel;
     }
-//HASAN
-    // UPDATED METHOD: Now accepts productName and sellingPrice
+
     private void openBarcodeDialog(String barcode, String productName, double sellingPrice) {
-        PrintProductLabel dialog = new PrintProductLabel(null, true, barcode, productName, sellingPrice);
-        dialog.setLocationRelativeTo(null);
-        dialog.setVisible(true);
+//        PrintProductLabel dialog = new PrintProductLabel(null, true, barcode, productName, sellingPrice);
+//        dialog.setLocationRelativeTo(null);
+//        dialog.setVisible(true);
     }
 
     private javax.swing.JPanel createDetailPanel(String title, String value, Color accentColor) {
@@ -1798,9 +1838,9 @@ public class StockPanel extends javax.swing.JPanel {
     }
 
     private void editProduct(int productId, int stockId) {
-        UpdateProductStock updateProduct = new UpdateProductStock(null, true, productId, stockId);
-        updateProduct.setLocationRelativeTo(null);
-        updateProduct.setVisible(true);
+        UpdateProductStock updateProductStock = new UpdateProductStock(null, true, productId, stockId);
+        updateProductStock.setLocationRelativeTo(null);
+        updateProductStock.setVisible(true);
         SearchFilters();
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
@@ -1928,6 +1968,18 @@ public class StockPanel extends javax.swing.JPanel {
                 }
             }
         });
+    } 
+    
+      private void generateStockReport() {
+        // TODO: Implement your actual report generation logic here.
+        // This could involve fetching data and using a library like JasperReports.
+        System.out.println("Stock Report generation triggered.");
+        JOptionPane.showMessageDialog(this, 
+                "Stock Report generation is not yet implemented.\n"
+                + "You can add your report logic in the 'generateStockReport()' method.", 
+                "Feature Under Development", 
+                JOptionPane.INFORMATION_MESSAGE);
+        this.requestFocusInWindow();
     }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -1939,7 +1991,7 @@ public class StockPanel extends javax.swing.JPanel {
         expiringRadioBtn = new javax.swing.JRadioButton();
         lowStockRadioBtn = new javax.swing.JRadioButton();
         expiredRadioBtn = new javax.swing.JRadioButton();
-        addProductDialog = new javax.swing.JButton();
+        addStockBtn = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         jPanel2 = new javax.swing.JPanel();
         roundedPanel2 = new lk.com.pos.privateclasses.RoundedPanel();
@@ -1980,6 +2032,7 @@ public class StockPanel extends javax.swing.JPanel {
         jLabel39 = new javax.swing.JLabel();
         jLabel40 = new javax.swing.JLabel();
         inactiveRadioBtn = new javax.swing.JRadioButton();
+        stockReportBtn = new javax.swing.JButton();
 
         jPanel1.setBackground(new java.awt.Color(248, 250, 252));
 
@@ -2005,11 +2058,11 @@ public class StockPanel extends javax.swing.JPanel {
             }
         });
 
-        addProductDialog.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addProductDialog.setText("Add Stock");
-        addProductDialog.addActionListener(new java.awt.event.ActionListener() {
+        addStockBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addStockBtn.setText("Add Stock");
+        addStockBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addProductDialogActionPerformed(evt);
+                addStockBtnActionPerformed(evt);
             }
         });
 
@@ -2408,6 +2461,14 @@ public class StockPanel extends javax.swing.JPanel {
             }
         });
 
+        stockReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        stockReportBtn.setText("Stock Report");
+        stockReportBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                stockReportBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -2417,7 +2478,7 @@ public class StockPanel extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jScrollPane1)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(productSearchBar)
+                        .addComponent(productSearchBar, javax.swing.GroupLayout.PREFERRED_SIZE, 1, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(expiringRadioBtn)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -2426,8 +2487,10 @@ public class StockPanel extends javax.swing.JPanel {
                         .addComponent(expiredRadioBtn)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(inactiveRadioBtn)
-                        .addGap(95, 95, 95)
-                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(30, 30, 30)
+                        .addComponent(stockReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addStockBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(
@@ -2439,8 +2502,9 @@ public class StockPanel extends javax.swing.JPanel {
                     .addComponent(expiringRadioBtn)
                     .addComponent(lowStockRadioBtn)
                     .addComponent(expiredRadioBtn)
-                    .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(inactiveRadioBtn))
+                    .addComponent(addStockBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(inactiveRadioBtn)
+                    .addComponent(stockReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 442, Short.MAX_VALUE)
                 .addGap(18, 18, 18))
@@ -2462,19 +2526,24 @@ public class StockPanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_expiredRadioBtnActionPerformed
 
-    private void addProductDialogActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addProductDialogActionPerformed
+    private void addStockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addStockBtnActionPerformed
         AddNewStock addNewStock = new AddNewStock(null, true);
         addNewStock.setLocationRelativeTo(null);
         addNewStock.setVisible(true);
-    }//GEN-LAST:event_addProductDialogActionPerformed
+        SearchFilters();
+    }//GEN-LAST:event_addStockBtnActionPerformed
 
     private void inactiveRadioBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_inactiveRadioBtnActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_inactiveRadioBtnActionPerformed
 
+    private void stockReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockReportBtnActionPerformed
+        generateStockReport();
+    }//GEN-LAST:event_stockReportBtnActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton addProductDialog;
+    private javax.swing.JButton addStockBtn;
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JButton deleteBtn;
     private javax.swing.JButton editBtn;
@@ -2521,5 +2590,6 @@ public class StockPanel extends javax.swing.JPanel {
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel2;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel3;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel4;
+    private javax.swing.JButton stockReportBtn;
     // End of variables declaration//GEN-END:variables
 }

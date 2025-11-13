@@ -37,6 +37,7 @@ import javax.swing.JOptionPane;
 import javax.swing.BoxLayout;
 import javax.swing.Box;
 import javax.swing.SwingConstants;
+import lk.com.pos.dialog.AddSupplier;
 import lk.com.pos.dialog.UpdateSupplier;
 import lk.com.pos.privateclasses.RoundedPanel;
 
@@ -50,10 +51,6 @@ import lk.com.pos.privateclasses.RoundedPanel;
  */
 public class SupplierPanel extends javax.swing.JPanel {
 
-    // ============================================================================
-    // CONSTANTS
-    // ============================================================================
-    
     // UI Constants - Colors
     private static final class Colors {
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
@@ -136,14 +133,14 @@ public class SupplierPanel extends javax.swing.JPanel {
     
     // UI Constants - Strings
     private static final class Strings {
-        static final String SEARCH_PLACEHOLDER = "By Company Name, Supplier Name Or Register No";
+        static final String SEARCH_PLACEHOLDER = " Search By Company Name, Supplier Name Or Register No";
         static final String NO_SUPPLIERS = "No suppliers found";
-        static final String LOADING_MESSAGE = "⏳ Loading suppliers...";
+        static final String LOADING_MESSAGE = "Loading suppliers...";
         static final String LOADING_SUBMESSAGE = "Please wait";
-        static final String HELP_TITLE = "⌨️ KEYBOARD SHORTCUTS";
+        static final String HELP_TITLE = "KEYBOARD SHORTCUTS";
         static final String HELP_CLOSE_HINT = "Press ? to hide";
         static final String SECTION_DETAILS = "SUPPLIER DETAILS";
-        static final String SECTION_PAYMENT = "💰 PAYMENT SUMMARY";
+        static final String SECTION_PAYMENT = "PAYMENT SUMMARY";
         static final String NO_VALUE = "N/A";
         static final String STATUS_ACTIVE = "Active";
         static final String STATUS_INACTIVE = "Inactive";
@@ -159,10 +156,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         static final int STATUS_INACTIVE_ID = 2;
     }
 
-    // ============================================================================
-    // FIELDS
-    // ============================================================================
-    
     // Keyboard Navigation
     private RoundedPanel currentFocusedCard = null;
     private List<RoundedPanel> supplierCardsList = new ArrayList<>();
@@ -181,10 +174,6 @@ public class SupplierPanel extends javax.swing.JPanel {
     // State
     private long lastRefreshTime = 0;
 
-    // ============================================================================
-    // CONSTRUCTOR
-    // ============================================================================
-    
     public SupplierPanel() {
         initComponents();
         initializeUI();
@@ -200,14 +189,11 @@ public class SupplierPanel extends javax.swing.JPanel {
         });
     }
 
-    // ============================================================================
-    // INITIALIZATION METHODS
-    // ============================================================================
-    
     private void initializeUI() {
         setupScrollPane();
         setupSearchField();
         setupRadioButtons();
+        setupButtons();
         setupEventListeners();
         // No radio button selected, but will show active suppliers by default
     }
@@ -238,6 +224,11 @@ public class SupplierPanel extends javax.swing.JPanel {
             public void removeUpdate(javax.swing.event.DocumentEvent e) { performSearch(); }
             public void insertUpdate(javax.swing.event.DocumentEvent e) { performSearch(); }
         });
+    }
+    
+    private void setupButtons() {
+        supplierReportBtn.setToolTipText("Generate Supplier Report (Ctrl+R or Ctrl+P)");
+        addSupplierBtn.setToolTipText("Add new supplier (Ctrl+N or Alt+A)");
     }
     
     private void setupRadioButtons() {
@@ -301,10 +292,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         }
     }
 
-    // ============================================================================
-    // LOADING PANEL
-    // ============================================================================
-    
     private void createLoadingPanel() {
         loadingPanel = new JPanel(new BorderLayout());
         loadingPanel.setBackground(new Color(248, 250, 252, 230));
@@ -347,10 +334,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         });
     }
 
-    // ============================================================================
-    // POSITION INDICATOR
-    // ============================================================================
-    
     private void createPositionIndicator() {
         positionIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         positionIndicator.setBackground(new Color(31, 41, 55, 230));
@@ -418,10 +401,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         positionTimer.start();
     }
 
-    // ============================================================================
-    // KEYBOARD HINTS PANEL
-    // ============================================================================
-    
     private void createKeyboardHintsPanel() {
         keyboardHintsPanel = new JPanel();
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
@@ -445,6 +424,11 @@ public class SupplierPanel extends javax.swing.JPanel {
         addHintRow("D", "Deactivate Supplier", "#F87171");
         addHintRow("R", "Reactivate Supplier", "#10B981");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+N", "Add New Supplier", "#1CB5BB");
+        addHintRow("Alt+A", "Add New Supplier", "#1CB5BB");
+        addHintRow("Ctrl+R", "Supplier Report", "#10B981");
+        addHintRow("Ctrl+P", "Supplier Report", "#10B981");
+        addHintRow("F5", "Refresh Data", "#06B6D4");
         addHintRow("Alt+1", "Due Amount", "#FB923C");
         addHintRow("Alt+2", "No Due", "#FB923C");
         addHintRow("Alt+3", "Active", "#FB923C");
@@ -506,10 +490,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         }
     }
 
-    // ============================================================================
-    // KEYBOARD SHORTCUTS
-    // ============================================================================
-    
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
         
@@ -526,7 +506,7 @@ public class SupplierPanel extends javax.swing.JPanel {
         registerKeyAction("V", KeyEvent.VK_V, 0, condition, this::viewDetailsForSelectedCard);
         registerKeyAction("E", KeyEvent.VK_E, 0, condition, this::editSelectedCard);
         registerKeyAction("D", KeyEvent.VK_D, 0, condition, this::deactivateSelectedCard);
-        registerKeyAction("R", KeyEvent.VK_R, 0, condition, this::reactivateSelectedCard);
+        registerKeyAction("R_KEY", KeyEvent.VK_R, 0, condition, this::reactivateSelectedCard);
         
         // Enter to start navigation
         registerKeyAction("ENTER", KeyEvent.VK_ENTER, 0, condition, this::handleEnterKey);
@@ -539,8 +519,15 @@ public class SupplierPanel extends javax.swing.JPanel {
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
         
         // Refresh
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::refreshSuppliers);
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshSuppliers);
+        
+        // Add New Supplier
+        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddSupplier);
+        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddSupplier);
+        
+        // Supplier Report
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openSupplierReport);
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openSupplierReport);
         
         // Quick filters - Alt+1 = Due Amount, Alt+2 = No Due, Alt+3 = Active, Alt+4 = Inactive
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
@@ -627,13 +614,9 @@ public class SupplierPanel extends javax.swing.JPanel {
         }
     }
 
-    // ============================================================================
-    // CARD NAVIGATION
-    // ============================================================================
-    
     private void navigateCards(int direction) {
         if (supplierCardsList.isEmpty()) {
-            showPositionIndicator("📋 No suppliers available");
+            showPositionIndicator("No suppliers available");
             return;
         }
         
@@ -720,7 +703,7 @@ public class SupplierPanel extends javax.swing.JPanel {
             actionKey = "R: Reactivate";
         }
         
-        String text = String.format("📍 Card %d/%d (Row %d/%d, Col %d) | V: View Details | E: Edit | %s", 
+        String text = String.format("Card %d/%d (Row %d/%d, Col %d) | V: View Details | E: Edit | %s", 
             currentCardIndex + 1, supplierCardsList.size(), row, totalRows, col, actionKey);
         
         showPositionIndicator(text);
@@ -814,13 +797,9 @@ public class SupplierPanel extends javax.swing.JPanel {
         scrollTimer.start();
     }
 
-    // ============================================================================
-    // KEYBOARD ACTIONS
-    // ============================================================================
-    
     private void viewDetailsForSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= supplierCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -836,7 +815,7 @@ public class SupplierPanel extends javax.swing.JPanel {
     
     private void editSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= supplierCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -851,7 +830,7 @@ public class SupplierPanel extends javax.swing.JPanel {
     
     private void deactivateSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= supplierCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -872,7 +851,7 @@ public class SupplierPanel extends javax.swing.JPanel {
     
     private void reactivateSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= supplierCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -900,7 +879,7 @@ public class SupplierPanel extends javax.swing.JPanel {
     private void handleEscape() {
         if (currentCardIndex >= 0) {
             deselectCurrentCard();
-            showPositionIndicator("✓ Card deselected");
+            showPositionIndicator("Card deselected");
         } else if (!jTextField1.getText().isEmpty() || 
                    activeRadioBtn.isSelected() || 
                    inActiveRadioBtn.isSelected() || 
@@ -909,7 +888,7 @@ public class SupplierPanel extends javax.swing.JPanel {
             jTextField1.setText("");
             buttonGroup1.clearSelection(); // Clear all filters
             performSearch(); // Will default to showing active suppliers
-            showPositionIndicator("✓ Filters cleared - Showing active suppliers");
+            showPositionIndicator("Filters cleared - Showing active suppliers");
         }
         this.requestFocusInWindow();
     }
@@ -917,33 +896,43 @@ public class SupplierPanel extends javax.swing.JPanel {
     private void refreshSuppliers() {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastRefreshTime < Business.REFRESH_COOLDOWN_MS) {
-            showPositionIndicator("⏳ Please wait before refreshing again");
+            showPositionIndicator("Please wait before refreshing again");
             return;
         }
         
         lastRefreshTime = currentTime;
         performSearch();
-        showPositionIndicator("✓ Suppliers refreshed");
+        showPositionIndicator("✅ Suppliers refreshed");
         this.requestFocusInWindow();
+    }
+    
+    private void openAddSupplier() {
+        AddSupplier addSupplier = new AddSupplier(null, true);
+        addSupplier.setLocationRelativeTo(null);
+        addSupplier.setVisible(true);
+        performSearch();
+        showPositionIndicator("➕ Opening Add Supplier Dialog");
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
+    }
+    
+    private void openSupplierReport() {
+        supplierReportBtn.doClick();
+        showPositionIndicator("📊 Opening Supplier Report");
     }
     
     private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
         if (radioBtn.isSelected()) {
             buttonGroup1.clearSelection(); // Clear selection
             // After clearing, will default back to showing active suppliers
-            showPositionIndicator("✓ Filter removed - Showing active suppliers");
+            showPositionIndicator("Filter removed - Showing active suppliers");
         } else {
             radioBtn.setSelected(true);
-            showPositionIndicator("✓ Filter applied: " + radioBtn.getText());
+            showPositionIndicator("Filter applied: " + radioBtn.getText());
         }
         performSearch();
         this.requestFocusInWindow();
     }
 
-    // ============================================================================
-    // DATA LOADING
-    // ============================================================================
-    
     private static class SupplierCardData {
         int supplierId, pStatusId;
         String company, supplierName, mobile, regNo, address, status;
@@ -1132,10 +1121,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         });
     }
 
-    // ============================================================================
-    // UI DISPLAY
-    // ============================================================================
-    
     private void displaySuppliers(List<SupplierCardData> suppliers) {
         clearSupplierCards();
         
@@ -1271,10 +1256,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         else return 1;
     }
 
-    // ============================================================================
-    // CARD CREATION
-    // ============================================================================
-    
     class RoundedBorder extends javax.swing.border.AbstractBorder {
         private final Color color;
         private final int thickness;
@@ -1528,7 +1509,7 @@ public class SupplierPanel extends javax.swing.JPanel {
         nameBadgePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         nameBadgePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
-        JLabel nameLabel = new JLabel("● " + (supplierName != null ? supplierName : Strings.NO_VALUE));
+        JLabel nameLabel = new JLabel((supplierName != null ? supplierName : Strings.NO_VALUE));
         nameLabel.setFont(Fonts.SUPPLIER_NAME);
         
         if (pStatusId == Business.STATUS_INACTIVE_ID) {
@@ -1555,7 +1536,7 @@ public class SupplierPanel extends javax.swing.JPanel {
     }
     
     private JLabel createActiveBadge() {
-        JLabel badge = new JLabel("✓ Active");
+        JLabel badge = new JLabel("Active");
         badge.setFont(Fonts.BADGE);
         badge.setForeground(Colors.BADGE_ACTIVE_FG);
         badge.setBackground(Colors.BADGE_ACTIVE_BG);
@@ -1773,10 +1754,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         else return String.format("Rs.%.2f", price);
     }
 
-    // ============================================================================
-    // ACTION METHODS
-    // ============================================================================
-    
     private void editSupplier(int supplierId) {
         if (supplierId <= 0) {
             System.err.println("Invalid supplier ID: " + supplierId);
@@ -1871,6 +1848,18 @@ public class SupplierPanel extends javax.swing.JPanel {
         // TODO: Implement view details dialog/panel
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
+    
+     private void generateSupplierReport() {
+        // TODO: Implement your actual report generation logic here.
+        // This could involve fetching data and using a library like JasperReports.
+        System.out.println("Supplier Report generation triggered.");
+        JOptionPane.showMessageDialog(this, 
+                "Supplier Report generation is not yet implemented.\n"
+                + "You can add your report logic in the 'generateSupplierReport()' method.", 
+                "Feature Under Development", 
+                JOptionPane.INFORMATION_MESSAGE);
+        this.requestFocusInWindow();
+    }
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -1882,7 +1871,7 @@ public class SupplierPanel extends javax.swing.JPanel {
         jTextField1 = new javax.swing.JTextField();
         activeRadioBtn = new javax.swing.JRadioButton();
         inActiveRadioBtn = new javax.swing.JRadioButton();
-        jButton2 = new javax.swing.JButton();
+        addSupplierBtn = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         jPanel2 = new javax.swing.JPanel();
         roundedPanel2 = new lk.com.pos.privateclasses.RoundedPanel();
@@ -1914,6 +1903,7 @@ public class SupplierPanel extends javax.swing.JPanel {
         jLabel22 = new javax.swing.JLabel();
         jRadioButton4 = new javax.swing.JRadioButton();
         jRadioButton2 = new javax.swing.JRadioButton();
+        supplierReportBtn = new javax.swing.JButton();
 
         jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
 
@@ -1927,8 +1917,13 @@ public class SupplierPanel extends javax.swing.JPanel {
         inActiveRadioBtn.setForeground(new java.awt.Color(255, 51, 51));
         inActiveRadioBtn.setText("Inactive");
 
-        jButton2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton2.setText("Add Supplier");
+        addSupplierBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addSupplierBtn.setText("Add Supplier");
+        addSupplierBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addSupplierBtnActionPerformed(evt);
+            }
+        });
 
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -2224,6 +2219,14 @@ public class SupplierPanel extends javax.swing.JPanel {
         jRadioButton2.setForeground(new java.awt.Color(99, 102, 241));
         jRadioButton2.setText("No Due");
 
+        supplierReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        supplierReportBtn.setText("Supplier Report");
+        supplierReportBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                supplierReportBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
         jPanel4.setLayout(jPanel4Layout);
         jPanel4Layout.setHorizontalGroup(
@@ -2233,7 +2236,7 @@ public class SupplierPanel extends javax.swing.JPanel {
                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
                     .addGroup(jPanel4Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 392, Short.MAX_VALUE)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 329, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jRadioButton4)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -2242,8 +2245,10 @@ public class SupplierPanel extends javax.swing.JPanel {
                         .addComponent(activeRadioBtn)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(inActiveRadioBtn)
-                        .addGap(93, 93, 93)
-                        .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(supplierReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 144, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addSupplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(15, 15, 15))
         );
         jPanel4Layout.setVerticalGroup(
@@ -2260,7 +2265,9 @@ public class SupplierPanel extends javax.swing.JPanel {
                             .addComponent(jRadioButton2)))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
                         .addGap(15, 15, 15)
-                        .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(addSupplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(supplierReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 475, Short.MAX_VALUE)
                 .addGap(15, 15, 15))
@@ -2289,14 +2296,26 @@ public class SupplierPanel extends javax.swing.JPanel {
         );
     }// </editor-fold>//GEN-END:initComponents
 
+    private void addSupplierBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addSupplierBtnActionPerformed
+       AddSupplier addSupplier = new AddSupplier(null, true);
+       addSupplier.setLocationRelativeTo(null);
+       addSupplier.setVisible(true);
+        performSearch();
+       
+    }//GEN-LAST:event_addSupplierBtnActionPerformed
+
+    private void supplierReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_supplierReportBtnActionPerformed
+        generateSupplierReport();
+    }//GEN-LAST:event_supplierReportBtnActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JRadioButton activeRadioBtn;
+    private javax.swing.JButton addSupplierBtn;
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JButton deleteBtn;
     private javax.swing.JButton editBtn;
     private javax.swing.JRadioButton inActiveRadioBtn;
-    private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel15;
@@ -2329,5 +2348,6 @@ public class SupplierPanel extends javax.swing.JPanel {
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel3;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel4;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel5;
+    private javax.swing.JButton supplierReportBtn;
     // End of variables declaration//GEN-END:variables
 }

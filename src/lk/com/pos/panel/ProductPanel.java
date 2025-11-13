@@ -30,7 +30,9 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.JOptionPane;
 import lk.com.pos.connection.MySQL;
+import lk.com.pos.dialog.AddNewProduct;
 import lk.com.pos.dialog.UpdateProduct;
 import lk.com.pos.privateclasses.RoundedPanel;
 
@@ -44,10 +46,6 @@ import lk.com.pos.privateclasses.RoundedPanel;
  */
 public class ProductPanel extends javax.swing.JPanel {
 
-    // ============================================================================
-    // CONSTANTS
-    // ============================================================================
-    
     private static final class Colors {
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
         static final Color TEAL_HOVER = new Color(60, 200, 206);
@@ -76,10 +74,6 @@ public class ProductPanel extends javax.swing.JPanel {
         static final java.awt.Font HINT_DESC = new java.awt.Font("Nunito SemiBold", 0, 11);
     }
 
-    // ============================================================================
-    // FIELDS
-    // ============================================================================
-    
     // Keyboard Navigation
     private RoundedPanel currentFocusedCard = null;
     private List<RoundedPanel> productCardsList = new ArrayList<>();
@@ -93,10 +87,6 @@ public class ProductPanel extends javax.swing.JPanel {
     private JPanel keyboardHintsPanel;
     private boolean hintsVisible = false;
 
-    // ============================================================================
-    // CONSTRUCTOR
-    // ============================================================================
-    
     public ProductPanel() {
         initComponents();
         
@@ -120,10 +110,6 @@ public class ProductPanel extends javax.swing.JPanel {
         });
     }
 
-    // ============================================================================
-    // INITIALIZATION METHODS
-    // ============================================================================
-    
     private void init() {
         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
                 "track: #F5F5F5; thumb: #1CB5BB; width: 8");
@@ -132,16 +118,16 @@ public class ProductPanel extends javax.swing.JPanel {
         productSearchBar.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         
+        
+        
         // Set tooltips with keyboard shortcuts
         activeRadioBtn.setToolTipText("Filter active products (Alt+1)");
         inactiveRadioBtn.setToolTipText("Filter inactive products (Alt+2)");
         productSearchBar.setToolTipText("Search products (Ctrl+F or /) - Press ? for help");
+        productReportBtn.setToolTipText("Generate Product Report (Ctrl+R or Ctrl+P)");
+        addProductDialog.setToolTipText("Add New Product (Ctrl+N or Alt+A)"); // ADDED
     }
 
-    // ============================================================================
-    // POSITION INDICATOR
-    // ============================================================================
-    
     private void createPositionIndicator() {
         positionIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         positionIndicator.setBackground(new Color(31, 41, 55, 230));
@@ -205,10 +191,6 @@ public class ProductPanel extends javax.swing.JPanel {
         positionTimer.start();
     }
 
-    // ============================================================================
-    // KEYBOARD HINTS PANEL
-    // ============================================================================
-    
     private void createKeyboardHintsPanel() {
         keyboardHintsPanel = new JPanel();
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
@@ -226,11 +208,15 @@ public class ProductPanel extends javax.swing.JPanel {
         keyboardHintsPanel.add(title);
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
         
+        // UPDATED: Added hints for Add Product shortcuts
         addHintRow("← → ↑ ↓", "Navigate cards", "#FFFFFF");
         addHintRow("E", "Edit Product", "#1CB5BB");
         addHintRow("D", "Deactivate Product", "#F87171");
         addHintRow("R", "Activate Product", "#10B981");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("Ctrl+N/Alt+A", "Add Product", "#60D5F2");
+        addHintRow("Ctrl+R/P", "Product Report", "#34D399");
+        addHintRow("F5", "Refresh List", "#FB923C");
         addHintRow("Alt+1", "Active Products", "#FB923C");
         addHintRow("Alt+2", "Inactive Products", "#FB923C");
         addHintRow("Esc", "Clear/Back", "#9CA3AF");
@@ -290,10 +276,6 @@ public class ProductPanel extends javax.swing.JPanel {
         }
     }
 
-    // ============================================================================
-    // KEYBOARD SHORTCUTS
-    // ============================================================================
-    
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
         
@@ -321,8 +303,16 @@ public class ProductPanel extends javax.swing.JPanel {
         // Escape
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
         
-        // Refresh
+        // Report and Refresh
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::generateProductReport);
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::generateProductReport);
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshProducts);
+        
+        // ADDED: Add Product shortcuts
+        // Ctrl+N = New Product (semantic: N for New)
+        // Alt+A = Add Product (semantic: A for Add)
+        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddProductDialog);
+        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddProductDialog);
         
         // Quick filters - Alt+1 = Active, Alt+2 = Inactive
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(activeRadioBtn));
@@ -416,43 +406,47 @@ public class ProductPanel extends javax.swing.JPanel {
     private void handleEscape() {
         if (currentCardIndex >= 0) {
             deselectCurrentCard();
-            showPositionIndicator("✓ Card deselected");
+            showPositionIndicator("Card deselected");
         } else if (!productSearchBar.getText().isEmpty() || 
                    activeRadioBtn.isSelected() || 
                    inactiveRadioBtn.isSelected()) {
             productSearchBar.setText("");
             buttonGroup1.clearSelection();
             SearchFilters();
-            showPositionIndicator("✓ Filters cleared - Showing active products");
+            showPositionIndicator("Filters cleared - Showing active products");
         }
         this.requestFocusInWindow();
     }
     
     private void refreshProducts() {
         SearchFilters();
-        showPositionIndicator("✓ Products refreshed");
+        showPositionIndicator("✅ Products refreshed");
         this.requestFocusInWindow();
     }
     
     private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
         if (radioBtn.isSelected()) {
             buttonGroup1.clearSelection();
-            showPositionIndicator("✓ Filter removed - Showing active products");
+            showPositionIndicator("Filter removed - Showing active products");
         } else {
             radioBtn.setSelected(true);
-            showPositionIndicator("✓ Filter applied: " + radioBtn.getText());
+            showPositionIndicator("Filter applied: " + radioBtn.getText());
         }
         SearchFilters();
         this.requestFocusInWindow();
     }
-
-    // ============================================================================
-    // CARD NAVIGATION
-    // ============================================================================
     
+    /**
+     * ADDED: Opens Add Product dialog
+     */
+    private void openAddProductDialog() {
+        addProductDialog.doClick();
+        showPositionIndicator("Opening Add Product dialog");
+    }
+
     private void navigateCards(int direction) {
         if (productCardsList.isEmpty()) {
-            showPositionIndicator("📋 No products available");
+            showPositionIndicator("No products available");
             return;
         }
         
@@ -539,7 +533,7 @@ public class ProductPanel extends javax.swing.JPanel {
             actionKey = "R: Activate";
         }
         
-        String text = String.format("📍 Card %d/%d (Row %d/%d, Col %d) | E: Edit | %s", 
+        String text = String.format("Card %d/%d (Row %d/%d, Col %d) | E: Edit | %s", 
             currentCardIndex + 1, productCardsList.size(), row, totalRows, col, actionKey);
         
         showPositionIndicator(text);
@@ -630,13 +624,9 @@ public class ProductPanel extends javax.swing.JPanel {
         scrollTimer.start();
     }
 
-    // ============================================================================
-    // KEYBOARD ACTIONS
-    // ============================================================================
-    
     private void editSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -651,7 +641,7 @@ public class ProductPanel extends javax.swing.JPanel {
     
     private void deactivateSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -662,7 +652,7 @@ public class ProductPanel extends javax.swing.JPanel {
         
         if (productId != null && productName != null) {
             if (pStatusId != null && pStatusId == 2) {
-                showPositionIndicator("ℹ️ Product is inactive - Use R to activate");
+                showPositionIndicator("Product is inactive - Use R to activate");
             } else {
                 deactivateProduct(productId, productName);
             }
@@ -672,7 +662,7 @@ public class ProductPanel extends javax.swing.JPanel {
     
     private void activateSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
-            showPositionIndicator("❌ Select a card first (use arrow keys)");
+            showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
@@ -685,16 +675,12 @@ public class ProductPanel extends javax.swing.JPanel {
             if (pStatusId != null && pStatusId == 2) {
                 activateProduct(productId, productName);
             } else {
-                showPositionIndicator("ℹ️ Product is already active - Use D to deactivate");
+                showPositionIndicator("Product is already active - Use D to deactivate");
             }
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
 
-    // ============================================================================
-    // ROUNDED BORDER CLASS
-    // ============================================================================
-    
     class RoundedBorder extends javax.swing.border.AbstractBorder {
         private final Color color;
         private final int thickness;
@@ -1035,10 +1021,6 @@ public class ProductPanel extends javax.swing.JPanel {
         }
     }
 
-    // ============================================================================
-    // CARD CREATION
-    // ============================================================================
-    
     private lk.com.pos.privateclasses.RoundedPanel createProductCard(
             int productId, String productName, String brandName,
             String categoryName, String barcode, int pStatusId) {
@@ -1120,7 +1102,7 @@ public class ProductPanel extends javax.swing.JPanel {
         badgePanel.setOpaque(false);
 
         if (pStatusId == 2) {
-            javax.swing.JLabel inactiveBadge = new javax.swing.JLabel("⛔ Inactive");
+            javax.swing.JLabel inactiveBadge = new javax.swing.JLabel("Inactive");
             inactiveBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
             inactiveBadge.setForeground(Color.WHITE);
             inactiveBadge.setBackground(Color.decode("#EF4444"));
@@ -1131,7 +1113,7 @@ public class ProductPanel extends javax.swing.JPanel {
             ));
             badgePanel.add(inactiveBadge);
         } else {
-            javax.swing.JLabel activeBadge = new javax.swing.JLabel("✓ Active");
+            javax.swing.JLabel activeBadge = new javax.swing.JLabel("Active");
             activeBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
             activeBadge.setForeground(Color.decode("#065F46"));
             activeBadge.setBackground(Color.decode("#D1FAE5"));
@@ -1421,6 +1403,18 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         }
     }
+    
+    private void generateProductReport() {
+        // TODO: Implement your actual report generation logic here.
+        // This could involve fetching data and using a library like JasperReports.
+        System.out.println("Product Report generation triggered.");
+        JOptionPane.showMessageDialog(this, 
+                "Product Report generation is not yet implemented.\n"
+                + "You can add your report logic in the 'generateProductReport()' method.", 
+                "Feature Under Development", 
+                JOptionPane.INFORMATION_MESSAGE);
+        this.requestFocusInWindow();
+    }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1452,13 +1446,14 @@ public class ProductPanel extends javax.swing.JPanel {
         jSeparator3 = new javax.swing.JSeparator();
         inactiveRadioBtn = new javax.swing.JRadioButton();
         activeRadioBtn = new javax.swing.JRadioButton();
+        productReportBtn = new javax.swing.JButton();
 
         jPanel1.setBackground(new java.awt.Color(248, 250, 252));
 
         productSearchBar.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
 
         addProductDialog.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addProductDialog.setText("Add Stock");
+        addProductDialog.setText("Add Product");
         addProductDialog.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 addProductDialogActionPerformed(evt);
@@ -1679,6 +1674,14 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         });
 
+        productReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        productReportBtn.setText("Product Report");
+        productReportBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productReportBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -1686,15 +1689,17 @@ public class ProductPanel extends javax.swing.JPanel {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 888, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(productSearchBar, javax.swing.GroupLayout.PREFERRED_SIZE, 562, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(productSearchBar)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(activeRadioBtn)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(inactiveRadioBtn)
-                        .addGap(18, 18, 18)
-                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(184, 184, 184)
+                        .addComponent(productReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 138, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(
@@ -1705,7 +1710,8 @@ public class ProductPanel extends javax.swing.JPanel {
                     .addComponent(productSearchBar, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(inactiveRadioBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(activeRadioBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(activeRadioBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(productReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 483, Short.MAX_VALUE)
                 .addGap(18, 18, 18))
@@ -1726,7 +1732,10 @@ public class ProductPanel extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void addProductDialogActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addProductDialogActionPerformed
-       
+       AddNewProduct addNewProduct = new AddNewProduct(null, true);
+       addNewProduct.setLocationRelativeTo(null);
+       addNewProduct.setVisible(true);
+        SearchFilters();
     }//GEN-LAST:event_addProductDialogActionPerformed
 
     private void inactiveRadioBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_inactiveRadioBtnActionPerformed
@@ -1736,6 +1745,10 @@ public class ProductPanel extends javax.swing.JPanel {
     private void activeRadioBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_activeRadioBtnActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_activeRadioBtnActionPerformed
+
+    private void productReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productReportBtnActionPerformed
+        generateProductReport();
+    }//GEN-LAST:event_productReportBtnActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -1764,6 +1777,7 @@ public class ProductPanel extends javax.swing.JPanel {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JSeparator jSeparator3;
+    private javax.swing.JButton productReportBtn;
     private javax.swing.JTextField productSearchBar;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel2;
     // End of variables declaration//GEN-END:variables

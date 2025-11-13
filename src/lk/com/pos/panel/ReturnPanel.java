@@ -13,6 +13,9 @@ import java.text.SimpleDateFormat;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.util.Date;
+import java.util.List;
+import java.util.ArrayList;
+import lk.com.pos.dialog.ExchangeProductDialog;
 
 public class ReturnPanel extends javax.swing.JPanel {
 
@@ -21,12 +24,517 @@ public class ReturnPanel extends javax.swing.JPanel {
     private int currentWidth = 0;
     private Timer searchTimer;
     
+    // Keyboard navigation
+    private List<JPanel> returnCardsList = new ArrayList<>();
+    private int currentCardIndex = -1;
+    private JPanel currentFocusedCard = null;
+    
+    private JPanel positionIndicator;
+    private JLabel positionLabel;
+    private Timer positionTimer;
+    
+    private JPanel keyboardHintsPanel;
+    private boolean hintsVisible = false;
+    
+    // Refresh cooldown
+    private long lastRefreshTime = 0;
+    private static final long REFRESH_COOLDOWN = 1000; // 1 second
+    
+    // Colors
+    private static final Color RED_BORDER_SELECTED = new Color(239, 68, 68);
+    private static final Color RED_BORDER_HOVER = new Color(248, 113, 113);
+    private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
+    
     public ReturnPanel() {
         initComponents();
         setupPanel();
         customizeComponents();
+        createPositionIndicator();
+        createKeyboardHintsPanel();
+        setupKeyboardShortcuts();
         loadReturnData("", "All Time", "All Reasons");
         setupEventListeners();
+        
+        SwingUtilities.invokeLater(() -> {
+            this.requestFocusInWindow();
+            showKeyboardHints();
+        });
+    }
+    
+    private void createPositionIndicator() {
+        positionIndicator = new JPanel();
+        positionIndicator.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 8));
+        positionIndicator.setBackground(new Color(31, 41, 55, 230));
+        positionIndicator.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
+            BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+        positionIndicator.setVisible(false);
+        
+        positionLabel = new JLabel();
+        positionLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        positionLabel.setForeground(Color.WHITE);
+        
+        positionIndicator.add(positionLabel);
+        
+        setLayout(new OverlayLayout(this) {
+            @Override
+            public void layoutContainer(Container target) {
+                super.layoutContainer(target);
+                
+                if (positionIndicator.isVisible()) {
+                    Dimension size = positionIndicator.getPreferredSize();
+                    int x = (getWidth() - size.width) / 2;
+                    int y = 80;
+                    positionIndicator.setBounds(x, y, size.width, size.height);
+                }
+                
+                if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
+                    Dimension size = keyboardHintsPanel.getPreferredSize();
+                    int x = getWidth() - size.width - 20;
+                    int y = getHeight() - size.height - 20;
+                    keyboardHintsPanel.setBounds(x, y, size.width, size.height);
+                }
+            }
+        });
+        
+        add(positionIndicator, Integer.valueOf(1000));
+    }
+
+    private void createKeyboardHintsPanel() {
+        keyboardHintsPanel = new JPanel();
+        keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
+        keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
+        keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
+            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+        ));
+        keyboardHintsPanel.setVisible(false);
+        
+        JLabel title = new JLabel("⌨️ KEYBOARD SHORTCUTS");
+        title.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
+        title.setForeground(RED_BORDER_SELECTED);
+        title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(title);
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(10));
+        
+        addHintRow("↑ ↓", "Navigate returns", "#FFFFFF");
+        addHintRow("Ctrl+F", "Search", "#A78BFA");
+        addHintRow("F5", "Refresh", "#34D399");
+        addHintRow("Alt+A", "Return Product", "#EF4444");
+        addHintRow("Ctrl+N", "Return Product", "#EF4444");
+        addHintRow("Ctrl+P", "Return Report", "#10B981");
+        addHintRow("Ctrl+R", "Return Report", "#10B981");
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        JLabel periodTitle = new JLabel("PERIOD FILTERS");
+        periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        periodTitle.setForeground(Color.decode("#FB923C"));
+        periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(periodTitle);
+        keyboardHintsPanel.add(Box.createVerticalStrut(4));
+        
+        addHintRow("Alt+1", "All Time", "#FB923C");
+        addHintRow("Alt+2", "Today", "#FCD34D");
+        addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
+        addHintRow("Alt+4", "Last 30 Days", "#F87171");
+        addHintRow("Alt+5", "Last 90 Days", "#A78BFA");
+        addHintRow("Alt+6", "1 Year", "#34D399");
+        addHintRow("Alt+7", "2 Years", "#60A5FA");
+        addHintRow("Alt+8", "5 Years", "#F472B6");
+        addHintRow("Alt+9", "10 Years", "#FBBF24");
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
+        reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        reasonTitle.setForeground(Color.decode("#F472B6"));
+        reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(reasonTitle);
+        keyboardHintsPanel.add(Box.createVerticalStrut(4));
+        
+        addHintRow("Shift+1", "All Reasons", "#9CA3AF");
+        addHintRow("Shift+2", "Damaged", "#EF4444");
+        addHintRow("Shift+3", "Wrong Item", "#F59E0B");
+        addHintRow("Shift+4", "Changed Mind", "#3B82F6");
+        addHintRow("Shift+5", "Expired", "#FCD34D");
+        addHintRow("Shift+6", "Incorrect Size", "#A78BFA");
+        addHintRow("Shift+7", "Malfunction", "#FB923C");
+        addHintRow("Shift+8", "Packaging", "#34D399");
+        addHintRow("Shift+9", "Defective", "#EF4444");
+        addHintRow("Shift+0", "Late Delivery", "#60A5FA");
+        addHintRow("Shift+-", "Other", "#F472B6");
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        addHintRow("Esc", "Clear All Filters", "#EF4444");
+        addHintRow("?", "Toggle Help", "#EF4444");
+        
+        keyboardHintsPanel.add(Box.createVerticalStrut(10));
+        
+        JLabel closeHint = new JLabel("Press ? to hide");
+        closeHint.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
+        closeHint.setForeground(Color.decode("#9CA3AF"));
+        closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
+        keyboardHintsPanel.add(closeHint);
+        
+        add(keyboardHintsPanel, Integer.valueOf(1001));
+    }
+
+    private void addHintRow(String key, String description, String keyColor) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
+        row.setOpaque(false);
+        row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(300, 25));
+        
+        JLabel keyLabel = new JLabel(key);
+        keyLabel.setFont(new Font("Consolas", Font.BOLD, 11));
+        keyLabel.setForeground(Color.decode(keyColor));
+        keyLabel.setPreferredSize(new Dimension(90, 20));
+        
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
+        descLabel.setForeground(Color.decode("#D1D5DB"));
+        
+        row.add(keyLabel);
+        row.add(descLabel);
+        keyboardHintsPanel.add(row);
+    }
+
+    private void showKeyboardHints() {
+        if (!hintsVisible) {
+            keyboardHintsPanel.setVisible(true);
+            hintsVisible = true;
+            revalidate();
+            repaint();
+            
+            Timer hideTimer = new Timer(5000, e -> {
+                keyboardHintsPanel.setVisible(false);
+                hintsVisible = false;
+                revalidate();
+                repaint();
+            });
+            hideTimer.setRepeats(false);
+            hideTimer.start();
+        } else {
+            keyboardHintsPanel.setVisible(false);
+            hintsVisible = false;
+            revalidate();
+            repaint();
+        }
+    }
+
+    private void showPositionIndicator(String text) {
+        positionLabel.setText(text);
+        positionIndicator.setVisible(true);
+        revalidate();
+        repaint();
+        
+        if (positionTimer != null && positionTimer.isRunning()) {
+            positionTimer.stop();
+        }
+        
+        positionTimer = new Timer(2000, e -> {
+            positionIndicator.setVisible(false);
+            revalidate();
+            repaint();
+        });
+        positionTimer.setRepeats(false);
+        positionTimer.start();
+    }
+
+    private void setupKeyboardShortcuts() {
+        this.setFocusable(true);
+        
+        int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
+        
+        // Navigation
+        registerKeyAction("UP", KeyEvent.VK_UP, 0, condition, () -> navigateCards(-1));
+        registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, condition, () -> navigateCards(1));
+        registerKeyAction("HOME", KeyEvent.VK_HOME, 0, condition, () -> navigateToFirst());
+        registerKeyAction("END", KeyEvent.VK_END, 0, condition, () -> navigateToLast());
+        
+        // Search
+        registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, () -> focusSearch());
+        registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, () -> {
+            if (!jTextField1.hasFocus()) {
+                focusSearch();
+            }
+        });
+        
+        // Refresh
+        registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshReturns());
+        
+        // Return Product - ALT+A and CTRL+N
+        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openReturnProductDialog);
+        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnProductDialog);
+        
+        // Return Report - CTRL+P and CTRL+R
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
+        
+        // Period filters - ALT+1 to ALT+9 (All Time, Today, 7D, 30D, 90D, 1Y, 2Y, 5Y, 10Y)
+        registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
+        registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
+        registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(2));
+        registerKeyAction("ALT_4", KeyEvent.VK_4, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(3));
+        registerKeyAction("ALT_5", KeyEvent.VK_5, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(4));
+        registerKeyAction("ALT_6", KeyEvent.VK_6, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(5));
+        registerKeyAction("ALT_7", KeyEvent.VK_7, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(6));
+        registerKeyAction("ALT_8", KeyEvent.VK_8, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(7));
+        registerKeyAction("ALT_9", KeyEvent.VK_9, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(8));
+        
+        // Reason filters - ALL 11 REASONS
+        registerKeyAction("SHIFT_1", KeyEvent.VK_1, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(0));
+        registerKeyAction("SHIFT_2", KeyEvent.VK_2, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(1));
+        registerKeyAction("SHIFT_3", KeyEvent.VK_3, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(2));
+        registerKeyAction("SHIFT_4", KeyEvent.VK_4, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(3));
+        registerKeyAction("SHIFT_5", KeyEvent.VK_5, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(4));
+        registerKeyAction("SHIFT_6", KeyEvent.VK_6, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(5));
+        registerKeyAction("SHIFT_7", KeyEvent.VK_7, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(6));
+        registerKeyAction("SHIFT_8", KeyEvent.VK_8, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(7));
+        registerKeyAction("SHIFT_9", KeyEvent.VK_9, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(8));
+        registerKeyAction("SHIFT_0", KeyEvent.VK_0, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(9));
+        registerKeyAction("SHIFT_MINUS", KeyEvent.VK_MINUS, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(10));
+        
+        // Escape - Clear all filters
+        registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
+        
+        // Help
+        registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, () -> showKeyboardHints());
+        
+        // Search field
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
+        jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                clearAllFilters();
+            }
+        });
+        
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+            KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
+        jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!returnCardsList.isEmpty()) {
+                    ReturnPanel.this.requestFocusInWindow();
+                    if (currentCardIndex == -1) {
+                        currentCardIndex = 0;
+                        selectCurrentCard();
+                        scrollToCard(currentCardIndex);
+                    }
+                }
+            }
+        });
+        
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                SwingUtilities.invokeLater(() -> ReturnPanel.this.requestFocusInWindow());
+            }
+        });
+    }
+
+    private void registerKeyAction(String actionName, int keyCode, int modifiers, int condition, Runnable action) {
+        KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, modifiers);
+        this.getInputMap(condition).put(keyStroke, actionName);
+        this.getActionMap().put(actionName, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (jTextField1.hasFocus() && 
+                    keyCode != KeyEvent.VK_ESCAPE && 
+                    modifiers == 0 &&
+                    keyCode != KeyEvent.VK_SLASH) {
+                    return;
+                }
+                action.run();
+            }
+        });
+    }
+
+    private void navigateCards(int direction) {
+        if (returnCardsList.isEmpty()) {
+            showPositionIndicator("No returns available");
+            return;
+        }
+        
+        if (currentCardIndex < 0) {
+            currentCardIndex = 0;
+            selectCurrentCard();
+            scrollToCard(currentCardIndex);
+            return;
+        }
+        
+        int newIndex = currentCardIndex + direction;
+        
+        if (newIndex < 0) {
+            showPositionIndicator("Already at the first return");
+            return;
+        }
+        
+        if (newIndex >= returnCardsList.size()) {
+            showPositionIndicator("Already at the last return");
+            return;
+        }
+        
+        deselectCard(currentCardIndex);
+        currentCardIndex = newIndex;
+        selectCurrentCard();
+        scrollToCard(currentCardIndex);
+    }
+
+    private void navigateToFirst() {
+        if (returnCardsList.isEmpty()) {
+            showPositionIndicator("No returns available");
+            return;
+        }
+        
+        if (currentCardIndex >= 0) {
+            deselectCard(currentCardIndex);
+        }
+        currentCardIndex = 0;
+        selectCurrentCard();
+        scrollToCard(currentCardIndex);
+        showPositionIndicator("⬆️ First return");
+    }
+
+    private void navigateToLast() {
+        if (returnCardsList.isEmpty()) {
+            showPositionIndicator("No returns available");
+            return;
+        }
+        
+        if (currentCardIndex >= 0) {
+            deselectCard(currentCardIndex);
+        }
+        currentCardIndex = returnCardsList.size() - 1;
+        selectCurrentCard();
+        scrollToCard(currentCardIndex);
+        showPositionIndicator("Last return");
+    }
+
+    private void selectCurrentCard() {
+        if (currentCardIndex >= 0 && currentCardIndex < returnCardsList.size()) {
+            JPanel card = returnCardsList.get(currentCardIndex);
+            card.setBorder(BorderFactory.createCompoundBorder(
+                new RoundBorder(RED_BORDER_SELECTED, 3, 20),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            ));
+            currentFocusedCard = card;
+            
+            String invoiceNo = (String) card.getClientProperty("invoiceNo");
+            showPositionIndicator(String.format("Return %d/%d: %s", 
+                currentCardIndex + 1, returnCardsList.size(), invoiceNo));
+        }
+    }
+
+    private void deselectCard(int index) {
+        if (index >= 0 && index < returnCardsList.size()) {
+            JPanel card = returnCardsList.get(index);
+            card.setBorder(BorderFactory.createCompoundBorder(
+                new ShadowBorder(),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            ));
+        }
+    }
+
+    private void scrollToCard(int index) {
+        if (index < 0 || index >= returnCardsList.size()) return;
+        
+        SwingUtilities.invokeLater(() -> {
+            try {
+                JPanel card = returnCardsList.get(index);
+                Rectangle bounds = card.getBounds();
+                Rectangle visible = jScrollPane1.getViewport().getViewRect();
+                
+                int targetY = bounds.y - 20;
+                
+                jScrollPane1.getViewport().setViewPosition(new Point(0, Math.max(0, targetY)));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void focusSearch() {
+        jTextField1.requestFocus();
+        jTextField1.selectAll();
+        showPositionIndicator("Search mode - Type to filter (Press ↓ to navigate)");
+    }
+
+    private void handleEscape() {
+        if (currentCardIndex >= 0) {
+            deselectCard(currentCardIndex);
+            currentFocusedCard = null;
+            currentCardIndex = -1;
+            showPositionIndicator("Card deselected");
+        } else if (!jTextField1.getText().isEmpty() || 
+                   sortByDays.getSelectedIndex() != 0 || 
+                   sortByReason.getSelectedIndex() != 0) {
+            clearAllFilters();
+        }
+        this.requestFocusInWindow();
+    }
+
+    private void clearAllFilters() {
+        boolean wasFiltered = !jTextField1.getText().isEmpty() || 
+                             sortByDays.getSelectedIndex() != 0 || 
+                             sortByReason.getSelectedIndex() != 0;
+        
+        jTextField1.setText("");
+        sortByDays.setSelectedIndex(0);
+        sortByReason.setSelectedIndex(0);
+        
+        if (wasFiltered) {
+            handleFilter();
+            showPositionIndicator("All filters cleared - Showing all returns");
+        }
+        
+        ReturnPanel.this.requestFocusInWindow();
+    }
+
+    private void refreshReturns() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastRefreshTime < REFRESH_COOLDOWN) {
+            showPositionIndicator("Please wait before refreshing again");
+            return;
+        }
+        
+        lastRefreshTime = currentTime;
+        handleFilter();
+        showPositionIndicator("Return data refreshed");
+        this.requestFocusInWindow();
+    }
+
+    private void openReturnProductDialog() {
+        addProductDialog.doClick();
+        showPositionIndicator("Opening Return Product Dialog");
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
+    }
+
+    private void openReturnReport() {
+        returnReportDialogBtn.doClick();
+        showPositionIndicator("Opening Return Report");
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
+    }
+
+    private void setPeriod(int index) {
+        if (index >= 0 && index < sortByDays.getItemCount()) {
+            sortByDays.setSelectedIndex(index);
+            handleFilter();
+            showPositionIndicator("Filter: " + sortByDays.getItemAt(index));
+            this.requestFocusInWindow();
+        }
+    }
+
+    private void setReason(int index) {
+        if (index >= 0 && index < sortByReason.getItemCount()) {
+            sortByReason.setSelectedIndex(index);
+            handleFilter();
+            showPositionIndicator("🏷️ Filter: " + sortByReason.getItemAt(index));
+            this.requestFocusInWindow();
+        }
     }
     
     private void setupEventListeners() {
@@ -44,22 +552,33 @@ public class ReturnPanel extends javax.swing.JPanel {
         searchTimer = new Timer(300, e -> handleSearch());
         searchTimer.setRepeats(false);
         
-        jTextField1.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
+        jTextField1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                searchTimer.restart();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                searchTimer.restart();
+            }
+
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 searchTimer.restart();
             }
         });
         
-        sortByDays.addActionListener(e -> handleFilter());
-        sortByReason.addActionListener(e -> handleFilter());
+        sortByDays.addActionListener(e -> {
+            handleFilter();
+            this.requestFocusInWindow();
+        });
+        
+        sortByReason.addActionListener(e -> {
+            handleFilter();
+            this.requestFocusInWindow();
+        });
     }
     
     private void handleSearch() {
         String searchText = jTextField1.getText().trim();
-        if (searchText.equals("🔍 Search by invoice number...")) {
-            searchText = "";
-        }
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         String selectedReason = sortByReason.getSelectedItem().toString();
         loadReturnData(searchText, selectedPeriod, selectedReason);
@@ -67,9 +586,6 @@ public class ReturnPanel extends javax.swing.JPanel {
     
     private void handleFilter() {
         String searchText = jTextField1.getText().trim();
-        if (searchText.equals("🔍 Search by invoice number...")) {
-            searchText = "";
-        }
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         String selectedReason = sortByReason.getSelectedItem().toString();
         loadReturnData(searchText, selectedPeriod, selectedReason);
@@ -96,292 +612,230 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
     
     private void customizeComponents() {
-        jTextField1.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
-        jTextField1.setBorder(BorderFactory.createCompoundBorder(
-            new RoundBorder(new Color(203, 213, 225), 2, 12),
-            BorderFactory.createEmptyBorder(14, 48, 14, 16)
-        ));
-        jTextField1.setBackground(Color.WHITE);
-        jTextField1.setText("🔍 Search by invoice number...");
-        jTextField1.setForeground(new Color(148, 163, 184));
+        // Enhanced search field with FlatLaf styling (like SalesPanel)
+        jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search by invoice number...");
+        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,             
+                new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
+        jTextField1.setToolTipText("Search returns (Ctrl+F or /) - Press ESC to clear all filters");
+        jTextField1.setForeground(Color.GRAY);
         
-        jTextField1.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (!jTextField1.hasFocus()) {
-                    jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(new Color(59, 130, 246), 2, 12),
-                        BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                    ));
-                }
-            }
-            
-            @Override
-            public void mouseExited(MouseEvent e) {
-                if (!jTextField1.hasFocus()) {
-                    jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(new Color(203, 213, 225), 2, 12),
-                        BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                    ));
-                }
-            }
-        });
-        
-        jTextField1.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (jTextField1.getText().equals("🔍 Search by invoice number...")) {
-                    jTextField1.setText("");
-                    jTextField1.setForeground(new Color(30, 41, 59));
-                }
-                jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundBorder(new Color(59, 130, 246), 2, 12),
-                    BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                ));
-            }
-            
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (jTextField1.getText().isEmpty()) {
-                    jTextField1.setText("🔍 Search by invoice number...");
-                    jTextField1.setForeground(new Color(148, 163, 184));
-                }
-                jTextField1.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundBorder(new Color(203, 213, 225), 2, 12),
-                    BorderFactory.createEmptyBorder(14, 48, 14, 16)
-                ));
-            }
-        });
-        
+        // Enhanced combo boxes with FlatLaf styling - UPDATED WITH NEW PERIODS
+        sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
-            "📅 All Time", "☀️ Today", "📊 Last 7 Days", "📈 Last 30 Days", "📆 Last 90 Days"
+            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", 
+            "1 Year", "2 Years", "5 Years", "10 Years"
         }));
-        sortByDays.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
-        sortByDays.setBackground(Color.WHITE);
-        sortByDays.setBorder(BorderFactory.createCompoundBorder(
-            new RoundBorder(new Color(203, 213, 225), 2, 12),
-            BorderFactory.createEmptyBorder(12, 16, 12, 16)
-        ));
+        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+9) - Press ESC to reset");
         
+        sortByReason.setForeground(Color.GRAY);
         sortByReason.setModel(new DefaultComboBoxModel<>(new String[]{
-            "🔖 All Reasons", "💔 Damaged product", "📦 Wrong item delivered", 
-            "💭 Customer changed mind", "⏰ Expired product", "📏 Incorrect size",
-            "⚠️ Product malfunction", "📮 Packaging issue", "🔧 Defective item",
-            "🚚 Late delivery", "📝 Other"
+            "All Reasons", "Damaged product", "Wrong item delivered", 
+            "Customer changed mind", "Expired product", "Incorrect size",
+            "Product malfunction", "Packaging issue", "Defective item",
+            "Late delivery", "Other"
         }));
-        sortByReason.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
-        sortByReason.setBackground(Color.WHITE);
-        sortByReason.setBorder(BorderFactory.createCompoundBorder(
-            new RoundBorder(new Color(203, 213, 225), 2, 12),
-            BorderFactory.createEmptyBorder(12, 16, 12, 16)
-        ));
+        sortByReason.setToolTipText("Filter by reason (Shift+1 to Shift+0, Shift+-) - Press ESC to reset");
+        
+        // Button tooltips
+        addProductDialog.setToolTipText("Return Product (Alt+A or Ctrl+N)");
+        returnReportDialogBtn.setToolTipText("Generate Return Report (Ctrl+P or Ctrl+R)");
         
         roundedPanel1.setVisible(false);
         
+        // Enhanced scroll pane
         jScrollPane1.setBorder(null);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(20);
         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
                 "track: #F5F5F5;"
-                + "thumb: #1CB5BB;"
+                + "thumb: #EF4444;"
                 + "width: 8");
-        
-        jScrollPane1.getVerticalScrollBar().setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
-            @Override
-            protected void configureScrollBarColors() {
-                this.thumbColor = new Color(203, 213, 225);
-                this.trackColor = new Color(241, 245, 249);
+    }
+    
+    private void clearReturnCards() {
+        for (JPanel card : returnCardsList) {
+            for (MouseListener ml : card.getMouseListeners()) {
+                card.removeMouseListener(ml);
             }
-            
-            @Override
-            protected JButton createDecreaseButton(int orientation) {
-                return createZeroButton();
-            }
-            
-            @Override
-            protected JButton createIncreaseButton(int orientation) {
-                return createZeroButton();
-            }
-            
-            private JButton createZeroButton() {
-                JButton button = new JButton();
-                button.setPreferredSize(new Dimension(0, 0));
-                return button;
-            }
-        });
+        }
+        returnCardsList.clear();
+        currentCardIndex = -1;
+        currentFocusedCard = null;
     }
     
     private void loadReturnData(String searchText, String period, String reason) {
-        period = period.replace("📅 ", "").replace("☀️ ", "")
-                      .replace("📊 ", "").replace("📈 ", "").replace("📆 ", "");
-        reason = reason.replace("🔖 ", "").replace("💔 ", "").replace("📦 ", "")
-                      .replace("💭 ", "").replace("⏰ ", "").replace("📏 ", "")
-                      .replace("⚠️ ", "").replace("📮 ", "").replace("🔧 ", "")
-                      .replace("🚚 ", "").replace("📝 ", "");
+        period = period.replace("", "").replace("", "")
+                      .replace("", "").replace("", "").replace("", "");
+        reason = reason.replace("️", "").replace("", "").replace("", "")
+                      .replace("", "").replace("", "").replace("", "")
+                      .replace("", "").replace("", "").replace("", "")
+                      .replace("", "").replace("️", "");
         
-        jPanel2.removeAll();
-        JPanel loadingPanel = createLoadingPanel();
-        jPanel2.add(loadingPanel, BorderLayout.CENTER);
-        jPanel2.revalidate();
-        jPanel2.repaint();
+        clearReturnCards();
         
         String finalPeriod = period;
         String finalReason = reason;
-        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+        String finalSearchText = searchText;
+        
+        SwingWorker<List<ReturnData>, Void> worker = new SwingWorker<>() {
             @Override
-            protected Void doInBackground() throws Exception {
-                returnsContainer = new JPanel();
-                returnsContainer.setLayout(new BoxLayout(returnsContainer, BoxLayout.Y_AXIS));
-                returnsContainer.setBackground(new Color(248, 250, 252));
-                returnsContainer.setOpaque(false);
-                returnsContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-                
-                try {
-                    String baseQuery = "SELECT " +
-                        "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
-                        "s.invoice_no, s.total as original_total, " +
-                        "rr.reason as return_reason, " +
-                        "ps.p_status as status_name, " +  // Corrected: using ps.p_status
-                        "u.name as processed_by, " +
-                        "pm.payment_method_name, " +
-                        "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
-                        "FROM `return` r " +
-                        "INNER JOIN sales s ON r.sales_id = s.sales_id " +
-                        "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id " +
-                        "INNER JOIN p_status ps ON r.status_id = ps.p_status_id " +
-                        "INNER JOIN user u ON r.user_id = u.user_id " +
-                        "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
-                        "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id ";
-                    
-                    StringBuilder whereClause = new StringBuilder();
-                    java.util.List<Object> parameters = new java.util.ArrayList<>();
-                    String orderBy = " ORDER BY r.return_date DESC";
-                    
-                    if (!searchText.isEmpty() && !searchText.equals("🔍 Search by invoice number...")) {
-                        whereClause.append("WHERE s.invoice_no LIKE ? ");
-                        parameters.add("%" + searchText + "%");
-                    }
-                    
-                    String dateFilter = getDateFilter(finalPeriod);
-                    if (!dateFilter.isEmpty()) {
-                        if (whereClause.length() == 0) {
-                            whereClause.append("WHERE ").append(dateFilter);
-                        } else {
-                            whereClause.append("AND ").append(dateFilter);
-                        }
-                    }
-                    
-                    if (!finalReason.equals("All Reasons")) {
-                        if (whereClause.length() == 0) {
-                            whereClause.append("WHERE rr.reason = ? ");
-                        } else {
-                            whereClause.append("AND rr.reason = ? ");
-                        }
-                        parameters.add(finalReason);
-                    }
-                    
-                    String finalQuery = baseQuery + whereClause.toString() + orderBy;
-                    
-                    PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
-                    for (int i = 0; i < parameters.size(); i++) {
-                        pst.setObject(i + 1, parameters.get(i));
-                    }
-                    
-                    ResultSet rs = pst.executeQuery();
-                    
-                    int count = 0;
-                    while (rs.next()) {
-                        int returnId = rs.getInt("return_id");
-                        String invoiceNo = rs.getString("invoice_no");
-                        String returnDate = rs.getString("return_date");
-                        double returnAmount = rs.getDouble("total_return_amount");
-                        double discountPrice = rs.getDouble("total_discount_price");
-                        double originalTotal = rs.getDouble("original_total");
-                        String returnReason = rs.getString("return_reason");
-                        String statusName = rs.getString("status_name");
-                        String processedBy = rs.getString("processed_by");
-                        String paymentMethod = rs.getString("payment_method_name");
-                        String customerName = rs.getString("customer_name");
-                        
-                        JPanel returnCard = createReturnCard(returnId, invoiceNo, returnDate, 
-                                                             returnAmount, discountPrice, originalTotal,
-                                                             returnReason, statusName, processedBy,
-                                                             paymentMethod, customerName);
-                        returnsContainer.add(returnCard);
-                        returnsContainer.add(Box.createRigidArea(new Dimension(0, 16)));
-                        count++;
-                    }
-                    
-                    if (count == 0) {
-                        returnsContainer.add(createNoDataPanel());
-                    }
-                    
-                    rs.close();
-                    pst.close();
-                    
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    returnsContainer.add(createErrorPanel(e));
-                }
-                return null;
+            protected List<ReturnData> doInBackground() throws Exception {
+                return fetchReturnsFromDatabase(finalSearchText, finalPeriod, finalReason);
             }
             
             @Override
             protected void done() {
                 try {
-                    jPanel2.removeAll();
-                    JPanel wrapperPanel = new JPanel(new BorderLayout());
-                    wrapperPanel.setBackground(new Color(248, 250, 252));
-                    wrapperPanel.add(returnsContainer, BorderLayout.NORTH);
-                    jPanel2.add(wrapperPanel, BorderLayout.CENTER);
-                    jPanel2.revalidate();
-                    jPanel2.repaint();
+                    List<ReturnData> returns = get();
+                    displayReturns(returns);
                 } catch (Exception e) {
                     e.printStackTrace();
+                    SwingUtilities.invokeLater(() -> {
+                        jPanel2.removeAll();
+                        jPanel2.add(createErrorPanel(e), BorderLayout.CENTER);
+                        jPanel2.revalidate();
+                        jPanel2.repaint();
+                    });
                 }
             }
         };
         
         worker.execute();
     }
-    
-    private JPanel createLoadingPanel() {
-        JPanel loadingPanel = new JPanel();
-        loadingPanel.setBackground(new Color(248, 250, 252));
-        loadingPanel.setLayout(new BoxLayout(loadingPanel, BoxLayout.Y_AXIS));
-        loadingPanel.add(Box.createVerticalGlue());
+
+    private static class ReturnData {
+        int returnId;
+        String invoiceNo;
+        String returnDate;
+        double returnAmount;
+        double discountPrice;
+        double originalTotal;
+        String returnReason;
+        String statusName;
+        String processedBy;
+        String paymentMethod;
+        String customerName;
+    }
+
+    private List<ReturnData> fetchReturnsFromDatabase(String searchText, String period, String reason) throws Exception {
+        List<ReturnData> returns = new ArrayList<>();
         
-        JLabel iconLabel = new JLabel("⏳");
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadingPanel.add(iconLabel);
-        loadingPanel.add(Box.createRigidArea(new Dimension(0, 16)));
+        try {
+            String baseQuery = "SELECT " +
+                "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
+                "s.invoice_no, s.total as original_total, " +
+                "rr.reason as return_reason, " +
+                "ps.p_status as status_name, " +
+                "u.name as processed_by, " +
+                "pm.payment_method_name, " +
+                "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
+                "FROM `return` r " +
+                "INNER JOIN sales s ON r.sales_id = s.sales_id " +
+                "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id " +
+                "INNER JOIN p_status ps ON r.status_id = ps.p_status_id " +
+                "INNER JOIN user u ON r.user_id = u.user_id " +
+                "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
+                "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id ";
+            
+            StringBuilder whereClause = new StringBuilder();
+            List<Object> parameters = new ArrayList<>();
+            
+            if (!searchText.isEmpty()) {
+                String escapedSearch = searchText.replace("'", "''")
+                                                 .replace("\\", "\\\\")
+                                                 .replace("%", "\\%")
+                                                 .replace("_", "\\_");
+                whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
+            }
+            
+            String dateFilter = getDateFilter(period);
+            if (!dateFilter.isEmpty()) {
+                if (whereClause.length() == 0) {
+                    whereClause.append("WHERE ").append(dateFilter);
+                } else {
+                    whereClause.append("AND ").append(dateFilter);
+                }
+            }
+            
+            if (!reason.equals("All Reasons")) {
+                if (whereClause.length() == 0) {
+                    whereClause.append("WHERE rr.reason LIKE ? ");
+                } else {
+                    whereClause.append("AND rr.reason LIKE ? ");
+                }
+                parameters.add("%" + reason + "%");
+            }
+            
+            String orderBy = " ORDER BY r.return_date DESC";
+            String finalQuery = baseQuery + whereClause.toString() + orderBy;
+            
+            PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
+            for (int i = 0; i < parameters.size(); i++) {
+                pst.setObject(i + 1, parameters.get(i));
+            }
+            
+            ResultSet rs = pst.executeQuery();
+            
+            while (rs.next()) {
+                ReturnData data = new ReturnData();
+                data.returnId = rs.getInt("return_id");
+                data.invoiceNo = rs.getString("invoice_no");
+                data.returnDate = rs.getString("return_date");
+                data.returnAmount = rs.getDouble("total_return_amount");
+                data.discountPrice = rs.getDouble("total_discount_price");
+                data.originalTotal = rs.getDouble("original_total");
+                data.returnReason = rs.getString("return_reason");
+                data.statusName = rs.getString("status_name");
+                data.processedBy = rs.getString("processed_by");
+                data.paymentMethod = rs.getString("payment_method_name");
+                data.customerName = rs.getString("customer_name");
+                
+                returns.add(data);
+            }
+            
+            rs.close();
+            pst.close();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Exception("Database error: " + e.getMessage());
+        }
         
-        JLabel loadingLabel = new JLabel("Loading return records...");
-        loadingLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 18));
-        loadingLabel.setForeground(new Color(71, 85, 105));
-        loadingLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadingPanel.add(loadingLabel);
-        loadingPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        return returns;
+    }
+
+    private void displayReturns(List<ReturnData> returns) {
+        returnsContainer = new JPanel();
+        returnsContainer.setLayout(new BoxLayout(returnsContainer, BoxLayout.Y_AXIS));
+        returnsContainer.setBackground(new Color(248, 250, 252));
+        returnsContainer.setOpaque(false);
+        returnsContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         
-        JLabel hintLabel = new JLabel("Please wait a moment");
-        hintLabel.setFont(new Font("Nunito", Font.PLAIN, 14));
-        hintLabel.setForeground(new Color(148, 163, 184));
-        hintLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        loadingPanel.add(hintLabel);
+        clearReturnCards();
         
-        loadingPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        if (returns.isEmpty()) {
+            returnsContainer.add(createNoDataPanel());
+        } else {
+            for (ReturnData data : returns) {
+                JPanel returnCard = createReturnCard(
+                    data.returnId, data.invoiceNo, data.returnDate,
+                    data.returnAmount, data.discountPrice, data.originalTotal,
+                    data.returnReason, data.statusName, data.processedBy,
+                    data.paymentMethod, data.customerName
+                );
+                returnCard.putClientProperty("invoiceNo", data.invoiceNo);
+                returnsContainer.add(returnCard);
+                returnsContainer.add(Box.createRigidArea(new Dimension(0, 16)));
+                returnCardsList.add(returnCard);
+            }
+        }
         
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        progressBar.setPreferredSize(new Dimension(250, 10));
-        progressBar.setMaximumSize(new Dimension(250, 10));
-        progressBar.setAlignmentX(Component.CENTER_ALIGNMENT);
-        progressBar.setForeground(new Color(239, 68, 68));
-        progressBar.setBackground(new Color(226, 232, 240));
-        progressBar.setBorderPainted(false);
-        loadingPanel.add(progressBar);
-        loadingPanel.add(Box.createVerticalGlue());
-        return loadingPanel;
+        jPanel2.removeAll();
+        JPanel wrapperPanel = new JPanel(new BorderLayout());
+        wrapperPanel.setBackground(new Color(248, 250, 252));
+        wrapperPanel.add(returnsContainer, BorderLayout.NORTH);
+        jPanel2.add(wrapperPanel, BorderLayout.CENTER);
+        jPanel2.revalidate();
+        jPanel2.repaint();
     }
     
     private JPanel createNoDataPanel() {
@@ -390,7 +844,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         noDataPanel.setBackground(new Color(248, 250, 252));
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 60)));
         
-        JLabel iconLabel = new JLabel("🔄");
+        JLabel iconLabel = new JLabel("");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 64));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(iconLabel);
@@ -443,7 +897,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         errorPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         errorPanel.add(errorDetails);
         
-        JButton retryButton = new JButton("🔄 Retry");
+        JButton retryButton = new JButton("Retry");
         retryButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         retryButton.setForeground(Color.WHITE);
         retryButton.setBackground(new Color(220, 38, 38));
@@ -475,6 +929,14 @@ public class ReturnPanel extends javax.swing.JPanel {
                 return "r.return_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
             case "Last 90 Days":
                 return "r.return_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
+            case "1 Year":
+                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
+            case "2 Years":
+                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 2 YEAR)";
+            case "5 Years":
+                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 5 YEAR)";
+            case "10 Years":
+                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 10 YEAR)";
             default:
                 return "";
         }
@@ -533,31 +995,35 @@ public class ReturnPanel extends javax.swing.JPanel {
             
             @Override
             public void mouseEntered(MouseEvent e) {
-                hoverTimer = new Timer(10, new ActionListener() {
-                    float alpha = 0f;
-                    @Override
-                    public void actionPerformed(ActionEvent evt) {
-                        alpha += 0.1f;
-                        if (alpha >= 1f) {
-                            alpha = 1f;
-                            ((Timer)evt.getSource()).stop();
+                if (cardPanel != currentFocusedCard) {
+                    hoverTimer = new Timer(10, new ActionListener() {
+                        float alpha = 0f;
+                        @Override
+                        public void actionPerformed(ActionEvent evt) {
+                            alpha += 0.1f;
+                            if (alpha >= 1f) {
+                                alpha = 1f;
+                                ((Timer)evt.getSource()).stop();
+                            }
+                            Color baseColor = new Color(245, 247, 250);
+                            cardPanel.setBackground(baseColor);
+                            contentPanel.setBackground(baseColor);
+                            cardPanel.repaint();
                         }
-                        Color baseColor = new Color(245, 247, 250);
-                        cardPanel.setBackground(baseColor);
-                        contentPanel.setBackground(baseColor);
-                        cardPanel.repaint();
-                    }
-                });
-                hoverTimer.start();
+                    });
+                    hoverTimer.start();
+                }
                 cardPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
             
             @Override
             public void mouseExited(MouseEvent e) {
                 if (hoverTimer != null) hoverTimer.stop();
-                cardPanel.setBackground(Color.WHITE);
-                contentPanel.setBackground(Color.WHITE);
-                cardPanel.repaint();
+                if (cardPanel != currentFocusedCard) {
+                    cardPanel.setBackground(Color.WHITE);
+                    contentPanel.setBackground(Color.WHITE);
+                    cardPanel.repaint();
+                }
                 cardPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             }
             
@@ -574,6 +1040,20 @@ public class ReturnPanel extends javax.swing.JPanel {
                 contentPanel.setBackground(new Color(248, 250, 252));
                 cardPanel.repaint();
             }
+            
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (currentFocusedCard != null && currentFocusedCard != cardPanel) {
+                    int oldIndex = returnCardsList.indexOf(currentFocusedCard);
+                    if (oldIndex >= 0) {
+                        deselectCard(oldIndex);
+                    }
+                }
+                
+                currentCardIndex = returnCardsList.indexOf(cardPanel);
+                selectCurrentCard();
+                ReturnPanel.this.requestFocusInWindow();
+            }
         });
 
         return cardPanel;
@@ -584,7 +1064,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel headerPanel = new JPanel();
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
         headerPanel.setOpaque(false);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 16, 24));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
 
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.X_AXIS));
@@ -598,21 +1078,21 @@ public class ReturnPanel extends javax.swing.JPanel {
         textPanel.setOpaque(false);
 
         JLabel invoiceLabel = new JLabel("Return #" + (invoiceNo != null ? invoiceNo.toUpperCase() : ""));
-        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
-        invoiceLabel.setForeground(new Color(15, 23, 42));
+        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 22));
+        invoiceLabel.setForeground(new Color(30, 41, 59));
         invoiceLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel customerLabel = new JLabel(customerName != null ? customerName : "Walk-in Customer");
-        customerLabel.setFont(new Font("Nunito", Font.PLAIN, 14));
+        customerLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
         customerLabel.setForeground(new Color(100, 116, 139));
         customerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         textPanel.add(invoiceLabel);
-        textPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        textPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         textPanel.add(customerLabel);
 
         leftPanel.add(iconLabel);
-        leftPanel.add(Box.createRigidArea(new Dimension(14, 0)));
+        leftPanel.add(Box.createRigidArea(new Dimension(12, 0)));
         leftPanel.add(textPanel);
 
         JPanel rightPanel = new JPanel();
@@ -621,7 +1101,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         rightPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
         
         JLabel totalLabel = new JLabel(String.format("Rs.%.2f", returnAmount));
-        totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 22));
+        totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
         totalLabel.setForeground(new Color(239, 68, 68));
         totalLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
 
@@ -641,91 +1121,42 @@ public class ReturnPanel extends javax.swing.JPanel {
         iconLabel.setMaximumSize(new Dimension(40, 40));
         iconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 12));
         
-        int size = 40;
-        BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = image.createGraphics();
-        
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        GradientPaint gradient = new GradientPaint(0, 0, new Color(239, 68, 68), size, size, new Color(220, 38, 38));
-        g2d.setPaint(gradient);
-        g2d.fillRoundRect(0, 0, size, size, 10, 10);
-        
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
-        
-        FontMetrics fm = g2d.getFontMetrics();
-        String text = "🔄";
-        int textWidth = fm.stringWidth(text);
-        int textHeight = fm.getHeight();
-        
-        int x = (size - textWidth) / 2;
-        int y = (size - textHeight) / 2 + fm.getAscent();
-        
-        g2d.drawString(text, x, y);
-        g2d.dispose();
-        
-        iconLabel.setIcon(new ImageIcon(image));
-        return iconLabel;
-    }
+        try {
+            FlatSVGIcon icon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 28, 28);
+            icon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.RED));
+            iconLabel.setIcon(icon);
+        } catch (Exception e) {
+            iconLabel.setText("");
+            iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 24));
+            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        }
 
-    private JLabel createStatusBadge(String statusName) {
-        if (statusName == null || statusName.trim().isEmpty()) {
-            statusName = "UNKNOWN";
-        }
-        
-        String normalizedStatus = statusName.trim().toUpperCase();
-        
-        JLabel statusBadge = new JLabel();
-        statusBadge.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        statusBadge.setForeground(Color.WHITE);
-        statusBadge.setOpaque(true);
-        statusBadge.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
-        
-        if (normalizedStatus.contains("APPROVED") || normalizedStatus.contains("COMPLETED")) {
-            statusBadge.setBackground(new Color(34, 197, 94));
-            statusBadge.setText("✓ APPROVED");
-        } else if (normalizedStatus.contains("PENDING")) {
-            statusBadge.setBackground(new Color(245, 158, 11));
-            statusBadge.setText("⏳ PENDING");
-        } else if (normalizedStatus.contains("REJECTED") || normalizedStatus.contains("CANCELLED")) {
-            statusBadge.setBackground(new Color(239, 68, 68));
-            statusBadge.setText("✗ REJECTED");
-        } else if (normalizedStatus.contains("PROCESSING")) {
-            statusBadge.setBackground(new Color(59, 130, 246));
-            statusBadge.setText("⚙ PROCESSING");
-        } else {
-            statusBadge.setBackground(new Color(100, 116, 139));
-            statusBadge.setText(normalizedStatus.length() > 10 ? 
-                               normalizedStatus.substring(0, 10) + "..." : normalizedStatus);
-        }
-        
-        return statusBadge;
+        return iconLabel;
     }
 
     private JPanel createReturnItemsPanel(int returnId) {
         JPanel itemsPanel = new JPanel();
         itemsPanel.setLayout(new BorderLayout());
         itemsPanel.setOpaque(false);
-        itemsPanel.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
+        itemsPanel.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
 
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         
         JLabel itemsHeader = new JLabel("RETURNED ITEMS");
-        itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        itemsHeader.setForeground(new Color(100, 116, 139));
-        itemsHeader.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 2));
+        itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
+        itemsHeader.setForeground(new Color(71, 85, 105));
+        itemsHeader.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         
         headerPanel.add(itemsHeader, BorderLayout.WEST);
 
         RoundedPanel itemsContainer = new RoundedPanel();
         itemsContainer.setLayout(new BoxLayout(itemsContainer, BoxLayout.Y_AXIS));
-        itemsContainer.setBackgroundColor(new Color(248, 250, 252));
+        itemsContainer.setBackgroundColor(new Color(249, 250, 251));
         itemsContainer.setCornerRadius(12);
         itemsContainer.setBorderThickness(0);
-        itemsContainer.setBorder(BorderFactory.createEmptyBorder(16, 18, 16, 18));
+        itemsContainer.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
 
         loadReturnItems(itemsContainer, returnId);
 
@@ -751,7 +1182,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             pst.setInt(1, returnId);
             ResultSet rs = pst.executeQuery();
             
-            java.util.List<ReturnItemData> items = new java.util.ArrayList<>();
+            List<ReturnItemData> items = new ArrayList<>();
             
             while (rs.next()) {
                 String productName = rs.getString("product_name");
@@ -768,7 +1199,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             pst.close();
             
             if (items.isEmpty()) {
-                JLabel noItemsLabel = new JLabel("📭 No items in this return");
+                JLabel noItemsLabel = new JLabel("No items in this return");
                 noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
                 noItemsLabel.setForeground(new Color(148, 163, 184));
                 noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -782,7 +1213,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                     
                     if (i < items.size() - 1) {
                         JSeparator separator = new JSeparator();
-                        separator.setForeground(new Color(252, 165, 165));
+                        separator.setForeground(new Color(229, 231, 235));
                         separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
                         separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
                         itemsListPanel.add(separator);
@@ -792,7 +1223,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             
         } catch (Exception e) {
             e.printStackTrace();
-            JLabel errorLabel = new JLabel("⚠️ Error loading items");
+            JLabel errorLabel = new JLabel("Error loading items");
             errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
             errorLabel.setForeground(new Color(220, 38, 38));
             errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -803,9 +1234,9 @@ public class ReturnPanel extends javax.swing.JPanel {
     private JPanel createReturnItemCard(String productName, String qty, double price, 
                                        double discountPrice, double total, String batchNo) {
         JPanel itemPanel = new JPanel();
-        itemPanel.setLayout(new BorderLayout(12, 0));
+        itemPanel.setLayout(new BorderLayout(10, 0));
         itemPanel.setOpaque(false);
-        itemPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        itemPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
         itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
         JPanel leftPanel = new JPanel();
@@ -814,7 +1245,7 @@ public class ReturnPanel extends javax.swing.JPanel {
 
         JLabel productLabel = new JLabel(productName != null ? productName : "Unknown Product");
         productLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
-        productLabel.setForeground(new Color(15, 23, 42));
+        productLabel.setForeground(new Color(30, 41, 59));
         productLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel detailsPanel = new JPanel();
@@ -823,7 +1254,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         detailsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel priceQtyLabel = new JLabel(String.format("Rs.%.2f × %s", price, qty));
-        priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
+        priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
         priceQtyLabel.setForeground(new Color(100, 116, 139));
 
         detailsPanel.add(priceQtyLabel);
@@ -848,7 +1279,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         }
 
         leftPanel.add(productLabel);
-        leftPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         leftPanel.add(detailsPanel);
         
         if (extraInfoPanel.getComponentCount() > 0) {
@@ -871,13 +1302,13 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel footerPanel = new JPanel();
         footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
         footerPanel.setOpaque(false);
-        footerPanel.setBorder(BorderFactory.createEmptyBorder(16, 20, 20, 20));
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
 
         // Return reason panel
         RoundedPanel reasonPanel = new RoundedPanel();
         reasonPanel.setLayout(new BorderLayout(12, 0));
         reasonPanel.setBackgroundColor(new Color(254, 249, 242));
-        reasonPanel.setCornerRadius(10);
+        reasonPanel.setCornerRadius(12);
         reasonPanel.setBorderThickness(0);
         reasonPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
         reasonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
@@ -908,7 +1339,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         reasonPanel.add(reasonTextPanel, BorderLayout.CENTER);
         
         footerPanel.add(reasonPanel);
-        footerPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+        footerPanel.add(Box.createRigidArea(new Dimension(0, 16)));
 
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.X_AXIS));
@@ -921,11 +1352,11 @@ public class ReturnPanel extends javax.swing.JPanel {
         datePanel.setAlignmentY(Component.CENTER_ALIGNMENT);
         
         JLabel dateIcon = new JLabel("📅");
-        dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
-        dateIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
+        dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        dateIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
         
         JLabel dateLabel = new JLabel(formatDateTime(returnDate));
-        dateLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
+        dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         dateLabel.setForeground(new Color(100, 116, 139));
         
         datePanel.add(dateIcon);
@@ -937,16 +1368,16 @@ public class ReturnPanel extends javax.swing.JPanel {
         processedByPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
         
         JLabel userIcon = new JLabel("👤");
-        userIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
-        userIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
+        userIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
+        userIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
         
         JLabel processedText = new JLabel("Processed by: ");
-        processedText.setFont(new Font("Nunito", Font.PLAIN, 12));
+        processedText.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         processedText.setForeground(new Color(100, 116, 139));
         
         JLabel processedValue = new JLabel(processedBy != null ? processedBy : "Unknown");
-        processedValue.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
-        processedValue.setForeground(new Color(15, 23, 42));
+        processedValue.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
+        processedValue.setForeground(new Color(30, 41, 59));
         
         processedByPanel.add(userIcon);
         processedByPanel.add(processedText);
@@ -962,18 +1393,18 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private String getReasonEmoji(String reason) {
-        if (reason == null) return "📝";
+        if (reason == null) return "️";
         String r = reason.toLowerCase();
-        if (r.contains("damaged")) return "💔";
-        if (r.contains("wrong")) return "📦";
-        if (r.contains("changed mind")) return "💭";
-        if (r.contains("expired")) return "⏰";
-        if (r.contains("size")) return "📏";
-        if (r.contains("malfunction")) return "⚠️";
-        if (r.contains("packaging")) return "📮";
-        if (r.contains("defective")) return "🔧";
-        if (r.contains("late") || r.contains("delivery")) return "🚚";
-        return "📝";
+        if (r.contains("damaged")) return "️";
+        if (r.contains("wrong")) return "";
+        if (r.contains("changed mind")) return "";
+        if (r.contains("expired")) return "";
+        if (r.contains("size")) return "";
+        if (r.contains("malfunction")) return "";
+        if (r.contains("packaging")) return "";
+        if (r.contains("defective")) return "";
+        if (r.contains("late") || r.contains("delivery")) return "";
+        return "ℹ️";
     }
 
     private String formatDateTime(String datetime) {
@@ -1086,8 +1517,12 @@ public class ReturnPanel extends javax.swing.JPanel {
         jLabel12 = new javax.swing.JLabel();
         sortByDays = new javax.swing.JComboBox<>();
         sortByReason = new javax.swing.JComboBox<>();
+        addProductDialog = new javax.swing.JButton();
+        returnReportDialogBtn = new javax.swing.JButton();
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
+
+        jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
 
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -1291,7 +1726,7 @@ public class ReturnPanel extends javax.swing.JPanel {
 
         sortByDays.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         sortByDays.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        sortByDays.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Sort by Days", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        sortByDays.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
         sortByDays.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 sortByDaysActionPerformed(evt);
@@ -1300,10 +1735,26 @@ public class ReturnPanel extends javax.swing.JPanel {
 
         sortByReason.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         sortByReason.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        sortByReason.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Sort by  Reason", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        sortByReason.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
         sortByReason.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 sortByReasonActionPerformed(evt);
+            }
+        });
+
+        addProductDialog.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addProductDialog.setText("Add Return Product");
+        addProductDialog.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addProductDialogActionPerformed(evt);
+            }
+        });
+
+        returnReportDialogBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        returnReportDialogBtn.setText("Return Report");
+        returnReportDialogBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                returnReportDialogBtnActionPerformed(evt);
             }
         });
 
@@ -1316,24 +1767,30 @@ public class ReturnPanel extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 796, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 218, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByDays, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(sortByDays, 0, 214, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByReason, 0, 419, Short.MAX_VALUE)))
+                        .addComponent(sortByReason, 0, 0, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 146, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addProductDialog)
+                        .addGap(11, 11, 11)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(12, 12, 12)
+                .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jTextField1))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 388, Short.MAX_VALUE)
+                    .addComponent(sortByReason, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jTextField1)
+                    .addComponent(sortByDays)
+                    .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 403, Short.MAX_VALUE)
                 .addGap(17, 17, 17))
         );
 
@@ -1357,8 +1814,21 @@ public class ReturnPanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_sortByReasonActionPerformed
 
+    private void addProductDialogActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addProductDialogActionPerformed
+        ExchangeProductDialog exchangeProductProductDialog = new ExchangeProductDialog(null, true);
+        exchangeProductProductDialog.setLocationRelativeTo(null);
+        exchangeProductProductDialog.setVisible(true);
+        handleFilter();
+        
+    }//GEN-LAST:event_addProductDialogActionPerformed
+
+    private void returnReportDialogBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_returnReportDialogBtnActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_returnReportDialogBtnActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton addProductDialog;
     private javax.swing.JPanel buttomPanel;
     private javax.swing.JLabel customerName;
     private javax.swing.JLabel date;
@@ -1378,6 +1848,7 @@ public class ReturnPanel extends javax.swing.JPanel {
     private javax.swing.JButton paymentTypeBtn;
     private lk.com.pos.privateclasses.RoundedPanel productPanel;
     private javax.swing.JLabel productprice;
+    private javax.swing.JButton returnReportDialogBtn;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel1;
     private javax.swing.JComboBox<String> sortByDays;
     private javax.swing.JComboBox<String> sortByReason;

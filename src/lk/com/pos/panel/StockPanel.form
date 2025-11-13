@@ -45,7 +45,7 @@
                   <Group type="103" groupAlignment="1" attributes="0">
                       <Component id="jScrollPane1" max="32767" attributes="0"/>
                       <Group type="102" attributes="0">
-                          <Component id="productSearchBar" max="32767" attributes="0"/>
+                          <Component id="productSearchBar" pref="0" max="32767" attributes="0"/>
                           <EmptySpace min="-2" max="-2" attributes="0"/>
                           <Component id="expiringRadioBtn" min="-2" max="-2" attributes="0"/>
                           <EmptySpace min="-2" max="-2" attributes="0"/>
@@ -54,8 +54,10 @@
                           <Component id="expiredRadioBtn" min="-2" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
                           <Component id="inactiveRadioBtn" min="-2" max="-2" attributes="0"/>
-                          <EmptySpace min="-2" pref="95" max="-2" attributes="0"/>
-                          <Component id="addProductDialog" min="-2" pref="132" max="-2" attributes="0"/>
+                          <EmptySpace min="-2" pref="30" max="-2" attributes="0"/>
+                          <Component id="stockReportBtn" min="-2" pref="132" max="-2" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="addStockBtn" min="-2" pref="132" max="-2" attributes="0"/>
                       </Group>
                   </Group>
                   <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
@@ -71,8 +73,9 @@
                       <Component id="expiringRadioBtn" alignment="3" min="-2" max="-2" attributes="0"/>
                       <Component id="lowStockRadioBtn" alignment="3" min="-2" max="-2" attributes="0"/>
                       <Component id="expiredRadioBtn" alignment="3" min="-2" max="-2" attributes="0"/>
-                      <Component id="addProductDialog" alignment="3" min="-2" pref="47" max="-2" attributes="0"/>
+                      <Component id="addStockBtn" alignment="3" min="-2" pref="47" max="-2" attributes="0"/>
                       <Component id="inactiveRadioBtn" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="stockReportBtn" alignment="3" min="-2" pref="47" max="-2" attributes="0"/>
                   </Group>
                   <EmptySpace min="-2" max="-2" attributes="0"/>
                   <Component id="jScrollPane1" pref="442" max="32767" attributes="0"/>
@@ -132,7 +135,7 @@
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="expiredRadioBtnActionPerformed"/>
           </Events>
         </Component>
-        <Component class="javax.swing.JButton" name="addProductDialog">
+        <Component class="javax.swing.JButton" name="addStockBtn">
           <Properties>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito ExtraBold" size="14" style="1"/>
@@ -140,7 +143,7 @@
             <Property name="text" type="java.lang.String" value="Add Stock"/>
           </Properties>
           <Events>
-            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="addProductDialogActionPerformed"/>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="addStockBtnActionPerformed"/>
           </Events>
         </Component>
         <Container class="javax.swing.JScrollPane" name="jScrollPane1">
@@ -842,6 +845,17 @@
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="inactiveRadioBtnActionPerformed"/>
+          </Events>
+        </Component>
+        <Component class="javax.swing.JButton" name="stockReportBtn">
+          <Properties>
+            <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
+              <Font name="Nunito ExtraBold" size="14" style="1"/>
+            </Property>
+            <Property name="text" type="java.lang.String" value="Stock Report"/>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="stockReportBtnActionPerformed"/>
           </Events>
         </Component>
       </SubComponents>

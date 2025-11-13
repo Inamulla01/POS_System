@@ -1684,10 +1684,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         cartProductName1 = new javax.swing.JLabel();
         cartProductPanelDeleteBtn1 = new javax.swing.JButton();
         cminusBtn1 = new javax.swing.JButton();
-        productCount1 = new javax.swing.JLabel();
         priceInput1 = new javax.swing.JLabel();
         cplusBtn1 = new javax.swing.JButton();
         discountPriceinput1 = new javax.swing.JTextField();
+        jTextField1 = new javax.swing.JTextField();
         jPanel1 = new javax.swing.JPanel();
         paymentcombo = new javax.swing.JComboBox<>();
         cardPayBtn = new javax.swing.JButton();
@@ -1822,10 +1822,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         cminusBtn1.setFont(new java.awt.Font("Nunito ExtraBold", 0, 14)); // NOI18N
         cminusBtn1.setText("-");
 
-        productCount1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        productCount1.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        productCount1.setText("1");
-
         priceInput1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
         priceInput1.setText("Rs.1000");
 
@@ -1841,6 +1837,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         discountPriceinput1.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
         discountPriceinput1.setText(" Descount Price");
 
+        jTextField1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        jTextField1.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+        jTextField1.setText("1");
+
         javax.swing.GroupLayout roundedPanel4Layout = new javax.swing.GroupLayout(roundedPanel4);
         roundedPanel4.setLayout(roundedPanel4Layout);
         roundedPanel4Layout.setHorizontalGroup(
@@ -1855,8 +1855,8 @@ public class PosCartPanel extends javax.swing.JPanel {
                         .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(roundedPanel4Layout.createSequentialGroup()
                                 .addComponent(cminusBtn1)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(productCount1, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(5, 5, 5)
+                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(cplusBtn1)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 117, Short.MAX_VALUE)
@@ -1877,12 +1877,12 @@ public class PosCartPanel extends javax.swing.JPanel {
                 .addGap(10, 10, 10)
                 .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(roundedPanel4Layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addGap(0, 2, Short.MAX_VALUE)
                         .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addComponent(cminusBtn1)
                             .addGroup(roundedPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                .addComponent(productCount1, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(cplusBtn1))))
+                                .addComponent(cplusBtn1)
+                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE))))
                     .addComponent(discountPriceinput1))
                 .addGap(10, 10, 10)
                 .addComponent(priceInput1)
@@ -1912,7 +1912,7 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         paymentcombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         paymentcombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        paymentcombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Payment Method", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        paymentcombo.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
 
         cardPayBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
         cardPayBtn.setText("C");
@@ -2278,12 +2278,12 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JPanel jPanel9;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator2;
+    private javax.swing.JTextField jTextField1;
     private javax.swing.JTextField jTextField2;
     private javax.swing.JComboBox<String> paymentcombo;
     private javax.swing.JLabel priceInput;
     private javax.swing.JLabel priceInput1;
     private javax.swing.JLabel productCount;
-    private javax.swing.JLabel productCount1;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel3;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel4;
     private javax.swing.JButton switchBtn;

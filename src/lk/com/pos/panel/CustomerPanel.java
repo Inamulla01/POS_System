@@ -40,6 +40,7 @@ import javax.swing.JOptionPane;
 import javax.swing.BoxLayout;
 import javax.swing.Box;
 import javax.swing.SwingConstants;
+import lk.com.pos.dialog.AddNewCustomer;
 import lk.com.pos.dialog.CreditView;
 import lk.com.pos.dialog.UpdateCustomer;
 
@@ -191,8 +192,8 @@ public class CustomerPanel extends javax.swing.JPanel {
         setupScrollPane();
         setupIcons();
         setupSearchField();
-        setupButtons();
         setupRadioButtons();
+        setupButtons();
         setupEventListeners();
         setupPanel();
     }
@@ -253,8 +254,8 @@ public class CustomerPanel extends javax.swing.JPanel {
      * Configures buttons
      */
     private void setupButtons() {
-        jButton1.putClientProperty(FlatClientProperties.STYLE, 
-            "background:#3B82F6; foreground:#FFFFFF; borderWidth:0; focusWidth:0; innerFocusWidth:0");
+        customerReportBtn.setToolTipText("Generate Customer Report (Ctrl+R or Ctrl+P)");
+        addNewCoustomerBtn.setToolTipText("Add New Customer (Ctrl+N or Alt+A)");
     }
     
     /**
@@ -265,9 +266,9 @@ public class CustomerPanel extends javax.swing.JPanel {
         jRadioButton2.putClientProperty(FlatClientProperties.STYLE, "foreground:#6366F1;");
         jRadioButton4.putClientProperty(FlatClientProperties.STYLE, "foreground:#F97316;");
         
-        jRadioButton1.setToolTipText("Filter missed due date customers (Alt+1)");
-        jRadioButton2.setToolTipText("Filter no due customers (Alt+2)");
-        jRadioButton4.setToolTipText("Filter due amount customers (Alt+3)");
+        jRadioButton4.setToolTipText("Filter due amount customers (Alt+1)");
+        jRadioButton1.setToolTipText("Filter missed due date customers (Alt+2)");
+        jRadioButton2.setToolTipText("Filter no due customers (Alt+3)");
         
         // Set "Due Amount" as default
         jRadioButton4.setSelected(true);
@@ -474,7 +475,13 @@ public class CustomerPanel extends javax.swing.JPanel {
         addHintRow("V", "View Credit Details", "#FCD34D");
         addHintRow("E", "Edit Customer", "#1CB5BB");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
-        addHintRow("Alt+1-3", "Quick Filters", "#FB923C");
+        addHintRow("Ctrl+N/Alt+A", "Add Customer", "#60D5F2");
+        addHintRow("Ctrl+R", "Customer Report", "#10B981");
+        addHintRow("Ctrl+P", "Customer Report", "#10B981");
+        addHintRow("F5", "Refresh Data", "#06B6D4");
+        addHintRow("Alt+1", "Due Amount (Default)", "#FB923C");
+        addHintRow("Alt+2", "Missed Due Date", "#EF4444");
+        addHintRow("Alt+3", "No Due", "#6366F1");
         addHintRow("Esc", "Clear/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
         
@@ -568,13 +575,20 @@ public class CustomerPanel extends javax.swing.JPanel {
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
         
         // Refresh
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::refreshCustomers);
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshCustomers);
         
+        // Customer Report
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openCustomerReport);
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openCustomerReport);
+        
+        // Add New Customer shortcuts
+        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddCustomerDialog);
+        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddCustomerDialog);
+        
         // Quick filters
-        registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton1));
-        registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton2));
-        registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
+        registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
+        registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton1));
+        registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton2));
         registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, this::clearFilters);
         
         // Help
@@ -1022,8 +1036,24 @@ public class CustomerPanel extends javax.swing.JPanel {
         
         lastRefreshTime = currentTime;
         performSearch();
-        showPositionIndicator("Customers refreshed");
+        showPositionIndicator("✅ Customers refreshed");
         this.requestFocusInWindow();
+    }
+    
+    /**
+     * Opens customer report
+     */
+    private void openCustomerReport() {
+        customerReportBtn.doClick();
+        showPositionIndicator("📊 Opening Customer Report");
+    }
+    
+    /**
+     * Opens Add Customer dialog
+     */
+    private void openAddCustomerDialog() {
+        addNewCoustomerBtn.doClick();
+        showPositionIndicator("➕ Opening Add New Customer dialog");
     }
     
     /**
@@ -2060,6 +2090,18 @@ public class CustomerPanel extends javax.swing.JPanel {
         creditView.setVisible(true);
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
+    
+     private void generateCustomerReport() {
+        // TODO: Implement your actual report generation logic here.
+        // This could involve fetching data and using a library like JasperReports.
+        System.out.println("Customer Report generation triggered.");
+        JOptionPane.showMessageDialog(this, 
+                "Customer Report generation is not yet implemented.\n"
+                + "You can add your report logic in the 'generateCustomerReport()' method.", 
+                "Feature Under Development", 
+                JOptionPane.INFORMATION_MESSAGE);
+        this.requestFocusInWindow();
+    }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2068,7 +2110,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         jPanel1 = new javax.swing.JPanel();
         jTextField1 = new javax.swing.JTextField();
         jRadioButton1 = new javax.swing.JRadioButton();
-        jButton1 = new javax.swing.JButton();
+        addNewCoustomerBtn = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         jPanel2 = new javax.swing.JPanel();
         roundedPanel1 = new lk.com.pos.privateclasses.RoundedPanel();
@@ -2106,6 +2148,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         jButton2 = new javax.swing.JButton();
         jRadioButton2 = new javax.swing.JRadioButton();
         jRadioButton4 = new javax.swing.JRadioButton();
+        customerReportBtn = new javax.swing.JButton();
 
         jPanel1.setBackground(new java.awt.Color(248, 250, 252));
 
@@ -2121,8 +2164,13 @@ public class CustomerPanel extends javax.swing.JPanel {
         jRadioButton1.setForeground(new java.awt.Color(255, 51, 51));
         jRadioButton1.setText("Missed Due Date");
 
-        jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton1.setText("Add New Customer");
+        addNewCoustomerBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addNewCoustomerBtn.setText("Add New Customer");
+        addNewCoustomerBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addNewCoustomerBtnActionPerformed(evt);
+            }
+        });
 
         jPanel2.setBackground(new java.awt.Color(248, 250, 252));
 
@@ -2486,6 +2534,14 @@ public class CustomerPanel extends javax.swing.JPanel {
         jRadioButton4.setForeground(new java.awt.Color(255, 153, 0));
         jRadioButton4.setText("Due Amount");
 
+        customerReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        customerReportBtn.setText("Customer Report");
+        customerReportBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                customerReportBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -2502,8 +2558,10 @@ public class CustomerPanel extends javax.swing.JPanel {
                         .addComponent(jRadioButton1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jRadioButton2)
-                        .addGap(150, 150, 150)
-                        .addComponent(jButton1)))
+                        .addGap(79, 79, 79)
+                        .addComponent(customerReportBtn)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addNewCoustomerBtn)))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(
@@ -2511,7 +2569,9 @@ public class CustomerPanel extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(addNewCoustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(customerReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addComponent(jRadioButton2)
@@ -2544,12 +2604,25 @@ public class CustomerPanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_jButton8ActionPerformed
 
+    private void addNewCoustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCoustomerBtnActionPerformed
+        AddNewCustomer addNewCustomer = new AddNewCustomer(null, true);
+        addNewCustomer.setLocationRelativeTo(null);
+        addNewCustomer.setVisible(true);
+        performSearch();
+        
+    }//GEN-LAST:event_addNewCoustomerBtnActionPerformed
+
+    private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed
+        generateCustomerReport();
+    }//GEN-LAST:event_customerReportBtnActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton addNewCoustomerBtn;
     private javax.swing.ButtonGroup buttonGroup1;
+    private javax.swing.JButton customerReportBtn;
     private javax.swing.JButton deleteBtn;
     private javax.swing.JButton editBtn;
-    private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton8;
     private javax.swing.JLabel jLabel1;

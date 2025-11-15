@@ -118,13 +118,6 @@ public class ReturnPanel extends javax.swing.JPanel {
         keyboardHintsPanel.add(title);
         
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-             keyboardHintsPanel.add(Box.createVerticalStrut(8));
-        JLabel periodTitle = new JLabel("PERIOD FILTERS");
-        periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        periodTitle.setForeground(Color.decode("#FB923C"));
-        periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        keyboardHintsPanel.add(periodTitle);
-        keyboardHintsPanel.add(Box.createVerticalStrut(4));  
         
         addHintRow("↑ ↓", "Navigate returns", "#FFFFFF");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
@@ -134,7 +127,13 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Ctrl+P", "Return Report", "#10B981");
         addHintRow("Ctrl+R", "Return Report", "#10B981");
         
-
+        keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        JLabel periodTitle = new JLabel("PERIOD FILTERS");
+        periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        periodTitle.setForeground(Color.decode("#FB923C"));
+        periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(periodTitle);
+        keyboardHintsPanel.add(Box.createVerticalStrut(4));
         
         addHintRow("Alt+1", "All Time", "#FB923C");
         addHintRow("Alt+2", "Today", "#FCD34D");
@@ -146,7 +145,13 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
         
-
+        keyboardHintsPanel.add(Box.createVerticalStrut(8));
+        JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
+        reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        reasonTitle.setForeground(Color.decode("#F472B6"));
+        reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
+        keyboardHintsPanel.add(reasonTitle);
+        keyboardHintsPanel.add(Box.createVerticalStrut(4));
         
         addHintRow("Shift+1", "All Reasons", "#9CA3AF");
         addHintRow("Shift+2", "Damaged", "#EF4444");
@@ -159,13 +164,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Shift+9", "Defective", "#EF4444");
         addHintRow("Shift+0", "Late Delivery", "#60A5FA");
         addHintRow("Shift+-", "Other", "#F472B6");
-                keyboardHintsPanel.add(Box.createVerticalStrut(8));
-        JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
-        reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        reasonTitle.setForeground(Color.decode("#F472B6"));
-        reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
-        keyboardHintsPanel.add(reasonTitle);
-        keyboardHintsPanel.add(Box.createVerticalStrut(4));
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         addHintRow("Esc", "Clear All Filters", "#EF4444");
         addHintRow("?", "Toggle Help", "#EF4444");
@@ -718,91 +717,92 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private List<ReturnData> fetchReturnsFromDatabase(String searchText, String period, String reason) throws Exception {
-        List<ReturnData> returns = new ArrayList<>();
+    List<ReturnData> returns = new ArrayList<>();
+    
+    try {
+        String baseQuery = "SELECT " +
+            "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
+            "s.invoice_no, s.total as original_total, " +
+            "rr.reason as return_reason, " +
+            "ps.p_status as status_name, " +
+            "u.name as processed_by, " +
+            "pm.payment_method_name, " +
+            "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
+            "FROM `return` r " +
+            "INNER JOIN sales s ON r.sales_id = s.sales_id " +
+            "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id " +
+            "INNER JOIN p_status ps ON r.status_id = ps.p_status_id " +
+            "INNER JOIN user u ON r.user_id = u.user_id " +
+            "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
+            "LEFT JOIN credit c ON s.sales_id = c.sales_id " +
+            "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id ";
         
-        try {
-            String baseQuery = "SELECT " +
-                "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
-                "s.invoice_no, s.total as original_total, " +
-                "rr.reason as return_reason, " +
-                "ps.p_status as status_name, " +
-                "u.name as processed_by, " +
-                "pm.payment_method_name, " +
-                "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
-                "FROM `return` r " +
-                "INNER JOIN sales s ON r.sales_id = s.sales_id " +
-                "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id " +
-                "INNER JOIN p_status ps ON r.status_id = ps.p_status_id " +
-                "INNER JOIN user u ON r.user_id = u.user_id " +
-                "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
-                "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id ";
-            
-            StringBuilder whereClause = new StringBuilder();
-            List<Object> parameters = new ArrayList<>();
-            
-            if (!searchText.isEmpty()) {
-                String escapedSearch = searchText.replace("'", "''")
-                                                 .replace("\\", "\\\\")
-                                                 .replace("%", "\\%")
-                                                 .replace("_", "\\_");
-                whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
-            }
-            
-            String dateFilter = getDateFilter(period);
-            if (!dateFilter.isEmpty()) {
-                if (whereClause.length() == 0) {
-                    whereClause.append("WHERE ").append(dateFilter);
-                } else {
-                    whereClause.append("AND ").append(dateFilter);
-                }
-            }
-            
-            if (!reason.equals("All Reasons")) {
-                if (whereClause.length() == 0) {
-                    whereClause.append("WHERE rr.reason LIKE ? ");
-                } else {
-                    whereClause.append("AND rr.reason LIKE ? ");
-                }
-                parameters.add("%" + reason + "%");
-            }
-            
-            String orderBy = " ORDER BY r.return_date DESC";
-            String finalQuery = baseQuery + whereClause.toString() + orderBy;
-            
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
-            for (int i = 0; i < parameters.size(); i++) {
-                pst.setObject(i + 1, parameters.get(i));
-            }
-            
-            ResultSet rs = pst.executeQuery();
-            
-            while (rs.next()) {
-                ReturnData data = new ReturnData();
-                data.returnId = rs.getInt("return_id");
-                data.invoiceNo = rs.getString("invoice_no");
-                data.returnDate = rs.getString("return_date");
-                data.returnAmount = rs.getDouble("total_return_amount");
-                data.discountPrice = rs.getDouble("total_discount_price");
-                data.originalTotal = rs.getDouble("original_total");
-                data.returnReason = rs.getString("return_reason");
-                data.statusName = rs.getString("status_name");
-                data.processedBy = rs.getString("processed_by");
-                data.paymentMethod = rs.getString("payment_method_name");
-                data.customerName = rs.getString("customer_name");
-                
-                returns.add(data);
-            }
-            
-            rs.close();
-            pst.close();
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new Exception("Database error: " + e.getMessage());
+        StringBuilder whereClause = new StringBuilder();
+        List<Object> parameters = new ArrayList<>();
+        
+        if (!searchText.isEmpty()) {
+            String escapedSearch = searchText.replace("'", "''")
+                                             .replace("\\", "\\\\")
+                                             .replace("%", "\\%")
+                                             .replace("_", "\\_");
+            whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
         }
         
-        return returns;
+        String dateFilter = getDateFilter(period);
+        if (!dateFilter.isEmpty()) {
+            if (whereClause.length() == 0) {
+                whereClause.append("WHERE ").append(dateFilter);
+            } else {
+                whereClause.append("AND ").append(dateFilter);
+            }
+        }
+        
+        if (!reason.equals("All Reasons")) {
+            if (whereClause.length() == 0) {
+                whereClause.append("WHERE rr.reason LIKE ? ");
+            } else {
+                whereClause.append("AND rr.reason LIKE ? ");
+            }
+            parameters.add("%" + reason + "%");
+        }
+        
+        String orderBy = " ORDER BY r.return_date DESC";
+        String finalQuery = baseQuery + whereClause.toString() + orderBy;
+        
+        PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
+        for (int i = 0; i < parameters.size(); i++) {
+            pst.setObject(i + 1, parameters.get(i));
+        }
+        
+        ResultSet rs = pst.executeQuery();
+        
+        while (rs.next()) {
+            ReturnData data = new ReturnData();
+            data.returnId = rs.getInt("return_id");
+            data.invoiceNo = rs.getString("invoice_no");
+            data.returnDate = rs.getString("return_date");
+            data.returnAmount = rs.getDouble("total_return_amount");
+            data.discountPrice = rs.getDouble("total_discount_price");
+            data.originalTotal = rs.getDouble("original_total");
+            data.returnReason = rs.getString("return_reason");
+            data.statusName = rs.getString("status_name");
+            data.processedBy = rs.getString("processed_by");
+            data.paymentMethod = rs.getString("payment_method_name");
+            data.customerName = rs.getString("customer_name");
+            
+            returns.add(data);
+        }
+        
+        rs.close();
+        pst.close();
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        throw new Exception("Database error: " + e.getMessage());
     }
+    
+    return returns;
+}
 
     private void displayReturns(List<ReturnData> returns) {
         returnsContainer = new JPanel();

@@ -9,7 +9,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.AWTEvent;
@@ -20,7 +19,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import javax.swing.event.MouseInputListener;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.plaf.basic.BasicMenuItemUI;
@@ -36,26 +34,23 @@ import lk.com.pos.panel.ReturnPanel;
 import lk.com.pos.panel.StockPanel;
 import lk.com.pos.panel.SalesPanel;
 import lk.com.pos.panel.SupplierPanel;
-// import lk.com.pos.session.Session;
 import lk.com.pos.util.AppIconUtil;
 import raven.toast.Notifications;
+import lk.com.pos.privateclasses.NotificationScheduler;
+import lk.com.pos.session.Session;
 
 public class HomeScreen extends JFrame {
 
-    // ===== SESSION CODE COMMENTED OUT =====
-    // int userId = Session.getInstance().getUserId();
-    // String roleName = Session.getInstance().getRoleName();
-    // Temporary hardcoded values for testing (remove when session is restored)
     int userId = 1;
     String roleName = "Admin";
-    // ===== END SESSION CODE =====
-
-    // Icons
+    
+    private static NotificationScheduler notificationScheduler;
+    
+    
     private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
     private FlatSVGIcon notificationIcon, returnIcon, productIcon;
     private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon;
 
-    // Sidebar animation
     private static final int SIDEBAR_WIDTH_EXPANDED = 230;
     private static final int SIDEBAR_WIDTH_COLLAPSED = 70;
     private static final int STEP_SIZE = 20;
@@ -65,11 +60,9 @@ public class HomeScreen extends JFrame {
     private int animationTargetWidth;
     private boolean animationOpening;
 
-    // Clock timer
     private Timer clockTimer;
     private SimpleDateFormat timeFormat;
 
-    // Panels for card layout
     private DashboardPanel dashboardPanel;
     private PosPanelDone posPanel;
     private SupplierPanel supplierPanel;
@@ -81,7 +74,6 @@ public class HomeScreen extends JFrame {
     private ReturnPanel retuenPanel;
     private ProductPanel productPanel;
 
-    // Current active button
     private JButton activeButton = null;
     private Color activeTopColor = new Color(0x12B5A6);
     private Color activeBottomColor = new Color(0x0893B0);
@@ -98,27 +90,21 @@ public class HomeScreen extends JFrame {
     private JPopupMenu notificationPopup;
     private AWTEventListener notificationPopupMouseListener;
 
-    // Shortcut panel variables
     private JPopupMenu shortcutPopup;
     private AWTEventListener shortcutPopupMouseListener;
     private String currentPanelName = "Dashboard";
 
-    // Track hover state for each button
     private java.util.Map<JButton, Boolean> buttonHoverStates = new java.util.HashMap<>();
 
     public HomeScreen() {
 
         initComponents();
 
-        // ===== SESSION VALIDATION COMMENTED OUT =====
-        // if (!hasValidSession()) {
-        //     redirectToLogin();
-        //     return;
-        // }
-        // ===== END SESSION CODE =====
         loadPanels();
         init();
         initSidebarSlider();
+        
+        startNotificationScheduler();
 
     }
 
@@ -126,12 +112,6 @@ public class HomeScreen extends JFrame {
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-        // ===== SESSION VALIDATION COMMENTED OUT =====
-        // if (!hasValidSession()) {
-        //     redirectToLogin();
-        //     return;
-        // }
-        // ===== END SESSION CODE =====
         try {
             ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + userId);
             if (rs.next()) {
@@ -141,7 +121,6 @@ public class HomeScreen extends JFrame {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Database Error: " + e.getMessage());
         }
 
-        // Initialize sidebar icons
         dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
         posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
         supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
@@ -152,18 +131,15 @@ public class HomeScreen extends JFrame {
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
         calculatorIcon = new FlatSVGIcon("lk/com/pos/icon/calculator.svg", 24, 24);
 
-        // New icons for additional buttons
         notificationIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
         returnIcon = new FlatSVGIcon("lk/com/pos/icon/return.svg", 17, 17);
         productIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
 
-        // Initialize navigation bar icons
         navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
         navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
         navProfileIcon = new FlatSVGIcon("lk/com/pos/icon/profile.svg", 26, 26);
         navKeyIcon = new FlatSVGIcon("lk/com/pos/icon/keyboard.svg", 25, 25);
 
-        // Set navigation bar icons with hover effects
         setupNavButtonWithHoverText(menuBtn, navMenuIcon, "Toggle Sidebar");
         setupNavButtonWithHoverText(bellBtn, navBellIcon, "Notifications");
         setupNavButtonWithHoverText(profileBtn, navProfileIcon, "User Profile");
@@ -171,9 +147,8 @@ public class HomeScreen extends JFrame {
         setupNavButtonWithHoverText(calBtn, calculatorIcon, "Calculator");
 
         setupProfileDropdown();
-        setupShortcutSystem(); // Initialize shortcut system
+        setupShortcutSystem();
 
-        // Track hover states for all buttons
         buttonHoverStates.put(dashboardBtn, false);
         buttonHoverStates.put(posBtn, false);
         buttonHoverStates.put(supplierBtn, false);
@@ -186,7 +161,6 @@ public class HomeScreen extends JFrame {
         buttonHoverStates.put(returnBtn, false);
         buttonHoverStates.put(productBtn, false);
 
-        // Setup hover buttons for sidebar - all buttons with same design
         setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(supplierBtn, supplierIcon, normalTextColor, hoverTop, hoverBottom);
@@ -198,13 +172,10 @@ public class HomeScreen extends JFrame {
         setupHoverButton(productBtn, productIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
-        // Setup menu button for sidebar expand/collapse
         setupMenuButtonForSidebar();
 
-        // Logo setup
         updateLogo();
 
-        // Button padding for all buttons
         dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
@@ -216,7 +187,6 @@ public class HomeScreen extends JFrame {
         productBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
         signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
 
-        // Set sidebar collapsed at startup
         isSidebarExpanded = false;
         sidePenal.setPreferredSize(new Dimension(SIDEBAR_WIDTH_COLLAPSED, sidePenal.getPreferredSize().height));
         setButtonTextVisible(false);
@@ -224,15 +194,12 @@ public class HomeScreen extends JFrame {
         penal1.revalidate();
         penal1.repaint();
 
-        // Initialize and start clock timer
         timeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         startClockTimer();
 
-        // Set dashboard as default active button
         setActiveButton(dashboardBtn);
         showDashboardPanel();
 
-        // Always show shortcut icon
         keyBtn.setVisible(true);
 
         setupNotificationSystem();
@@ -242,28 +209,40 @@ public class HomeScreen extends JFrame {
             try {
                 loadUnreadNotifications();
             } catch (Exception ex) {
-                // Silently ignore timer errors
             }
         }).start();
 
     }
-
+    private void startNotificationScheduler() {
+        notificationScheduler = new NotificationScheduler();
+        notificationScheduler.startScheduler();
+        notificationScheduler.addShutdownHook();
+    }
+    
+    private void stopNotificationScheduler() {
+        if (notificationScheduler != null) {
+            notificationScheduler.stopScheduler();
+        }
+    }
+    
+    @Override
+    public void dispose() {
+        stopNotificationScheduler();
+        super.dispose();
+    }
     private void setupShortcutSystem() {
         shortcutPopup = new JPopupMenu();
         shortcutPopup.setFocusable(false);
 
-        // Add popup menu listener to handle outside clicks
         shortcutPopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                // Add global mouse listener to detect clicks outside
                 shortcutPopupMouseListener = new AWTEventListener() {
                     @Override
                     public void eventDispatched(AWTEvent event) {
                         if (event instanceof MouseEvent) {
                             MouseEvent me = (MouseEvent) event;
                             if (me.getID() == MouseEvent.MOUSE_PRESSED) {
-                                // Check if click is outside the popup and key button
                                 if (!shortcutPopup.isShowing()
                                         || (me.getSource() != keyBtn
                                         && !SwingUtilities.isDescendingFrom(me.getComponent(), shortcutPopup))) {
@@ -278,7 +257,6 @@ public class HomeScreen extends JFrame {
 
             @Override
             public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
-                // Remove the listener when popup closes
                 if (shortcutPopupMouseListener != null) {
                     Toolkit.getDefaultToolkit().removeAWTEventListener(shortcutPopupMouseListener);
                 }
@@ -292,7 +270,6 @@ public class HomeScreen extends JFrame {
             }
         });
 
-        // Toggle popup on button click
         keyBtn.addActionListener(e -> {
             if (shortcutPopup.isVisible()) {
                 shortcutPopup.setVisible(false);
@@ -305,17 +282,14 @@ public class HomeScreen extends JFrame {
     private void showShortcuts() {
         shortcutPopup.removeAll();
 
-        // Create header panel with title and close button
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
         headerPanel.setBackground(new Color(0xF8F9FA));
 
-        // Title
         JLabel titleLabel = new JLabel("Keyboard Shortcuts - " + currentPanelName);
         titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         titleLabel.setForeground(new Color(0x333333));
 
-        // Close button
         FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 16, 16);
         closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
             @Override
@@ -334,7 +308,6 @@ public class HomeScreen extends JFrame {
             shortcutPopup.setVisible(false);
         });
 
-        // Add hover effect to close button
         closeButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -364,18 +337,21 @@ public class HomeScreen extends JFrame {
 
         shortcutPopup.add(headerPanel);
 
-        // Add separator after header
         JSeparator headerSeparator = new JSeparator();
         headerSeparator.setForeground(new Color(0xDDDDDD));
         shortcutPopup.add(headerSeparator);
 
-        // Add shortcuts based on current panel
         loadShortcutsForPanel(currentPanelName);
 
-        // Pack the popup to calculate proper size
         shortcutPopup.pack();
 
-        // Show popup below the key button
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int maxHeight = 200;
+        shortcutPopup.setMaximumSize(new Dimension(
+                shortcutPopup.getPreferredSize().width,
+                maxHeight
+        ));
+
         Point buttonLoc = keyBtn.getLocationOnScreen();
         int x = buttonLoc.x - (shortcutPopup.getPreferredSize().width - keyBtn.getWidth()) / 2;
         int y = buttonLoc.y + keyBtn.getHeight();
@@ -426,7 +402,6 @@ public class HomeScreen extends JFrame {
         hintPanel.setBackground(Color.WHITE);
         hintPanel.setPreferredSize(new Dimension(350, 35));
 
-        // Key combination with colored background
         JLabel keyLabel = new JLabel(keys);
         keyLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
         keyLabel.setForeground(Color.WHITE);
@@ -439,7 +414,6 @@ public class HomeScreen extends JFrame {
         keyLabel.setHorizontalAlignment(SwingConstants.CENTER);
         keyLabel.setPreferredSize(new Dimension(100, 25));
 
-        // Description
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
         descLabel.setForeground(new Color(0x333333));
@@ -456,12 +430,11 @@ public class HomeScreen extends JFrame {
         hintPanel.setBackground(Color.WHITE);
         hintPanel.setPreferredSize(new Dimension(350, 35));
 
-        // Key combination for arrows with light background and dark text
         JLabel keyLabel = new JLabel("← → ↑ ↓");
         keyLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
         keyLabel.setForeground(Color.BLACK);
         keyLabel.setOpaque(true);
-        keyLabel.setBackground(new Color(0xE5E7EB)); // Light gray background
+        keyLabel.setBackground(new Color(0xE5E7EB));
         keyLabel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(0xD1D5DB), 1),
                 BorderFactory.createEmptyBorder(4, 8, 4, 8)
@@ -469,7 +442,6 @@ public class HomeScreen extends JFrame {
         keyLabel.setHorizontalAlignment(SwingConstants.CENTER);
         keyLabel.setPreferredSize(new Dimension(100, 25));
 
-        // Description
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
         descLabel.setForeground(new Color(0x333333));
@@ -602,7 +574,6 @@ public class HomeScreen extends JFrame {
         addHintRow("Ctrl+N", "Return Product", "#EF4444");
         addHintRow("Ctrl+P", "Return Report", "#10B981");
         addHintRow("Ctrl+R", "Return Report", "#10B981");
-        
         addHintRow("Alt+1", "All Time", "#FB923C");
         addHintRow("Alt+2", "Today", "#FCD34D");
         addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
@@ -612,7 +583,6 @@ public class HomeScreen extends JFrame {
         addHintRow("Alt+7", "2 Years", "#60A5FA");
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
-        
         addHintRow("Shift+1", "All Reasons", "#9CA3AF");
         addHintRow("Shift+2", "Damaged", "#EF4444");
         addHintRow("Shift+3", "Wrong Item", "#F59E0B");
@@ -629,10 +599,19 @@ public class HomeScreen extends JFrame {
     }
 
     private void addNotificationShortcuts() {
-        addHintRow("F5", "Refresh Notifications", "#06B6D4");
-        addHintRow("Ctrl+M", "Mark All Read", "#10B981");
+        addArrowHintRow("Navigate notifications");
+        addHintRow("D", "Delete current notification", "#EF4444");
+        addHintRow("V", "View current notification", "#1CB5BB");
+        addHintRow("F1", "Filter All", "#FB923C");
+        addHintRow("F2", "Filter Unread", "#FCD34D");
+        addHintRow("F3", "Filter Low Stock", "#1CB5BB");
+        addHintRow("F4", "Filter Expiring", "#F87171");
+        addHintRow("F5", "Filter Missed Due Date", "#A78BFA");
+        addHintRow("F6", "Filter Expired", "#34D399");
+        addHintRow("F7", "Mark all as read", "#10B981");
+        addHintRow("Alt+D", "Delete all notifications", "#EF4444");
+        addHintRow("Ctrl+F5", "Refresh Notifications", "#06B6D4");
         addHintRow("Ctrl+A", "Select All", "#1CB5BB");
-        addHintRow("Delete", "Clear Notifications", "#EF4444");
         addHintRow("Esc", "Close/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
     }
@@ -675,25 +654,21 @@ public class HomeScreen extends JFrame {
         notificationBadge.setPreferredSize(new Dimension(18, 18));
         notificationBadge.setVisible(false);
 
-        // Position badge on top-right of bell button
         bellBtn.setLayout(new BorderLayout());
         JPanel badgePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         badgePanel.setOpaque(false);
         badgePanel.add(notificationBadge);
         bellBtn.add(badgePanel, BorderLayout.NORTH);
 
-        // Add popup menu listener to handle outside clicks
         notificationPopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                // Add global mouse listener to detect clicks outside
                 notificationPopupMouseListener = new AWTEventListener() {
                     @Override
                     public void eventDispatched(AWTEvent event) {
                         if (event instanceof MouseEvent) {
                             MouseEvent me = (MouseEvent) event;
                             if (me.getID() == MouseEvent.MOUSE_PRESSED) {
-                                // Check if click is outside the popup and bell button
                                 if (!notificationPopup.isShowing()
                                         || (me.getSource() != bellBtn
                                         && !SwingUtilities.isDescendingFrom(me.getComponent(), notificationPopup))) {
@@ -709,7 +684,6 @@ public class HomeScreen extends JFrame {
 
             @Override
             public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
-                // Remove the listener when popup closes
                 if (notificationPopupMouseListener != null) {
                     Toolkit.getDefaultToolkit().removeAWTEventListener(notificationPopupMouseListener);
                 }
@@ -723,7 +697,6 @@ public class HomeScreen extends JFrame {
             }
         });
 
-        // Toggle popup
         bellBtn.addActionListener(e -> {
             if (notificationPopup.isVisible()) {
                 notificationPopup.setVisible(false);
@@ -749,17 +722,14 @@ public class HomeScreen extends JFrame {
             int count = 0;
             boolean firstItem = true;
 
-            // Create header panel with title and close button
             JPanel headerPanel = new JPanel(new BorderLayout());
             headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 8));
             headerPanel.setBackground(new Color(0xF8F9FA));
 
-            // Title
             JLabel titleLabel = new JLabel("Notifications");
             titleLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
             titleLabel.setForeground(new Color(0x333333));
 
-            // Close button
             FlatSVGIcon closeIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 16, 16);
             closeIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                 @Override
@@ -779,7 +749,6 @@ public class HomeScreen extends JFrame {
                 markAllNotificationsAsRead();
             });
 
-            // Add hover effect to close button
             closeButton.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
@@ -809,7 +778,6 @@ public class HomeScreen extends JFrame {
 
             notificationPopup.add(headerPanel);
 
-            // Add separator after header
             JSeparator headerSeparator = new JSeparator();
             headerSeparator.setForeground(new Color(0xDDDDDD));
             notificationPopup.add(headerSeparator);
@@ -820,7 +788,6 @@ public class HomeScreen extends JFrame {
                 String type = rs.getString("msg_type").toLowerCase();
                 String time = rs.getString("create_at");
 
-                // Add separator between notifications
                 if (!firstItem) {
                     JSeparator separator = new JSeparator();
                     separator.setForeground(new Color(0xDDDDDD));
@@ -828,7 +795,6 @@ public class HomeScreen extends JFrame {
                 }
                 firstItem = false;
 
-                // Select icon based on type with comprehensive mapping
                 FlatSVGIcon icon;
                 switch (type) {
                     case "expired soon":
@@ -872,7 +838,6 @@ public class HomeScreen extends JFrame {
                         icon = new FlatSVGIcon("lk/com/pos/icon/info.svg", 18, 18);
                         break;
                     default:
-                        // Fallback to basic icons based on common patterns
                         if (type.contains("success") || type.contains("complete")) {
                             icon = new FlatSVGIcon("lk/com/pos/icon/success.svg", 18, 18);
                         } else if (type.contains("warning") || type.contains("expired") || type.contains("low")) {
@@ -885,24 +850,20 @@ public class HomeScreen extends JFrame {
                         break;
                 }
 
-                // Create notification item
                 JPanel notifItem = new JPanel(new BorderLayout(8, 0));
                 notifItem.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
                 notifItem.setBackground(Color.WHITE);
                 notifItem.setPreferredSize(new Dimension(450, 40));
 
-                // Icon on the left
                 JLabel iconLabel = new JLabel(icon);
                 notifItem.add(iconLabel, BorderLayout.WEST);
 
-                // Message and time in the center
                 JPanel textPanel = new JPanel(new BorderLayout());
                 textPanel.setOpaque(false);
 
                 JLabel msgLabel = new JLabel("<html><div style='width: 400px;'>" + message + "</div></html>");
                 msgLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
 
-                // Format time with relative time
                 String formattedTime = formatNotificationTime(time);
                 JLabel timeLabel = new JLabel(formattedTime);
                 timeLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
@@ -913,7 +874,6 @@ public class HomeScreen extends JFrame {
 
                 notifItem.add(textPanel, BorderLayout.CENTER);
 
-                // Make panel clickable to mark as read
                 notifItem.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 final int notifId = rs.getInt("id");
                 notifItem.addMouseListener(new MouseAdapter() {
@@ -937,7 +897,6 @@ public class HomeScreen extends JFrame {
                 notificationPopup.add(notifItem);
             }
 
-            // Handle empty notifications
             if (count == 0) {
                 JLabel emptyLabel = new JLabel("No new notifications");
                 emptyLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 12));
@@ -947,7 +906,6 @@ public class HomeScreen extends JFrame {
                 notificationPopup.add(emptyLabel);
             }
 
-            // Show badge with count
             if (count > 0) {
                 notificationBadge.setText(String.valueOf(count));
                 notificationBadge.setVisible(true);
@@ -955,7 +913,6 @@ public class HomeScreen extends JFrame {
                 notificationBadge.setVisible(false);
             }
 
-            // Refresh popup
             notificationPopup.revalidate();
             notificationPopup.repaint();
 
@@ -967,7 +924,14 @@ public class HomeScreen extends JFrame {
     private void showNotifications() {
         loadUnreadNotifications();
 
-        // Show popup
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int maxHeight = 200;
+
+        notificationPopup.setMaximumSize(new Dimension(
+                notificationPopup.getPreferredSize().width,
+                maxHeight
+        ));
+
         Point buttonLoc = bellBtn.getLocationOnScreen();
         int x = buttonLoc.x - (notificationPopup.getPreferredSize().width - bellBtn.getWidth()) / 2;
         int y = buttonLoc.y + bellBtn.getHeight();
@@ -991,7 +955,6 @@ public class HomeScreen extends JFrame {
             MySQL.executeIUD("UPDATE notifocation SET is_read = 0 WHERE id = " + id);
             loadUnreadNotifications();
         } catch (Exception e) {
-            // Silent fail
         }
     }
 
@@ -1014,7 +977,6 @@ public class HomeScreen extends JFrame {
             return getRelativeTime(notificationDate);
 
         } catch (Exception e) {
-            // Fallback to simple format if parsing fails
             if (dbTime != null && dbTime.length() > 16) {
                 return dbTime.substring(5, 16).replace("T", " ");
             }
@@ -1067,17 +1029,15 @@ public class HomeScreen extends JFrame {
     }
 
     private void setupNavButtonWithHoverText(JButton button, FlatSVGIcon icon, String hoverText) {
-        // Set initial icon with default color
         icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
             @Override
             public Color filter(Color color) {
-                return new Color(0x666666); // Gray color for nav icons
+                return new Color(0x666666);
             }
         });
 
-        // Center the icon in the button
         button.setIcon(icon);
-        button.setText(""); // No text initially
+        button.setText("");
         button.setHorizontalAlignment(SwingConstants.CENTER);
         button.setVerticalAlignment(SwingConstants.CENTER);
         button.setContentAreaFilled(false);
@@ -1086,38 +1046,33 @@ public class HomeScreen extends JFrame {
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         button.setOpaque(false);
 
-        // Create a custom tooltip that appears instantly on hover
         button.addMouseListener(new MouseAdapter() {
             private JWindow hoverWindow;
             private JLabel hoverLabel;
 
             @Override
             public void mouseEntered(MouseEvent e) {
-                // Change icon color on hover
                 icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                     @Override
                     public Color filter(Color color) {
-                        return new Color(0x12B5A6); // Green color on hover
+                        return new Color(0x12B5A6);
                     }
                 });
                 button.repaint();
 
-                // Create and show hover text window
                 showHoverText(button, hoverText);
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
-                // Reset icon color
                 icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                     @Override
                     public Color filter(Color color) {
-                        return new Color(0x666666); // Back to gray
+                        return new Color(0x666666);
                     }
                 });
                 button.repaint();
 
-                // Hide hover text
                 hideHoverText();
             }
 
@@ -1131,12 +1086,10 @@ public class HomeScreen extends JFrame {
                     hoverWindow.dispose();
                 }
 
-                // Create a transparent window for the hover text
                 hoverWindow = new JWindow();
                 hoverWindow.setFocusableWindowState(false);
                 hoverWindow.setBackground(new Color(0, 0, 0, 0));
 
-                // Create the hover label
                 hoverLabel = new JLabel(text);
                 hoverLabel.setFont(new Font("Nunitu SemiBold", Font.PLAIN, 11));
                 hoverLabel.setForeground(Color.WHITE);
@@ -1150,10 +1103,9 @@ public class HomeScreen extends JFrame {
                 hoverWindow.add(hoverLabel);
                 hoverWindow.pack();
 
-                // Position the hover text BELOW the button
                 Point buttonLoc = button.getLocationOnScreen();
                 int x = buttonLoc.x + (button.getWidth() - hoverWindow.getWidth()) / 2;
-                int y = buttonLoc.y + button.getHeight() + 5; // Position below the button
+                int y = buttonLoc.y + button.getHeight() + 5;
 
                 hoverWindow.setLocation(x, y);
                 hoverWindow.setVisible(true);
@@ -1169,11 +1121,10 @@ public class HomeScreen extends JFrame {
     }
 
     private void setupMenuButtonForSidebar() {
-        // Initial icon color for menu button (sidebar control)
         menuIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
             @Override
             public Color filter(Color color) {
-                return new Color(0x666666); // Gray color by default
+                return new Color(0x666666);
             }
         });
         menuBtn.setIcon(menuIcon);
@@ -1183,14 +1134,13 @@ public class HomeScreen extends JFrame {
         menuBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         menuBtn.setOpaque(false);
 
-        // Add hover effect for menu button
         menuBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 menuIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                     @Override
                     public Color filter(Color color) {
-                        return new Color(0x12B5A6); // Green color on hover
+                        return new Color(0x12B5A6);
                     }
                 });
                 menuBtn.repaint();
@@ -1201,7 +1151,7 @@ public class HomeScreen extends JFrame {
                 menuIcon.setColorFilter(new FlatSVGIcon.ColorFilter() {
                     @Override
                     public Color filter(Color color) {
-                        return new Color(0x666666); // Back to gray
+                        return new Color(0x666666);
                     }
                 });
                 menuBtn.repaint();
@@ -1210,11 +1160,9 @@ public class HomeScreen extends JFrame {
     }
 
     private void loadPanels() {
-        // Initialize CardLayout
         this.contentPanelLayout = new CardLayout();
         cardPanel.setLayout(contentPanelLayout);
 
-        // Initialize panels
         this.dashboardPanel = new DashboardPanel();
         this.posPanel = new PosPanelDone();
         this.supplierPanel = new SupplierPanel();
@@ -1225,7 +1173,6 @@ public class HomeScreen extends JFrame {
         this.productPanel = new ProductPanel();
         this.retuenPanel = new ReturnPanel();
 
-        // Add panels to card layout
         this.cardPanel.add(dashboardPanel, "dashboard_panel");
         this.cardPanel.add(posPanel, "pos_panel");
         this.cardPanel.add(supplierPanel, "supplier_panel");
@@ -1240,13 +1187,10 @@ public class HomeScreen extends JFrame {
     }
 
     private void setActiveButton(JButton button) {
-        // Close all popups when switching panels
         closeAllPopups();
-        
-        // Reset all navigation buttons to normal first
+
         resetAllButtonsToNormal();
 
-        // Set new active button (only if it's not sign out button)
         if (button != signOutBtn) {
             activeButton = button;
             setButtonToActive(button);
@@ -1297,10 +1241,9 @@ public class HomeScreen extends JFrame {
 
     private void setButtonToActive(JButton button) {
         if (button == signOutBtn) {
-            return; // Skip sign out button
+            return;
         }
         button.setForeground(Color.WHITE);
-        // Set icon color to white
         FlatSVGIcon icon = getButtonIcon(button);
         if (icon != null) {
             icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
@@ -1403,7 +1346,6 @@ public class HomeScreen extends JFrame {
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
-        // Set initial state
         icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
             @Override
             public Color filter(Color color) {
@@ -1419,7 +1361,6 @@ public class HomeScreen extends JFrame {
         button.setForeground(normalTextColor);
         button.setOpaque(true);
 
-        // Custom UI for gradient background with hover support
         button.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
@@ -1429,26 +1370,21 @@ public class HomeScreen extends JFrame {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 Color top, bottom;
                 if (button == activeButton && button != signOutBtn) {
-                    // Active state - always show gradient (except for sign out)
                     top = activeTopColor;
                     bottom = activeBottomColor;
                 } else if (Boolean.TRUE.equals(buttonHoverStates.get(button))) {
-                    // Hover state - show hover gradient
                     top = hoverTopColor;
                     bottom = hoverBottomColor;
                 } else {
-                    // Normal state - white background
                     top = Color.WHITE;
                     bottom = Color.WHITE;
                 }
                 g2.setPaint(new GradientPaint(0, 0, top, w, 0, bottom));
                 g2.fillRect(0, 0, w, h);
-                // Paint the button content
                 super.paint(g, c);
             }
         });
 
-        // Mouse listener for hover effects
         button.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -1486,30 +1422,26 @@ public class HomeScreen extends JFrame {
         slideTimer = new Timer(SLIDE_DELAY, e -> {
             int currentWidth = sidePenal.getWidth();
             if (animationOpening) {
-                // Expanding
                 if (currentWidth < animationTargetWidth) {
                     int next = Math.min(currentWidth + STEP_SIZE, animationTargetWidth);
                     sidePenal.setPreferredSize(new Dimension(next, sidePenal.getHeight()));
                     penal1.revalidate();
                     penal1.repaint();
-                    // Show button text dynamically during expansion
                     if (next > 100) {
                         setButtonTextVisible(true);
                     }
                 } else {
                     slideTimer.stop();
                     isSidebarExpanded = true;
-                    setButtonTextVisible(true); // ensure fully visible at end
+                    setButtonTextVisible(true);
                     updateLogo();
                 }
             } else {
-                // Collapsing
                 if (currentWidth > animationTargetWidth) {
                     int next = Math.max(currentWidth - STEP_SIZE, animationTargetWidth);
                     sidePenal.setPreferredSize(new Dimension(next, sidePenal.getHeight()));
                     penal1.revalidate();
                     penal1.repaint();
-                    // Hide text immediately while collapsing
                     setButtonTextVisible(false);
                 } else {
                     slideTimer.stop();
@@ -1534,29 +1466,25 @@ public class HomeScreen extends JFrame {
     }
 
     private void updateLogo() {
-        logo.setVerticalAlignment(SwingConstants.CENTER); // stays vertically centered
-        logo.setBorder(BorderFactory.createEmptyBorder(15, 5, 15, 10)); // margin
+        logo.setVerticalAlignment(SwingConstants.CENTER);
+        logo.setBorder(BorderFactory.createEmptyBorder(15, 5, 15, 10));
         if (isSidebarExpanded) {
-            // Expanded → big centered logo
             logo.setIcon(new FlatSVGIcon("lk/com/pos/img/pos_big_logo.svg", 180, 60));
             logo.setHorizontalAlignment(SwingConstants.CENTER);
         } else {
-            // Collapsed → small logo aligned to start (left)
             logo.setIcon(new FlatSVGIcon("lk/com/pos/img/pos_small_logo_1.svg", 50, 47));
-            logo.setHorizontalAlignment(SwingConstants.LEADING); // aligns to start (left)
+            logo.setHorizontalAlignment(SwingConstants.LEADING);
         }
     }
 
     private void updateMenuIcon(boolean sidebarOpening) {
         try {
             if (sidebarOpening) {
-                // Sidebar will open → show "close" icon
                 menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-collapse.svg", 28, 28);
             } else {
-                // Sidebar will close → show "open" icon
                 menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
             }
-            menuBtn.setIcon(menuIcon); // Now applied to menuBtn instead of calBtn
+            menuBtn.setIcon(menuIcon);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1573,7 +1501,6 @@ public class HomeScreen extends JFrame {
         }
     }
 
-    // NEW METHOD: Close all popups when switching panels or windows
     private void closeAllPopups() {
         if (notificationPopup != null && notificationPopup.isVisible()) {
             notificationPopup.setVisible(false);
@@ -1592,11 +1519,9 @@ public class HomeScreen extends JFrame {
         profilePopup.setFocusable(false);
         profilePopup.setBorder(BorderFactory.createLineBorder(new Color(0xDDDDDD), 1));
 
-        // Create menu items
         JMenuItem addUserItem = createProfileMenuItem("Add New User", "lk/com/pos/icon/user-add.svg");
         JMenuItem editProfileItem = createProfileMenuItem("Edit Profile", "lk/com/pos/icon/user-edit.svg");
 
-        // Add action listeners
         addUserItem.addActionListener(e -> {
             addNewUser();
         });
@@ -1605,22 +1530,18 @@ public class HomeScreen extends JFrame {
             editProfile();
         });
 
-        // Add items to popup menu
         profilePopup.add(addUserItem);
         profilePopup.add(editProfileItem);
 
-        // Add popup menu listener to close when clicking outside
         profilePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                // Add global mouse listener to detect clicks outside
                 profilePopupMouseListener = new AWTEventListener() {
                     @Override
                     public void eventDispatched(AWTEvent event) {
                         if (event instanceof MouseEvent) {
                             MouseEvent me = (MouseEvent) event;
                             if (me.getID() == MouseEvent.MOUSE_PRESSED) {
-                                // Check if click is outside the popup and profile button
                                 if (!profilePopup.isShowing()
                                         || (me.getSource() != profileBtn
                                         && !SwingUtilities.isDescendingFrom(me.getComponent(), profilePopup))) {
@@ -1635,7 +1556,6 @@ public class HomeScreen extends JFrame {
 
             @Override
             public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
-                // Remove the listener when popup closes
                 if (profilePopupMouseListener != null) {
                     Toolkit.getDefaultToolkit().removeAWTEventListener(profilePopupMouseListener);
                 }
@@ -1649,7 +1569,6 @@ public class HomeScreen extends JFrame {
             }
         });
 
-        // Setup profile button to show popup on click
         profileBtn.addActionListener(e -> {
             if (profilePopup.isVisible()) {
                 profilePopup.setVisible(false);
@@ -1668,7 +1587,6 @@ public class HomeScreen extends JFrame {
         menuItem.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         menuItem.setPreferredSize(new Dimension(180, 35));
 
-        // Set icon
         FlatSVGIcon icon = new FlatSVGIcon(iconPath, 16, 16);
         icon.setColorFilter(new FlatSVGIcon.ColorFilter() {
             @Override
@@ -1678,7 +1596,6 @@ public class HomeScreen extends JFrame {
         });
         menuItem.setIcon(icon);
 
-        // Create custom UI for hover effects
         menuItem.setUI(new BasicMenuItemUI() {
             @Override
             public void update(Graphics g, JComponent c) {
@@ -1690,20 +1607,18 @@ public class HomeScreen extends JFrame {
             protected void paintBackground(Graphics g, JMenuItem menuItem, Color bgColor) {
                 ButtonModel model = menuItem.getModel();
                 Color oldColor = g.getColor();
-                
+
                 if (model.isRollover() || model.isArmed()) {
-                    // Use the same gradient effect as dashboard buttons
                     Graphics2D g2 = (Graphics2D) g;
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    
+
                     GradientPaint gradient = new GradientPaint(
-                        0, 0, hoverTop, 
-                        menuItem.getWidth(), 0, hoverBottom
+                            0, 0, hoverTop,
+                            menuItem.getWidth(), 0, hoverBottom
                     );
                     g2.setPaint(gradient);
                     g2.fillRect(0, 0, menuItem.getWidth(), menuItem.getHeight());
-                    
-                    // Set text and icon to white on hover
+
                     menuItem.setForeground(Color.WHITE);
                     Icon itemIcon = menuItem.getIcon();
                     if (itemIcon instanceof FlatSVGIcon) {
@@ -1716,11 +1631,9 @@ public class HomeScreen extends JFrame {
                         });
                     }
                 } else {
-                    // Normal state
                     g.setColor(menuItem.getBackground());
                     g.fillRect(0, 0, menuItem.getWidth(), menuItem.getHeight());
-                    
-                    // Reset to normal colors
+
                     menuItem.setForeground(new Color(0x333333));
                     Icon itemIcon = menuItem.getIcon();
                     if (itemIcon instanceof FlatSVGIcon) {
@@ -1737,11 +1650,22 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        menuItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                menuItem.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                menuItem.repaint();
+            }
+        });
+
         return menuItem;
     }
 
     private void configureMenuItemHover(JMenuItem menuItem) {
-        // Ensure proper hover state handling
         menuItem.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -1757,14 +1681,12 @@ public class HomeScreen extends JFrame {
 
     private void showProfilePopup() {
         if (profilePopup != null) {
-            // Reset all menu items to normal state before showing
             for (Component comp : profilePopup.getComponents()) {
                 if (comp instanceof JMenuItem) {
                     JMenuItem item = (JMenuItem) comp;
                     item.setForeground(new Color(0x333333));
                     item.setBackground(Color.WHITE);
-                    
-                    // Reset icon color
+
                     Icon icon = item.getIcon();
                     if (icon instanceof FlatSVGIcon) {
                         FlatSVGIcon svgIcon = (FlatSVGIcon) icon;
@@ -1778,10 +1700,8 @@ public class HomeScreen extends JFrame {
                 }
             }
 
-            // Pack to ensure proper sizing
             profilePopup.pack();
-            
-            // Calculate position relative to the profile button
+
             Point buttonLoc = profileBtn.getLocationOnScreen();
             int x = buttonLoc.x - (profilePopup.getPreferredSize().width - profileBtn.getWidth()) / 2;
             int y = buttonLoc.y + profileBtn.getHeight();
@@ -1793,7 +1713,6 @@ public class HomeScreen extends JFrame {
     }
 
     private void addNewUser() {
-        // From your main form or any other component
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         AddNewUser dialog = new AddNewUser(parentFrame, true);
         dialog.setLocationRelativeTo(parentFrame);
@@ -1808,7 +1727,6 @@ public class HomeScreen extends JFrame {
         EditProfile dialog = new EditProfile(parentFrame, true, userId);
         dialog.setLocationRelativeTo(parentFrame);
         dialog.setVisible(true);
-        // Close the popup
         if (profilePopup != null) {
             profilePopup.setVisible(false);
         }
@@ -2379,106 +2297,104 @@ public class HomeScreen extends JFrame {
 
     private void signOutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_signOutBtnActionPerformed
 
-//        Session session = Session.getInstance();
-//
-//        if (session.getUserId() == 0 || session.getRoleName() == null) {
-//            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No active session found! You are not logged in.");
-//            return;
-//        }
-//
-//        int option = JOptionPane.showConfirmDialog(
-//                this,
-//                "Are you sure you want to log out, " + session.getRoleName() + "?",
-//                "Confirm Logout",
-//                JOptionPane.YES_NO_OPTION,
-//                JOptionPane.QUESTION_MESSAGE
-//        );
-//
-//        if (option == JOptionPane.YES_OPTION) {
-//            try {
-//                // Get user details for logout message
-//                String userName = "";
-//                String roleName = session.getRoleName();
-//
-//                // Get username from database
-//                ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + session.getUserId());
-//                if (rs.next()) {
-//                    userName = rs.getString("name");
-//                }
-//                rs.close();
-//
-//                // Create logout success message with username and role
-//                String logoutMessage = userName + "(" + roleName + ") logged out successfully";
-//                int massageId = 0;
-//
-//                // Check if message already exists in massage table
-//                ResultSet checkRs = MySQL.executeSearch("SELECT massage_id FROM massage WHERE massage = '" + logoutMessage + "'");
-//                if (checkRs.next()) {
-//                    // Message exists, get the existing massage_id
-//                    massageId = checkRs.getInt("massage_id");
-//
-//                } else {
-//                    // Message doesn't exist, insert new message
-//                    MySQL.executeIUD("INSERT INTO massage (massage) VALUES ('" + logoutMessage + "')");
-//
-//                    // Get the generated massage_id
-//                    ResultSet generatedRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as new_id");
-//                    if (generatedRs.next()) {
-//                        massageId = generatedRs.getInt("new_id");
-//
-//                    }
-//                    generatedRs.close();
-//                }
-//                checkRs.close();
-//
-//                // Insert into notifocation table
-//                if (massageId > 0) {
-//                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 4, " + massageId + ")");
-//
-//                }
-//
-//                // Clear session
-//                session.clear();
-//
-//                // Stop timers
-//                if (clockTimer != null && clockTimer.isRunning()) {
-//                    clockTimer.stop();
-//                }
-//
-//                // Show success message
-//                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
-//
-//                // Close current window
-//                this.dispose();
-//
-//                // Exit application
-//                System.exit(0);
-//
-//            } catch (SQLException e) {
-//
-//                e.printStackTrace();
-//
-//                // Clear session even if notification fails
-//                session.clear();
-//
-//                // Stop timers
-//                if (clockTimer != null && clockTimer.isRunning()) {
-//                    clockTimer.stop();
-//                }
-//
-//                // Show success message
-//                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
-//
-//                // Close current window
-//                this.dispose();
-//
-//                // Exit application
-//                System.exit(0);
-//            }
-//        } else {
-//            // User cancelled logout
-//            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Logout cancelled.");
-//        }
+        Session session = Session.getInstance();
+
+        if (session.getUserId() == 0 || session.getRoleName() == null) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No active session found! You are not logged in.");
+            return;
+        }
+        int option = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to log out, " + session.getRoleName() + "?",
+                "Confirm Logout",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (option == JOptionPane.YES_OPTION) {
+            try {
+                // Get user details for logout message
+                String userName = "";
+                String roleName = session.getRoleName();
+
+                // Get username from database
+                ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + session.getUserId());
+                if (rs.next()) {
+                    userName = rs.getString("name");
+                }
+                rs.close();
+
+                // Create logout success message with username and role
+                String logoutMessage = userName + "(" + roleName + ") logged out successfully";
+                int massageId = 0;
+
+                // Check if message already exists in massage table
+                ResultSet checkRs = MySQL.executeSearch("SELECT massage_id FROM massage WHERE massage = '" + logoutMessage + "'");
+                if (checkRs.next()) {
+                    // Message exists, get the existing massage_id
+                    massageId = checkRs.getInt("massage_id");
+
+                } else {
+                    // Message doesn't exist, insert new message
+                    MySQL.executeIUD("INSERT INTO massage (massage) VALUES ('" + logoutMessage + "')");
+
+                    // Get the generated massage_id
+                    ResultSet generatedRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as new_id");
+                    if (generatedRs.next()) {
+                        massageId = generatedRs.getInt("new_id");
+
+                    }
+                    generatedRs.close();
+                }
+                checkRs.close();
+                // Insert into notifocation table
+                if (massageId > 0) {
+                    MySQL.executeIUD("INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 4, " + massageId + ")");
+
+                }
+
+                // Clear session
+                session.clear();
+
+                // Stop timers
+                if (clockTimer != null && clockTimer.isRunning()) {
+                    clockTimer.stop();
+                }
+
+                // Show success message
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
+
+                // Close current window
+                this.dispose();
+
+                // Exit application
+                System.exit(0);
+
+            } catch (SQLException e) {
+
+                e.printStackTrace();
+
+                // Clear session even if notification fails
+                session.clear();
+
+                // Stop timers
+                if (clockTimer != null && clockTimer.isRunning()) {
+                    clockTimer.stop();
+                }
+
+                // Show success message
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Logged out successfully!");
+
+                // Close current window
+                this.dispose();
+
+                // Exit application
+                System.exit(0);
+            }
+        } else {
+            // User cancelled logout
+            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Logout cancelled.");
+        }
     }//GEN-LAST:event_signOutBtnActionPerformed
 
     private void notificasionBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_notificasionBtnActionPerformed
@@ -2502,14 +2418,17 @@ public class HomeScreen extends JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                //  Session session = Session.getInstance();
-                // if (session.getUserId() == 0 || session.getRoleName() == null) {
-                // Session invalid, go directly to login
-                //     new LogIn().setVisible(true);
-                //} else {
-                // Session valid, create HomeScreen
-                new HomeScreen().setVisible(true);
-                //}
+
+
+
+                Session session = Session.getInstance();
+                if (session.getUserId() == 0 || session.getRoleName() == null) {
+
+                    new HomeScreen().setVisible(true);
+                } else {
+
+                    new HomeScreen().setVisible(true);
+                }
             }
         });
     }

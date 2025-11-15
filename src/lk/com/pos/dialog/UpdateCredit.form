@@ -48,12 +48,12 @@
                   <EmptySpace min="-2" pref="21" max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="0" attributes="0">
                       <Group type="102" alignment="0" attributes="0">
-                          <Component id="SupplierCombo" max="32767" attributes="0"/>
-                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="SupplierCombo" min="-2" pref="443" max="-2" attributes="0"/>
+                          <EmptySpace max="32767" attributes="0"/>
                           <Component id="addNewCustomer" min="-2" pref="33" max="-2" attributes="0"/>
                       </Group>
                       <Group type="102" alignment="1" attributes="0">
-                          <Component id="manufactureDate" max="32767" attributes="0"/>
+                          <Component id="manufactureDate" min="-2" pref="235" max="-2" attributes="0"/>
                           <EmptySpace type="unrelated" max="-2" attributes="0"/>
                           <Component id="expriyDate" min="-2" pref="235" max="-2" attributes="0"/>
                       </Group>
@@ -63,7 +63,7 @@
                           <Component id="creditPayBtn" min="-2" pref="36" max="-2" attributes="0"/>
                       </Group>
                       <Component id="jSeparator3" alignment="0" max="32767" attributes="0"/>
-                      <Component id="address" alignment="1" max="32767" attributes="0"/>
+                      <Component id="address" alignment="1" min="-2" pref="482" max="-2" attributes="0"/>
                       <Group type="102" alignment="1" attributes="0">
                           <Component id="cancelBtn" min="-2" pref="136" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>

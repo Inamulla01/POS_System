@@ -14,6 +14,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -32,8 +34,8 @@ import raven.toast.Notifications;
 public class UpdateCredit extends javax.swing.JDialog {
 
     private int creditId; // Credit ID passed from calling dialog
-    private int salesId; // Sales ID from the credit record
     private boolean isUpdating = false; // Flag to prevent multiple updates
+    private Map<String, Integer> customerIdMap = new HashMap<>();
 
     /**
      * Creates new form UpdateCredit
@@ -667,17 +669,45 @@ public class UpdateCredit extends javax.swing.JDialog {
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
     }
 
-    // ---------------- BUSINESS LOGIC ----------------
     private void loadCustomerCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT customer_id, customer_name FROM credit_customer");
+            customerIdMap.clear();
+
+            // UPDATED QUERY - Load customers with total credit, paid amount, and due amount
+            String sql = "SELECT cc.customer_id, cc.customer_name, "
+                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as due_amount "
+                    + "FROM credit_customer cc "
+                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                    + "WHERE cc.status_id = 1 "
+                    + "GROUP BY cc.customer_id, cc.customer_name "
+                    + "ORDER BY cc.customer_name";
+
+            ResultSet rs = MySQL.executeSearch(sql);
             Vector<String> customers = new Vector<>();
             customers.add("Select Customer");
+
             while (rs.next()) {
-                customers.add(rs.getString("customer_name"));
+                int customerId = rs.getInt("customer_id");
+                String customerName = rs.getString("customer_name");
+                double totalCredit = rs.getDouble("total_credit");
+                double paidAmount = rs.getDouble("paid_amount");
+                double dueAmount = rs.getDouble("due_amount");
+
+                // Updated display - customer name with total credit, paid amount, and due amount
+                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                        customerName, totalCredit, paidAmount, dueAmount);
+                customers.add(displayText);
+
+                // Store mapping for later retrieval
+                customerIdMap.put(displayText, customerId);
             }
+
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             SupplierCombo.setModel(dcm);
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
@@ -697,10 +727,36 @@ public class UpdateCredit extends javax.swing.JDialog {
             if (rs.next()) {
                 // Store credit_customer_id from the record
                 int customerId = rs.getInt("credit_customer_id");
-
-                // Set customer
                 String customerName = rs.getString("customer_name");
-                SupplierCombo.setSelectedItem(customerName);
+
+                // Get current total credit, paid amount, and due amount for this customer to create display text
+                String creditQuery = "SELECT "
+                        + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                        + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
+                        + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as due_amount "
+                        + "FROM credit c "
+                        + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                        + "WHERE c.credit_customer_id = ?";
+                PreparedStatement creditPst = conn.prepareStatement(creditQuery);
+                creditPst.setInt(1, customerId);
+                ResultSet creditRs = creditPst.executeQuery();
+
+                double totalCredit = 0;
+                double paidAmount = 0;
+                double dueAmount = 0;
+
+                if (creditRs.next()) {
+                    totalCredit = creditRs.getDouble("total_credit");
+                    paidAmount = creditRs.getDouble("paid_amount");
+                    dueAmount = creditRs.getDouble("due_amount");
+                }
+
+                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                        customerName, totalCredit, paidAmount, dueAmount);
+                SupplierCombo.setSelectedItem(displayText);
+
+                creditRs.close();
+                creditPst.close();
 
                 // Set dates
                 SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
@@ -710,7 +766,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                 manufactureDate.setDate(givenDate);
                 expriyDate.setDate(finalDate);
 
-                // Set amount - FIXED: Correct field name from credit_amout to credit_amount
+                // Set amount
                 double amount = rs.getDouble("credit_amout");
                 address.setText(String.valueOf(amount));
             }
@@ -724,16 +780,14 @@ public class UpdateCredit extends javax.swing.JDialog {
         }
     }
 
-    private int getCustomerId(String customerName) {
-        try {
-            ResultSet rs = MySQL.executeSearch("SELECT customer_id FROM credit_customer WHERE customer_name = '" + customerName + "'");
-            if (rs.next()) {
-                return rs.getInt("customer_id");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    private int getCustomerId(String displayText) {
+        if (displayText == null || displayText.equals("Select Customer")) {
+            return -1;
         }
-        return -1;
+
+        // Use the map to get customer ID
+        Integer customerId = customerIdMap.get(displayText);
+        return customerId != null ? customerId : -1;
     }
 
     private boolean validateInputs() {
@@ -794,7 +848,8 @@ public class UpdateCredit extends javax.swing.JDialog {
                 return;
             }
 
-            int customerId = getCustomerId(SupplierCombo.getSelectedItem().toString());
+            String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
+            int customerId = getCustomerId(selectedDisplayText);
             if (customerId == -1) {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
                 isUpdating = false;
@@ -835,10 +890,10 @@ public class UpdateCredit extends javax.swing.JDialog {
             }
             pstOld.close();
 
-            // Get new customer name for comparison
-            String newCustomerName = SupplierCombo.getSelectedItem().toString();
+            // Extract new customer name from display text
+            String newCustomerName = selectedDisplayText.split(" - ")[0].trim();
 
-            // FIXED: Correct field name from credit_amout to credit_amout
+            // Update the credit record - only update customer, dates, and amount (NOT sales_id)
             String query = "UPDATE credit SET credit_given_date = ?, credit_final_date = ?, credit_amout = ?, credit_customer_id = ? "
                     + "WHERE credit_id = ?";
 
@@ -1018,8 +1073,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             AddNewCustomer dialog = new AddNewCustomer(parentFrame, true);
             dialog.setLocationRelativeTo(parentFrame);
             dialog.setVisible(true);
-            loadCustomerCombo();
-            SupplierCombo.requestFocus();
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening customer dialog: " + e.getMessage());
@@ -1198,11 +1252,11 @@ public class UpdateCredit extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(SupplierCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 443, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(manufactureDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel2Layout.createSequentialGroup()
@@ -1210,7 +1264,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(creditPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jSeparator3)
-                    .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 482, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)

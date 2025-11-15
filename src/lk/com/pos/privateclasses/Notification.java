@@ -18,13 +18,13 @@ public class Notification {
         try {
             Connection connection = MySQL.getConnection();
             
-            // Check low stock
+            // Check low stock (only active stocks)
             checkLowStock(connection);
             
-            // Check expired products
+            // Check expired products (only active stocks)
             checkExpiredProducts(connection);
             
-            // Check products expiring soon (within 30 days)
+            // Check products expiring soon (only active stocks)
             checkProductsExpiringSoon(connection);
             
             // Check credit due dates
@@ -33,9 +33,6 @@ public class Notification {
             // Check missed credit due dates
             checkMissedCreditDueDates(connection);
             
-            // Clear old notifications
-            clearOldNotifications();
-            
             LOGGER.info("All notification checks completed successfully");
             
         } catch (SQLException e) {
@@ -43,13 +40,44 @@ public class Notification {
         }
     }
     
-    // Method to be called whenever stock quantity changes
+    // Method to be called whenever stock quantity changes (like after sale)
+    public void checkStockAfterSale(int stockId, int newQty) {
+        try {
+            Connection connection = MySQL.getConnection();
+            
+            // First check if stock is active
+            if (!isStockActive(connection, stockId)) {
+                LOGGER.info("Stock ID " + stockId + " is inactive, skipping notification check");
+                return;
+            }
+            
+            // Check if stock reached low level (10 or less) and is not zero
+            if (newQty <= 10 && newQty > 0) {
+                insertLowStockNotification(connection, stockId, newQty);
+            }
+            // Check if stock reached zero
+            else if (newQty == 0) {
+                insertOutOfStockNotification(connection, stockId);
+            }
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error checking stock after sale", e);
+        }
+    }
+    
+    // Method to check stock quantity changes
     public void checkStockQuantityChange(int stockId, int oldQty, int newQty) {
         try {
             Connection connection = MySQL.getConnection();
             
-            // Check if stock reached low level (10 or less)
-            if (newQty <= 10 && oldQty > 10) {
+            // First check if stock is active
+            if (!isStockActive(connection, stockId)) {
+                LOGGER.info("Stock ID " + stockId + " is inactive, skipping notification check");
+                return;
+            }
+            
+            // Check if stock reached low level (10 or less) and is not zero
+            if (newQty <= 10 && newQty > 0 && oldQty > 10) {
                 insertLowStockNotification(connection, stockId, newQty);
             }
             // Check if stock was replenished from low level
@@ -60,9 +88,9 @@ public class Notification {
             else if (newQty == 0 && oldQty > 0) {
                 insertOutOfStockNotification(connection, stockId);
             }
-            // Check if stock was completely depleted
-            else if (newQty == 0 && oldQty > 0) {
-                insertOutOfStockNotification(connection, stockId);
+            // Check if stock was replenished from zero
+            else if (newQty > 0 && oldQty == 0) {
+                insertStockReplenishedFromZeroNotification(connection, stockId, newQty);
             }
             
         } catch (SQLException e) {
@@ -70,11 +98,41 @@ public class Notification {
         }
     }
     
+    // Helper method to check if stock is active
+    private boolean isStockActive(Connection connection, int stockId) throws SQLException {
+        String query = "SELECT p_status_id FROM stock WHERE stock_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, stockId);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                int statusId = rs.getInt("p_status_id");
+                return statusId == 1; // 1 = Active, 2 = Inactive
+            }
+        }
+        return false;
+    }
+    
+    // Helper method to check if product is active
+    private boolean isProductActive(Connection connection, int productId) throws SQLException {
+        String query = "SELECT p_status_id FROM product WHERE product_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, productId);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                int statusId = rs.getInt("p_status_id");
+                return statusId == 1; // 1 = Active, 2 = Inactive
+            }
+        }
+        return false;
+    }
+    
     private void insertLowStockNotification(Connection connection, int stockId, int currentQty) throws SQLException {
-        String query = "SELECT p.product_name, s.qty " +
+        String query = "SELECT p.product_name, s.qty, p.product_id " +
                       "FROM stock s " +
                       "JOIN product p ON s.product_id = p.product_id " +
-                      "WHERE s.stock_id = ?";
+                      "WHERE s.stock_id = ? AND s.p_status_id = 1 AND p.p_status_id = 1";
         
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, stockId);
@@ -84,9 +142,9 @@ public class Notification {
                 String productName = rs.getString("product_name");
                 String message = "Low stock alert: " + productName + " (" + currentQty + " left)";
                 
-                if (!isMessageExists(connection, message, 2)) {
+                if (!isNotificationExists(connection, message, 2)) {
                     insertNotification(connection, message, 2);
-                    LOGGER.info("Low stock notification created for: " + productName);
+                    LOGGER.info("Low stock notification inserted for: " + productName);
                 }
             }
         }
@@ -96,7 +154,7 @@ public class Notification {
         String query = "SELECT p.product_name " +
                       "FROM stock s " +
                       "JOIN product p ON s.product_id = p.product_id " +
-                      "WHERE s.stock_id = ?";
+                      "WHERE s.stock_id = ? AND s.p_status_id = 1 AND p.p_status_id = 1";
         
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, stockId);
@@ -106,9 +164,31 @@ public class Notification {
                 String productName = rs.getString("product_name");
                 String message = "Stock replenished: " + productName + " (now " + currentQty + " in stock)";
                 
-                if (!isMessageExists(connection, message, 2)) {
+                if (!isNotificationExists(connection, message, 2)) {
                     insertNotification(connection, message, 2);
-                    LOGGER.info("Stock replenished notification created for: " + productName);
+                    LOGGER.info("Stock replenished notification inserted for: " + productName);
+                }
+            }
+        }
+    }
+    
+    private void insertStockReplenishedFromZeroNotification(Connection connection, int stockId, int currentQty) throws SQLException {
+        String query = "SELECT p.product_name " +
+                      "FROM stock s " +
+                      "JOIN product p ON s.product_id = p.product_id " +
+                      "WHERE s.stock_id = ? AND s.p_status_id = 1 AND p.p_status_id = 1";
+        
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, stockId);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                String productName = rs.getString("product_name");
+                String message = "Stock back in stock: " + productName + " (now " + currentQty + " in stock)";
+                
+                if (!isNotificationExists(connection, message, 2)) {
+                    insertNotification(connection, message, 2);
+                    LOGGER.info("Stock back in stock notification inserted for: " + productName);
                 }
             }
         }
@@ -118,7 +198,7 @@ public class Notification {
         String query = "SELECT p.product_name " +
                       "FROM stock s " +
                       "JOIN product p ON s.product_id = p.product_id " +
-                      "WHERE s.stock_id = ?";
+                      "WHERE s.stock_id = ? AND s.p_status_id = 1 AND p.p_status_id = 1";
         
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, stockId);
@@ -128,9 +208,9 @@ public class Notification {
                 String productName = rs.getString("product_name");
                 String message = "Out of stock: " + productName + " (0 left)";
                 
-                if (!isMessageExists(connection, message, 2)) {
+                if (!isNotificationExists(connection, message, 2)) {
                     insertNotification(connection, message, 2);
-                    LOGGER.info("Out of stock notification created for: " + productName);
+                    LOGGER.info("Out of stock notification inserted for: " + productName);
                 }
             }
         }
@@ -140,7 +220,7 @@ public class Notification {
         String query = "SELECT p.product_name, s.qty, s.stock_id " +
                       "FROM stock s " +
                       "JOIN product p ON s.product_id = p.product_id " +
-                      "WHERE s.qty <= 10 AND s.p_status_id = 1";
+                      "WHERE s.qty <= 10 AND s.qty > 0 AND s.p_status_id = 1 AND p.p_status_id = 1";
         
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
@@ -151,7 +231,7 @@ public class Notification {
                 String message = "Low stock: " + productName + " (" + quantity + " left)";
                 
                 // Check if similar message already exists to avoid duplicates
-                if (!isMessageExists(connection, message, 2)) {
+                if (!isNotificationExists(connection, message, 2)) {
                     insertNotification(connection, message, 2);
                 }
             }
@@ -159,10 +239,10 @@ public class Notification {
     }
     
     private void checkExpiredProducts(Connection connection) throws SQLException {
-        String query = "SELECT p.product_name, s.batch_no, s.expriy_date " +
+        String query = "SELECT p.product_name, s.batch_no, s.expriy_date, s.qty " +
                       "FROM stock s " +
                       "JOIN product p ON s.product_id = p.product_id " +
-                      "WHERE s.expriy_date < CURDATE() AND s.p_status_id = 1";
+                      "WHERE s.expriy_date < CURDATE() AND s.p_status_id = 1 AND p.p_status_id = 1 AND s.qty > 0";
         
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
@@ -171,11 +251,13 @@ public class Notification {
                 String productName = rs.getString("product_name");
                 String batchNo = rs.getString("batch_no");
                 Date expiryDate = rs.getDate("expriy_date");
+                int quantity = rs.getInt("qty");
+                
                 String message = "Expired Product: " + productName + " (Batch: " + batchNo + 
-                                ", Expired: " + expiryDate + ")";
+                                ", Expired: " + expiryDate + ", Qty: " + quantity + ")";
                 
                 // Check if similar message already exists to avoid duplicates
-                if (!isMessageExists(connection, message, 5)) {
+                if (!isNotificationExists(connection, message, 5)) {
                     insertNotification(connection, message, 5);
                 }
             }
@@ -183,27 +265,29 @@ public class Notification {
     }
     
     private void checkProductsExpiringSoon(Connection connection) throws SQLException {
-        LocalDate thirtyDaysFromNow = LocalDate.now().plusDays(30);
-        String query = "SELECT p.product_name, s.batch_no, s.expriy_date " +
+        LocalDate tenDaysFromNow = LocalDate.now().plusDays(10);
+        String query = "SELECT p.product_name, s.batch_no, s.expriy_date, s.qty " +
                       "FROM stock s " +
                       "JOIN product p ON s.product_id = p.product_id " +
-                      "WHERE s.expriy_date BETWEEN CURDATE() AND ? AND s.p_status_id = 1";
+                      "WHERE s.expriy_date BETWEEN CURDATE() AND ? " +
+                      "AND s.p_status_id = 1 AND p.p_status_id = 1 AND s.qty > 0";
         
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setDate(1, Date.valueOf(thirtyDaysFromNow));
+            stmt.setDate(1, Date.valueOf(tenDaysFromNow));
             ResultSet rs = stmt.executeQuery();
             
             while (rs.next()) {
                 String productName = rs.getString("product_name");
                 String batchNo = rs.getString("batch_no");
                 Date expiryDate = rs.getDate("expriy_date");
+                int quantity = rs.getInt("qty");
                 long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), expiryDate.toLocalDate());
                 
                 String message = "Expiry Alert: " + productName + " (Batch: " + batchNo + 
-                               ", expires in " + daysUntilExpiry + " days)";
+                               ", expires in " + daysUntilExpiry + " days, Qty: " + quantity + ")";
                 
                 // Check if similar message already exists to avoid duplicates
-                if (!isMessageExists(connection, message, 1)) {
+                if (!isNotificationExists(connection, message, 1)) {
                     insertNotification(connection, message, 1);
                 }
             }
@@ -216,7 +300,7 @@ public class Notification {
                       "FROM credit c " +
                       "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id " +
                       "WHERE c.credit_final_date BETWEEN CURDATE() AND ? " +
-                      "AND cc.status_id = 1";
+                      "AND cc.status_id = 1 AND c.credit_amout > 0";
         
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setDate(1, Date.valueOf(sevenDaysFromNow));
@@ -232,7 +316,7 @@ public class Notification {
                                ", Due in " + daysUntilDue + " days)";
                 
                 // Check if similar message already exists to avoid duplicates
-                if (!isMessageExists(connection, message, 7)) {
+                if (!isNotificationExists(connection, message, 7)) {
                     insertNotification(connection, message, 7);
                 }
             }
@@ -260,14 +344,14 @@ public class Notification {
                                ", Overdue by " + daysOverdue + " days)";
                 
                 // Check if similar message already exists to avoid duplicates
-                if (!isMessageExists(connection, message, 7)) {
+                if (!isNotificationExists(connection, message, 7)) {
                     insertNotification(connection, message, 7);
                 }
             }
         }
     }
     
-    private boolean isMessageExists(Connection connection, String message, int msgTypeId) throws SQLException {
+    private boolean isNotificationExists(Connection connection, String message, int msgTypeId) throws SQLException {
         String query = "SELECT COUNT(*) as count FROM notifocation n " +
                       "JOIN massage m ON n.massage_id = m.massage_id " +
                       "WHERE m.massage = ? AND n.msg_type_id = ? " +
@@ -285,9 +369,35 @@ public class Notification {
         return false;
     }
     
+    private int getOrCreateMassageId(Connection connection, String message) throws SQLException {
+        // First try to find existing message
+        String findQuery = "SELECT massage_id FROM massage WHERE massage = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(findQuery)) {
+            stmt.setString(1, message);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt("massage_id");
+            }
+        }
+        
+        // If not exists, insert new message
+        String insertQuery = "INSERT INTO massage (massage) VALUES (?)";
+        try (PreparedStatement stmt = connection.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, message);
+            stmt.executeUpdate();
+            
+            ResultSet generatedKeys = stmt.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                return generatedKeys.getInt(1);
+            }
+        }
+        return -1;
+    }
+    
     private void insertNotification(Connection connection, String message, int msgTypeId) throws SQLException {
-        // First insert into massage table
-        int massageId = insertMassage(connection, message);
+        // Get or create message ID
+        int massageId = getOrCreateMassageId(connection, message);
         
         if (massageId > 0) {
             // Then insert into notifocation table
@@ -302,19 +412,59 @@ public class Notification {
         }
     }
     
-    private int insertMassage(Connection connection, String message) throws SQLException {
-        String query = "INSERT INTO massage (massage) VALUES (?)";
-        
-        try (PreparedStatement stmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, message);
-            stmt.executeUpdate();
+    // Method to check expired products every 6 hours
+    public void checkExpiredProductsEvery6Hours() {
+        try {
+            Connection connection = MySQL.getConnection();
+            checkExpiredProducts(connection);
             
-            ResultSet generatedKeys = stmt.getGeneratedKeys();
-            if (generatedKeys.next()) {
-                return generatedKeys.getInt(1);
-            }
+            // Also check products expiring soon
+            checkProductsExpiringSoon(connection);
+            
+            LOGGER.info("Expired products check completed (6-hour interval)");
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error checking expired products every 6 hours", e);
         }
-        return -1;
+    }
+    
+    // Method to check all periodic notifications every 12 hours
+    public void checkPeriodicNotificationsEvery12Hours() {
+        try {
+            Connection connection = MySQL.getConnection();
+            
+            // Check low stock (only active stocks with quantity > 0)
+            checkLowStock(connection);
+            
+            // Check products expiring soon (only active stocks with quantity > 0)
+            checkProductsExpiringSoon(connection);
+            
+            // Check credit due dates
+            checkCreditDueDates(connection);
+            
+            // Check missed credit due dates
+            checkMissedCreditDueDates(connection);
+            
+            LOGGER.info("Periodic notifications check completed (12-hour interval)");
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error checking periodic notifications every 12 hours", e);
+        }
+    }
+    
+    // Method to check every half hour (for frequent checks)
+    public void checkFrequentNotificationsEveryHalfHour() {
+        try {
+            Connection connection = MySQL.getConnection();
+            
+            // Check critical notifications more frequently (only active stocks)
+            checkLowStock(connection);
+            checkExpiredProducts(connection);
+            
+            LOGGER.info("Frequent notifications check completed (30-minute interval)");
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error checking frequent notifications every half hour", e);
+        }
     }
     
     // Static methods for external use
@@ -352,5 +502,21 @@ public class Notification {
     public static void clearOldNotifications() {
         String query = "DELETE FROM notifocation WHERE create_at < DATE_SUB(NOW(), INTERVAL 30 DAY)";
         MySQL.executeIUD(query);
+        LOGGER.info("Old notifications cleared (older than 30 days)");
+    }
+    
+    // Method to delete all notifications
+    public static void deleteAllNotifications() {
+        // First delete notifications, then messages that are not used
+        String query1 = "DELETE FROM notifocation";
+        String query2 = "DELETE FROM massage WHERE massage_id NOT IN (SELECT DISTINCT massage_id FROM notifocation)";
+        
+        try {
+            MySQL.executeIUD(query1);
+            MySQL.executeIUD(query2);
+            LOGGER.info("All notifications deleted");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error deleting all notifications", e);
+        }
     }
 }

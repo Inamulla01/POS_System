@@ -12,6 +12,7 @@ import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import lk.com.pos.connection.MySQL;
@@ -33,21 +35,20 @@ import raven.toast.Notifications;
  */
 public class AddCredit extends javax.swing.JDialog {
 
-    private int customerId = -1; // This will be returned to calling point
+    private int customerId = -1;
+    private int creditId = -1;
     private Double amount;
-    private Map<String, Integer> customerIdMap = new HashMap<>(); // Map to store display text to customer ID mapping
-    private boolean isSaving = false; // Add this flag to prevent duplicate saves
+    private Map<String, Integer> customerIdMap = new HashMap<>();
+    private boolean isSaving = false;
+    private int salesId = -1;
+    private double paidAmount = 0.0;
 
-    /**
-     * Creates new form AddCreditPay
-     */
     public AddCredit(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
         initializeDialog();
     }
 
-    // Constructor with amount only
     public AddCredit(java.awt.Frame parent, boolean modal, Double amount) {
         super(parent, modal);
         this.amount = amount;
@@ -55,14 +56,32 @@ public class AddCredit extends javax.swing.JDialog {
         initializeDialog(amount);
     }
 
-    // Method to get the selected customer ID
+    public AddCredit(java.awt.Frame parent, boolean modal, Double amount, int salesId) {
+        super(parent, modal);
+        this.amount = amount;
+        this.salesId = salesId;
+        initComponents();
+        initializeDialog(amount);
+    }
+
     public int getSelectedCustomerId() {
         return customerId;
     }
 
-    // Method to check if credit was saved successfully
+    public int getCreatedCreditId() {
+        return creditId;
+    }
+
+    public double getPaidAmount() {
+        return paidAmount;
+    }
+
     public boolean isCreditSaved() {
-        return customerId != -1;
+        return creditId != -1;
+    }
+
+    public boolean isPaymentMade() {
+        return paidAmount > 0;
     }
 
     private void initializeDialog() {
@@ -75,31 +94,25 @@ public class AddCredit extends javax.swing.JDialog {
         setupButtonStyles();
         setupTooltips();
 
-        // Load customer combo data
         loadCustomerCombo();
         AutoCompleteDecorator.decorate(SupplierCombo);
 
-        // Set current date as default for given date
         manufactureDate.setDate(new Date());
 
-        // Set focus traversal
         setupFocusTraversal();
 
-        // Set amount if provided and not null
         if (amount != null) {
             address.setText(String.valueOf(amount));
         } else {
             address.setText("0");
         }
 
-        // Add mouse listeners to combo box
         SupplierCombo.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 SupplierCombo.showPopup();
             }
         });
 
-        // Add F1 and F2 shortcuts ONLY - Remove any Enter/Ctrl+Enter shortcuts
         getRootPane().registerKeyboardAction(
                 evt -> openCreditPayDialog(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
@@ -118,14 +131,10 @@ public class AddCredit extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        // REMOVED: Ctrl+Enter shortcut to prevent duplicate saves
-        // Set initial focus
         SupplierCombo.requestFocusInWindow();
     }
 
-    // ---------------- KEYBOARD NAVIGATION SETUP ----------------
     private void setupKeyboardNavigation() {
-        // Set up Enter key and arrow key navigation between fields
         SupplierCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -144,7 +153,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Manufacture date keyboard navigation
         javax.swing.JTextField manufactureDateEditor = (javax.swing.JTextField) manufactureDate.getDateEditor().getUiComponent();
         manufactureDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
@@ -167,7 +175,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Expiry date keyboard navigation
         javax.swing.JTextField expriyDateEditor = (javax.swing.JTextField) expriyDate.getDateEditor().getUiComponent();
         expriyDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
@@ -190,12 +197,10 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Amount field keyboard navigation
         address.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    // When all fields are filled, go directly to save button
                     if (areAllRequiredFieldsFilled()) {
                         saveBtn.requestFocusInWindow();
                     } else {
@@ -206,7 +211,6 @@ public class AddCredit extends javax.swing.JDialog {
                     expriyDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    // When all fields are filled, go directly to save button
                     if (areAllRequiredFieldsFilled()) {
                         saveBtn.requestFocusInWindow();
                     } else {
@@ -222,12 +226,10 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Save button keyboard navigation - FIXED: Remove duplicate Enter key handling
         saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    // Let the ActionListener handle the save, just consume the event
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     address.requestFocus();
@@ -247,7 +249,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Clear form button keyboard navigation
         clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -272,7 +273,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Cancel button keyboard navigation
         cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
@@ -399,14 +399,11 @@ public class AddCredit extends javax.swing.JDialog {
                 && !address.getText().trim().equals("0");
     }
 
-    // ---------------- BUTTON STYLES AND EFFECTS ----------------
     private void setupButtonStyles() {
-        // Setup gradient buttons for Save, Clear Form, and Cancel
         setupGradientButton(saveBtn);
         setupGradientButton(clearFormBtn);
         setupGradientButton(cancelBtn);
 
-        // Create icons with original blue color for action buttons
         FlatSVGIcon saveIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
         saveIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         saveBtn.setIcon(saveIcon);
@@ -419,7 +416,6 @@ public class AddCredit extends javax.swing.JDialog {
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(cancelIcon);
 
-        // Setup credit pay button with the same style as add buttons
         creditPayBtn.setBorderPainted(false);
         creditPayBtn.setContentAreaFilled(false);
         creditPayBtn.setFocusPainted(false);
@@ -431,7 +427,6 @@ public class AddCredit extends javax.swing.JDialog {
         creditIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         creditPayBtn.setIcon(creditIcon);
 
-        // Setup add new customer button with the same style as add buttons
         addNewCustomer.setBorderPainted(false);
         addNewCustomer.setContentAreaFilled(false);
         addNewCustomer.setFocusPainted(false);
@@ -443,7 +438,6 @@ public class AddCredit extends javax.swing.JDialog {
         customerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         addNewCustomer.setIcon(customerIcon);
 
-        // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
         setupButtonFocusListeners();
     }
@@ -465,38 +459,31 @@ public class AddCredit extends javax.swing.JDialog {
 
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-                // Check button state
                 boolean isHover = button.getModel().isRollover();
                 boolean isPressed = button.getModel().isPressed();
                 boolean isFocused = button.hasFocus();
 
-                // Default state - transparent with blue border
                 if (!isFocused && !isHover && !isPressed) {
-                    g2.setColor(new Color(0, 0, 0, 0)); // Transparent
+                    g2.setColor(new Color(0, 0, 0, 0));
                     g2.fillRoundRect(0, 0, w, h, 5, 5);
 
-                    // Draw border
                     g2.setColor(Color.decode("#0893B0"));
                     g2.drawRoundRect(0, 0, w - 1, h - 1, 5, 5);
                 } else {
-                    // Gradient colors for hover/focus/pressed state
-                    Color topColor = new Color(0x12, 0xB5, 0xA6); // Light
-                    Color bottomColor = new Color(0x08, 0x93, 0xB0); // Dark
+                    Color topColor = new Color(0x12, 0xB5, 0xA6);
+                    Color bottomColor = new Color(0x08, 0x93, 0xB0);
 
-                    // Draw gradient
                     GradientPaint gp = new GradientPaint(0, 0, topColor, w, 0, bottomColor);
                     g2.setPaint(gp);
                     g2.fillRoundRect(0, 0, w, h, 5, 5);
                 }
 
-                // Draw button text
                 super.paint(g, c);
             }
         });
     }
 
     private void setupButtonMouseListeners() {
-        // Mouse listeners for saveBtn
         saveBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 saveBtn.setForeground(Color.WHITE);
@@ -515,7 +502,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for clearFormBtn
         clearFormBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 clearFormBtn.setForeground(Color.WHITE);
@@ -534,7 +520,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for cancelBtn
         cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 cancelBtn.setForeground(Color.WHITE);
@@ -553,7 +538,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for creditPayBtn
         creditPayBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/money-add.svg", 25, 25);
@@ -568,7 +552,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for addNewCustomer
         addNewCustomer.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
@@ -585,7 +568,6 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void setupButtonFocusListeners() {
-        // Focus listeners for saveBtn
         saveBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 saveBtn.setForeground(Color.WHITE);
@@ -604,7 +586,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for clearFormBtn
         clearFormBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 clearFormBtn.setForeground(Color.WHITE);
@@ -623,7 +604,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for cancelBtn
         cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 cancelBtn.setForeground(Color.WHITE);
@@ -642,7 +622,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for creditPayBtn
         creditPayBtn.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/money-add.svg", 25, 25);
@@ -657,7 +636,6 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for addNewCustomer
         addNewCustomer.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
@@ -685,14 +663,25 @@ public class AddCredit extends javax.swing.JDialog {
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
     }
 
-    // ---------------- BUSINESS LOGIC ----------------
     private void loadCustomerCombo() {
         try {
-            // Clear the mapping first
             customerIdMap.clear();
 
-            // SIMPLIFIED QUERY - Load ALL customers from credit_customer table
-            String sql = "SELECT customer_id, customer_name FROM credit_customer WHERE status_id = 1 ORDER BY customer_name";
+            String sql = "SELECT cc.customer_id, cc.customer_name, "
+                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                    + "COALESCE(SUM(cp.paid_amount), 0) as total_paid, "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.paid_amount), 0)) as remaining_amount, "
+                    + "MAX(c.credit_final_date) as latest_due_date "
+                    + "FROM credit_customer cc "
+                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                    + "LEFT JOIN ("
+                    + "    SELECT credit_id, SUM(credit_pay_amount) as paid_amount "
+                    + "    FROM credit_pay "
+                    + "    GROUP BY credit_id"
+                    + ") cp ON c.credit_id = cp.credit_id "
+                    + "WHERE cc.status_id = 1 "
+                    + "GROUP BY cc.customer_id, cc.customer_name "
+                    + "ORDER BY cc.customer_name";
 
             ResultSet rs = MySQL.executeSearch(sql);
             Vector<String> customers = new Vector<>();
@@ -702,13 +691,23 @@ public class AddCredit extends javax.swing.JDialog {
             while (rs.next()) {
                 int customerId = rs.getInt("customer_id");
                 String customerName = rs.getString("customer_name");
+                double totalCredit = rs.getDouble("total_credit");
+                double totalPaid = rs.getDouble("total_paid");
+                double remainingAmount = rs.getDouble("remaining_amount");
+                Date latestDueDate = rs.getDate("latest_due_date");
 
-                // Simple display - just customer name
-                String displayText = customerName;
+                String displayText;
+                if (totalCredit > 0) {
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                    String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
+                    
+                    displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s", 
+                            customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
+                } else {
+                    displayText = String.format("%s | No Credit History", customerName);
+                }
 
                 customers.add(displayText);
-
-                // Store the mapping between display text and customer ID
                 customerIdMap.put(displayText, customerId);
                 count++;
             }
@@ -716,9 +715,7 @@ public class AddCredit extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             SupplierCombo.setModel(dcm);
 
-            // Debug output
-            System.out.println("Successfully loaded " + count + " customers into selector");
-            System.out.println("Combo box now has " + SupplierCombo.getItemCount() + " items");
+            System.out.println("Successfully loaded " + count + " customers with credit summary");
 
         } catch (Exception e) {
             System.err.println("Error loading customers: " + e.getMessage());
@@ -729,7 +726,6 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private int getCustomerId(String displayText) {
-        // Use the mapping to get the customer ID
         Integer customerId = customerIdMap.get(displayText);
 
         if (customerId == null) {
@@ -785,13 +781,12 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void saveCredit() {
-        // Prevent multiple simultaneous saves
         if (isSaving) {
             System.out.println("Save already in progress, skipping duplicate call...");
             return;
         }
 
-        System.out.println("saveCredit() called at: " + new Date()); // Debug output
+        System.out.println("saveCredit() called at: " + new Date());
 
         if (!validateInputs()) {
             return;
@@ -799,49 +794,75 @@ public class AddCredit extends javax.swing.JDialog {
 
         Connection conn = null;
         PreparedStatement pst = null;
+        ResultSet generatedKeys = null;
 
         try {
-            isSaving = true; // Set flag to prevent duplicate saves
+            isSaving = true;
 
             String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
-            this.customerId = getCustomerId(selectedDisplayText); // Set the customer ID to return
+            this.customerId = getCustomerId(selectedDisplayText);
             if (this.customerId == -1) {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
-                isSaving = false; // Reset flag
+                isSaving = false;
                 return;
             }
 
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String givenDateStr = dateFormat.format(manufactureDate.getDate());
             String finalDateStr = dateFormat.format(expriyDate.getDate());
 
+            java.util.Date givenDate = manufactureDate.getDate();
+            if (givenDate != null) {
+                java.util.Date currentDateTime = new java.util.Date();
+                java.util.Calendar dateCal = java.util.Calendar.getInstance();
+                java.util.Calendar timeCal = java.util.Calendar.getInstance();
+
+                dateCal.setTime(givenDate);
+                timeCal.setTime(currentDateTime);
+
+                dateCal.set(java.util.Calendar.HOUR_OF_DAY, timeCal.get(java.util.Calendar.HOUR_OF_DAY));
+                dateCal.set(java.util.Calendar.MINUTE, timeCal.get(java.util.Calendar.MINUTE));
+                dateCal.set(java.util.Calendar.SECOND, timeCal.get(java.util.Calendar.SECOND));
+                dateCal.set(java.util.Calendar.MILLISECOND, timeCal.get(java.util.Calendar.MILLISECOND));
+
+                givenDate = dateCal.getTime();
+            }
+
+            String givenDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(givenDate);
             double amount = Double.parseDouble(address.getText().trim());
 
             conn = MySQL.getConnection();
-
-            // Start transaction
             conn.setAutoCommit(false);
 
-            String query = "INSERT INTO credit (credit_given_date, credit_final_date, credit_amout, credit_customer_id) "
-                    + "VALUES (?, ?, ?, ?)";
+            String query = "INSERT INTO credit (credit_given_date, credit_final_date, credit_amout, credit_customer_id, sales_id) "
+                    + "VALUES (?, ?, ?, ?, ?)";
 
-            pst = conn.prepareStatement(query);
+            pst = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
             pst.setString(1, givenDateStr);
             pst.setString(2, finalDateStr);
             pst.setDouble(3, amount);
             pst.setInt(4, this.customerId);
+            if (salesId != -1) {
+                pst.setInt(5, salesId);
+            } else {
+                pst.setNull(5, java.sql.Types.INTEGER);
+            }
 
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
-                // Create notification for new credit
-                createCreditNotification(selectedDisplayText, amount, conn);
+                generatedKeys = pst.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    this.creditId = generatedKeys.getInt(1);
+                    System.out.println("Generated Credit ID: " + this.creditId);
+                }
 
-                // Commit transaction
+                createCreditNotification(selectedDisplayText, amount, conn);
                 conn.commit();
 
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit added successfully!");
-                dispose(); // Close the dialog after successful save
+                
+                askToOpenCreditPayDialog();
+                
             } else {
                 conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit!");
@@ -858,8 +879,10 @@ public class AddCredit extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            // Close resources
             try {
+                if (generatedKeys != null) {
+                    generatedKeys.close();
+                }
                 if (pst != null) {
                     pst.close();
                 }
@@ -870,7 +893,45 @@ public class AddCredit extends javax.swing.JDialog {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            isSaving = false; // Always reset the flag
+            isSaving = false;
+        }
+    }
+
+    private void askToOpenCreditPayDialog() {
+        int response = JOptionPane.showConfirmDialog(
+            this,
+            "Credit added successfully! Do you want to add a payment for this credit?",
+            "Open Credit Payment",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (response == JOptionPane.YES_OPTION) {
+            openCreditPayDialogForNewCredit();
+        } else {
+            dispose();
+        }
+    }
+
+    private void openCreditPayDialogForNewCredit() {
+        try {
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            AddCreditPay dialog = new AddCreditPay(parentFrame, true, this.creditId);
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+            
+            double paymentAmount = dialog.getPaidAmount();
+            if (paymentAmount > 0) {
+                this.paidAmount = paymentAmount;
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Payment of Rs " + paymentAmount + " recorded successfully!");
+            }
+            
+            dispose();
+        } catch (Exception e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error opening credit payment dialog: " + e.getMessage());
+            dispose();
         }
     }
 
@@ -879,10 +940,8 @@ public class AddCredit extends javax.swing.JDialog {
         PreparedStatement pstNotification = null;
 
         try {
-            // Create the message
             String messageText = "New credit added for " + customerName + ": Rs." + String.format("%,.2f", amount);
 
-            // Check if this exact message already exists to avoid duplicates
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
             pstMassage.setString(1, messageText);
@@ -890,7 +949,6 @@ public class AddCredit extends javax.swing.JDialog {
 
             int massageId;
             if (rs.next() && rs.getInt(1) > 0) {
-                // Message already exists, get its ID
                 String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
                 pstMassage.close();
                 pstMassage = conn.prepareStatement(getSql);
@@ -899,14 +957,12 @@ public class AddCredit extends javax.swing.JDialog {
                 rs.next();
                 massageId = rs.getInt(1);
             } else {
-                // Insert new message
                 pstMassage.close();
                 String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
                 pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
                 pstMassage.setString(1, messageText);
                 pstMassage.executeUpdate();
 
-                // Get the generated massage_id
                 rs = pstMassage.getGeneratedKeys();
                 if (rs.next()) {
                     massageId = rs.getInt(1);
@@ -915,11 +971,10 @@ public class AddCredit extends javax.swing.JDialog {
                 }
             }
 
-            // Insert notification (msg_type_id 11 = 'Add New Credit' from your msg_type table)
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1); // is_read = 1 (unread)
-            pstNotification.setInt(2, 11); // msg_type_id 11 = 'Add New Credit'
+            pstNotification.setInt(1, 1);
+            pstNotification.setInt(2, 11);
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
@@ -927,10 +982,8 @@ public class AddCredit extends javax.swing.JDialog {
 
         } catch (Exception e) {
             e.printStackTrace();
-            // Don't throw exception here - we don't want notification failure to affect credit creation
             System.err.println("Failed to create credit notification: " + e.getMessage());
         } finally {
-            // Close resources
             try {
                 if (pstMassage != null) {
                     pstMassage.close();
@@ -970,24 +1023,24 @@ public class AddCredit extends javax.swing.JDialog {
             AddNewCustomer dialog = new AddNewCustomer(parentFrame, true);
             dialog.setLocationRelativeTo(parentFrame);
             dialog.setVisible(true);
-            loadCustomerCombo(); // Reload customers after adding new one
-            SupplierCombo.requestFocus();
+            if (dialog.isCustomerSaved()) {
+                loadCustomerCombo();
+                SupplierCombo.requestFocus();
+            }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening customer dialog: " + e.getMessage());
         }
     }
 
-    // ---------------- FOCUS TRAVERSAL SETUP ----------------
     private void setupFocusTraversal() {
-        // Remove add buttons from keyboard navigation
         creditPayBtn.setFocusable(false);
         addNewCustomer.setFocusable(false);
 
-        // Make date editors focusable
         manufactureDate.getDateEditor().getUiComponent().setFocusable(true);
         expriyDate.getDateEditor().getUiComponent().setFocusable(true);
     }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -1142,30 +1195,35 @@ public class AddCredit extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(creditPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jSeparator3)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(21, 21, 21))
+                        .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 443, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jLabel3)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(creditPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(jSeparator3)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(21, 21, 21))))
             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(jPanel2Layout.createSequentialGroup()
                     .addGap(21, 21, 21)
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(jPanel2Layout.createSequentialGroup()
-                            .addComponent(SupplierCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                            .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING)
                         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                            .addComponent(manufactureDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                            .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING))
+                            .addGap(0, 0, Short.MAX_VALUE)
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(addNewCustomer, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                                    .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                    .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                     .addGap(21, 21, 21)))
         );
         jPanel2Layout.setVerticalGroup(
@@ -1177,7 +1235,9 @@ public class AddCredit extends javax.swing.JDialog {
                     .addComponent(creditPayBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(198, 198, 198)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(135, 135, 135)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1185,12 +1245,8 @@ public class AddCredit extends javax.swing.JDialog {
                 .addContainerGap(22, Short.MAX_VALUE))
             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(jPanel2Layout.createSequentialGroup()
-                    .addGap(77, 77, 77)
-                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                        .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGroup(jPanel2Layout.createSequentialGroup()
-                            .addGap(11, 11, 11)
-                            .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addGap(88, 88, 88)
+                    .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1228,7 +1284,7 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void saveBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_saveBtnKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            evt.consume(); // Consume the event to prevent multiple triggers
+            evt.consume();
             saveCredit();
         } else {
             handleArrowNavigation(evt, saveBtn);
@@ -1294,11 +1350,11 @@ public class AddCredit extends javax.swing.JDialog {
     }//GEN-LAST:event_SupplierComboKeyPressed
 
     private void manufactureDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_manufactureDateKeyPressed
-        handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
+         handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
     }//GEN-LAST:event_manufactureDateKeyPressed
 
     private void expriyDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_expriyDateKeyPressed
-        handleArrowNavigation(evt, expriyDate.getDateEditor().getUiComponent());
+       handleArrowNavigation(evt, expriyDate.getDateEditor().getUiComponent());
     }//GEN-LAST:event_expriyDateKeyPressed
 
     private void addressActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addressActionPerformed
@@ -1310,7 +1366,7 @@ public class AddCredit extends javax.swing.JDialog {
     }//GEN-LAST:event_addNewCustomerActionPerformed
 
     private void addNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCustomerKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
+     if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
             openAddNewCustomer();
         }
     }//GEN-LAST:event_addNewCustomerKeyPressed

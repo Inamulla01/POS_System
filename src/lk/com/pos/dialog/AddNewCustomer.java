@@ -25,6 +25,7 @@ import raven.toast.Notifications;
 public class AddNewCustomer extends javax.swing.JDialog {
 
     private boolean isSaving = false; // Flag to prevent multiple saves
+    private boolean customerSaved = false; // Flag to track if customer was saved
 
     /**
      * Creates new form AddNewCustomer
@@ -33,6 +34,13 @@ public class AddNewCustomer extends javax.swing.JDialog {
         super(parent, modal);
         initComponents();
         initializeDialog();
+    }
+
+    /**
+     * Returns true if a customer was successfully saved during this dialog session
+     */
+    public boolean isCustomerSaved() {
+        return customerSaved;
     }
 
     private void initializeDialog() {
@@ -581,6 +589,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
         phoneNo.setText("");
         address.setText("");
         nic.setText("");
+        customerSaved = false; // Reset the saved flag when clearing
     }
 
     private boolean validateForm() {
@@ -731,6 +740,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
             return;
         }
         isSaving = true;
+        customerSaved = false; // Reset flag at start
 
         try {
             if (!validateForm()) {
@@ -770,6 +780,10 @@ public class AddNewCustomer extends javax.swing.JDialog {
 
                     Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                             "Customer added successfully!");
+                    
+                    // Set the flag to indicate customer was saved
+                    customerSaved = true;
+                    
                     clearFields();
                     this.dispose(); // Close the dialog after successful save
                 } else {
@@ -868,6 +882,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
         name.requestFocus();
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form cleared!");
     }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents

@@ -2189,7 +2189,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         double amount = 5000.00; // Your amount here
 
-        AddCredit dialog = new AddCredit(parentFrame, true, amount);
+        AddCredit dialog = new AddCredit(parentFrame, true, amount, 1);
         dialog.setLocationRelativeTo(parentFrame);
         dialog.setVisible(true);
 

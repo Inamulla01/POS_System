@@ -11,81 +11,118 @@ public class NotificationScheduler {
     private final ScheduledExecutorService scheduler;
     private final Notification notification;
     private boolean isRunning = false;
-    
+
     public NotificationScheduler() {
         this.scheduler = Executors.newScheduledThreadPool(1);
         this.notification = new Notification();
     }
-    
-    public void start() {
+
+    public void startScheduler() {
         if (isRunning) {
             LOGGER.warning("Notification scheduler is already running");
             return;
         }
-        
-        // Schedule the notification check to run every 24 hours
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                LOGGER.info("Running scheduled notification check...");
-                notification.checkAllNotifications();
-                LOGGER.info("Scheduled notification check completed");
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Error in scheduled notification check", e);
-            }
-        }, 0, 24, TimeUnit.HOURS); // Initial delay 0, repeat every 24 hours
-        
+
+        LOGGER.info("Starting notification scheduler with validation...");
+
+        // Schedule expired products check every 6 hours
+        scheduler.scheduleAtFixedRate(
+            this::checkExpiredProducts,
+            0, // initial delay - start immediately
+            6, // period
+            TimeUnit.HOURS
+        );
+
+        // Schedule periodic notifications every 12 hours
+        scheduler.scheduleAtFixedRate(
+            this::checkPeriodicNotifications,
+            0, // initial delay - start immediately
+            12, // period
+            TimeUnit.HOURS
+        );
+
+        // Schedule cleanup every 24 hours (daily)
+        scheduler.scheduleAtFixedRate(
+            this::cleanupOldNotifications,
+            0, // initial delay - start immediately
+            24, // period
+            TimeUnit.HOURS
+        );
+
+        // Optional: Frequent checks every 30 minutes for critical alerts
+        scheduler.scheduleAtFixedRate(
+            this::checkFrequentNotifications,
+            0, // initial delay - start immediately
+            30, // period
+            TimeUnit.MINUTES
+        );
+
         isRunning = true;
-        LOGGER.info("Notification scheduler started successfully");
+        LOGGER.info("Notification scheduler started successfully with validation rules");
     }
-    
-    public void stop() {
+
+    public void stopScheduler() {
         if (!isRunning) {
             LOGGER.warning("Notification scheduler is not running");
             return;
         }
-        
+
+        LOGGER.info("Stopping notification scheduler...");
         scheduler.shutdown();
         try {
-            if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
                 scheduler.shutdownNow();
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    LOGGER.severe("Notification scheduler did not terminate properly");
-                }
             }
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        
         isRunning = false;
-        LOGGER.info("Notification scheduler stopped successfully");
+        LOGGER.info("Notification scheduler stopped");
     }
-    
-    public void triggerManualCheck() {
-        new Thread(() -> {
-            try {
-                LOGGER.info("Manual notification check triggered...");
-                notification.checkAllNotifications();
-                LOGGER.info("Manual notification check completed");
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Error in manual notification check", e);
-            }
-        }).start();
+
+    private void checkExpiredProducts() {
+        try {
+            LOGGER.info("Running scheduled expired products check (6-hour interval) - Only active stocks with quantity > 0");
+            notification.checkExpiredProductsEvery6Hours();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in scheduled expired products check", e);
+        }
     }
-    
+
+    private void checkPeriodicNotifications() {
+        try {
+            LOGGER.info("Running scheduled periodic notifications (12-hour interval) - Only active stocks");
+            notification.checkPeriodicNotificationsEvery12Hours();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in scheduled periodic notifications check", e);
+        }
+    }
+
+    private void cleanupOldNotifications() {
+        try {
+            LOGGER.info("Running scheduled cleanup of old notifications (daily)");
+            Notification.clearOldNotifications();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in scheduled cleanup", e);
+        }
+    }
+
+    private void checkFrequentNotifications() {
+        try {
+            LOGGER.info("Running frequent notifications check (30-minute interval) - Only active stocks");
+            notification.checkFrequentNotificationsEveryHalfHour();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in frequent notifications check", e);
+        }
+    }
+
     public boolean isRunning() {
         return isRunning;
     }
-    
-    // Static method to easily trigger stock quantity change notifications from other classes
-    public static void notifyStockChange(int stockId, int oldQty, int newQty) {
-        Notification notification = new Notification();
-        notification.checkStockQuantityChange(stockId, oldQty, newQty);
-    }
-    
-    // Static method for quick manual check
-    public static void triggerQuickCheck() {
-        NotificationScheduler scheduler = new NotificationScheduler();
-        scheduler.triggerManualCheck();
+
+    // Shutdown hook for graceful shutdown
+    public void addShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(this::stopScheduler));
     }
 }

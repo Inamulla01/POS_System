@@ -1343,15 +1343,15 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_addressActionPerformed
 
-    private void addNewCreditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCreditActionPerformed
-        openAddNewCredit();
-    }//GEN-LAST:event_addNewCreditActionPerformed
-
     private void addNewCreditKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCreditKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F1) {
             openAddNewCredit();
         }
     }//GEN-LAST:event_addNewCreditKeyPressed
+
+    private void addNewCreditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCreditActionPerformed
+        openAddNewCredit();
+    }//GEN-LAST:event_addNewCreditActionPerformed
 
     /**
      * @param args the command line arguments

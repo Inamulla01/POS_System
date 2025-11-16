@@ -126,8 +126,7 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
-        paymentcombo.addActionListener(evt -> togglePaymentButtons());
-        togglePaymentButtons();
+        
 
         ((AbstractDocument) jTextField2.getDocument()).setDocumentFilter(new NumericDocumentFilter());
 
@@ -216,31 +215,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
-    private void togglePaymentButtons() {
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-
-        if (selectedPayment != null) {
-            if (selectedPayment.equalsIgnoreCase("Card Payment")) {
-                cardPayBtn.setVisible(true);
-                creditCustomerBtn.setVisible(false);
-            } else if (selectedPayment.equalsIgnoreCase("Credit Payment")) {
-                cardPayBtn.setVisible(false);
-                creditCustomerBtn.setVisible(true);
-            } else if (selectedPayment.equalsIgnoreCase("Cash Payment")) {
-                cardPayBtn.setVisible(false);
-                creditCustomerBtn.setVisible(false);
-            } else {
-                cardPayBtn.setVisible(false);
-                creditCustomerBtn.setVisible(false);
-            }
-        } else {
-            cardPayBtn.setVisible(false);
-            creditCustomerBtn.setVisible(false);
-        }
-
-        revalidate();
-        repaint();
-    }
+    
 
     private void showNoProductsMessage() {
         jPanel10.removeAll();
@@ -1690,8 +1665,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         jTextField1 = new javax.swing.JTextField();
         jPanel1 = new javax.swing.JPanel();
         paymentcombo = new javax.swing.JComboBox<>();
-        cardPayBtn = new javax.swing.JButton();
-        jLabel21 = new javax.swing.JLabel();
         jTextField2 = new javax.swing.JTextField();
         jLabel22 = new javax.swing.JLabel();
         jLabel23 = new javax.swing.JLabel();
@@ -1699,7 +1672,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         jLabel14 = new javax.swing.JLabel();
         jLabel15 = new javax.swing.JLabel();
         gradientButton1 = new lk.com.pos.privateclasses.GradientButton();
-        creditCustomerBtn = new javax.swing.JButton();
+        jLabel24 = new javax.swing.JLabel();
+        jLabel26 = new javax.swing.JLabel();
+        jLabel25 = new javax.swing.JLabel();
+        jLabel27 = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         clearCartBtn = new javax.swing.JButton();
         jButton1 = new javax.swing.JButton();
@@ -1707,6 +1683,8 @@ public class PosCartPanel extends javax.swing.JPanel {
         jButton3 = new javax.swing.JButton();
         jButton2 = new javax.swing.JButton();
         switchBtn = new javax.swing.JButton();
+        jButton4 = new javax.swing.JButton();
+        jTextField3 = new javax.swing.JTextField();
 
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1914,23 +1892,9 @@ public class PosCartPanel extends javax.swing.JPanel {
         paymentcombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
         paymentcombo.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
 
-        cardPayBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
-        cardPayBtn.setText("C");
-        cardPayBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-        cardPayBtn.setMaximumSize(new java.awt.Dimension(33, 35));
-        cardPayBtn.setMinimumSize(new java.awt.Dimension(33, 35));
-        cardPayBtn.setPreferredSize(new java.awt.Dimension(33, 35));
-        cardPayBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                cardPayBtnActionPerformed(evt);
-            }
-        });
-
-        jLabel21.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jLabel21.setText("Amount Recieved:");
-
         jTextField2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         jTextField2.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+        jTextField2.setText("Amount Recieved");
 
         jLabel22.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
         jLabel22.setText("Balance Payable:");
@@ -1956,17 +1920,21 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
-        creditCustomerBtn.setFont(new java.awt.Font("Nunito ExtraBold", 0, 18)); // NOI18N
-        creditCustomerBtn.setText("V");
-        creditCustomerBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-        creditCustomerBtn.setMaximumSize(new java.awt.Dimension(33, 35));
-        creditCustomerBtn.setMinimumSize(new java.awt.Dimension(33, 35));
-        creditCustomerBtn.setPreferredSize(new java.awt.Dimension(33, 35));
-        creditCustomerBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                creditCustomerBtnActionPerformed(evt);
-            }
-        });
+        jLabel24.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jLabel24.setText("Discount :");
+
+        jLabel26.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jLabel26.setText("Exchange Refund:");
+
+        jLabel25.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jLabel25.setForeground(new java.awt.Color(255, 51, 51));
+        jLabel25.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel25.setText("Rs.1000.00");
+
+        jLabel27.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jLabel27.setForeground(new java.awt.Color(255, 102, 0));
+        jLabel27.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel27.setText("Rs.1000.00");
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -1976,46 +1944,50 @@ public class PosCartPanel extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(paymentcombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(cardPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(creditCustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+                .addComponent(jTextField2))
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addComponent(jSeparator2)
+                .addGap(3, 3, 3))
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel24)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jLabel25, javax.swing.GroupLayout.PREFERRED_SIZE, 225, javax.swing.GroupLayout.PREFERRED_SIZE))
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addGap(0, 6, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(18, 18, 18)
                         .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, 296, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                        .addComponent(jSeparator2, javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
-                            .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 154, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGap(28, 28, 28)
-                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 252, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel22)
-                            .addGap(93, 93, 93)
-                            .addComponent(jLabel23, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
-                .addGap(0, 0, Short.MAX_VALUE))
+                            .addComponent(jLabel26))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(jLabel27, javax.swing.GroupLayout.DEFAULT_SIZE, 222, Short.MAX_VALUE)
+                            .addComponent(jLabel23, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(paymentcombo, javax.swing.GroupLayout.PREFERRED_SIZE, 55, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(cardPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(creditCustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel21, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(paymentcombo, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel24)
+                    .addComponent(jLabel25))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel23, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel22, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jLabel26)
+                    .addComponent(jLabel27))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel22)
+                    .addComponent(jLabel23))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(11, 11, 11)
@@ -2074,6 +2046,14 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
+        jButton4.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        jButton4.setText("P");
+        jButton4.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton4ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
@@ -2081,6 +2061,8 @@ public class PosCartPanel extends javax.swing.JPanel {
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addComponent(cartCount, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(switchBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2102,22 +2084,26 @@ public class PosCartPanel extends javax.swing.JPanel {
                             .addComponent(clearCartBtn)
                             .addComponent(jButton3)
                             .addComponent(switchBtn)
-                            .addComponent(jButton2)))
+                            .addComponent(jButton2)
+                            .addComponent(jButton4)))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addComponent(cartCount)
                         .addGap(1, 1, 1)))
-                .addGap(0, 11, Short.MAX_VALUE))
+                .addGap(0, 6, Short.MAX_VALUE))
         );
+
+        jTextField3.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
-            .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(jTextField3)
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -2125,7 +2111,9 @@ public class PosCartPanel extends javax.swing.JPanel {
                 .addContainerGap()
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 166, Short.MAX_VALUE)
+                .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 163, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
@@ -2147,31 +2135,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_cplusBtnActionPerformed
 
-    private void cardPayBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cardPayBtnActionPerformed
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        CardPayDialog dialog = new CardPayDialog(parentFrame, true);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-
-// After dialog closes, get the generated card_payment_id
-        Integer cardPaymentId = dialog.getGeneratedCardPaymentId();
-
-        if (cardPaymentId != null) {
-            // Use the card_payment_id in your sales table or wherever needed
-            System.out.println("Generated Card Payment ID: " + cardPaymentId);
-
-            // Example: Set it in your sales form
-            // salesForm.setCardPaymentId(cardPaymentId);
-            // Or use it directly in your database insert
-            // String salesQuery = "INSERT INTO sales (..., card_payment_id) VALUES (..., " + cardPaymentId + ")";
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Card payment added successfully! ID: " + cardPaymentId);
-        } else {
-            // User cancelled or save failed
-            System.out.println("No card payment ID returned - user cancelled or save failed");
-        }
-    }//GEN-LAST:event_cardPayBtnActionPerformed
-
     private void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_gradientButton1ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_gradientButton1ActionPerformed
@@ -2183,27 +2146,6 @@ public class PosCartPanel extends javax.swing.JPanel {
     private void clearCartBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearCartBtnActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_clearCartBtnActionPerformed
-
-    private void creditCustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditCustomerBtnActionPerformed
-
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        double amount = 5000.00; // Your amount here
-
-        AddCredit dialog = new AddCredit(parentFrame, true, amount, 1);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-
-// After dialog closes, get the selected customer ID
-        if (dialog.isCreditSaved()) {
-            int customerId = dialog.getSelectedCustomerId();
-            System.out.println("Selected Customer ID: " + customerId);
-
-            // Use the customer ID in your calling class
-            // ... your logic here
-        }
-
-
-    }//GEN-LAST:event_creditCustomerBtnActionPerformed
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
 
@@ -2246,9 +2188,12 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     }//GEN-LAST:event_jButton3ActionPerformed
 
+    private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jButton4ActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton cardPayBtn;
     private javax.swing.JLabel cartCount;
     private javax.swing.JLabel cartProductName;
     private javax.swing.JLabel cartProductName1;
@@ -2259,18 +2204,21 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JButton cminusBtn1;
     private javax.swing.JButton cplusBtn;
     private javax.swing.JButton cplusBtn1;
-    private javax.swing.JButton creditCustomerBtn;
     private javax.swing.JTextField discountPriceinput;
     private javax.swing.JTextField discountPriceinput1;
     private lk.com.pos.privateclasses.GradientButton gradientButton1;
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
+    private javax.swing.JButton jButton4;
     private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;
-    private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel22;
     private javax.swing.JLabel jLabel23;
+    private javax.swing.JLabel jLabel24;
+    private javax.swing.JLabel jLabel25;
+    private javax.swing.JLabel jLabel26;
+    private javax.swing.JLabel jLabel27;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel10;
     private javax.swing.JPanel jPanel2;
@@ -2280,6 +2228,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JTextField jTextField1;
     private javax.swing.JTextField jTextField2;
+    private javax.swing.JTextField jTextField3;
     private javax.swing.JComboBox<String> paymentcombo;
     private javax.swing.JLabel priceInput;
     private javax.swing.JLabel priceInput1;

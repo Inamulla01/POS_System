@@ -1224,17 +1224,20 @@ public class CustomerPanel extends javax.swing.JPanel {
     /**
      * Builds customer subquery
      */
-    private String buildCustomerSubquery() {
-        return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, " +
-               "cc.customer_address, cc.nic, cc.date_time, s.status_name, " +
-               "MAX(c.credit_final_date) as latest_due_date, " +
-               "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, " +
-               "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid " +
-               "FROM credit_customer cc " +
-               "JOIN status s ON s.status_id = cc.status_id " +
-               "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id " +
-               "LEFT JOIN credit_pay cp ON cp.credit_id = c.credit_id ";
-    }
+    /**
+ * Builds customer subquery
+ */
+private String buildCustomerSubquery() {
+    return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, " +
+           "cc.customer_address, cc.nic, cc.date_time, s.status_name, " +
+           "MAX(c.credit_final_date) as latest_due_date, " +
+           "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, " +
+           "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid " +
+           "FROM credit_customer cc " +
+           "JOIN status s ON s.status_id = cc.status_id " +
+           "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id " +
+           "LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id ";  // FIXED: Join via credit_customer_id
+}
     
     /**
      * Checks if search text is valid

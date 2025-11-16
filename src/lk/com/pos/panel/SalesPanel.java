@@ -701,26 +701,25 @@ public class SalesPanel extends javax.swing.JPanel {
             "s.sales_id, s.invoice_no, s.datetime, s.total, " +
             "s.status_id, " +
             "st.status_name, " +
+            // Item-level discounts
             "(SELECT COALESCE(SUM(si.discount_price), 0) FROM sale_item si WHERE si.sales_id = s.sales_id) as total_item_discount, " +
-            // Get discount info via separate join
-            "(SELECT COALESCE(SUM(d.discount), 0) FROM discount d WHERE d.sales_id = s.sales_id) as total_sale_discount, " +
+            // Sale-level discount - Get directly from discount table via the foreign key
+            "COALESCE(d.discount, 0) as total_sale_discount, " +
             "pm.payment_method_name, u.name as cashier_name, " +
-            // Get customer name through credit table if exists, otherwise Walk-in
+            // Get customer name through credit table if exists
             "(SELECT cc.customer_name FROM credit c " +
             "INNER JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id " +
             "WHERE c.sales_id = s.sales_id LIMIT 1) as customer_name " +
             "FROM sales s " +
             "LEFT JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
             "LEFT JOIN user u ON s.user_id = u.user_id " +
-            "LEFT JOIN status st ON s.status_id = st.status_id ";
+            "LEFT JOIN status st ON s.status_id = st.status_id " +
+            // JOIN discount table via the discount_id foreign key in sales table
+            "LEFT JOIN discount d ON s.discount_id = d.discount_id ";
         
         StringBuilder whereClause = new StringBuilder();
         List<Object> parameters = new ArrayList<>();
         
-        // Note: The status here might be for sale status (like completed, void, etc.)
-        // Adjust these based on what's actually in your status table for sales
-        // From your output, "Due Amount" and "No Due" seem to be credit customer statuses, not sale statuses
-        // You might want to remove this filter or adjust it based on actual sale status values
         whereClause.append("WHERE 1=1 ");
         
         if (!searchText.isEmpty()) {
@@ -755,7 +754,7 @@ public class SalesPanel extends javax.swing.JPanel {
             data.statusId = rs.getInt("status_id");
             data.saleStatus = rs.getString("status_name");
             
-            // Sale discount is now from the subquery
+            // Sale discount comes directly from the JOIN now
             data.saleDiscount = rs.getDouble("total_sale_discount");
             data.totalDiscount = data.itemDiscount + data.saleDiscount;
             data.paymentMethod = rs.getString("payment_method_name");

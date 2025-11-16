@@ -25,8 +25,10 @@ import javax.swing.plaf.basic.BasicMenuItemUI;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewUser;
 import lk.com.pos.dialog.EditProfile;
+import lk.com.pos.panel.ChequePanel;
 import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
+import lk.com.pos.panel.ExpensePanel;
 import lk.com.pos.panel.NotificationPanel;
 import lk.com.pos.panel.PosPanelDone;
 import lk.com.pos.panel.ProductPanel;
@@ -73,6 +75,8 @@ public class HomeScreen extends JFrame {
     private NotificationPanel notificationPanel;
     private ReturnPanel retuenPanel;
     private ProductPanel productPanel;
+    private ChequePanel chequePanel;
+    private ExpensePanel expensePanel;
 
     private JButton activeButton = null;
     private Color activeTopColor = new Color(0x12B5A6);
@@ -1172,6 +1176,8 @@ public class HomeScreen extends JFrame {
         this.notificationPanel = new NotificationPanel();
         this.productPanel = new ProductPanel();
         this.retuenPanel = new ReturnPanel();
+        this.chequePanel = new ChequePanel();
+        this.expensePanel = new ExpensePanel();
 
         this.cardPanel.add(dashboardPanel, "dashboard_panel");
         this.cardPanel.add(posPanel, "pos_panel");
@@ -1182,6 +1188,8 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(notificationPanel, "notification_Panel");
         this.cardPanel.add(retuenPanel, "retuen_Panel");
         this.cardPanel.add(productPanel, "product_Panel");
+        this.cardPanel.add(chequePanel, "cheque_Panel");
+        this.cardPanel.add(expensePanel, "Expense_Panel");
 
         SwingUtilities.updateComponentTreeUI(cardPanel);
     }
@@ -1343,6 +1351,14 @@ public class HomeScreen extends JFrame {
         contentPanelLayout.show(cardPanel, "retuen_Panel");
         setActiveButton(returnBtn);
         currentPanelName = "Return";
+    }
+    
+    private void showChequePanel(){
+        contentPanelLayout.show(cardPanel, "cheque_Panel");
+    }
+    
+    private void showExpensePanel(){
+        contentPanelLayout.show(cardPanel, "Expense_Panel");
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1757,6 +1773,8 @@ public class HomeScreen extends JFrame {
         notificasionBtn = new javax.swing.JButton();
         returnBtn = new javax.swing.JButton();
         productBtn = new javax.swing.JButton();
+        expenseBtn = new javax.swing.JButton();
+        chequeBtn = new javax.swing.JButton();
         cardPanel = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -1855,7 +1873,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(helloLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 63, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 57, Short.MAX_VALUE)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2031,6 +2049,34 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        expenseBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        expenseBtn.setText("Expense");
+        expenseBtn.setBorder(null);
+        expenseBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        expenseBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        expenseBtn.setIconTextGap(3);
+        expenseBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        expenseBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        expenseBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                expenseBtnActionPerformed(evt);
+            }
+        });
+
+        chequeBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        chequeBtn.setText("Cheque");
+        chequeBtn.setBorder(null);
+        chequeBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        chequeBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        chequeBtn.setIconTextGap(3);
+        chequeBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        chequeBtn.setPreferredSize(new java.awt.Dimension(75, 40));
+        chequeBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                chequeBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout sidePenalLayout = new javax.swing.GroupLayout(sidePenal);
         sidePenal.setLayout(sidePenalLayout);
         sidePenalLayout.setHorizontalGroup(
@@ -2046,7 +2092,7 @@ public class HomeScreen extends JFrame {
                             .addComponent(logo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                         .addGap(0, 0, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, sidePenalLayout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addGap(0, 6, Short.MAX_VALUE)
                         .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
@@ -2055,7 +2101,12 @@ public class HomeScreen extends JFrame {
                             .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                 .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                                .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                    .addGroup(sidePenalLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(chequeBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
+                            .addComponent(expenseBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))))
                 .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
@@ -2080,7 +2131,11 @@ public class HomeScreen extends JFrame {
                 .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 81, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(chequeBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(expenseBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 22, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -2409,6 +2464,14 @@ public class HomeScreen extends JFrame {
         showProductPanel();
     }//GEN-LAST:event_productBtnActionPerformed
 
+    private void expenseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_expenseBtnActionPerformed
+        showExpensePanel();
+    }//GEN-LAST:event_expenseBtnActionPerformed
+
+    private void chequeBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chequeBtnActionPerformed
+        showChequePanel();
+    }//GEN-LAST:event_chequeBtnActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -2437,8 +2500,10 @@ public class HomeScreen extends JFrame {
     private javax.swing.JButton bellBtn;
     private javax.swing.JButton calBtn;
     private javax.swing.JPanel cardPanel;
+    private javax.swing.JButton chequeBtn;
     private javax.swing.JButton creditBtn;
     private javax.swing.JButton dashboardBtn;
+    private javax.swing.JButton expenseBtn;
     private javax.swing.JLabel helloLabel;
     private javax.swing.JButton keyBtn;
     private javax.swing.JLabel logo;

@@ -61,12 +61,12 @@
                                   <Component id="saveBtn" min="-2" pref="124" max="-2" attributes="0"/>
                               </Group>
                               <Component id="jLabel3" min="-2" max="-2" attributes="0"/>
-                              <Component id="manufactureDate" alignment="0" min="-2" pref="384" max="-2" attributes="0"/>
-                              <Component id="address" alignment="0" max="32767" attributes="0"/>
+                              <Component id="paymentDate" alignment="0" min="-2" pref="384" max="-2" attributes="0"/>
+                              <Component id="amountField" alignment="0" max="32767" attributes="0"/>
                           </Group>
                       </Group>
                       <Group type="103" alignment="0" groupAlignment="1" attributes="0">
-                          <Component id="creditCombo" alignment="1" min="-2" pref="384" max="-2" attributes="0"/>
+                          <Component id="customerCombo" alignment="1" min="-2" pref="384" max="-2" attributes="0"/>
                           <Component id="remainingAmountLabel" alignment="0" min="-2" pref="384" max="-2" attributes="0"/>
                       </Group>
                   </Group>
@@ -84,11 +84,11 @@
                   <EmptySpace max="-2" attributes="0"/>
                   <Component id="remainingAmountLabel" min="-2" pref="31" max="-2" attributes="0"/>
                   <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
-                  <Component id="creditCombo" min="-2" max="-2" attributes="0"/>
+                  <Component id="customerCombo" min="-2" max="-2" attributes="0"/>
                   <EmptySpace type="unrelated" max="-2" attributes="0"/>
-                  <Component id="manufactureDate" min="-2" max="-2" attributes="0"/>
+                  <Component id="paymentDate" min="-2" max="-2" attributes="0"/>
                   <EmptySpace min="-2" pref="13" max="-2" attributes="0"/>
-                  <Component id="address" min="-2" max="-2" attributes="0"/>
+                  <Component id="amountField" min="-2" max="-2" attributes="0"/>
                   <EmptySpace max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="3" attributes="0">
                       <Component id="cancelBtn" alignment="3" min="-2" pref="45" max="-2" attributes="0"/>
@@ -185,7 +185,7 @@
             <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="saveBtnKeyPressed"/>
           </Events>
         </Component>
-        <Component class="javax.swing.JComboBox" name="creditCombo">
+        <Component class="javax.swing.JComboBox" name="customerCombo">
           <Properties>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito SemiBold" size="14" style="1"/>
@@ -200,21 +200,21 @@
             </Property>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
-                <TitledBorder title="Credit *">
+                <TitledBorder title="Customer *">
                   <Font PropertyName="font" name="Nunito SemiBold" size="14" style="1"/>
                 </TitledBorder>
               </Border>
             </Property>
           </Properties>
           <Events>
-            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="creditComboActionPerformed"/>
-            <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="creditComboKeyPressed"/>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="customerComboActionPerformed"/>
+            <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="customerComboKeyPressed"/>
           </Events>
           <AuxValues>
             <AuxValue name="JavaCodeGenerator_TypeParameters" type="java.lang.String" value="&lt;String&gt;"/>
           </AuxValues>
         </Component>
-        <Component class="com.toedter.calendar.JDateChooser" name="manufactureDate">
+        <Component class="com.toedter.calendar.JDateChooser" name="paymentDate">
           <Properties>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.TitledBorderInfo">
@@ -230,10 +230,10 @@
             <Property name="opaque" type="boolean" value="false"/>
           </Properties>
           <Events>
-            <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="manufactureDateKeyPressed"/>
+            <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="paymentDateKeyPressed"/>
           </Events>
         </Component>
-        <Component class="javax.swing.JTextField" name="address">
+        <Component class="javax.swing.JTextField" name="amountField">
           <Properties>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito SemiBold" size="14" style="0"/>
@@ -248,7 +248,7 @@
             </Property>
           </Properties>
           <Events>
-            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="addressActionPerformed"/>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="amountFieldActionPerformed"/>
           </Events>
         </Component>
         <Component class="javax.swing.JLabel" name="remainingAmountLabel">

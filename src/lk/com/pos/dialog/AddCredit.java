@@ -21,6 +21,7 @@ import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
@@ -95,21 +96,21 @@ public class AddCredit extends javax.swing.JDialog {
         setupTooltips();
 
         loadCustomerCombo();
-        AutoCompleteDecorator.decorate(SupplierCombo);
+        AutoCompleteDecorator.decorate(customerCombo);
 
-        manufactureDate.setDate(new Date());
+        givenDate.setDate(new Date());
 
         setupFocusTraversal();
 
         if (amount != null) {
-            address.setText(String.valueOf(amount));
+            amountField.setText(String.valueOf(amount));
         } else {
-            address.setText("0");
+            amountField.setText("0");
         }
 
-        SupplierCombo.addMouseListener(new java.awt.event.MouseAdapter() {
+        customerCombo.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
-                SupplierCombo.showPopup();
+                customerCombo.showPopup();
             }
         });
 
@@ -131,73 +132,73 @@ public class AddCredit extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        SupplierCombo.requestFocusInWindow();
+        customerCombo.requestFocusInWindow();
     }
 
     private void setupKeyboardNavigation() {
-        SupplierCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+        customerCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    givenDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    givenDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     saveBtn.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, SupplierCombo);
+                    handleArrowNavigation(evt, customerCombo);
                 }
             }
         });
 
-        javax.swing.JTextField manufactureDateEditor = (javax.swing.JTextField) manufactureDate.getDateEditor().getUiComponent();
-        manufactureDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
+        javax.swing.JTextField givenDateEditor = (javax.swing.JTextField) givenDate.getDateEditor().getUiComponent();
+        givenDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    expriyDate.getDateEditor().getUiComponent().requestFocus();
+                    finalDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    SupplierCombo.requestFocus();
+                    customerCombo.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    expriyDate.getDateEditor().getUiComponent().requestFocus();
+                    finalDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    SupplierCombo.requestFocus();
+                    customerCombo.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, manufactureDateEditor);
+                    handleArrowNavigation(evt, givenDateEditor);
                 }
             }
         });
 
-        javax.swing.JTextField expriyDateEditor = (javax.swing.JTextField) expriyDate.getDateEditor().getUiComponent();
-        expriyDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
+        javax.swing.JTextField finalDateEditor = (javax.swing.JTextField) finalDate.getDateEditor().getUiComponent();
+        finalDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    givenDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    givenDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, expriyDateEditor);
+                    handleArrowNavigation(evt, finalDateEditor);
                 }
             }
         });
 
-        address.addKeyListener(new java.awt.event.KeyAdapter() {
+        amountField.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
@@ -208,7 +209,7 @@ public class AddCredit extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    expriyDate.getDateEditor().getUiComponent().requestFocus();
+                    finalDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
                     if (areAllRequiredFieldsFilled()) {
@@ -218,10 +219,10 @@ public class AddCredit extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    expriyDate.getDateEditor().getUiComponent().requestFocus();
+                    finalDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, address);
+                    handleArrowNavigation(evt, amountField);
                 }
             }
         });
@@ -230,9 +231,10 @@ public class AddCredit extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    saveCredit();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     clearFormBtn.requestFocus();
@@ -256,7 +258,7 @@ public class AddCredit extends javax.swing.JDialog {
                     clearForm();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     cancelBtn.requestFocus();
@@ -280,7 +282,7 @@ public class AddCredit extends javax.swing.JDialog {
                     dispose();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     saveBtn.requestFocus();
@@ -320,34 +322,34 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void handleRightArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
-            address.requestFocusInWindow();
-        } else if (source == address) {
+        if (source == customerCombo) {
+            givenDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == givenDate.getDateEditor().getUiComponent()) {
+            finalDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == finalDate.getDateEditor().getUiComponent()) {
+            amountField.requestFocusInWindow();
+        } else if (source == amountField) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
             clearFormBtn.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            SupplierCombo.requestFocusInWindow();
+            customerCombo.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
+        if (source == customerCombo) {
             saveBtn.requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == address) {
-            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == givenDate.getDateEditor().getUiComponent()) {
+            customerCombo.requestFocusInWindow();
+        } else if (source == finalDate.getDateEditor().getUiComponent()) {
+            givenDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == amountField) {
+            finalDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == cancelBtn) {
-            address.requestFocusInWindow();
+            amountField.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -356,34 +358,34 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void handleDownArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
-            address.requestFocusInWindow();
-        } else if (source == address) {
+        if (source == customerCombo) {
+            givenDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == givenDate.getDateEditor().getUiComponent()) {
+            finalDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == finalDate.getDateEditor().getUiComponent()) {
+            amountField.requestFocusInWindow();
+        } else if (source == amountField) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
             clearFormBtn.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            SupplierCombo.requestFocusInWindow();
+            customerCombo.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
+        if (source == customerCombo) {
             saveBtn.requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == expriyDate.getDateEditor().getUiComponent()) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == address) {
-            expriyDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == givenDate.getDateEditor().getUiComponent()) {
+            customerCombo.requestFocusInWindow();
+        } else if (source == finalDate.getDateEditor().getUiComponent()) {
+            givenDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == amountField) {
+            finalDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == cancelBtn) {
-            address.requestFocusInWindow();
+            amountField.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -392,11 +394,11 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private boolean areAllRequiredFieldsFilled() {
-        return SupplierCombo.getSelectedIndex() > 0
-                && manufactureDate.getDate() != null
-                && expriyDate.getDate() != null
-                && !address.getText().trim().isEmpty()
-                && !address.getText().trim().equals("0");
+        return customerCombo.getSelectedIndex() > 0
+                && givenDate.getDate() != null
+                && finalDate.getDate() != null
+                && !amountField.getText().trim().isEmpty()
+                && !amountField.getText().trim().equals("0");
     }
 
     private void setupButtonStyles() {
@@ -652,10 +654,10 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void setupTooltips() {
-        SupplierCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to add new customer</html>");
-        manufactureDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
-        expriyDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 31122024 for 31/12/2024</html>");
-        address.setToolTipText("Type credit amount and press ENTER to move to next field");
+        customerCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to add new customer</html>");
+        givenDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
+        finalDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 31122024 for 31/12/2024</html>");
+        amountField.setToolTipText("Type credit amount and press ENTER to move to next field");
         creditPayBtn.setToolTipText("Click to open credit payment dialog (or press F1)");
         addNewCustomer.setToolTipText("Click to add new customer (or press F2)");
         saveBtn.setToolTipText("Click to save credit (or press ENTER when focused)");
@@ -667,19 +669,16 @@ public class AddCredit extends javax.swing.JDialog {
         try {
             customerIdMap.clear();
 
+            // Updated SQL query to work with customer-based credit system
             String sql = "SELECT cc.customer_id, cc.customer_name, "
                     + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                    + "COALESCE(SUM(cp.paid_amount), 0) as total_paid, "
-                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.paid_amount), 0)) as remaining_amount, "
+                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, "
                     + "MAX(c.credit_final_date) as latest_due_date "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN ("
-                    + "    SELECT credit_id, SUM(credit_pay_amount) as paid_amount "
-                    + "    FROM credit_pay "
-                    + "    GROUP BY credit_id"
-                    + ") cp ON c.credit_id = cp.credit_id "
-                    + "WHERE cc.status_id = 1 "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
+                    + "WHERE cc.status_id = 1 " // Only customers with due amount
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
@@ -700,8 +699,8 @@ public class AddCredit extends javax.swing.JDialog {
                 if (totalCredit > 0) {
                     SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
                     String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
-                    
-                    displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s", 
+
+                    displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
                             customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
                 } else {
                     displayText = String.format("%s | No Credit History", customerName);
@@ -713,7 +712,7 @@ public class AddCredit extends javax.swing.JDialog {
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
-            SupplierCombo.setModel(dcm);
+            customerCombo.setModel(dcm);
 
             System.out.println("Successfully loaded " + count + " customers with credit summary");
 
@@ -739,41 +738,41 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private boolean validateInputs() {
-        if (SupplierCombo.getSelectedIndex() == 0) {
+        if (customerCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a customer");
-            SupplierCombo.requestFocus();
+            customerCombo.requestFocus();
             return false;
         }
 
-        if (manufactureDate.getDate() == null) {
+        if (givenDate.getDate() == null) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select credit given date");
-            manufactureDate.getDateEditor().getUiComponent().requestFocus();
+            givenDate.getDateEditor().getUiComponent().requestFocus();
             return false;
         }
 
-        if (expriyDate.getDate() == null) {
+        if (finalDate.getDate() == null) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select credit final date");
-            expriyDate.getDateEditor().getUiComponent().requestFocus();
+            finalDate.getDateEditor().getUiComponent().requestFocus();
             return false;
         }
 
-        if (expriyDate.getDate().before(manufactureDate.getDate())) {
+        if (finalDate.getDate().before(givenDate.getDate())) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Final date must be after given date");
-            expriyDate.getDateEditor().getUiComponent().requestFocus();
+            finalDate.getDateEditor().getUiComponent().requestFocus();
             return false;
         }
 
         double amount = 0;
         try {
-            amount = Double.parseDouble(address.getText().trim());
+            amount = Double.parseDouble(amountField.getText().trim());
             if (amount <= 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Credit amount must be greater than 0");
-                address.requestFocus();
+                amountField.requestFocus();
                 return false;
             }
         } catch (NumberFormatException e) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter a valid credit amount");
-            address.requestFocus();
+            amountField.requestFocus();
             return false;
         }
 
@@ -799,7 +798,7 @@ public class AddCredit extends javax.swing.JDialog {
         try {
             isSaving = true;
 
-            String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
+            String selectedDisplayText = (String) customerCombo.getSelectedItem();
             this.customerId = getCustomerId(selectedDisplayText);
             if (this.customerId == -1) {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
@@ -808,15 +807,15 @@ public class AddCredit extends javax.swing.JDialog {
             }
 
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String finalDateStr = dateFormat.format(expriyDate.getDate());
+            String finalDateStr = dateFormat.format(finalDate.getDate());
 
-            java.util.Date givenDate = manufactureDate.getDate();
-            if (givenDate != null) {
+            java.util.Date givenDateValue = givenDate.getDate();
+            if (givenDateValue != null) {
                 java.util.Date currentDateTime = new java.util.Date();
                 java.util.Calendar dateCal = java.util.Calendar.getInstance();
                 java.util.Calendar timeCal = java.util.Calendar.getInstance();
 
-                dateCal.setTime(givenDate);
+                dateCal.setTime(givenDateValue);
                 timeCal.setTime(currentDateTime);
 
                 dateCal.set(java.util.Calendar.HOUR_OF_DAY, timeCal.get(java.util.Calendar.HOUR_OF_DAY));
@@ -824,14 +823,21 @@ public class AddCredit extends javax.swing.JDialog {
                 dateCal.set(java.util.Calendar.SECOND, timeCal.get(java.util.Calendar.SECOND));
                 dateCal.set(java.util.Calendar.MILLISECOND, timeCal.get(java.util.Calendar.MILLISECOND));
 
-                givenDate = dateCal.getTime();
+                givenDateValue = dateCal.getTime();
             }
 
-            String givenDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(givenDate);
-            double amount = Double.parseDouble(address.getText().trim());
+            String givenDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(givenDateValue);
+            double amount = Double.parseDouble(amountField.getText().trim());
 
             conn = MySQL.getConnection();
             conn.setAutoCommit(false);
+
+            // Update customer status to "Due Amount" when adding new credit
+            String updateCustomerSql = "UPDATE credit_customer SET status_id = 1 WHERE customer_id = ?";
+            PreparedStatement pstUpdateCustomer = conn.prepareStatement(updateCustomerSql);
+            pstUpdateCustomer.setInt(1, this.customerId);
+            pstUpdateCustomer.executeUpdate();
+            pstUpdateCustomer.close();
 
             String query = "INSERT INTO credit (credit_given_date, credit_final_date, credit_amout, credit_customer_id, sales_id) "
                     + "VALUES (?, ?, ?, ?, ?)";
@@ -860,9 +866,9 @@ public class AddCredit extends javax.swing.JDialog {
                 conn.commit();
 
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit added successfully!");
-                
+
                 askToOpenCreditPayDialog();
-                
+
             } else {
                 conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit!");
@@ -898,40 +904,74 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void askToOpenCreditPayDialog() {
-        int response = JOptionPane.showConfirmDialog(
-            this,
-            "Credit added successfully! Do you want to add a payment for this credit?",
-            "Open Credit Payment",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE
+        // Create custom option pane with keyboard navigation
+        Object[] options = {"Yes", "No"};
+        JOptionPane optionPane = new JOptionPane(
+                "Credit added successfully! Do you want to add a payment for this credit?",
+                JOptionPane.QUESTION_MESSAGE,
+                JOptionPane.YES_NO_OPTION,
+                null,
+                options,
+                options[0] // Default to Yes
         );
 
-        if (response == JOptionPane.YES_OPTION) {
-            openCreditPayDialogForNewCredit();
-        } else {
+        JDialog dialog = optionPane.createDialog(this, "Open Credit Payment");
+        
+        // Add keyboard navigation to the dialog
+        dialog.getRootPane().registerKeyboardAction(
+                evt -> {
+                    optionPane.setValue(options[0]);
+                    dialog.dispose();
+                },
+                KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        dialog.getRootPane().registerKeyboardAction(
+                evt -> {
+                    optionPane.setValue(options[1]);
+                    dialog.dispose();
+                },
+                KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        dialog.getRootPane().registerKeyboardAction(
+                evt -> dialog.dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        // Show the dialog
+        dialog.setVisible(true);
+        dialog.dispose();
+
+        Object result = optionPane.getValue();
+        
+        if (result == options[0]) { // Yes
+            dispose();
+            openCreditPayDialogForCustomer();
+        } else { // No or closed
             dispose();
         }
     }
 
-    private void openCreditPayDialogForNewCredit() {
+    private void openCreditPayDialogForCustomer() {
         try {
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddCreditPay dialog = new AddCreditPay(parentFrame, true, this.creditId);
+            AddCreditPay dialog = new AddCreditPay(parentFrame, true, this.customerId);
             dialog.setLocationRelativeTo(parentFrame);
             dialog.setVisible(true);
-            
+
             double paymentAmount = dialog.getPaidAmount();
             if (paymentAmount > 0) {
                 this.paidAmount = paymentAmount;
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                         "Payment of Rs " + paymentAmount + " recorded successfully!");
             }
-            
-            dispose();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening credit payment dialog: " + e.getMessage());
-            dispose();
         }
     }
 
@@ -940,7 +980,9 @@ public class AddCredit extends javax.swing.JDialog {
         PreparedStatement pstNotification = null;
 
         try {
-            String messageText = "New credit added for " + customerName + ": Rs." + String.format("%,.2f", amount);
+            // Extract just the customer name from the display text
+            String cleanCustomerName = customerName.split("\\|")[0].trim();
+            String messageText = "New credit added for " + cleanCustomerName + ": Rs." + String.format("%,.2f", amount);
 
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
@@ -974,11 +1016,11 @@ public class AddCredit extends javax.swing.JDialog {
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 11);
+            pstNotification.setInt(2, 11); // Assuming 11 is for credit notifications
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("Credit notification created successfully for customer: " + customerName);
+            System.out.println("Credit notification created successfully for customer: " + cleanCustomerName);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -998,11 +1040,11 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void clearForm() {
-        SupplierCombo.setSelectedIndex(0);
-        manufactureDate.setDate(new Date());
-        expriyDate.setDate(null);
-        address.setText("0");
-        SupplierCombo.requestFocus();
+        customerCombo.setSelectedIndex(0);
+        givenDate.setDate(new Date());
+        finalDate.setDate(null);
+        amountField.setText("0");
+        customerCombo.requestFocus();
     }
 
     private void openCreditPayDialog() {
@@ -1025,7 +1067,7 @@ public class AddCredit extends javax.swing.JDialog {
             dialog.setVisible(true);
             if (dialog.isCustomerSaved()) {
                 loadCustomerCombo();
-                SupplierCombo.requestFocus();
+                customerCombo.requestFocus();
             }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1037,11 +1079,9 @@ public class AddCredit extends javax.swing.JDialog {
         creditPayBtn.setFocusable(false);
         addNewCustomer.setFocusable(false);
 
-        manufactureDate.getDateEditor().getUiComponent().setFocusable(true);
-        expriyDate.getDateEditor().getUiComponent().setFocusable(true);
+        givenDate.getDateEditor().getUiComponent().setFocusable(true);
+        finalDate.getDateEditor().getUiComponent().setFocusable(true);
     }
-
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1053,10 +1093,10 @@ public class AddCredit extends javax.swing.JDialog {
         clearFormBtn = new javax.swing.JButton();
         saveBtn = new javax.swing.JButton();
         creditPayBtn = new javax.swing.JButton();
-        SupplierCombo = new javax.swing.JComboBox<>();
-        manufactureDate = new com.toedter.calendar.JDateChooser();
-        expriyDate = new com.toedter.calendar.JDateChooser();
-        address = new javax.swing.JTextField();
+        customerCombo = new javax.swing.JComboBox<>();
+        givenDate = new com.toedter.calendar.JDateChooser();
+        finalDate = new com.toedter.calendar.JDateChooser();
+        amountField = new javax.swing.JTextField();
         addNewCustomer = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -1129,46 +1169,46 @@ public class AddCredit extends javax.swing.JDialog {
             }
         });
 
-        SupplierCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        SupplierCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        SupplierCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        SupplierCombo.addActionListener(new java.awt.event.ActionListener() {
+        customerCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        customerCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        customerCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        customerCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                SupplierComboActionPerformed(evt);
+                customerComboActionPerformed(evt);
             }
         });
-        SupplierCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+        customerCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                SupplierComboKeyPressed(evt);
+                customerComboKeyPressed(evt);
             }
         });
 
-        manufactureDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Given Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        manufactureDate.setDateFormatString("MM/dd/yyyy");
-        manufactureDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        manufactureDate.setOpaque(false);
-        manufactureDate.addKeyListener(new java.awt.event.KeyAdapter() {
+        givenDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Given Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        givenDate.setDateFormatString("MM/dd/yyyy");
+        givenDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        givenDate.setOpaque(false);
+        givenDate.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                manufactureDateKeyPressed(evt);
+                givenDateKeyPressed(evt);
             }
         });
 
-        expriyDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Final Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        expriyDate.setDateFormatString("MM/dd/yyyy");
-        expriyDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        expriyDate.setOpaque(false);
-        expriyDate.addKeyListener(new java.awt.event.KeyAdapter() {
+        finalDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Final Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        finalDate.setDateFormatString("MM/dd/yyyy");
+        finalDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        finalDate.setOpaque(false);
+        finalDate.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                expriyDateKeyPressed(evt);
+                finalDateKeyPressed(evt);
             }
         });
 
-        address.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        address.setText("0");
-        address.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
-        address.addActionListener(new java.awt.event.ActionListener() {
+        amountField.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        amountField.setText("0");
+        amountField.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        amountField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addressActionPerformed(evt);
+                amountFieldActionPerformed(evt);
             }
         });
 
@@ -1195,7 +1235,7 @@ public class AddCredit extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 443, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 443, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1215,15 +1255,15 @@ public class AddCredit extends javax.swing.JDialog {
                 .addGroup(jPanel2Layout.createSequentialGroup()
                     .addGap(21, 21, 21)
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(amountField, javax.swing.GroupLayout.Alignment.TRAILING)
                         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                             .addGap(0, 0, Short.MAX_VALUE)
                             .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                 .addComponent(addNewCustomer, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                                    .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(givenDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                                    .addComponent(finalDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)))))
                     .addGap(21, 21, 21)))
         );
         jPanel2Layout.setVerticalGroup(
@@ -1236,7 +1276,7 @@ public class AddCredit extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(135, 135, 135)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1249,10 +1289,10 @@ public class AddCredit extends javax.swing.JDialog {
                     .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(givenDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(finalDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGap(13, 13, 13)
-                    .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(amountField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addContainerGap(77, Short.MAX_VALUE)))
         );
 
@@ -1319,54 +1359,54 @@ public class AddCredit extends javax.swing.JDialog {
         dispose();
     }//GEN-LAST:event_cancelBtnActionPerformed
 
-    private void SupplierComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SupplierComboActionPerformed
-        if (SupplierCombo.getSelectedIndex() > 0 && !SupplierCombo.isPopupVisible()) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+    private void customerComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerComboActionPerformed
+        if (customerCombo.getSelectedIndex() > 0 && !customerCombo.isPopupVisible()) {
+            givenDate.getDateEditor().getUiComponent().requestFocusInWindow();
         }
-    }//GEN-LAST:event_SupplierComboActionPerformed
+    }//GEN-LAST:event_customerComboActionPerformed
 
-    private void SupplierComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_SupplierComboKeyPressed
+    private void customerComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_customerComboKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (SupplierCombo.isPopupVisible()) {
-                SupplierCombo.setPopupVisible(false);
+            if (customerCombo.isPopupVisible()) {
+                customerCombo.setPopupVisible(false);
             }
-            if (SupplierCombo.getSelectedIndex() > 0) {
-                manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+            if (customerCombo.getSelectedIndex() > 0) {
+                givenDate.getDateEditor().getUiComponent().requestFocusInWindow();
             }
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            if (!SupplierCombo.isPopupVisible()) {
-                SupplierCombo.showPopup();
+            if (!customerCombo.isPopupVisible()) {
+                customerCombo.showPopup();
                 evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            if (!SupplierCombo.isPopupVisible()) {
+            if (!customerCombo.isPopupVisible()) {
                 saveBtn.requestFocusInWindow();
                 evt.consume();
             }
         } else {
-            handleArrowNavigation(evt, SupplierCombo);
+            handleArrowNavigation(evt, customerCombo);
         }
-    }//GEN-LAST:event_SupplierComboKeyPressed
+    }//GEN-LAST:event_customerComboKeyPressed
 
-    private void manufactureDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_manufactureDateKeyPressed
-         handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
-    }//GEN-LAST:event_manufactureDateKeyPressed
+    private void givenDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_givenDateKeyPressed
+        handleArrowNavigation(evt, givenDate.getDateEditor().getUiComponent());
+    }//GEN-LAST:event_givenDateKeyPressed
 
-    private void expriyDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_expriyDateKeyPressed
-       handleArrowNavigation(evt, expriyDate.getDateEditor().getUiComponent());
-    }//GEN-LAST:event_expriyDateKeyPressed
+    private void finalDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_finalDateKeyPressed
+        handleArrowNavigation(evt, finalDate.getDateEditor().getUiComponent());
+    }//GEN-LAST:event_finalDateKeyPressed
 
-    private void addressActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addressActionPerformed
+    private void amountFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_amountFieldActionPerformed
 
-    }//GEN-LAST:event_addressActionPerformed
+    }//GEN-LAST:event_amountFieldActionPerformed
 
     private void addNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCustomerActionPerformed
         openAddNewCustomer();
     }//GEN-LAST:event_addNewCustomerActionPerformed
 
     private void addNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCustomerKeyPressed
-     if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
             openAddNewCustomer();
         }
     }//GEN-LAST:event_addNewCustomerKeyPressed
@@ -1415,17 +1455,17 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JComboBox<String> SupplierCombo;
     private javax.swing.JButton addNewCustomer;
-    private javax.swing.JTextField address;
+    private javax.swing.JTextField amountField;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
     private javax.swing.JButton creditPayBtn;
-    private com.toedter.calendar.JDateChooser expriyDate;
+    private javax.swing.JComboBox<String> customerCombo;
+    private com.toedter.calendar.JDateChooser finalDate;
+    private com.toedter.calendar.JDateChooser givenDate;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator3;
-    private com.toedter.calendar.JDateChooser manufactureDate;
     private javax.swing.JButton saveBtn;
     // End of variables declaration//GEN-END:variables
 }

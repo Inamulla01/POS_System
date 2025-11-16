@@ -34,10 +34,10 @@ import raven.toast.Notifications;
 public class UpdateCreditPay extends javax.swing.JDialog {
 
     private int creditPayId; // Credit Pay ID passed from calling dialog
-    private Integer creditId; // Credit ID from the record
+    private Integer creditCustomerId; // Credit Customer ID from the record
     private double remainingAmount = 0.0;
     private boolean isUpdating = false; // Flag to prevent multiple updates
-    private Map<String, Integer> creditIdMap = new HashMap<>(); // Map to store display text to credit ID mapping
+    private Map<String, Integer> creditCustomerIdMap = new HashMap<>(); // Map to store display text to credit customer ID mapping
 
     /**
      * Creates new form UpdateCreditPay
@@ -610,52 +610,54 @@ public class UpdateCreditPay extends javax.swing.JDialog {
     private void loadCreditCombo() {
         try {
             // Clear the mapping first
-            creditIdMap.clear();
+            creditCustomerIdMap.clear();
 
-            // Load ALL credits including the one we're updating
-            String sql = "SELECT c.credit_id, cc.customer_name, "
-                    + "COALESCE(c.credit_amout, c.credit_amout, 0) as credit_amout, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
-                    + "(COALESCE(c.credit_amout, c.credit_amout, 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
-                    + "FROM credit c "
-                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
-                    + "GROUP BY c.credit_id, cc.customer_name, c.credit_amout, c.credit_amout "
-                    + "ORDER BY c.credit_given_date DESC";
+            // Load credit customers with their credit information
+            String sql = "SELECT cc.customer_id, cc.customer_name, "
+                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
+                    + "FROM credit_customer cc "
+                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
+                    + "WHERE cc.status_id = 1 " // Only active customers with due amounts
+                    + "GROUP BY cc.customer_id, cc.customer_name "
+                    + "HAVING remaining_amount > 0 "
+                    + "ORDER BY cc.customer_name";
 
-            System.out.println("Loading credits combo...");
+            System.out.println("Loading credit customers combo...");
 
             ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> credits = new Vector<>();
-            credits.add("Select Credit");
+            Vector<String> creditCustomers = new Vector<>();
+            creditCustomers.add("Select Credit Customer");
 
             int count = 0;
             while (rs.next()) {
-                int creditId = rs.getInt("credit_id");
+                int customerId = rs.getInt("customer_id");
                 String customerName = rs.getString("customer_name");
-                double creditAmount = rs.getDouble("credit_amout");
-                double paidAmount = rs.getDouble("paid_amount");
+                double totalCredit = rs.getDouble("total_credit");
+                double totalPaid = rs.getDouble("total_paid");
                 double remaining = rs.getDouble("remaining_amount");
 
                 String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, creditAmount, paidAmount, remaining);
-                credits.add(displayText);
+                        customerName, totalCredit, totalPaid, remaining);
+                creditCustomers.add(displayText);
 
-                // Store the mapping between display text and credit ID
-                creditIdMap.put(displayText, creditId);
+                // Store the mapping between display text and customer ID
+                creditCustomerIdMap.put(displayText, customerId);
                 count++;
             }
 
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(credits);
+            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(creditCustomers);
             creditCombo.setModel(dcm);
 
-            System.out.println("Successfully loaded " + count + " credits into combo box");
+            System.out.println("Successfully loaded " + count + " credit customers into combo box");
 
         } catch (Exception e) {
-            System.err.println("Error loading credits: " + e.getMessage());
+            System.err.println("Error loading credit customers: " + e.getMessage());
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading credits: " + e.getMessage());
+                    "Error loading credit customers: " + e.getMessage());
         }
     }
 
@@ -664,15 +666,12 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             Connection conn = MySQL.getConnection();
 
             // Load the specific credit payment record with all details
-            String sql = "SELECT cp.*, c.credit_id, cc.customer_name, "
-                    + "COALESCE(c.credit_amout, c.credit_amout, 0) as credit_amout, "
-                    + "(SELECT COALESCE(SUM(cp2.credit_pay_amount), 0) "
-                    + " FROM credit_pay cp2 "
-                    + " WHERE cp2.credit_id = c.credit_id) as total_paid, "
+            String sql = "SELECT cp.*, cc.customer_id, cc.customer_name, "
+                    + "(SELECT COALESCE(SUM(c.credit_amout), 0) FROM credit c WHERE c.credit_customer_id = cc.customer_id) as total_credit, "
+                    + "(SELECT COALESCE(SUM(cp2.credit_pay_amount), 0) FROM credit_pay cp2 WHERE cp2.credit_customer_id = cc.customer_id) as total_paid, "
                     + "cp.credit_pay_amount as current_payment "
                     + "FROM credit_pay cp "
-                    + "JOIN credit c ON cp.credit_id = c.credit_id "
-                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
+                    + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
                     + "WHERE cp.credit_pay_id = ?";
 
             System.out.println("Loading credit payment data for ID: " + creditPayId);
@@ -682,31 +681,31 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             ResultSet rs = pst.executeQuery();
 
             if (rs.next()) {
-                // Store credit ID from the record
-                creditId = rs.getInt("credit_id");
+                // Store customer ID from the record
+                creditCustomerId = rs.getInt("customer_id");
                 String customerName = rs.getString("customer_name");
-                double creditAmount = rs.getDouble("credit_amout");
+                double totalCredit = rs.getDouble("total_credit");
                 double totalPaid = rs.getDouble("total_paid");
                 double currentPayment = rs.getDouble("current_payment");
 
-                System.out.println("Found record - Credit ID: " + creditId
+                System.out.println("Found record - Customer ID: " + creditCustomerId
                         + ", Customer: " + customerName
-                        + ", Credit Amount: " + creditAmount
+                        + ", Total Credit: " + totalCredit
                         + ", Total Paid: " + totalPaid
                         + ", Current Payment: " + currentPayment);
 
                 // Calculate remaining amount
                 // Remaining = Total credit - Total paid + Current payment (since we're editing current payment)
-                remainingAmount = (creditAmount - totalPaid) + currentPayment;
+                remainingAmount = (totalCredit - totalPaid) + currentPayment;
                 System.out.println("Calculated remaining amount: " + remainingAmount);
 
                 // Create display text for the combo box
                 String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, creditAmount, totalPaid - currentPayment, remainingAmount);
+                        customerName, totalCredit, totalPaid - currentPayment, remainingAmount);
 
-                System.out.println("Looking for credit: " + displayText);
+                System.out.println("Looking for customer: " + displayText);
 
-                // Find and select this credit in the combo box
+                // Find and select this customer in the combo box
                 boolean found = false;
                 for (int i = 0; i < creditCombo.getItemCount(); i++) {
                     String item = creditCombo.getItemAt(i);
@@ -719,23 +718,23 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 }
 
                 if (!found) {
-                    System.out.println("No exact match found, searching by credit ID...");
-                    // If not found by exact text, find by credit ID
+                    System.out.println("No exact match found, searching by customer ID...");
+                    // If not found by exact text, find by customer ID
                     for (int i = 0; i < creditCombo.getItemCount(); i++) {
                         String item = creditCombo.getItemAt(i);
-                        Integer itemCreditId = creditIdMap.get(item);
-                        if (itemCreditId != null && itemCreditId == creditId) {
+                        Integer itemCustomerId = creditCustomerIdMap.get(item);
+                        if (itemCustomerId != null && itemCustomerId == creditCustomerId) {
                             creditCombo.setSelectedIndex(i);
                             found = true;
-                            System.out.println("Found by credit ID at index: " + i);
+                            System.out.println("Found by customer ID at index: " + i);
                             break;
                         }
                     }
                 }
 
                 if (!found) {
-                    System.out.println("Credit not found in combo, selecting first available credit");
-                    // If still not found, just select the first credit (if available)
+                    System.out.println("Customer not found in combo, selecting first available customer");
+                    // If still not found, just select the first customer (if available)
                     if (creditCombo.getItemCount() > 1) {
                         creditCombo.setSelectedIndex(1);
                     }
@@ -779,7 +778,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
     private void updateSelectedCreditRemainingAmount() {
         String selected = (String) creditCombo.getSelectedItem();
-        if (selected == null || selected.equals("Select Credit")) {
+        if (selected == null || selected.equals("Select Credit Customer")) {
             remainingAmount = 0.0;
             updateRemainingAmountLabel();
             return;
@@ -802,21 +801,21 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         }
     }
 
-    private int getSelectedCreditId() {
+    private int getSelectedCreditCustomerId() {
         String selected = (String) creditCombo.getSelectedItem();
-        if (selected == null || selected.equals("Select Credit")) {
+        if (selected == null || selected.equals("Select Credit Customer")) {
             return -1;
         }
 
-        // Use the mapping to get the credit ID
-        Integer creditId = creditIdMap.get(selected);
-        return creditId != null ? creditId : -1;
+        // Use the mapping to get the customer ID
+        Integer customerId = creditCustomerIdMap.get(selected);
+        return customerId != null ? customerId : -1;
     }
 
     private boolean validateInputs() {
         // Validate credit selection
         if (creditCombo.getSelectedIndex() == 0) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a credit");
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a credit customer");
             creditCombo.requestFocus();
             return false;
         }
@@ -884,9 +883,9 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 return;
             }
 
-            int selectedCreditId = getSelectedCreditId();
-            if (selectedCreditId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid credit selected");
+            int selectedCustomerId = getSelectedCreditCustomerId();
+            if (selectedCustomerId == -1) {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid credit customer selected");
                 isUpdating = false;
                 return;
             }
@@ -902,8 +901,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             // 1. Get customer information for notification message
             String customerSql = "SELECT cc.customer_name, cp.credit_pay_amount as old_amount "
                     + "FROM credit_pay cp "
-                    + "JOIN credit c ON cp.credit_id = c.credit_id "
-                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
+                    + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
                     + "WHERE cp.credit_pay_id = ?";
             pstGetCustomerInfo = conn.prepareStatement(customerSql);
             pstGetCustomerInfo.setInt(1, creditPayId);
@@ -920,12 +918,12 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             pstGetCustomerInfo.close();
 
             // 2. Update the credit payment
-            String updateSql = "UPDATE credit_pay SET credit_pay_date = ?, credit_pay_amount = ?, credit_id = ? "
+            String updateSql = "UPDATE credit_pay SET credit_pay_date = ?, credit_pay_amount = ?, credit_customer_id = ? "
                     + "WHERE credit_pay_id = ?";
             pstUpdate = conn.prepareStatement(updateSql);
             pstUpdate.setString(1, paymentDateStr);
             pstUpdate.setDouble(2, amount);
-            pstUpdate.setInt(3, selectedCreditId);
+            pstUpdate.setInt(3, selectedCustomerId);
             pstUpdate.setInt(4, creditPayId);
 
             int rowsAffected = pstUpdate.executeUpdate();
@@ -1065,7 +1063,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             System.err.println("Error in focus traversal setup: " + e.getMessage());
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1383,7 +1380,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                UpdateCreditPay dialog = new UpdateCreditPay(new javax.swing.JFrame(), true);
+                UpdateCreditPay dialog = new UpdateCreditPay(new javax.swing.JFrame(), true,3);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {

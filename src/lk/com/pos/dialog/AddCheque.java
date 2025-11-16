@@ -43,6 +43,7 @@ public class AddCheque extends javax.swing.JDialog {
     private double totalCredit = 0.0;
     private double totalPaid = 0.0;
     private Date latestDueDate = null;
+    private double chequeAmount = 0.0;
 
     public AddCheque(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -57,16 +58,40 @@ public class AddCheque extends javax.swing.JDialog {
         initializeDialog();
     }
 
+    public AddCheque(java.awt.Frame parent, boolean modal, int salesId, double chequeAmount) {
+        super(parent, modal);
+        this.salesId = salesId;
+        this.chequeAmount = chequeAmount;
+        initComponents();
+        initializeDialog();
+    }
+
     public int getSelectedCustomerId() {
         return customerId;
     }
 
     public String getChequeNo() {
-        return address1.getText().trim();
+        return txtChequeNo.getText().trim();
     }
 
     public Date getChequeDate() {
-        return manufactureDate.getDate();
+        return dateChequeDate.getDate();
+    }
+
+    public String getBankName() {
+        return txtBankName.getText().trim();
+    }
+
+    public String getBranch() {
+        return txtBranch.getText().trim();
+    }
+
+    public double getChequeAmount() {
+        try {
+            return Double.parseDouble(txtAmount.getText().trim());
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
     }
 
     public boolean isChequeSaved() {
@@ -80,15 +105,24 @@ public class AddCheque extends javax.swing.JDialog {
         setupTooltips();
 
         loadCustomerCombo();
-        AutoCompleteDecorator.decorate(SupplierCombo);
+        AutoCompleteDecorator.decorate(comboCustomer);
 
-        manufactureDate.setDate(new Date());
+        dateChequeDate.setDate(new Date());
+
+        // Set amount if provided in constructor (when salesId is passed)
+        if (salesId != -1 && chequeAmount > 0) {
+            txtAmount.setText(String.valueOf(chequeAmount));
+            txtAmount.setEditable(false); // Make amount non-editable when salesId is passed
+        } else {
+            txtAmount.setText(""); // Clear amount field when no salesId
+            txtAmount.setEditable(true); // Allow user to type amount
+        }
 
         setupFocusTraversal();
 
-        SupplierCombo.addMouseListener(new java.awt.event.MouseAdapter() {
+        comboCustomer.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
-                SupplierCombo.showPopup();
+                comboCustomer.showPopup();
             }
         });
 
@@ -104,146 +138,209 @@ public class AddCheque extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        SupplierCombo.requestFocusInWindow();
+        comboCustomer.requestFocusInWindow();
     }
 
     private void setupKeyboardNavigation() {
-        SupplierCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+        comboCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    address1.requestFocus();
+                    txtChequeNo.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    address1.requestFocus();
+                    txtChequeNo.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    saveBtn.requestFocus();
+                    btnSave.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, SupplierCombo);
+                    handleArrowNavigation(evt, comboCustomer);
                 }
             }
         });
 
-        address1.addKeyListener(new java.awt.event.KeyAdapter() {
+        txtChequeNo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    txtAmount.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    SupplierCombo.requestFocus();
+                    comboCustomer.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    txtAmount.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    SupplierCombo.requestFocus();
+                    comboCustomer.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, address1);
+                    handleArrowNavigation(evt, txtChequeNo);
                 }
             }
         });
 
-        javax.swing.JTextField manufactureDateEditor = (javax.swing.JTextField) manufactureDate.getDateEditor().getUiComponent();
-        manufactureDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
+        txtAmount.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    dateChequeDate.getDateEditor().getUiComponent().requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    txtChequeNo.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    dateChequeDate.getDateEditor().getUiComponent().requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    txtChequeNo.requestFocus();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, txtAmount);
+                }
+            }
+        });
+
+        javax.swing.JTextField dateChequeDateEditor = (javax.swing.JTextField) dateChequeDate.getDateEditor().getUiComponent();
+        dateChequeDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    txtBankName.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    txtAmount.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    txtBankName.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    txtAmount.requestFocus();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, dateChequeDateEditor);
+                }
+            }
+        });
+
+        txtBankName.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    txtBranch.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    dateChequeDate.getDateEditor().getUiComponent().requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    txtBranch.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    dateChequeDate.getDateEditor().getUiComponent().requestFocus();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, txtBankName);
+                }
+            }
+        });
+
+        txtBranch.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     if (areAllRequiredFieldsFilled()) {
-                        saveBtn.requestFocusInWindow();
+                        btnSave.requestFocusInWindow();
                     } else {
-                        cancelBtn.requestFocusInWindow();
+                        btnCancel.requestFocusInWindow();
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address1.requestFocus();
+                    txtBankName.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
                     if (areAllRequiredFieldsFilled()) {
-                        saveBtn.requestFocusInWindow();
+                        btnSave.requestFocusInWindow();
                     } else {
-                        cancelBtn.requestFocusInWindow();
+                        btnCancel.requestFocusInWindow();
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    address1.requestFocus();
+                    txtBankName.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, manufactureDateEditor);
+                    handleArrowNavigation(evt, txtBranch);
                 }
             }
         });
 
-        saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnSave.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    txtBranch.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    clearFormBtn.requestFocus();
+                    btnClear.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    clearFormBtn.requestFocus();
+                    btnClear.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    clearFormBtn.requestFocus();
+                    btnClear.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, saveBtn);
+                    handleArrowNavigation(evt, btnSave);
                 }
             }
         });
 
-        clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnClear.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     clearForm();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    txtBranch.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    cancelBtn.requestFocus();
+                    btnCancel.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    saveBtn.requestFocus();
+                    btnSave.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    cancelBtn.requestFocus();
+                    btnCancel.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, clearFormBtn);
+                    handleArrowNavigation(evt, btnClear);
                 }
             }
         });
 
-        cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnCancel.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     dispose();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    txtBranch.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    saveBtn.requestFocus();
+                    btnSave.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    clearFormBtn.requestFocus();
+                    btnClear.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    saveBtn.requestFocus();
+                    btnSave.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, cancelBtn);
+                    handleArrowNavigation(evt, btnCancel);
                 }
             }
         });
@@ -271,102 +368,129 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private void handleRightArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
-            address1.requestFocusInWindow();
-        } else if (source == address1) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            cancelBtn.requestFocusInWindow();
-        } else if (source == cancelBtn) {
-            clearFormBtn.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            SupplierCombo.requestFocusInWindow();
+        if (source == comboCustomer) {
+            txtChequeNo.requestFocusInWindow();
+        } else if (source == txtChequeNo) {
+            txtAmount.requestFocusInWindow();
+        } else if (source == txtAmount) {
+            dateChequeDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == dateChequeDate.getDateEditor().getUiComponent()) {
+            txtBankName.requestFocusInWindow();
+        } else if (source == txtBankName) {
+            txtBranch.requestFocusInWindow();
+        } else if (source == txtBranch) {
+            btnCancel.requestFocusInWindow();
+        } else if (source == btnCancel) {
+            btnClear.requestFocusInWindow();
+        } else if (source == btnClear) {
+            btnSave.requestFocusInWindow();
+        } else if (source == btnSave) {
+            comboCustomer.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == address1) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            address1.requestFocusInWindow();
-        } else if (source == cancelBtn) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == clearFormBtn) {
-            cancelBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            clearFormBtn.requestFocusInWindow();
+        if (source == comboCustomer) {
+            btnSave.requestFocusInWindow();
+        } else if (source == txtChequeNo) {
+            comboCustomer.requestFocusInWindow();
+        } else if (source == txtAmount) {
+            txtChequeNo.requestFocusInWindow();
+        } else if (source == dateChequeDate.getDateEditor().getUiComponent()) {
+            txtAmount.requestFocusInWindow();
+        } else if (source == txtBankName) {
+            dateChequeDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == txtBranch) {
+            txtBankName.requestFocusInWindow();
+        } else if (source == btnCancel) {
+            txtBranch.requestFocusInWindow();
+        } else if (source == btnClear) {
+            btnCancel.requestFocusInWindow();
+        } else if (source == btnSave) {
+            btnClear.requestFocusInWindow();
         }
     }
 
     private void handleDownArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
-            address1.requestFocusInWindow();
-        } else if (source == address1) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            cancelBtn.requestFocusInWindow();
-        } else if (source == cancelBtn) {
-            clearFormBtn.requestFocusInWindow();
-        } else if (source == clearFormBtn) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            SupplierCombo.requestFocusInWindow();
+        if (source == comboCustomer) {
+            txtChequeNo.requestFocusInWindow();
+        } else if (source == txtChequeNo) {
+            txtAmount.requestFocusInWindow();
+        } else if (source == txtAmount) {
+            dateChequeDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == dateChequeDate.getDateEditor().getUiComponent()) {
+            txtBankName.requestFocusInWindow();
+        } else if (source == txtBankName) {
+            txtBranch.requestFocusInWindow();
+        } else if (source == txtBranch) {
+            btnCancel.requestFocusInWindow();
+        } else if (source == btnCancel) {
+            btnClear.requestFocusInWindow();
+        } else if (source == btnClear) {
+            btnSave.requestFocusInWindow();
+        } else if (source == btnSave) {
+            comboCustomer.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
-        if (source == SupplierCombo) {
-            saveBtn.requestFocusInWindow();
-        } else if (source == address1) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            address1.requestFocusInWindow();
-        } else if (source == cancelBtn) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == clearFormBtn) {
-            cancelBtn.requestFocusInWindow();
-        } else if (source == saveBtn) {
-            clearFormBtn.requestFocusInWindow();
+        if (source == comboCustomer) {
+            btnSave.requestFocusInWindow();
+        } else if (source == txtChequeNo) {
+            comboCustomer.requestFocusInWindow();
+        } else if (source == txtAmount) {
+            txtChequeNo.requestFocusInWindow();
+        } else if (source == dateChequeDate.getDateEditor().getUiComponent()) {
+            txtAmount.requestFocusInWindow();
+        } else if (source == txtBankName) {
+            dateChequeDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == txtBranch) {
+            txtBankName.requestFocusInWindow();
+        } else if (source == btnCancel) {
+            txtBranch.requestFocusInWindow();
+        } else if (source == btnClear) {
+            btnCancel.requestFocusInWindow();
+        } else if (source == btnSave) {
+            btnClear.requestFocusInWindow();
         }
     }
 
     private boolean areAllRequiredFieldsFilled() {
-        return SupplierCombo.getSelectedIndex() > 0
-                && !address1.getText().trim().isEmpty()
-                && manufactureDate.getDate() != null;
+        return comboCustomer.getSelectedIndex() > 0
+                && !txtChequeNo.getText().trim().isEmpty()
+                && !txtAmount.getText().trim().isEmpty()
+                && dateChequeDate.getDate() != null
+                && !txtBankName.getText().trim().isEmpty()
+                && !txtBranch.getText().trim().isEmpty();
     }
 
     private void setupButtonStyles() {
-        setupGradientButton(saveBtn);
-        setupGradientButton(clearFormBtn);
-        setupGradientButton(cancelBtn);
+        setupGradientButton(btnSave);
+        setupGradientButton(btnClear);
+        setupGradientButton(btnCancel);
 
         FlatSVGIcon saveIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
         saveIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-        saveBtn.setIcon(saveIcon);
+        btnSave.setIcon(saveIcon);
 
         FlatSVGIcon clearIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
         clearIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-        clearFormBtn.setIcon(clearIcon);
+        btnClear.setIcon(clearIcon);
 
         FlatSVGIcon cancelIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-        cancelBtn.setIcon(cancelIcon);
+        btnCancel.setIcon(cancelIcon);
 
-        addNewCustomer.setBorderPainted(false);
-        addNewCustomer.setContentAreaFilled(false);
-        addNewCustomer.setFocusPainted(false);
-        addNewCustomer.setOpaque(false);
-        addNewCustomer.setFocusable(false);
-        addNewCustomer.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnAddNewCustomer.setBorderPainted(false);
+        btnAddNewCustomer.setContentAreaFilled(false);
+        btnAddNewCustomer.setFocusPainted(false);
+        btnAddNewCustomer.setOpaque(false);
+        btnAddNewCustomer.setFocusable(false);
+        btnAddNewCustomer.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         FlatSVGIcon customerIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
         customerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewCustomer.setIcon(customerIcon);
+        btnAddNewCustomer.setIcon(customerIcon);
 
         setupButtonMouseListeners();
         setupButtonFocusListeners();
@@ -414,153 +538,156 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private void setupButtonMouseListeners() {
-        saveBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+        btnSave.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                saveBtn.setForeground(Color.WHITE);
+                btnSave.setForeground(Color.WHITE);
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
                 hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                saveBtn.setIcon(hoverIcon);
-                saveBtn.repaint();
+                btnSave.setIcon(hoverIcon);
+                btnSave.repaint();
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                saveBtn.setForeground(Color.decode("#0893B0"));
+                btnSave.setForeground(Color.decode("#0893B0"));
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                saveBtn.setIcon(normalIcon);
-                saveBtn.repaint();
+                btnSave.setIcon(normalIcon);
+                btnSave.repaint();
             }
         });
 
-        clearFormBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+        btnClear.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                clearFormBtn.setForeground(Color.WHITE);
+                btnClear.setForeground(Color.WHITE);
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
                 hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                clearFormBtn.setIcon(hoverIcon);
-                clearFormBtn.repaint();
+                btnClear.setIcon(hoverIcon);
+                btnClear.repaint();
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                btnClear.setForeground(Color.decode("#0893B0"));
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                clearFormBtn.setIcon(normalIcon);
-                clearFormBtn.repaint();
+                btnClear.setIcon(normalIcon);
+                btnClear.repaint();
             }
         });
 
-        cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+        btnCancel.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                cancelBtn.setForeground(Color.WHITE);
+                btnCancel.setForeground(Color.WHITE);
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
                 hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                cancelBtn.setIcon(hoverIcon);
-                cancelBtn.repaint();
+                btnCancel.setIcon(hoverIcon);
+                btnCancel.repaint();
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                cancelBtn.setForeground(Color.decode("#0893B0"));
+                btnCancel.setForeground(Color.decode("#0893B0"));
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                cancelBtn.setIcon(normalIcon);
-                cancelBtn.repaint();
+                btnCancel.setIcon(normalIcon);
+                btnCancel.repaint();
             }
         });
 
-        addNewCustomer.addMouseListener(new java.awt.event.MouseAdapter() {
+        btnAddNewCustomer.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
                 hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCustomer.setIcon(hoverIcon);
+                btnAddNewCustomer.setIcon(hoverIcon);
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCustomer.setIcon(normalIcon);
+                btnAddNewCustomer.setIcon(normalIcon);
             }
         });
     }
 
     private void setupButtonFocusListeners() {
-        saveBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+        btnSave.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
-                saveBtn.setForeground(Color.WHITE);
+                btnSave.setForeground(Color.WHITE);
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
                 focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                saveBtn.setIcon(focusedIcon);
-                saveBtn.repaint();
+                btnSave.setIcon(focusedIcon);
+                btnSave.repaint();
             }
 
             public void focusLost(java.awt.event.FocusEvent evt) {
-                saveBtn.setForeground(Color.decode("#0893B0"));
+                btnSave.setForeground(Color.decode("#0893B0"));
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                saveBtn.setIcon(normalIcon);
-                saveBtn.repaint();
+                btnSave.setIcon(normalIcon);
+                btnSave.repaint();
             }
         });
 
-        clearFormBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+        btnClear.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
-                clearFormBtn.setForeground(Color.WHITE);
+                btnClear.setForeground(Color.WHITE);
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
                 focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                clearFormBtn.setIcon(focusedIcon);
-                clearFormBtn.repaint();
+                btnClear.setIcon(focusedIcon);
+                btnClear.repaint();
             }
 
             public void focusLost(java.awt.event.FocusEvent evt) {
-                clearFormBtn.setForeground(Color.decode("#0893B0"));
+                btnClear.setForeground(Color.decode("#0893B0"));
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/cancel.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                clearFormBtn.setIcon(normalIcon);
-                clearFormBtn.repaint();
+                btnClear.setIcon(normalIcon);
+                btnClear.repaint();
             }
         });
 
-        cancelBtn.addFocusListener(new java.awt.event.FocusAdapter() {
+        btnCancel.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
-                cancelBtn.setForeground(Color.WHITE);
+                btnCancel.setForeground(Color.WHITE);
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
                 focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                cancelBtn.setIcon(focusedIcon);
-                cancelBtn.repaint();
+                btnCancel.setIcon(focusedIcon);
+                btnCancel.repaint();
             }
 
             public void focusLost(java.awt.event.FocusEvent evt) {
-                cancelBtn.setForeground(Color.decode("#0893B0"));
+                btnCancel.setForeground(Color.decode("#0893B0"));
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                cancelBtn.setIcon(normalIcon);
-                cancelBtn.repaint();
+                btnCancel.setIcon(normalIcon);
+                btnCancel.repaint();
             }
         });
 
-        addNewCustomer.addFocusListener(new java.awt.event.FocusAdapter() {
+        btnAddNewCustomer.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
                 focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCustomer.setIcon(focusedIcon);
+                btnAddNewCustomer.setIcon(focusedIcon);
             }
 
             public void focusLost(java.awt.event.FocusEvent evt) {
                 FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCustomer.setIcon(normalIcon);
+                btnAddNewCustomer.setIcon(normalIcon);
             }
         });
     }
 
     private void setupTooltips() {
-        SupplierCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to add new customer</html>");
-        address1.setToolTipText("Enter cheque number and press ENTER to move to next field");
-        manufactureDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
-        addNewCustomer.setToolTipText("Click to add new customer (or press F2)");
-        saveBtn.setToolTipText("Click to save cheque (or press ENTER when focused)");
-        clearFormBtn.setToolTipText("Click to clear form (or press ENTER when focused)");
-        cancelBtn.setToolTipText("Click to cancel (or press ESC)");
+        comboCustomer.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to add new customer</html>");
+        txtChequeNo.setToolTipText("Enter cheque number and press ENTER to move to next field");
+        txtAmount.setToolTipText("Enter cheque amount and press ENTER to move to next field");
+        dateChequeDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
+        txtBankName.setToolTipText("Enter bank name and press ENTER to move to next field");
+        txtBranch.setToolTipText("Enter branch name and press ENTER to move to next field");
+        btnAddNewCustomer.setToolTipText("Click to add new customer (or press F2)");
+        btnSave.setToolTipText("Click to save cheque (or press ENTER when focused)");
+        btnClear.setToolTipText("Click to clear form (or press ENTER when focused)");
+        btnCancel.setToolTipText("Click to cancel (or press ESC)");
     }
 
     private void loadCustomerCombo() {
@@ -575,7 +702,7 @@ public class AddCheque extends javax.swing.JDialog {
                     + "COUNT(ch.cheque_id) as active_cheques "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id " // FIXED: Changed to credit_customer_id
                     + "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() "
                     + "WHERE cc.status_id = 1 "
                     + "GROUP BY cc.customer_id, cc.customer_name "
@@ -600,7 +727,6 @@ public class AddCheque extends javax.swing.JDialog {
                 String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
 
                 if (totalCredit > 0) {
-                    // Customer has credit history
                     if (activeCheques > 0) {
                         displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s | Active Cheques: %d",
                                 customerName, totalCredit, totalPaid, remainingAmount, dueDateStr, activeCheques);
@@ -609,7 +735,6 @@ public class AddCheque extends javax.swing.JDialog {
                                 customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
                     }
                 } else {
-                    // Customer has no credit history
                     if (activeCheques > 0) {
                         displayText = String.format("%s | No Credit History | Active Cheques: %d",
                                 customerName, activeCheques);
@@ -625,7 +750,7 @@ public class AddCheque extends javax.swing.JDialog {
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
-            SupplierCombo.setModel(dcm);
+            comboCustomer.setModel(dcm);
 
             System.out.println("Successfully loaded " + count + " customers");
 
@@ -647,7 +772,7 @@ public class AddCheque extends javax.swing.JDialog {
                     + "COUNT(ch.cheque_id) as active_cheques "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id " // FIXED: Changed to credit_customer_id
                     + "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() "
                     + "WHERE cc.customer_id = ? "
                     + "GROUP BY cc.customer_id";
@@ -688,34 +813,64 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private boolean validateInputs() {
-        if (SupplierCombo.getSelectedIndex() == 0) {
+        if (comboCustomer.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a customer");
-            SupplierCombo.requestFocus();
+            comboCustomer.requestFocus();
             return false;
         }
 
-        if (address1.getText().trim().isEmpty()) {
+        if (txtChequeNo.getText().trim().isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter cheque number");
-            address1.requestFocus();
+            txtChequeNo.requestFocus();
             return false;
         }
 
-        if (manufactureDate.getDate() == null) {
+        if (txtAmount.getText().trim().isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter cheque amount");
+            txtAmount.requestFocus();
+            return false;
+        }
+
+        try {
+            double amount = Double.parseDouble(txtAmount.getText().trim());
+            if (amount <= 0) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter a valid cheque amount");
+                txtAmount.requestFocus();
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter a valid cheque amount");
+            txtAmount.requestFocus();
+            return false;
+        }
+
+        if (dateChequeDate.getDate() == null) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select cheque date");
-            manufactureDate.getDateEditor().getUiComponent().requestFocus();
+            dateChequeDate.getDateEditor().getUiComponent().requestFocus();
             return false;
         }
 
-        // Check if cheque date is not in the past
+        if (txtBankName.getText().trim().isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter bank name");
+            txtBankName.requestFocus();
+            return false;
+        }
+
+        if (txtBranch.getText().trim().isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter branch");
+            txtBranch.requestFocus();
+            return false;
+        }
+
         Date currentDate = new Date();
-        if (manufactureDate.getDate().before(currentDate)) {
+        if (dateChequeDate.getDate().before(currentDate)) {
             int response = JOptionPane.showConfirmDialog(this,
                     "The cheque date is in the past. Do you want to continue?",
                     "Past Cheque Date",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
             if (response != JOptionPane.YES_OPTION) {
-                manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                dateChequeDate.getDateEditor().getUiComponent().requestFocus();
                 return false;
             }
         }
@@ -737,11 +892,12 @@ public class AddCheque extends javax.swing.JDialog {
 
         Connection conn = null;
         PreparedStatement pst = null;
+        PreparedStatement pstCreditPay = null;
 
         try {
             isSaving = true;
 
-            String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
+            String selectedDisplayText = (String) comboCustomer.getSelectedItem();
             this.customerId = getCustomerId(selectedDisplayText);
             if (this.customerId == -1) {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
@@ -749,16 +905,15 @@ public class AddCheque extends javax.swing.JDialog {
                 return;
             }
 
-            // Load customer credit details for information
-            loadCustomerCreditDetails(this.customerId);
+            String chequeNo = txtChequeNo.getText().trim();
+            double amount = getChequeAmount();
+            Date chequeDate = dateChequeDate.getDate();
+            String bankName = txtBankName.getText().trim();
+            String branch = txtBranch.getText().trim();
 
-            String chequeNo = address1.getText().trim();
-            Date chequeDate = manufactureDate.getDate();
-
-            // Check for duplicate cheque number
             if (isDuplicateChequeNo(chequeNo)) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Cheque number already exists!");
-                address1.requestFocus();
+                txtChequeNo.requestFocus();
                 isSaving = false;
                 return;
             }
@@ -766,10 +921,11 @@ public class AddCheque extends javax.swing.JDialog {
             conn = MySQL.getConnection();
             conn.setAutoCommit(false);
 
-            String query = "INSERT INTO cheque (cheque_no, cheque_date, sales_id, credit_customer_id) "
-                    + "VALUES (?, ?, ?, ?)";
+            // Insert into cheque table with amount
+            String chequeQuery = "INSERT INTO cheque (cheque_no, cheque_date, sales_id, credit_customer_id, bank_name, branch, amount) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-            pst = conn.prepareStatement(query);
+            pst = conn.prepareStatement(chequeQuery);
             pst.setString(1, chequeNo);
             pst.setDate(2, new java.sql.Date(chequeDate.getTime()));
             if (salesId != -1) {
@@ -778,17 +934,39 @@ public class AddCheque extends javax.swing.JDialog {
                 pst.setNull(3, java.sql.Types.INTEGER);
             }
             pst.setInt(4, this.customerId);
+            pst.setString(5, bankName);
+            pst.setString(6, branch);
+            pst.setDouble(7, amount);
 
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
-                createChequeNotification(selectedDisplayText, chequeNo, chequeDate, conn);
+                // If salesId is NOT provided, also add to credit_pay table
+                if (salesId == -1) {
+                    String creditPayQuery = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) " // FIXED: Changed to credit_customer_id
+                            + "VALUES (NOW(), ?, ?)";
+                    
+                    pstCreditPay = conn.prepareStatement(creditPayQuery);
+                    pstCreditPay.setDouble(1, amount);
+                    pstCreditPay.setInt(2, this.customerId);
+                    
+                    int creditPayRows = pstCreditPay.executeUpdate();
+                    if (creditPayRows > 0) {
+                        System.out.println("Credit payment record added successfully");
+                    }
+                }
+
+                createChequeNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
                 conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Cheque added successfully!");
+                String successMessage = "Cheque added successfully!"; 
+                if (salesId == -1) {
+                    successMessage += " Credit payment of Rs " + amount + " also recorded!";
+                }
+                
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
 
-                // Ask if user wants to add another cheque
-                askToAddAnotherCheque();
+                dispose();
 
             } else {
                 conn.rollback();
@@ -809,6 +987,9 @@ public class AddCheque extends javax.swing.JDialog {
             try {
                 if (pst != null) {
                     pst.close();
+                }
+                if (pstCreditPay != null) {
+                    pstCreditPay.close();
                 }
                 if (conn != null) {
                     conn.setAutoCommit(true);
@@ -837,23 +1018,8 @@ public class AddCheque extends javax.swing.JDialog {
         return false;
     }
 
-    private void askToAddAnotherCheque() {
-        int response = JOptionPane.showConfirmDialog(
-                this,
-                "Cheque added successfully! Do you want to add another cheque?",
-                "Add Another Cheque",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE
-        );
 
-        if (response == JOptionPane.YES_OPTION) {
-            clearForm();
-        } else {
-            dispose();
-        }
-    }
-
-    private void createChequeNotification(String customerName, String chequeNo, Date chequeDate, Connection conn) {
+    private void createChequeNotification(String customerName, String chequeNo, double amount, Date chequeDate, String bankName, String branch, Connection conn) {
         PreparedStatement pstMassage = null;
         PreparedStatement pstNotification = null;
 
@@ -861,7 +1027,14 @@ public class AddCheque extends javax.swing.JDialog {
             SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
             String messageText = "New cheque added for " + customerName
                     + " | Cheque No: " + chequeNo
-                    + " | Date: " + dateFormat.format(chequeDate);
+                    + " | Amount: Rs " + amount
+                    + " | Date: " + dateFormat.format(chequeDate)
+                    + " | Bank: " + bankName
+                    + " | Branch: " + branch;
+
+            if (salesId == -1) {
+                messageText += " | Credit Payment Recorded";
+            }
 
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
@@ -895,7 +1068,7 @@ public class AddCheque extends javax.swing.JDialog {
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 11); // Assuming 11 is for cheque notifications
+            pstNotification.setInt(2, 30); // Cheque payment message type
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
@@ -919,10 +1092,13 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private void clearForm() {
-        SupplierCombo.setSelectedIndex(0);
-        address1.setText("");
-        manufactureDate.setDate(new Date());
-        SupplierCombo.requestFocus();
+        comboCustomer.setSelectedIndex(0);
+        txtChequeNo.setText("");
+        txtAmount.setText("");
+        dateChequeDate.setDate(new Date());
+        txtBankName.setText("");
+        txtBranch.setText("");
+        comboCustomer.requestFocus();
     }
 
     private void openAddNewCustomer() {
@@ -932,10 +1108,9 @@ public class AddCheque extends javax.swing.JDialog {
             dialog.setLocationRelativeTo(parentFrame);
             dialog.setVisible(true);
             
-            // Reload customers after adding new customer
             if (dialog.isCustomerSaved()) {
                 loadCustomerCombo();
-                SupplierCombo.requestFocus();
+                comboCustomer.requestFocus();
             }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -944,10 +1119,9 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private void setupFocusTraversal() {
-        addNewCustomer.setFocusable(false);
-        manufactureDate.getDateEditor().getUiComponent().setFocusable(true);
+        btnAddNewCustomer.setFocusable(false);
+        dateChequeDate.getDateEditor().getUiComponent().setFocusable(true);
     }
-
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -960,15 +1134,16 @@ public class AddCheque extends javax.swing.JDialog {
         jPanel2 = new javax.swing.JPanel();
         jLabel3 = new javax.swing.JLabel();
         jSeparator3 = new javax.swing.JSeparator();
-        cancelBtn = new javax.swing.JButton();
-        clearFormBtn = new javax.swing.JButton();
-        saveBtn = new javax.swing.JButton();
-        manufactureDate = new com.toedter.calendar.JDateChooser();
-        address1 = new javax.swing.JTextField();
-        SupplierCombo = new javax.swing.JComboBox<>();
-        addNewCustomer = new javax.swing.JButton();
-        invoiceNo = new javax.swing.JTextField();
-        invoiceNo1 = new javax.swing.JTextField();
+        btnCancel = new javax.swing.JButton();
+        btnClear = new javax.swing.JButton();
+        btnSave = new javax.swing.JButton();
+        dateChequeDate = new com.toedter.calendar.JDateChooser();
+        txtChequeNo = new javax.swing.JTextField();
+        comboCustomer = new javax.swing.JComboBox<>();
+        btnAddNewCustomer = new javax.swing.JButton();
+        txtBankName = new javax.swing.JTextField();
+        txtBranch = new javax.swing.JTextField();
+        txtAmount = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -980,104 +1155,113 @@ public class AddCheque extends javax.swing.JDialog {
 
         jSeparator3.setForeground(new java.awt.Color(0, 137, 176));
 
-        cancelBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        cancelBtn.setForeground(new java.awt.Color(8, 147, 176));
-        cancelBtn.setText("Cancel");
-        cancelBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
-        cancelBtn.addActionListener(new java.awt.event.ActionListener() {
+        btnCancel.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        btnCancel.setForeground(new java.awt.Color(8, 147, 176));
+        btnCancel.setText("Cancel");
+        btnCancel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        btnCancel.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                cancelBtnActionPerformed(evt);
+                btnCancelActionPerformed(evt);
             }
         });
-        cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnCancel.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                cancelBtnKeyPressed(evt);
+                btnCancelKeyPressed(evt);
             }
         });
 
-        clearFormBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        clearFormBtn.setForeground(new java.awt.Color(8, 147, 176));
-        clearFormBtn.setText("Clear Form");
-        clearFormBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
-        clearFormBtn.addActionListener(new java.awt.event.ActionListener() {
+        btnClear.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        btnClear.setForeground(new java.awt.Color(8, 147, 176));
+        btnClear.setText("Clear Form");
+        btnClear.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        btnClear.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                clearFormBtnActionPerformed(evt);
+                btnClearActionPerformed(evt);
             }
         });
-        clearFormBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnClear.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                clearFormBtnKeyPressed(evt);
+                btnClearKeyPressed(evt);
             }
         });
 
-        saveBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        saveBtn.setForeground(new java.awt.Color(8, 147, 176));
-        saveBtn.setText("Save");
-        saveBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
-        saveBtn.addActionListener(new java.awt.event.ActionListener() {
+        btnSave.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        btnSave.setForeground(new java.awt.Color(8, 147, 176));
+        btnSave.setText("Save");
+        btnSave.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        btnSave.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                saveBtnActionPerformed(evt);
+                btnSaveActionPerformed(evt);
             }
         });
-        saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnSave.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                saveBtnKeyPressed(evt);
+                btnSaveKeyPressed(evt);
             }
         });
 
-        manufactureDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Cheque Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        manufactureDate.setDateFormatString("MM/dd/yyyy");
-        manufactureDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        manufactureDate.setOpaque(false);
-        manufactureDate.addKeyListener(new java.awt.event.KeyAdapter() {
+        dateChequeDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Cheque Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        dateChequeDate.setDateFormatString("MM/dd/yyyy");
+        dateChequeDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        dateChequeDate.setOpaque(false);
+        dateChequeDate.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                manufactureDateKeyPressed(evt);
+                dateChequeDateKeyPressed(evt);
             }
         });
 
-        address1.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        address1.setText("0");
-        address1.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Cheque No  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
-        address1.addActionListener(new java.awt.event.ActionListener() {
+        txtChequeNo.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        txtChequeNo.setText("0");
+        txtChequeNo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Cheque No  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        txtChequeNo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                address1ActionPerformed(evt);
+                txtChequeNoActionPerformed(evt);
             }
         });
 
-        SupplierCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        SupplierCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        SupplierCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        SupplierCombo.addActionListener(new java.awt.event.ActionListener() {
+        comboCustomer.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        comboCustomer.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        comboCustomer.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        comboCustomer.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                SupplierComboActionPerformed(evt);
+                comboCustomerActionPerformed(evt);
             }
         });
-        SupplierCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+        comboCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                SupplierComboKeyPressed(evt);
+                comboCustomerKeyPressed(evt);
             }
         });
 
-        addNewCustomer.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewCustomer.setForeground(new java.awt.Color(102, 102, 102));
-        addNewCustomer.setBorder(null);
-        addNewCustomer.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        addNewCustomer.addActionListener(new java.awt.event.ActionListener() {
+        btnAddNewCustomer.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        btnAddNewCustomer.setForeground(new java.awt.Color(102, 102, 102));
+        btnAddNewCustomer.setBorder(null);
+        btnAddNewCustomer.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        btnAddNewCustomer.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewCustomerActionPerformed(evt);
+                btnAddNewCustomerActionPerformed(evt);
             }
         });
-        addNewCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
+        btnAddNewCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewCustomerKeyPressed(evt);
+                btnAddNewCustomerKeyPressed(evt);
             }
         });
 
-        invoiceNo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        invoiceNo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Bank Name *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        txtBankName.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        txtBankName.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Bank Name *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
 
-        invoiceNo1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        invoiceNo1.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Branch *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        txtBranch.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        txtBranch.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Branch *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+
+        txtAmount.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        txtAmount.setText("0");
+        txtAmount.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        txtAmount.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                txtAmountActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
@@ -1086,24 +1270,30 @@ public class AddCheque extends javax.swing.JDialog {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(invoiceNo)
-                    .addComponent(manufactureDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(dateChequeDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jSeparator3)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 161, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(btnCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 161, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(clearFormBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 185, Short.MAX_VALUE)
+                        .addComponent(btnClear, javax.swing.GroupLayout.DEFAULT_SIZE, 185, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(address1)
+                        .addComponent(btnSave, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(SupplierCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(comboCustomer, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(invoiceNo1))
+                        .addComponent(btnAddNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(txtChequeNo, javax.swing.GroupLayout.PREFERRED_SIZE, 258, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(txtAmount))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel3)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(txtBankName, javax.swing.GroupLayout.PREFERRED_SIZE, 258, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(txtBranch, javax.swing.GroupLayout.PREFERRED_SIZE, 261, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addGap(21, 21, 21))
         );
         jPanel2Layout.setVerticalGroup(
@@ -1115,23 +1305,25 @@ public class AddCheque extends javax.swing.JDialog {
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(comboCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGap(11, 11, 11)
-                        .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(btnAddNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(address1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(txtChequeNo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(txtAmount, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(invoiceNo, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(invoiceNo1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(dateChequeDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(txtBankName, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(txtBranch, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(24, 24, 24)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnSave, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnClear, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(25, 25, 25))
         );
 
@@ -1149,102 +1341,104 @@ public class AddCheque extends javax.swing.JDialog {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
+    private void btnCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCancelActionPerformed
         dispose();
-    }//GEN-LAST:event_cancelBtnActionPerformed
+    }//GEN-LAST:event_btnCancelActionPerformed
 
-    private void cancelBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cancelBtnKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+    private void btnCancelKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnCancelKeyPressed
+          if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
             dispose();
         } else {
-            handleArrowNavigation(evt, cancelBtn);
+            handleArrowNavigation(evt, btnCancel);
         }
-    }//GEN-LAST:event_cancelBtnKeyPressed
+    }//GEN-LAST:event_btnCancelKeyPressed
 
-    private void clearFormBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearFormBtnActionPerformed
+    private void btnClearActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnClearActionPerformed
         clearForm();
-    }//GEN-LAST:event_clearFormBtnActionPerformed
+    }//GEN-LAST:event_btnClearActionPerformed
 
-    private void clearFormBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_clearFormBtnKeyPressed
+    private void btnClearKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnClearKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             clearForm();
         } else {
-            handleArrowNavigation(evt, clearFormBtn);
+            handleArrowNavigation(evt, btnClear);
         }
-    }//GEN-LAST:event_clearFormBtnKeyPressed
+    }//GEN-LAST:event_btnClearKeyPressed
 
-    private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed
+    private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
         saveCheque();
-    }//GEN-LAST:event_saveBtnActionPerformed
+    }//GEN-LAST:event_btnSaveActionPerformed
 
-    private void saveBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_saveBtnKeyPressed
+    private void btnSaveKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnSaveKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             evt.consume();
             saveCheque();
         } else {
-            handleArrowNavigation(evt, saveBtn);
+            handleArrowNavigation(evt, btnSave);
         }
-    }//GEN-LAST:event_saveBtnKeyPressed
+    }//GEN-LAST:event_btnSaveKeyPressed
 
-    private void manufactureDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_manufactureDateKeyPressed
-   handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
-    }//GEN-LAST:event_manufactureDateKeyPressed
+    private void dateChequeDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_dateChequeDateKeyPressed
+  handleArrowNavigation(evt, dateChequeDate.getDateEditor().getUiComponent());
+    }//GEN-LAST:event_dateChequeDateKeyPressed
 
-    private void address1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_address1ActionPerformed
+    private void txtChequeNoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtChequeNoActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_address1ActionPerformed
+    }//GEN-LAST:event_txtChequeNoActionPerformed
 
-    private void SupplierComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SupplierComboActionPerformed
-        if (SupplierCombo.getSelectedIndex() > 0 && !SupplierCombo.isPopupVisible()) {
-            // Load customer credit details when a customer is selected
-            String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
+    private void comboCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboCustomerActionPerformed
+        if (comboCustomer.getSelectedIndex() > 0 && !comboCustomer.isPopupVisible()) {
+            String selectedDisplayText = (String) comboCustomer.getSelectedItem();
             int selectedCustomerId = getCustomerId(selectedDisplayText);
             if (selectedCustomerId != -1) {
                 loadCustomerCreditDetails(selectedCustomerId);
             }
-            address1.requestFocusInWindow();
+            txtChequeNo.requestFocusInWindow();
         }
-    }//GEN-LAST:event_SupplierComboActionPerformed
+    }//GEN-LAST:event_comboCustomerActionPerformed
 
-    private void SupplierComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_SupplierComboKeyPressed
+    private void comboCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_comboCustomerKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (SupplierCombo.isPopupVisible()) {
-                SupplierCombo.setPopupVisible(false);
+            if (comboCustomer.isPopupVisible()) {
+                comboCustomer.setPopupVisible(false);
             }
-            if (SupplierCombo.getSelectedIndex() > 0) {
-                // Load customer credit details when a customer is selected
-                String selectedDisplayText = (String) SupplierCombo.getSelectedItem();
+            if (comboCustomer.getSelectedIndex() > 0) {
+                String selectedDisplayText = (String) comboCustomer.getSelectedItem();
                 int selectedCustomerId = getCustomerId(selectedDisplayText);
                 if (selectedCustomerId != -1) {
                     loadCustomerCreditDetails(selectedCustomerId);
                 }
-                address1.requestFocusInWindow();
+                txtChequeNo.requestFocusInWindow();
             }
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            if (!SupplierCombo.isPopupVisible()) {
-                SupplierCombo.showPopup();
+            if (!comboCustomer.isPopupVisible()) {
+                comboCustomer.showPopup();
                 evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            if (!SupplierCombo.isPopupVisible()) {
-                saveBtn.requestFocusInWindow();
+            if (!comboCustomer.isPopupVisible()) {
+                btnSave.requestFocusInWindow();
                 evt.consume();
             }
         } else {
-            handleArrowNavigation(evt, SupplierCombo);
+            handleArrowNavigation(evt, comboCustomer);
         }
-    }//GEN-LAST:event_SupplierComboKeyPressed
+    }//GEN-LAST:event_comboCustomerKeyPressed
 
-    private void addNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCustomerActionPerformed
+    private void btnAddNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddNewCustomerActionPerformed
         openAddNewCustomer();
-    }//GEN-LAST:event_addNewCustomerActionPerformed
+    }//GEN-LAST:event_btnAddNewCustomerActionPerformed
 
-    private void addNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCustomerKeyPressed
+    private void btnAddNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnAddNewCustomerKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
             openAddNewCustomer();
         }
-    }//GEN-LAST:event_addNewCustomerKeyPressed
+    }//GEN-LAST:event_btnAddNewCustomerKeyPressed
+
+    private void txtAmountActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtAmountActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_txtAmountActionPerformed
 
     /**
      * @param args the command line arguments
@@ -1289,17 +1483,18 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JComboBox<String> SupplierCombo;
-    private javax.swing.JButton addNewCustomer;
-    private javax.swing.JTextField address1;
-    private javax.swing.JButton cancelBtn;
-    private javax.swing.JButton clearFormBtn;
-    private javax.swing.JTextField invoiceNo;
-    private javax.swing.JTextField invoiceNo1;
+    private javax.swing.JButton btnAddNewCustomer;
+    private javax.swing.JButton btnCancel;
+    private javax.swing.JButton btnClear;
+    private javax.swing.JButton btnSave;
+    private javax.swing.JComboBox<String> comboCustomer;
+    private com.toedter.calendar.JDateChooser dateChequeDate;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator3;
-    private com.toedter.calendar.JDateChooser manufactureDate;
-    private javax.swing.JButton saveBtn;
+    private javax.swing.JTextField txtAmount;
+    private javax.swing.JTextField txtBankName;
+    private javax.swing.JTextField txtBranch;
+    private javax.swing.JTextField txtChequeNo;
     // End of variables declaration//GEN-END:variables
 }

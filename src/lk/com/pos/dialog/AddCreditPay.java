@@ -33,10 +33,10 @@ import raven.toast.Notifications;
  */
 public class AddCreditPay extends javax.swing.JDialog {
 
-    private Integer creditId;
+    private Integer customerId;
     private double remainingAmount = 0.0;
     private boolean isSaving = false;
-    private Map<String, Integer> creditIdMap = new HashMap<>();
+    private Map<String, Integer> customerIdMap = new HashMap<>();
     private double paidAmount = 0.0;
 
     public AddCreditPay(java.awt.Frame parent, boolean modal) {
@@ -45,20 +45,20 @@ public class AddCreditPay extends javax.swing.JDialog {
         initializeDialog();
     }
 
-    public AddCreditPay(java.awt.Frame parent, boolean modal, int creditId) {
+    public AddCreditPay(java.awt.Frame parent, boolean modal, int customerId) {
         super(parent, modal);
-        this.creditId = creditId;
+        this.customerId = customerId;
         initComponents();
         initializeDialog();
-        loadCreditData();
+        loadCustomerData();
     }
 
-    public AddCreditPay(java.awt.Frame parent, boolean modal, Integer creditId) {
+    public AddCreditPay(java.awt.Frame parent, boolean modal, Integer customerId) {
         super(parent, modal);
-        this.creditId = creditId;
+        this.customerId = customerId;
         initComponents();
         initializeDialog();
-        loadCreditData();
+        loadCustomerData();
     }
 
     public double getPaidAmount() {
@@ -68,31 +68,31 @@ public class AddCreditPay extends javax.swing.JDialog {
     private void initializeDialog() {
         setLocationRelativeTo(getParent());
 
-        loadCreditCombo();
-        AutoCompleteDecorator.decorate(creditCombo);
+        loadCustomerCombo();
+        AutoCompleteDecorator.decorate(customerCombo);
 
-        if (creditId == null) {
+        if (customerId == null) {
             remainingAmountLabel.setVisible(false);
         } else {
-            loadCreditData();
+            loadCustomerData();
             remainingAmountLabel.setVisible(true);
         }
 
-        manufactureDate.setDate(new Date());
+        paymentDate.setDate(new Date());
 
         setupKeyboardNavigation();
         setupButtonStyles();
         setupTooltips();
         setupFocusTraversal();
 
-        creditCombo.addMouseListener(new java.awt.event.MouseAdapter() {
+        customerCombo.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
-                creditCombo.showPopup();
+                customerCombo.showPopup();
             }
         });
 
         getRootPane().registerKeyboardAction(
-                evt -> refreshCredits(),
+                evt -> refreshCustomers(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
@@ -103,51 +103,51 @@ public class AddCreditPay extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        creditCombo.requestFocusInWindow();
+        customerCombo.requestFocusInWindow();
     }
 
     private void setupKeyboardNavigation() {
-        creditCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+        customerCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    paymentDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    paymentDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     saveBtn.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, creditCombo);
+                    handleArrowNavigation(evt, customerCombo);
                 }
             }
         });
 
-        javax.swing.JTextField manufactureDateEditor = (javax.swing.JTextField) manufactureDate.getDateEditor().getUiComponent();
-        manufactureDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
+        javax.swing.JTextField paymentDateEditor = (javax.swing.JTextField) paymentDate.getDateEditor().getUiComponent();
+        paymentDateEditor.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    creditCombo.requestFocus();
+                    customerCombo.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    creditCombo.requestFocus();
+                    customerCombo.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, manufactureDateEditor);
+                    handleArrowNavigation(evt, paymentDateEditor);
                 }
             }
         });
 
-        address.addKeyListener(new java.awt.event.KeyAdapter() {
+        amountField.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
@@ -158,7 +158,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    paymentDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
                     if (areAllRequiredFieldsFilled()) {
@@ -168,10 +168,10 @@ public class AddCreditPay extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    manufactureDate.getDateEditor().getUiComponent().requestFocus();
+                    paymentDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, address);
+                    handleArrowNavigation(evt, amountField);
                 }
             }
         });
@@ -183,7 +183,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     saveCreditPay();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     clearFormBtn.requestFocus();
@@ -207,7 +207,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     clearForm();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     cancelBtn.requestFocus();
@@ -231,7 +231,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     dispose();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    address.requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     saveBtn.requestFocus();
@@ -271,30 +271,30 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private void handleRightArrow(java.awt.Component source) {
-        if (source == creditCombo) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            address.requestFocusInWindow();
-        } else if (source == address) {
+        if (source == customerCombo) {
+            paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == paymentDate.getDateEditor().getUiComponent()) {
+            amountField.requestFocusInWindow();
+        } else if (source == amountField) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
             clearFormBtn.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            creditCombo.requestFocusInWindow();
+            customerCombo.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
-        if (source == creditCombo) {
+        if (source == customerCombo) {
             saveBtn.requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            creditCombo.requestFocusInWindow();
-        } else if (source == address) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == paymentDate.getDateEditor().getUiComponent()) {
+            customerCombo.requestFocusInWindow();
+        } else if (source == amountField) {
+            paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == cancelBtn) {
-            address.requestFocusInWindow();
+            amountField.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -303,30 +303,30 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private void handleDownArrow(java.awt.Component source) {
-        if (source == creditCombo) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            address.requestFocusInWindow();
-        } else if (source == address) {
+        if (source == customerCombo) {
+            paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == paymentDate.getDateEditor().getUiComponent()) {
+            amountField.requestFocusInWindow();
+        } else if (source == amountField) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
             clearFormBtn.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            creditCombo.requestFocusInWindow();
+            customerCombo.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
-        if (source == creditCombo) {
+        if (source == customerCombo) {
             saveBtn.requestFocusInWindow();
-        } else if (source == manufactureDate.getDateEditor().getUiComponent()) {
-            creditCombo.requestFocusInWindow();
-        } else if (source == address) {
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+        } else if (source == paymentDate.getDateEditor().getUiComponent()) {
+            customerCombo.requestFocusInWindow();
+        } else if (source == amountField) {
+            paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
         } else if (source == cancelBtn) {
-            address.requestFocusInWindow();
+            amountField.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -335,10 +335,10 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private boolean areAllRequiredFieldsFilled() {
-        return creditCombo.getSelectedIndex() > 0
-                && manufactureDate.getDate() != null
-                && !address.getText().trim().isEmpty()
-                && !address.getText().trim().equals("0");
+        return customerCombo.getSelectedIndex() > 0
+                && paymentDate.getDate() != null
+                && !amountField.getText().trim().isEmpty()
+                && !amountField.getText().trim().equals("0");
     }
 
     private void setupButtonStyles() {
@@ -531,137 +531,184 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private void setupTooltips() {
-        creditCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to refresh credit list</html>");
-        manufactureDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
-        address.setToolTipText("Type payment amount and press ENTER to move to next field");
+        customerCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to refresh customer list</html>");
+        paymentDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
+        amountField.setToolTipText("Type payment amount and press ENTER to move to next field");
 
         saveBtn.setToolTipText("Click to save credit payment (or press ENTER when focused)");
         clearFormBtn.setToolTipText("Click to clear form (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
     }
 
-    private void loadCreditCombo() {
+    private void loadCustomerCombo() {
         try {
-            creditIdMap.clear();
+            customerIdMap.clear();
 
-            String sql = "SELECT c.credit_id, cc.customer_name, c.credit_amout, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
-                    + "(c.credit_amout - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
-                    + "FROM credit c "
-                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
-                    + "GROUP BY c.credit_id, cc.customer_name, c.credit_amout "
-                    + "ORDER BY c.credit_given_date DESC";
+            // Fixed SQL query using subqueries for accurate calculation
+            String sql = "SELECT cc.customer_id, cc.customer_name, " +
+                         "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) as total_credit, " +
+                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id) as total_paid, " +
+                         "((SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) - " +
+                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id)) as remaining_amount " +
+                         "FROM credit_customer cc " +
+                         "WHERE cc.status_id = 1 " +
+                         "HAVING remaining_amount > 0 " +
+                         "ORDER BY cc.customer_name";
 
             ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> credits = new Vector<>();
-            credits.add("Select Credit");
+            Vector<String> customers = new Vector<>();
+            customers.add("Select Customer");
+            
+            int count = 0;
             while (rs.next()) {
-                int creditId = rs.getInt("credit_id");
+                int customerId = rs.getInt("customer_id");
                 String customerName = rs.getString("customer_name");
-                double creditAmount = rs.getDouble("credit_amout");
-                double paidAmount = rs.getDouble("paid_amount");
+                double totalCredit = rs.getDouble("total_credit");
+                double totalPaid = rs.getDouble("total_paid");
                 double remaining = rs.getDouble("remaining_amount");
 
-                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, creditAmount, paidAmount, remaining);
-                credits.add(displayText);
+                String displayText = String.format("%s - Total Due: %.2f", customerName, remaining);
+                customers.add(displayText);
 
-                creditIdMap.put(displayText, creditId);
+                customerIdMap.put(displayText, customerId);
+                count++;
+                
+                // Debug output
+                System.out.println("Loaded customer: " + customerName + " | Credit: " + totalCredit + 
+                                 " | Paid: " + totalPaid + " | Remaining: " + remaining);
             }
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(credits);
-            creditCombo.setModel(dcm);
+            
+            if (count == 0) {
+                System.out.println("No customers with due amount found");
+            }
+            
+            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
+            customerCombo.setModel(dcm);
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading credits: " + e.getMessage());
+                    "Error loading customers: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    private void loadCreditInfo() {
+    private void loadCustomerInfo() {
         try {
-            String sql = "SELECT c.credit_id, cc.customer_name, c.credit_amout, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
-                    + "(c.credit_amout - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
-                    + "FROM credit c "
-                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
-                    + "WHERE c.credit_id = ? "
-                    + "GROUP BY c.credit_id, cc.customer_name, c.credit_amout";
+            // Fixed SQL query using subqueries for accurate calculation
+            String sql = "SELECT cc.customer_id, cc.customer_name, " +
+                         "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) as total_credit, " +
+                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id) as total_paid, " +
+                         "((SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) - " +
+                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id)) as remaining_amount " +
+                         "FROM credit_customer cc " +
+                         "WHERE cc.customer_id = ?";
 
             Connection conn = MySQL.getConnection();
             PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, creditId);
+            pst.setInt(1, customerId);
             ResultSet rs = pst.executeQuery();
 
             if (rs.next()) {
                 String customerName = rs.getString("customer_name");
-                double creditAmount = rs.getDouble("credit_amout");
-                double paidAmount = rs.getDouble("paid_amount");
+                double totalCredit = rs.getDouble("total_credit");
+                double totalPaid = rs.getDouble("total_paid");
                 remainingAmount = rs.getDouble("remaining_amount");
 
-                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, creditAmount, paidAmount, remainingAmount);
+                String displayText = String.format("%s - Total Due: %.2f", customerName, remainingAmount);
 
-                for (int i = 0; i < creditCombo.getItemCount(); i++) {
-                    if (creditCombo.getItemAt(i).equals(displayText)) {
-                        creditCombo.setSelectedIndex(i);
+                for (int i = 0; i < customerCombo.getItemCount(); i++) {
+                    if (customerCombo.getItemAt(i).equals(displayText)) {
+                        customerCombo.setSelectedIndex(i);
                         break;
                     }
                 }
 
                 updateRemainingAmountLabel();
+                
+                // Debug output
+                System.out.println("Customer Info - " + customerName + " | Credit: " + totalCredit + 
+                                 " | Paid: " + totalPaid + " | Remaining: " + remainingAmount);
             }
 
             rs.close();
             pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading credit info: " + e.getMessage());
+                    "Error loading customer info: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     private void updateRemainingAmountLabel() {
         remainingAmountLabel.setText(String.format("Remaining Amount: %.2f", remainingAmount));
-        address.setToolTipText("Type payment amount (max: " + remainingAmount + ") and press ENTER to move to next field");
+        amountField.setToolTipText("Type payment amount (max: " + remainingAmount + ") and press ENTER to move to next field");
     }
 
-    private void loadCreditData() {
-        loadCreditInfo();
+    private void updateSelectedCustomerRemainingAmount() {
+        String selected = (String) customerCombo.getSelectedItem();
+        if (selected == null || selected.equals("Select Customer")) {
+            remainingAmount = 0.0;
+            updateRemainingAmountLabel();
+            return;
+        }
+
+        try {
+            // Extract remaining amount from display text
+            String[] parts = selected.split(" - Total Due: ");
+            if (parts.length > 1) {
+                String amountStr = parts[1].trim();
+                if (!amountStr.isEmpty()) {
+                    remainingAmount = Double.parseDouble(amountStr);
+                } else {
+                    remainingAmount = 0.0;
+                }
+            } else {
+                remainingAmount = 0.0;
+            }
+        } catch (Exception e) {
+            remainingAmount = 0.0;
+            System.err.println("Error parsing remaining amount: " + e.getMessage());
+        }
+
+        updateRemainingAmountLabel();
     }
 
-    private int getSelectedCreditId() {
-        String selected = (String) creditCombo.getSelectedItem();
-        if (selected == null || selected.equals("Select Credit")) {
+    private void loadCustomerData() {
+        loadCustomerInfo();
+    }
+
+    private int getSelectedCustomerId() {
+        String selected = (String) customerCombo.getSelectedItem();
+        if (selected == null || selected.equals("Select Customer")) {
             return -1;
         }
 
-        Integer creditId = creditIdMap.get(selected);
-        return creditId != null ? creditId : -1;
+        Integer customerId = customerIdMap.get(selected);
+        return customerId != null ? customerId : -1;
     }
 
     private boolean validateInputs() {
-        if (creditCombo.getSelectedIndex() == 0) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a credit");
-            creditCombo.requestFocus();
+        if (customerCombo.getSelectedIndex() == 0) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a customer");
+            customerCombo.requestFocus();
             return false;
         }
 
-        if (manufactureDate.getDate() == null) {
+        if (paymentDate.getDate() == null) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select payment date");
-            manufactureDate.getDateEditor().getUiComponent().requestFocus();
+            paymentDate.getDateEditor().getUiComponent().requestFocus();
             return false;
         }
 
-        String amountText = address.getText().trim();
+        String amountText = amountField.getText().trim();
         if (amountText.isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter payment amount");
-            address.requestFocus();
+            amountField.requestFocus();
             return false;
         }
 
         if (!amountText.matches("^[0-9]*\\.?[0-9]+$")) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter a valid payment amount");
-            address.requestFocus();
+            amountField.requestFocus();
             return false;
         }
 
@@ -669,14 +716,17 @@ public class AddCreditPay extends javax.swing.JDialog {
 
         if (amount <= 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Payment amount must be greater than 0");
-            address.requestFocus();
+            amountField.requestFocus();
             return false;
         }
+
+        // Debug current remaining amount
+        System.out.println("Validation - Payment Amount: " + amount + " | Remaining Amount: " + remainingAmount);
 
         if (amount > remainingAmount) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                     String.format("Payment amount (%.2f) cannot exceed remaining amount: %.2f", amount, remainingAmount));
-            address.requestFocus();
+            amountField.requestFocus();
             return false;
         }
 
@@ -699,34 +749,59 @@ public class AddCreditPay extends javax.swing.JDialog {
                 return;
             }
 
-            int selectedCreditId = getSelectedCreditId();
-            if (selectedCreditId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid credit selected");
+            int selectedCustomerId = getSelectedCustomerId();
+            if (selectedCustomerId == -1) {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
                 isSaving = false;
                 return;
             }
 
             SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String paymentDateStr = datetimeFormat.format(manufactureDate.getDate());
+            String paymentDateStr = datetimeFormat.format(paymentDate.getDate());
 
-            double amount = Double.parseDouble(address.getText().trim());
+            double amount = Double.parseDouble(amountField.getText().trim());
 
             conn = MySQL.getConnection();
             conn.setAutoCommit(false);
 
-            String query = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_id) VALUES (?, ?, ?)";
+            // Insert into credit_pay table with customer_id
+            String query = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) VALUES (?, ?, ?)";
 
             pst = conn.prepareStatement(query);
             pst.setString(1, paymentDateStr);
             pst.setDouble(2, amount);
-            pst.setInt(3, selectedCreditId);
+            pst.setInt(3, selectedCustomerId);
 
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
                 this.paidAmount = amount;
 
-                createCreditPaymentNotification(selectedCreditId, amount, conn);
+                // Check if customer still has due amount using fixed subquery
+                String checkDueSql = "SELECT " +
+                                    "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = ?) - " +
+                                    "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = ?) as remaining_amount";
+                
+                PreparedStatement pstCheck = conn.prepareStatement(checkDueSql);
+                pstCheck.setInt(1, selectedCustomerId);
+                pstCheck.setInt(2, selectedCustomerId);
+                ResultSet rs = pstCheck.executeQuery();
+                
+                if (rs.next()) {
+                    double newRemaining = rs.getDouble("remaining_amount");
+                    // Update customer status if no due amount
+                    if (newRemaining <= 0) {
+                        String updateStatusSql = "UPDATE credit_customer SET status_id = 2 WHERE customer_id = ?";
+                        PreparedStatement pstUpdate = conn.prepareStatement(updateStatusSql);
+                        pstUpdate.setInt(1, selectedCustomerId);
+                        pstUpdate.executeUpdate();
+                        pstUpdate.close();
+                    }
+                }
+                rs.close();
+                pstCheck.close();
+
+                createCreditPaymentNotification(selectedCustomerId, amount, conn);
 
                 conn.commit();
 
@@ -763,36 +838,23 @@ public class AddCreditPay extends javax.swing.JDialog {
         }
     }
 
-    private void createCreditPaymentNotification(int creditId, double amount, Connection conn) {
+    private void createCreditPaymentNotification(int customerId, double amount, Connection conn) {
         PreparedStatement pstMassage = null;
         PreparedStatement pstNotification = null;
-        PreparedStatement pstCreditInfo = null;
+        PreparedStatement pstCustomerInfo = null;
 
         try {
-            String creditInfoSql = "SELECT cc.customer_name, c.credit_amout, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid "
-                    + "FROM credit c "
-                    + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
-                    + "WHERE c.credit_id = ? "
-                    + "GROUP BY cc.customer_name, c.credit_amout";
-
-            pstCreditInfo = conn.prepareStatement(creditInfoSql);
-            pstCreditInfo.setInt(1, creditId);
-            ResultSet rs = pstCreditInfo.executeQuery();
+            String customerInfoSql = "SELECT customer_name FROM credit_customer WHERE customer_id = ?";
+            pstCustomerInfo = conn.prepareStatement(customerInfoSql);
+            pstCustomerInfo.setInt(1, customerId);
+            ResultSet rs = pstCustomerInfo.executeQuery();
 
             String customerName = "Unknown Customer";
-            double totalCredit = 0.0;
-            double totalPaid = 0.0;
-
             if (rs.next()) {
                 customerName = rs.getString("customer_name");
-                totalCredit = rs.getDouble("credit_amout");
-                totalPaid = rs.getDouble("total_paid");
             }
 
-            String messageText = String.format("Credit payment received from %s: Rs.%,.2f (Total Credit: Rs.%,.2f, Remaining: Rs.%,.2f)",
-                    customerName, amount, totalCredit, (totalCredit - totalPaid));
+            String messageText = String.format("Credit payment received from %s: Rs.%,.2f", customerName, amount);
 
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
@@ -826,7 +888,7 @@ public class AddCreditPay extends javax.swing.JDialog {
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 12);
+            pstNotification.setInt(2, 3); // Assuming 3 is for credit payment notifications
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
@@ -837,8 +899,8 @@ public class AddCreditPay extends javax.swing.JDialog {
             System.err.println("Failed to create credit payment notification: " + e.getMessage());
         } finally {
             try {
-                if (pstCreditInfo != null) {
-                    pstCreditInfo.close();
+                if (pstCustomerInfo != null) {
+                    pstCustomerInfo.close();
                 }
                 if (pstMassage != null) {
                     pstMassage.close();
@@ -853,33 +915,32 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private void clearForm() {
-        creditCombo.setSelectedIndex(0);
-        manufactureDate.setDate(new Date());
-        address.setText("");
+        customerCombo.setSelectedIndex(0);
+        paymentDate.setDate(new Date());
+        amountField.setText("");
         remainingAmountLabel.setText("Remaining Amount: 0.00");
         remainingAmount = 0.0;
-        if (creditId == null) {
+        if (customerId == null) {
             remainingAmountLabel.setVisible(false);
         }
-        creditCombo.requestFocus();
+        customerCombo.requestFocus();
     }
 
-    private void refreshCredits() {
-        loadCreditCombo();
-        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Credit list refreshed!");
-        creditCombo.requestFocus();
+    private void refreshCustomers() {
+        loadCustomerCombo();
+        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Customer list refreshed!");
+        customerCombo.requestFocus();
     }
 
     private void setupFocusTraversal() {
         try {
-            if (manufactureDate.getDateEditor() != null && manufactureDate.getDateEditor().getUiComponent() != null) {
-                manufactureDate.getDateEditor().getUiComponent().setFocusable(true);
+            if (paymentDate.getDateEditor() != null && paymentDate.getDateEditor().getUiComponent() != null) {
+                paymentDate.getDateEditor().getUiComponent().setFocusable(true);
             }
         } catch (Exception e) {
             System.err.println("Error in focus traversal setup: " + e.getMessage());
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -890,9 +951,9 @@ public class AddCreditPay extends javax.swing.JDialog {
         cancelBtn = new javax.swing.JButton();
         clearFormBtn = new javax.swing.JButton();
         saveBtn = new javax.swing.JButton();
-        creditCombo = new javax.swing.JComboBox<>();
-        manufactureDate = new com.toedter.calendar.JDateChooser();
-        address = new javax.swing.JTextField();
+        customerCombo = new javax.swing.JComboBox<>();
+        paymentDate = new com.toedter.calendar.JDateChooser();
+        amountField = new javax.swing.JTextField();
         remainingAmountLabel = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -951,36 +1012,36 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
         });
 
-        creditCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        creditCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        creditCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Credit *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        creditCombo.addActionListener(new java.awt.event.ActionListener() {
+        customerCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        customerCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        customerCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        customerCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                creditComboActionPerformed(evt);
+                customerComboActionPerformed(evt);
             }
         });
-        creditCombo.addKeyListener(new java.awt.event.KeyAdapter() {
+        customerCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                creditComboKeyPressed(evt);
+                customerComboKeyPressed(evt);
             }
         });
 
-        manufactureDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Given Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        manufactureDate.setDateFormatString("MM/dd/yyyy");
-        manufactureDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        manufactureDate.setOpaque(false);
-        manufactureDate.addKeyListener(new java.awt.event.KeyAdapter() {
+        paymentDate.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Given Date *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        paymentDate.setDateFormatString("MM/dd/yyyy");
+        paymentDate.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        paymentDate.setOpaque(false);
+        paymentDate.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                manufactureDateKeyPressed(evt);
+                paymentDateKeyPressed(evt);
             }
         });
 
-        address.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        address.setText("0");
-        address.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
-        address.addActionListener(new java.awt.event.ActionListener() {
+        amountField.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        amountField.setText("0");
+        amountField.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        amountField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addressActionPerformed(evt);
+                amountFieldActionPerformed(evt);
             }
         });
 
@@ -1003,10 +1064,10 @@ public class AddCreditPay extends javax.swing.JDialog {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addComponent(jLabel3)
-                            .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(address)))
+                            .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(amountField)))
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addComponent(creditCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addComponent(remainingAmountLabel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(0, 21, Short.MAX_VALUE))
         );
@@ -1020,11 +1081,11 @@ public class AddCreditPay extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(remainingAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(creditCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(13, 13, 13)
-                .addComponent(address, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(amountField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1081,25 +1142,25 @@ public class AddCreditPay extends javax.swing.JDialog {
         handleArrowNavigation(evt, saveBtn);
     }//GEN-LAST:event_saveBtnKeyPressed
 
-    private void creditComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditComboActionPerformed
-        if (creditCombo.getSelectedIndex() > 0 && !creditCombo.isPopupVisible()) {
-            updateSelectedCreditRemainingAmount();
-            manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+    private void customerComboActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerComboActionPerformed
+        if (customerCombo.getSelectedIndex() > 0 && !customerCombo.isPopupVisible()) {
+            updateSelectedCustomerRemainingAmount();
+            paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
         }
-    }//GEN-LAST:event_creditComboActionPerformed
+    }//GEN-LAST:event_customerComboActionPerformed
     private void updateSelectedCreditRemainingAmount() {
-        String selected = (String) creditCombo.getSelectedItem();
-        if (selected == null || selected.equals("Select Credit")) {
+        String selected = (String) customerCombo.getSelectedItem();
+        if (selected == null || selected.equals("Select Customer")) {
             remainingAmount = 0.0;
             updateRemainingAmountLabel();
             return;
         }
 
         try {
-            String[] parts = selected.split(", Due: ");
+            // Extract remaining amount from display text
+            String[] parts = selected.split(" - Total Due: ");
             if (parts.length > 1) {
                 String amountStr = parts[1].trim();
-                amountStr = amountStr.replaceAll("[^\\d.]", "");
                 if (!amountStr.isEmpty()) {
                     remainingAmount = Double.parseDouble(amountStr);
                 } else {
@@ -1114,45 +1175,42 @@ public class AddCreditPay extends javax.swing.JDialog {
 
         updateRemainingAmountLabel();
     }
-    private void creditComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_creditComboKeyPressed
-        if (creditId != null) {
-            return;
-        }
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (creditCombo.isPopupVisible()) {
-                creditCombo.setPopupVisible(false);
+    private void customerComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_customerComboKeyPressed
+              if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            if (customerCombo.isPopupVisible()) {
+                customerCombo.setPopupVisible(false);
             }
-            if (creditCombo.getSelectedIndex() > 0) {
-                updateSelectedCreditRemainingAmount();
-                manufactureDate.getDateEditor().getUiComponent().requestFocusInWindow();
+            if (customerCombo.getSelectedIndex() > 0) {
+                updateSelectedCustomerRemainingAmount();
+                paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
             }
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            if (!creditCombo.isPopupVisible()) {
-                creditCombo.showPopup();
+            if (!customerCombo.isPopupVisible()) {
+                customerCombo.showPopup();
                 evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            if (!creditCombo.isPopupVisible()) {
+            if (!customerCombo.isPopupVisible()) {
                 saveBtn.requestFocusInWindow();
                 evt.consume();
             }
         } else {
-            handleArrowNavigation(evt, creditCombo);
+            handleArrowNavigation(evt, customerCombo);
         }
-    }//GEN-LAST:event_creditComboKeyPressed
+    }//GEN-LAST:event_customerComboKeyPressed
 
-    private void manufactureDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_manufactureDateKeyPressed
-        handleArrowNavigation(evt, manufactureDate.getDateEditor().getUiComponent());
-    }//GEN-LAST:event_manufactureDateKeyPressed
+    private void paymentDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_paymentDateKeyPressed
+        handleArrowNavigation(evt, paymentDate.getDateEditor().getUiComponent());
+    }//GEN-LAST:event_paymentDateKeyPressed
 
-    private void addressActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addressActionPerformed
+    private void amountFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_amountFieldActionPerformed
         if (areAllRequiredFieldsFilled()) {
             saveBtn.requestFocusInWindow();
         } else {
             cancelBtn.requestFocusInWindow();
         }
-    }//GEN-LAST:event_addressActionPerformed
+    }//GEN-LAST:event_amountFieldActionPerformed
 
     /**
      * @param args the command line arguments
@@ -1197,14 +1255,14 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JTextField address;
+    private javax.swing.JTextField amountField;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
-    private javax.swing.JComboBox<String> creditCombo;
+    private javax.swing.JComboBox<String> customerCombo;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator3;
-    private com.toedter.calendar.JDateChooser manufactureDate;
+    private com.toedter.calendar.JDateChooser paymentDate;
     private javax.swing.JLabel remainingAmountLabel;
     private javax.swing.JButton saveBtn;
     // End of variables declaration//GEN-END:variables

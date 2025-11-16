@@ -59,7 +59,7 @@
                                   <EmptySpace max="-2" attributes="0"/>
                                   <Component id="saveBtn" min="-2" pref="143" max="-2" attributes="0"/>
                               </Group>
-                              <Component id="brand" alignment="1" max="32767" attributes="0"/>
+                              <Component id="expenseType" alignment="1" max="32767" attributes="0"/>
                           </Group>
                           <EmptySpace min="-2" pref="14" max="-2" attributes="0"/>
                       </Group>
@@ -75,7 +75,7 @@
                   <EmptySpace max="-2" attributes="0"/>
                   <Component id="jSeparator2" min="-2" pref="9" max="-2" attributes="0"/>
                   <EmptySpace max="-2" attributes="0"/>
-                  <Component id="brand" min="-2" max="-2" attributes="0"/>
+                  <Component id="expenseType" min="-2" max="-2" attributes="0"/>
                   <EmptySpace type="unrelated" max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="3" attributes="0">
                       <Component id="saveBtn" alignment="3" min="-2" pref="45" max="-2" attributes="0"/>
@@ -149,7 +149,7 @@
             <EventHandler event="keyPressed" listener="java.awt.event.KeyListener" parameters="java.awt.event.KeyEvent" handler="saveBtnKeyPressed"/>
           </Events>
         </Component>
-        <Component class="javax.swing.JTextField" name="brand">
+        <Component class="javax.swing.JTextField" name="expenseType">
           <Properties>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Nunito SemiBold" size="14" style="0"/>
@@ -163,7 +163,7 @@
             </Property>
           </Properties>
           <Events>
-            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="brandActionPerformed"/>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="expenseTypeActionPerformed"/>
           </Events>
         </Component>
       </SubComponents>

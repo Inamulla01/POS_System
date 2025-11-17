@@ -27,12 +27,14 @@ import raven.toast.Notifications;
 public class CardPayDialog extends javax.swing.JDialog {
 
     private Integer generatedCardPaymentId = null;
+    private Integer salesId = null; // Add this field to store sales ID
 
     /**
      * Creates new form CardPayDialog
      */
-    public CardPayDialog(java.awt.Frame parent, boolean modal) {
+    public CardPayDialog(java.awt.Frame parent, boolean modal, Integer salesId) {
         super(parent, modal);
+        this.salesId = salesId; // Store the sales ID
         initComponents();
         initializeDialog();
     }
@@ -68,6 +70,11 @@ public class CardPayDialog extends javax.swing.JDialog {
 
         // Set focus to code input when dialog opens
         codeInput.requestFocusInWindow();
+        
+        // Update title to show sales ID if available
+        if (salesId != null) {
+            setTitle("Add Card Payment - Sales #" + salesId);
+        }
     }
 
     private void setupGradientButton(JButton button) {
@@ -399,6 +406,11 @@ public class CardPayDialog extends javax.swing.JDialog {
     }
 
     private boolean validateInputs() {
+        if (salesId == null) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "No sales ID provided");
+            return false;
+        }
+
         if (codeInput.getText().trim().isEmpty()) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter card payment code");
             codeInput.requestFocus();
@@ -413,7 +425,7 @@ public class CardPayDialog extends javax.swing.JDialog {
             return false;
         }
 
-        // Check if code already exists
+        // Check if code already exists for this sales ID
         if (isCardPayCodeExists(code)) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Card payment code already exists");
             codeInput.requestFocus();
@@ -426,7 +438,7 @@ public class CardPayDialog extends javax.swing.JDialog {
 
     private boolean isCardPayCodeExists(String code) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT card_payment_id FROM card_payment WHERE card_pay_code = '" + code + "'");
+            ResultSet rs = MySQL.executeSearch("SELECT card_pay_id FROM card_pay WHERE card_pay_code = '" + code + "' AND sales_id = " + salesId);
             return rs.next();
         } catch (Exception e) {
             return false;
@@ -441,18 +453,18 @@ public class CardPayDialog extends javax.swing.JDialog {
         try {
             String code = codeInput.getText().trim();
 
-            // Insert into card_payment table
+            // Insert into card_pay table (correct table name)
             String query = String.format(
-                    "INSERT INTO card_payment (card_pay_code) VALUES ('%s')",
-                    code
+                    "INSERT INTO card_pay (card_pay_code, sales_id) VALUES ('%s', %d)",
+                    code, salesId
             );
 
             MySQL.executeIUD(query);
 
-            // Get the generated card_payment_id
-            ResultSet rs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as card_payment_id");
+            // Get the generated card_pay_id
+            ResultSet rs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as card_pay_id");
             if (rs.next()) {
-                generatedCardPaymentId = rs.getInt("card_payment_id");
+                generatedCardPaymentId = rs.getInt("card_pay_id");
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, 
                         "Card payment saved successfully! ID: " + generatedCardPaymentId);
                 
@@ -690,7 +702,7 @@ public class CardPayDialog extends javax.swing.JDialog {
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                CardPayDialog dialog = new CardPayDialog(new javax.swing.JFrame(), true);
+                CardPayDialog dialog = new CardPayDialog(new javax.swing.JFrame(), true,1);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {

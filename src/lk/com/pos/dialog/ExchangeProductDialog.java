@@ -715,7 +715,8 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                     + "pm.payment_method_name, cc.customer_name "
                     + "FROM sales s "
                     + "LEFT JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id "
-                    + "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id "
+                    + "LEFT JOIN credit c ON s.sales_id = c.sales_id "
+                    + "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
                     + "WHERE s.status_id = 1 ORDER BY s.sales_id DESC";
             ResultSet rs = MySQL.executeSearch(query);
 
@@ -798,12 +799,13 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
             String query = "SELECT s.sales_id, s.datetime, s.total, s.invoice_no, "
                     + "u.name as cashier_name, pm.payment_method_name, "
-                    + "cc.customer_id, cc.customer_name, d.discount, dt.discount_type, "
-                    + "s.discount_id, s.credit_customer_id, s.payment_method_id "
+                    + "c.credit_customer_id, cc.customer_name, d.discount, dt.discount_type, "
+                    + "s.discount_id, s.payment_method_id "
                     + "FROM sales s "
                     + "LEFT JOIN user u ON s.user_id = u.user_id "
                     + "LEFT JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id "
-                    + "LEFT JOIN credit_customer cc ON s.credit_customer_id = cc.customer_id "
+                    + "LEFT JOIN credit c ON s.sales_id = c.sales_id "
+                    + "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
                     + "LEFT JOIN discount d ON s.discount_id = d.discount_id "
                     + "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
                     + "WHERE s.invoice_no = '" + invoiceNo + "'";
@@ -1741,6 +1743,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
         return totalDiscount;
     }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents

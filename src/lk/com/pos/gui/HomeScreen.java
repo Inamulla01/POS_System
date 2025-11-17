@@ -45,12 +45,11 @@ public class HomeScreen extends JFrame {
 
     int userId = 1;
     String roleName = "Admin";
-    
+
     private static NotificationScheduler notificationScheduler;
-    
-    
+
     private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
-    private FlatSVGIcon notificationIcon, returnIcon, productIcon;
+    private FlatSVGIcon notificationIcon, returnIcon, productIcon, chequeIcon, expenseIcon;
     private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon;
 
     private static final int SIDEBAR_WIDTH_EXPANDED = 230;
@@ -107,7 +106,7 @@ public class HomeScreen extends JFrame {
         loadPanels();
         init();
         initSidebarSlider();
-        
+
         startNotificationScheduler();
 
     }
@@ -128,8 +127,8 @@ public class HomeScreen extends JFrame {
         dashboardIcon = new FlatSVGIcon("lk/com/pos/icon/dashboard.svg", 27, 27);
         posIcon = new FlatSVGIcon("lk/com/pos/icon/cart.svg", 28, 28);
         supplierIcon = new FlatSVGIcon("lk/com/pos/icon/truck.svg", 20, 20);
-        salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 22, 23);
-        creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 20, 20);
+        salesIcon = new FlatSVGIcon("lk/com/pos/icon/dollar.svg", 23, 23);
+        creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 22, 22);
         stockIcon = new FlatSVGIcon("lk/com/pos/icon/graph.svg", 25, 25);
         menuIcon = new FlatSVGIcon("lk/com/pos/icon/sidebar-expand.svg", 28, 28);
         signOutIcon = new FlatSVGIcon("lk/com/pos/icon/signout.svg", 20, 20);
@@ -137,7 +136,9 @@ public class HomeScreen extends JFrame {
 
         notificationIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
         returnIcon = new FlatSVGIcon("lk/com/pos/icon/return.svg", 17, 17);
-        productIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 20, 20);
+        productIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 22, 22);
+        chequeIcon = new FlatSVGIcon("lk/com/pos/icon/cheque.svg", 21, 21);
+        expenseIcon = new FlatSVGIcon("lk/com/pos/icon/wallet-down.svg", 23, 23);
 
         navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
         navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
@@ -164,6 +165,8 @@ public class HomeScreen extends JFrame {
         buttonHoverStates.put(notificasionBtn, false);
         buttonHoverStates.put(returnBtn, false);
         buttonHoverStates.put(productBtn, false);
+        buttonHoverStates.put(chequeBtn, false);
+        buttonHoverStates.put(expenseBtn, false);
 
         setupHoverButton(dashboardBtn, dashboardIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(posBtn, posIcon, normalTextColor, hoverTop, hoverBottom);
@@ -174,6 +177,8 @@ public class HomeScreen extends JFrame {
         setupHoverButton(notificasionBtn, notificationIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(returnBtn, returnIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(productBtn, productIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(chequeBtn, chequeIcon, normalTextColor, hoverTop, hoverBottom);
+        setupHoverButton(expenseBtn, expenseIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
 
         setupMenuButtonForSidebar();
@@ -183,12 +188,14 @@ public class HomeScreen extends JFrame {
         dashboardBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         posBtn.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         supplierBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        salesBtn.setBorder(BorderFactory.createEmptyBorder(0, 23, 0, 0));
+        creditBtn.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0));
         stockBtn.setBorder(BorderFactory.createEmptyBorder(0, 23, 0, 0));
-        notificasionBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        returnBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        productBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        notificasionBtn.setBorder(BorderFactory.createEmptyBorder(0, 26, 0, 0));
+        returnBtn.setBorder(BorderFactory.createEmptyBorder(0, 26, 0, 0));
+        productBtn.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0));
+        chequeBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
+        expenseBtn.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0));
         signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
 
         isSidebarExpanded = false;
@@ -217,23 +224,25 @@ public class HomeScreen extends JFrame {
         }).start();
 
     }
+
     private void startNotificationScheduler() {
         notificationScheduler = new NotificationScheduler();
         notificationScheduler.startScheduler();
         notificationScheduler.addShutdownHook();
     }
-    
+
     private void stopNotificationScheduler() {
         if (notificationScheduler != null) {
             notificationScheduler.stopScheduler();
         }
     }
-    
+
     @Override
     public void dispose() {
         stopNotificationScheduler();
         super.dispose();
     }
+
     private void setupShortcutSystem() {
         shortcutPopup = new JPopupMenu();
         shortcutPopup.setFocusable(false);
@@ -393,6 +402,12 @@ public class HomeScreen extends JFrame {
                 break;
             case "Notification":
                 addNotificationShortcuts();
+                break;
+            case "Cheque":
+                addChequeShortcuts();
+                break;
+            case "Expense":
+                addExpenseShortcuts();
                 break;
             default:
                 addGeneralShortcuts();
@@ -617,6 +632,41 @@ public class HomeScreen extends JFrame {
         addHintRow("Ctrl+F5", "Refresh Notifications", "#06B6D4");
         addHintRow("Ctrl+A", "Select All", "#1CB5BB");
         addHintRow("Esc", "Close/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addChequeShortcuts() {
+        addArrowHintRow("Navigate cheques");
+        addHintRow("Ctrl+F", "Search Cheques", "#A78BFA");
+        addHintRow("F5", "Refresh List", "#34D399");
+        addHintRow("Ctrl+N", "Add New Cheque", "#1CB5BB");
+        addHintRow("Alt+A", "Add New Cheque", "#1CB5BB");
+        addHintRow("E", "Edit Cheque", "#1CB5BB");
+        addHintRow("V", "View Cheque Details", "#FCD34D");
+        addHintRow("Ctrl+P", "Print Cheque Report", "#10B981");
+        addHintRow("Ctrl+R", "Cheque Report", "#10B981");
+        addHintRow("Alt+1", "Pending Cheques", "#FB923C");
+        addHintRow("Alt+2", "Cleared Cheques", "#10B981");
+        addHintRow("Alt+3", "Bounced Cheques", "#EF4444");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
+        addHintRow("?", "Toggle Help", "#1CB5BB");
+    }
+
+    private void addExpenseShortcuts() {
+        addArrowHintRow("Navigate expenses");
+        addHintRow("Ctrl+F", "Search Expenses", "#A78BFA");
+        addHintRow("F5", "Refresh List", "#34D399");
+        addHintRow("Ctrl+N", "Add New Expense", "#1CB5BB");
+        addHintRow("Alt+A", "Add New Expense", "#1CB5BB");
+        addHintRow("E", "Edit Expense", "#1CB5BB");
+        addHintRow("V", "View Expense Details", "#FCD34D");
+        addHintRow("Ctrl+P", "Print Expense Report", "#10B981");
+        addHintRow("Ctrl+R", "Expense Report", "#10B981");
+        addHintRow("Alt+1", "Today's Expenses", "#FB923C");
+        addHintRow("Alt+2", "This Week", "#FCD34D");
+        addHintRow("Alt+3", "This Month", "#1CB5BB");
+        addHintRow("Alt+4", "This Year", "#F87171");
+        addHintRow("Esc", "Clear/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
     }
 
@@ -1215,6 +1265,8 @@ public class HomeScreen extends JFrame {
         resetButtonToNormal(notificasionBtn);
         resetButtonToNormal(returnBtn);
         resetButtonToNormal(productBtn);
+        resetButtonToNormal(chequeBtn);
+        resetButtonToNormal(expenseBtn);
         resetButtonToNormal(calBtn);
         resetButtonToNormal(signOutBtn);
     }
@@ -1292,6 +1344,12 @@ public class HomeScreen extends JFrame {
         if (button == productBtn) {
             return productIcon;
         }
+        if (button == chequeBtn) {
+            return chequeIcon;
+        }
+        if (button == expenseBtn) {
+            return expenseIcon;
+        }
         if (button == signOutBtn) {
             return signOutIcon;
         }
@@ -1352,13 +1410,17 @@ public class HomeScreen extends JFrame {
         setActiveButton(returnBtn);
         currentPanelName = "Return";
     }
-    
-    private void showChequePanel(){
+
+    private void showChequePanel() {
         contentPanelLayout.show(cardPanel, "cheque_Panel");
+        setActiveButton(chequeBtn);
+        currentPanelName = "Cheque";
     }
-    
-    private void showExpensePanel(){
+
+    private void showExpensePanel() {
         contentPanelLayout.show(cardPanel, "Expense_Panel");
+        setActiveButton(expenseBtn);
+        currentPanelName = "Expense";
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1478,6 +1540,8 @@ public class HomeScreen extends JFrame {
         notificasionBtn.setText(visible ? " Notification" : "");
         returnBtn.setText(visible ? " Return" : "");
         productBtn.setText(visible ? " Product" : "");
+        chequeBtn.setText(visible ? " Cheque" : "");
+        expenseBtn.setText(visible ? " Expense" : "");
         signOutBtn.setText(visible ? " Sign Out" : "");
     }
 
@@ -1992,7 +2056,7 @@ public class HomeScreen extends JFrame {
 
         signOutBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         signOutBtn.setForeground(new java.awt.Color(255, 0, 0));
-        signOutBtn.setText(" Sign Out");
+        signOutBtn.setText("  Sign Out");
         signOutBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 51, 51)));
         signOutBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         signOutBtn.setHideActionText(true);
@@ -2050,7 +2114,7 @@ public class HomeScreen extends JFrame {
         });
 
         expenseBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        expenseBtn.setText("Expense");
+        expenseBtn.setText(" Expense");
         expenseBtn.setBorder(null);
         expenseBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         expenseBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -2064,7 +2128,7 @@ public class HomeScreen extends JFrame {
         });
 
         chequeBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        chequeBtn.setText("Cheque");
+        chequeBtn.setText(" Cheque");
         chequeBtn.setBorder(null);
         chequeBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         chequeBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -2081,33 +2145,21 @@ public class HomeScreen extends JFrame {
         sidePenal.setLayout(sidePenalLayout);
         sidePenalLayout.setHorizontalGroup(
             sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(signOutBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(productBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(sidePenalLayout.createSequentialGroup()
-                .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(sidePenalLayout.createSequentialGroup()
-                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(dashboardBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(posBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(logo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, sidePenalLayout.createSequentialGroup()
-                        .addGap(0, 6, Short.MAX_VALUE)
-                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(productBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                                .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))
-                            .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                    .addGroup(sidePenalLayout.createSequentialGroup()
-                        .addContainerGap()
-                        .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(chequeBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
-                            .addComponent(expenseBtn, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE))))
-                .addContainerGap())
+                .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(12, Short.MAX_VALUE))
+            .addComponent(posBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(dashboardBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(supplierBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(chequeBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(expenseBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(signOutBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         sidePenalLayout.setVerticalGroup(
             sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -2128,14 +2180,14 @@ public class HomeScreen extends JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(supplierBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(chequeBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(expenseBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 22, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 107, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -2159,7 +2211,9 @@ public class HomeScreen extends JFrame {
                 .addComponent(navPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(cardPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-            .addComponent(sidePenal, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, penal1Layout.createSequentialGroup()
+                .addComponent(sidePenal, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -2481,8 +2535,6 @@ public class HomeScreen extends JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-
-
 
                 Session session = Session.getInstance();
                 if (session.getUserId() == 0 || session.getRoleName() == null) {

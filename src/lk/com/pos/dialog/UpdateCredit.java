@@ -673,14 +673,14 @@ public class UpdateCredit extends javax.swing.JDialog {
         try {
             customerIdMap.clear();
 
-            // UPDATED QUERY - Load customers with total credit, paid amount, and due amount
+            // CORRECTED QUERY - Join credit_pay using credit_customer_id instead of credit_id
             String sql = "SELECT cc.customer_id, cc.customer_name, "
                     + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
                     + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
                     + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as due_amount "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "  // FIXED: Join on customer_id
                     + "WHERE cc.status_id = 1 "
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
@@ -711,6 +711,7 @@ public class UpdateCredit extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
+            e.printStackTrace(); // Add this for debugging
         }
     }
 
@@ -735,7 +736,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                         + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
                         + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as due_amount "
                         + "FROM credit c "
-                        + "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id "
+                        + "LEFT JOIN credit_pay cp ON c.credit_customer_id = cp.credit_customer_id "  // FIXED: Join on customer_id
                         + "WHERE c.credit_customer_id = ?";
                 PreparedStatement creditPst = conn.prepareStatement(creditQuery);
                 creditPst.setInt(1, customerId);
@@ -1448,7 +1449,7 @@ public class UpdateCredit extends javax.swing.JDialog {
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                UpdateCredit dialog = new UpdateCredit(new javax.swing.JFrame(), true);
+                UpdateCredit dialog = new UpdateCredit(new javax.swing.JFrame(), true,3);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {

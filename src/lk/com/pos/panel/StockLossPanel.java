@@ -5,7 +5,6 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.connection.MySQL;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.PreparedStatement;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.awt.Color;
@@ -27,22 +26,36 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
-import javax.swing.*;
-import javax.swing.border.AbstractBorder;
+import java.util.Calendar;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.AbstractAction;
+import javax.swing.SwingWorker;
+import javax.swing.JOptionPane;
+import javax.swing.BoxLayout;
+import javax.swing.Box;
+import javax.swing.SwingConstants;
 
 /**
- * ChequePanel - Displays and manages cheque information
- * Features: Search, filters, keyboard navigation, status management
+ * StockLossPanel - Enhanced panel for managing stock losses
+ * Features: Time period filters, search, keyboard navigation, modern UI
  * 
- * @author Your Name
+ * @author pasin
  * @version 2.0
  */
-public class ChequePanel extends javax.swing.JPanel {
+public class StockLossPanel extends javax.swing.JPanel {
    
     // Date & Number Formatting
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
+    private static final SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     
     // UI Constants - Colors
     private static final class Colors {
@@ -56,61 +69,50 @@ public class ChequePanel extends javax.swing.JPanel {
         static final Color TEXT_MUTED = Color.decode("#94A3B8");
         
         // Badge Colors
-        static final Color BADGE_BOUNCED_BG = Color.decode("#FED7AA");
-        static final Color BADGE_BOUNCED_FG = Color.decode("#7C2D12");
-        static final Color BADGE_BOUNCED_BORDER = Color.decode("#FB923C");
-        
-        static final Color BADGE_CLEARED_BG = Color.decode("#D1FAE5");
-        static final Color BADGE_CLEARED_FG = Color.decode("#059669");
-        static final Color BADGE_CLEARED_BORDER = Color.decode("#059669");
-        
-        static final Color BADGE_PENDING_BG = Color.decode("#FEF3C7");
-        static final Color BADGE_PENDING_FG = Color.decode("#92400E");
-        static final Color BADGE_PENDING_BORDER = Color.decode("#92400E");
-        
-        // Amount Panel Colors
-        static final Color AMOUNT_BG = Color.decode("#DBEAFE");
-        static final Color AMOUNT_FG = Color.decode("#1E40AF");
-        static final Color AMOUNT_BORDER = Color.decode("#BFDBFE");
+        static final Color BADGE_BOUNCED_BG = Color.decode("#FEE2E2");
+        static final Color BADGE_BOUNCED_FG = Color.decode("#991B1B");
+        static final Color BADGE_BOUNCED_BORDER = Color.decode("#F87171");
+        static final Color BADGE_EXPIRED_BG = Color.decode("#FED7AA");
+        static final Color BADGE_EXPIRED_FG = Color.decode("#7C2D12");
+        static final Color BADGE_EXPIRED_BORDER = Color.decode("#FB923C");
+        static final Color BADGE_DAMAGED_BG = Color.decode("#FECACA");
+        static final Color BADGE_DAMAGED_FG = Color.decode("#7F1D1D");
+        static final Color BADGE_DAMAGED_BORDER = Color.decode("#EF4444");
         
         // Detail Colors
-        static final Color DETAIL_PHONE = Color.decode("#8B5CF6");
-        static final Color DETAIL_NIC = Color.decode("#EC4899");
-        static final Color DETAIL_BANK = Color.decode("#10B981");
-        static final Color DETAIL_DATE = Color.decode("#06B6D4");
-        static final Color DETAIL_STATUS = Color.decode("#6366F1");
+        static final Color DETAIL_BATCH = Color.decode("#8B5CF6");
+        static final Color DETAIL_INVOICE = Color.decode("#EC4899");
+        static final Color DETAIL_PRICE = Color.decode("#10B981");
+        static final Color DETAIL_QTY = Color.decode("#06B6D4");
+        static final Color DETAIL_USER = Color.decode("#6366F1");
+        static final Color DETAIL_DATE = Color.decode("#F59E0B");
+        
+        // Loss Amount Colors - Updated with red color
+        static final Color LOSS_HIGH = Color.decode("#DC2626"); // Red color
+        static final Color LOSS_MEDIUM = Color.decode("#DC2626"); // Red color
+        static final Color LOSS_LOW = Color.decode("#DC2626"); // Red color
+        static final Color LOSS_BG = Color.decode("#FEE2E2"); // Light red background
+        static final Color LOSS_BORDER = Color.decode("#FECACA"); // Light red border
         
         // Button Colors
         static final Color BTN_EDIT_BG = Color.decode("#EFF6FF");
         static final Color BTN_EDIT_BORDER = Color.decode("#BFDBFE");
-        static final Color BTN_STATUS_BG = Color.decode("#F3E8FF");
-        static final Color BTN_STATUS_BORDER = Color.decode("#C4B5FD");
-        
-        // Add Bound Button Colors
-        static final Color BTN_ADD_BOUND_BG = Color.decode("#FEF3C7");
-        static final Color BTN_ADD_BOUND_FG = Color.decode("#92400E");
-        static final Color BTN_ADD_BOUND_BORDER = Color.decode("#F59E0B");
-        
-        // Position Indicator
-        static final Color POSITION_BG = new Color(31, 41, 55, 230);
-        static final Color POSITION_FG = Color.WHITE;
-        
-        // Help Panel
-        static final Color HELP_BG = new Color(31, 41, 55, 240);
-        static final Color HELP_TITLE = Colors.TEAL_PRIMARY;
-        static final Color HELP_TEXT = Color.decode("#D1D5DB");
     }
     
     // UI Constants - Dimensions
     private static final class Dimensions {
-        static final Dimension CARD_SIZE = new Dimension(420, 520);
-        static final Dimension CARD_MAX_SIZE = new Dimension(420, 520);
-        static final Dimension CARD_MIN_SIZE = new Dimension(380, 520);
+        static final Dimension CARD_SIZE = new Dimension(420, 420);
+        static final Dimension CARD_MAX_SIZE = new Dimension(420, 420);
+        static final Dimension CARD_MIN_SIZE = new Dimension(380, 420);
         static final Dimension ACTION_BUTTON_SIZE = new Dimension(30, 30);
-        static final Dimension ADD_BOUND_BUTTON_SIZE = new Dimension(30, 30);
         static final int CARD_WIDTH_WITH_GAP = 445;
         static final int GRID_GAP = 25;
         static final int CARD_PADDING = 16;
+        
+        // Responsive breakpoints
+        static final int THREE_COLUMN_MIN_WIDTH = 1200; // Reduced from 1400
+        static final int TWO_COLUMN_MIN_WIDTH = 768;    // Standard tablet size
+        static final int SINGLE_COLUMN_MAX_WIDTH = 767; // Mobile size
     }
     
     // UI Constants - Fonts
@@ -120,35 +122,36 @@ public class ChequePanel extends javax.swing.JPanel {
         static final java.awt.Font BADGE = new java.awt.Font("Nunito ExtraBold", 1, 11);
         static final java.awt.Font DETAIL_TITLE = new java.awt.Font("Nunito SemiBold", 0, 13);
         static final java.awt.Font DETAIL_VALUE = new java.awt.Font("Nunito SemiBold", 1, 14);
-        static final java.awt.Font AMOUNT_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 12);
-        static final java.awt.Font AMOUNT_VALUE = new java.awt.Font("Nunito ExtraBold", 1, 16);
-        static final java.awt.Font LOADING = new java.awt.Font("Nunito ExtraBold", 1, 20);
-        static final java.awt.Font POSITION = new java.awt.Font("Nunito ExtraBold", 1, 14);
+        static final java.awt.Font LOSS_AMOUNT = new java.awt.Font("Nunito ExtraBold", 1, 18);
         static final java.awt.Font HINT_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 13);
         static final java.awt.Font HINT_KEY = new java.awt.Font("Consolas", 1, 11);
         static final java.awt.Font HINT_DESC = new java.awt.Font("Nunito SemiBold", 0, 11);
+        static final java.awt.Font LOADING = new java.awt.Font("Nunito ExtraBold", 1, 20);
+        static final java.awt.Font POSITION = new java.awt.Font("Nunito ExtraBold", 1, 14);
     }
     
     // UI Constants - Strings
     private static final class Strings {
-        static final String SEARCH_PLACEHOLDER = "Search By Cheque No, Customer Name or Invoice No";
-        static final String NO_CHEQUES = "No cheques found";
-        static final String LOADING_MESSAGE = "Loading cheques...";
+        static final String SEARCH_PLACEHOLDER = "Search by Product Name, Invoice, or Batch No";
+        static final String NO_RECORDS = "No stock loss records found";
+        static final String LOADING_MESSAGE = "Loading stock losses...";
         static final String LOADING_SUBMESSAGE = "Please wait";
-        static final String SECTION_DETAILS = "CHEQUE DETAILS";
-        static final String SECTION_AMOUNT = "CHEQUE AMOUNT";
         static final String HELP_TITLE = "KEYBOARD SHORTCUTS";
         static final String HELP_CLOSE_HINT = "Press ? to hide";
+        static final String SECTION_DETAILS = "LOSS DETAILS";
+        static final String NO_VALUE = "N/A";
     }
     
     // Business Constants
     private static final class Business {
+        static final double HIGH_LOSS_THRESHOLD = 10000.0;
+        static final double MEDIUM_LOSS_THRESHOLD = 5000.0;
         static final long REFRESH_COOLDOWN_MS = 1000;
     }
 
     // Keyboard Navigation
-    private List<lk.com.pos.privateclasses.RoundedPanel> chequeCardsList = new ArrayList<>();
     private lk.com.pos.privateclasses.RoundedPanel currentFocusedCard = null;
+    private List<lk.com.pos.privateclasses.RoundedPanel> lossCardsList = new ArrayList<>();
     private int currentCardIndex = -1;
     private int currentColumns = 3;
     
@@ -159,19 +162,18 @@ public class ChequePanel extends javax.swing.JPanel {
     private JPanel keyboardHintsPanel;
     private boolean hintsVisible = false;
     private JPanel loadingPanel;
-    private JLabel loadingLabel;
     
     // State
     private long lastRefreshTime = 0;
 
-    public ChequePanel() {
+    public StockLossPanel() {
         initComponents();
         initializeUI();
         createPositionIndicator();
         createKeyboardHintsPanel();
         createLoadingPanel();
         setupKeyboardShortcuts();
-        loadCheques();
+        loadStockLosses();
         
         SwingUtilities.invokeLater(() -> {
             this.requestFocusInWindow();
@@ -179,16 +181,22 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
 
+    /**
+     * Initializes UI components and settings
+     */
     private void initializeUI() {
         setupScrollPane();
         setupIcons();
         setupSearchField();
-        setupRadioButtons();
+        setupReasonComboBox();
+        setupComboBox();
         setupButtons();
-        setupEventListeners();
         setupPanel();
     }
     
+    /**
+     * Configures scroll pane styling
+     */
     private void setupScrollPane() {
         jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
         jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -199,10 +207,21 @@ public class ChequePanel extends javax.swing.JPanel {
                 "track: #F5F5F5; thumb: #1CB5BB; width: 8");
     }
     
+    /**
+     * Sets up button icons
+     */
     private void setupIcons() {
-        // Icons will be set for individual cards
+        try {
+            FlatSVGIcon blueEdit = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 20, 20);
+            editBtn.setIcon(blueEdit);
+        } catch (Exception e) {
+            System.err.println("Error loading edit icon: " + e.getMessage());
+        }
     }
     
+    /**
+     * Configures search field
+     */
     private void setupSearchField() {
         jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Strings.SEARCH_PLACEHOLDER);
         try {
@@ -212,7 +231,7 @@ public class ChequePanel extends javax.swing.JPanel {
             System.err.println("Error loading search icon: " + e.getMessage());
         }
         
-        jTextField1.setToolTipText("Search cheques (Ctrl+F or /) - Press ? for help");
+        jTextField1.setToolTipText("Search stock losses (Ctrl+F or /)");
         
         jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
@@ -222,68 +241,122 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
     
+    /**
+     * Configures reason combo box (replaces radio buttons)
+     */
+    private void setupReasonComboBox() {
+        sortByReason.removeAllItems();
+        sortByReason.addItem("All Reasons");
+        sortByReason.addItem("Expired");
+        sortByReason.addItem("Damaged");
+        sortByReason.addItem("Bounced");
+        sortByReason.addItem("Other");
+        
+        sortByReason.setSelectedItem("All Reasons");
+        sortByReason.setToolTipText("Filter by reason (Alt+R)");
+        
+        sortByReason.addActionListener(evt -> {
+            performSearch();
+            this.requestFocusInWindow();
+        });
+    }
+    
+    /**
+     * Configures combo box
+     */
+    private void setupComboBox() {
+        sortByDays.removeAllItems();
+        sortByDays.addItem("All Time");
+        sortByDays.addItem("Today");
+        sortByDays.addItem("Last 7 Days");
+        sortByDays.addItem("Last 30 Days");
+        sortByDays.addItem("Last 90 Days");
+        sortByDays.addItem("1 Year");
+        sortByDays.addItem("2 Years");
+        sortByDays.addItem("5 Years");
+        sortByDays.addItem("10 Years");
+        
+        sortByDays.setSelectedItem("All Time");
+        sortByDays.setToolTipText("Filter by time period (Alt+T)");
+        
+        sortByDays.addActionListener(evt -> {
+            performSearch();
+            this.requestFocusInWindow();
+        });
+    }
+    
+    /**
+     * Configures buttons
+     */
     private void setupButtons() {
-        customerReportBtn.setToolTipText("Generate Cheque Report (Ctrl+R)");
-        addNewCoustomerBtn.setText("Add New Cheque");
-        addNewCoustomerBtn.setToolTipText("Add New Cheque (Ctrl+N or Alt+A)");
+        lostReportBtn.setToolTipText("Generate Stock Loss Report (Ctrl+R)");
+        addNewLostBtn.setToolTipText("Add New Stock Loss (Ctrl+N)");
     }
     
-    private void setupRadioButtons() {
-        jRadioButton1.putClientProperty(FlatClientProperties.STYLE, "foreground:#EF4444;");
-        jRadioButton2.putClientProperty(FlatClientProperties.STYLE, "foreground:#10B981;");
-        jRadioButton4.putClientProperty(FlatClientProperties.STYLE, "foreground:#F97316;");
-        
-        jRadioButton4.setToolTipText("Filter pending cheques (Alt+1)");
-        jRadioButton1.setToolTipText("Filter bounced cheques (Alt+2)");
-        jRadioButton2.setToolTipText("Filter cleared cheques (Alt+3)");
-        
-        for (java.awt.event.ActionListener al : jRadioButton1.getActionListeners()) {
-            jRadioButton1.removeActionListener(al);
-        }
-        for (java.awt.event.ActionListener al : jRadioButton2.getActionListeners()) {
-            jRadioButton2.removeActionListener(al);
-        }
-        for (java.awt.event.ActionListener al : jRadioButton4.getActionListeners()) {
-            jRadioButton4.removeActionListener(al);
-        }
-        
-        jRadioButton1.addActionListener(evt -> {
-            if (jRadioButton1.isSelected()) {
-                performSearch();
-            }
-        });
-        jRadioButton2.addActionListener(evt -> {
-            if (jRadioButton2.isSelected()) {
-                performSearch();
-            }
-        });
-        jRadioButton4.addActionListener(evt -> {
-            if (jRadioButton4.isSelected()) {
-                performSearch();
-            }
-        });
-        
-        jRadioButton4.setSelected(true);
-    }
-    
+    /**
+     * Configures panel
+     */
     private void setupPanel() {
         jPanel2.setBackground(Colors.BACKGROUND);
-    }
-    
-    private void setupEventListeners() {
-        this.addComponentListener(new java.awt.event.ComponentAdapter() {
+        
+        // Add component listener for responsive layout
+        jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
-            public void componentShown(java.awt.event.ComponentEvent e) {
-                SwingUtilities.invokeLater(() -> ChequePanel.this.requestFocusInWindow());
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                updateLayoutForScreenSize();
             }
         });
     }
     
+    /**
+     * Updates layout based on screen size
+     */
+    private void updateLayoutForScreenSize() {
+        if (!lossCardsList.isEmpty()) {
+            int panelWidth = jPanel2.getWidth();
+            int newColumns = calculateColumns(panelWidth);
+            
+            if (newColumns != currentColumns) {
+                currentColumns = newColumns;
+                reorganizeCardsLayout();
+            }
+        }
+    }
+    
+    /**
+     * Reorganizes cards when column count changes
+     */
+    private void reorganizeCardsLayout() {
+        if (lossCardsList.isEmpty()) return;
+        
+        jPanel2.removeAll();
+        
+        JPanel gridPanel = createGridPanel();
+        for (lk.com.pos.privateclasses.RoundedPanel card : lossCardsList) {
+            gridPanel.add(card);
+        }
+        
+        layoutCardsInPanel(gridPanel);
+        jPanel2.revalidate();
+        jPanel2.repaint();
+        
+        // Update position indicator if a card is selected
+        if (currentCardIndex >= 0) {
+            updatePositionIndicator();
+        }
+    }
+
+    /**
+     * Called when filter changes
+     */
     private void onFilterChanged() {
         performSearch();
         this.requestFocusInWindow();
     }
 
+    /**
+     * Creates loading overlay panel
+     */
     private void createLoadingPanel() {
         loadingPanel = new JPanel(new BorderLayout());
         loadingPanel.setBackground(new Color(248, 250, 252, 230));
@@ -293,7 +366,7 @@ public class ChequePanel extends javax.swing.JPanel {
         centerPanel.setOpaque(false);
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         
-        loadingLabel = new JLabel(Strings.LOADING_MESSAGE);
+        JLabel loadingLabel = new JLabel(Strings.LOADING_MESSAGE);
         loadingLabel.setFont(Fonts.LOADING);
         loadingLabel.setForeground(Colors.TEAL_PRIMARY);
         loadingLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -315,6 +388,9 @@ public class ChequePanel extends javax.swing.JPanel {
         add(loadingPanel, Integer.valueOf(2000));
     }
     
+    /**
+     * Shows or hides loading panel
+     */
     private void showLoading(boolean show) {
         SwingUtilities.invokeLater(() -> {
             loadingPanel.setVisible(show);
@@ -326,9 +402,12 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
 
+    /**
+     * Creates position indicator panel
+     */
     private void createPositionIndicator() {
         positionIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
-        positionIndicator.setBackground(Colors.POSITION_BG);
+        positionIndicator.setBackground(new Color(31, 41, 55, 230));
         positionIndicator.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
             BorderFactory.createEmptyBorder(8, 15, 8, 15)
@@ -337,7 +416,7 @@ public class ChequePanel extends javax.swing.JPanel {
         
         positionLabel = new JLabel();
         positionLabel.setFont(Fonts.POSITION);
-        positionLabel.setForeground(Colors.POSITION_FG);
+        positionLabel.setForeground(Color.WHITE);
         
         positionIndicator.add(positionLabel);
         
@@ -352,6 +431,9 @@ public class ChequePanel extends javax.swing.JPanel {
         add(positionIndicator, Integer.valueOf(1000));
     }
     
+    /**
+     * Layouts overlay panels
+     */
     private void layoutOverlays() {
         if (positionIndicator != null && positionIndicator.isVisible()) {
             Dimension size = positionIndicator.getPreferredSize();
@@ -372,6 +454,9 @@ public class ChequePanel extends javax.swing.JPanel {
         }
     }
     
+    /**
+     * Shows position indicator with text
+     */
     private void showPositionIndicator(String text) {
         if (text == null || text.isEmpty()) return;
         
@@ -393,10 +478,13 @@ public class ChequePanel extends javax.swing.JPanel {
         positionTimer.start();
     }
 
+    /**
+     * Creates keyboard hints panel
+     */
     private void createKeyboardHintsPanel() {
         keyboardHintsPanel = new JPanel();
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
-        keyboardHintsPanel.setBackground(Colors.HELP_BG);
+        keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
         keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
             BorderFactory.createEmptyBorder(15, 20, 15, 20)
@@ -405,22 +493,19 @@ public class ChequePanel extends javax.swing.JPanel {
         
         JLabel title = new JLabel(Strings.HELP_TITLE);
         title.setFont(Fonts.HINT_TITLE);
-        title.setForeground(Colors.HELP_TITLE);
+        title.setForeground(Colors.TEAL_PRIMARY);
         title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(title);
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
         
         addHintRow("← → ↑ ↓", "Navigate cards", "#FFFFFF");
-        addHintRow("S", "Change Status", "#7C3AED");
-        addHintRow("E", "Edit Cheque", "#1CB5BB");
-        addHintRow("B", "Add Bound (Bounced only)", "#F59E0B");
+        addHintRow("E", "Edit Loss Record", "#1CB5BB");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
-        addHintRow("Ctrl+N/Alt+A", "Add Cheque", "#60D5F2");
-        addHintRow("Ctrl+R", "Cheque Report", "#10B981");
+        addHintRow("Ctrl+N", "Add New Loss", "#60D5F2");
+        addHintRow("Ctrl+R", "Loss Report", "#10B981");
         addHintRow("F5", "Refresh Data", "#06B6D4");
-        addHintRow("Alt+1", "Pending (Default)", "#F97316");
-        addHintRow("Alt+2", "Bounced", "#EF4444");
-        addHintRow("Alt+3", "Cleared", "#10B981");
+        addHintRow("Alt+T", "Time Period", "#F59E0B");
+        addHintRow("Alt+R", "Reason Filter", "#EC4899");
         addHintRow("Esc", "Clear/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
         
@@ -435,6 +520,9 @@ public class ChequePanel extends javax.swing.JPanel {
         add(keyboardHintsPanel, Integer.valueOf(1001));
     }
     
+    /**
+     * Adds hint row to keyboard hints panel
+     */
     private void addHintRow(String key, String description, String keyColor) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
         row.setOpaque(false);
@@ -448,13 +536,16 @@ public class ChequePanel extends javax.swing.JPanel {
         
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(Fonts.HINT_DESC);
-        descLabel.setForeground(Colors.HELP_TEXT);
+        descLabel.setForeground(Color.decode("#D1D5DB"));
         
         row.add(keyLabel);
         row.add(descLabel);
         keyboardHintsPanel.add(row);
     }
     
+    /**
+     * Shows or hides keyboard hints
+     */
     private void showKeyboardHints() {
         if (!hintsVisible) {
             keyboardHintsPanel.setVisible(true);
@@ -478,45 +569,57 @@ public class ChequePanel extends javax.swing.JPanel {
         }
     }
 
+    /**
+     * Sets up all keyboard shortcuts
+     */
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
         
         int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
         int arrowCondition = JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT;
         
+        // Arrow navigation
         registerKeyAction("LEFT", KeyEvent.VK_LEFT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_LEFT));
         registerKeyAction("RIGHT", KeyEvent.VK_RIGHT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_RIGHT));
         registerKeyAction("UP", KeyEvent.VK_UP, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_UP));
         registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_DOWN));
         
-        registerKeyAction("S", KeyEvent.VK_S, 0, condition, this::changeStatusForSelectedCard);
+        // Actions
         registerKeyAction("E", KeyEvent.VK_E, 0, condition, this::editSelectedCard);
-        registerKeyAction("B", KeyEvent.VK_B, 0, condition, this::addBoundForSelectedCard);
         
+        // Enter to start navigation
         registerKeyAction("ENTER", KeyEvent.VK_ENTER, 0, condition, this::handleEnterKey);
         
+        // Search
         registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, this::focusSearch);
         registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, this::handleSlashKey);
         
+        // Escape
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
         
-        registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshCheques);
+        // Refresh
+        registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshLosses);
         
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openChequeReport);
+        // Report
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openLossReport);
         
-        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddChequeDialog);
-        registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddChequeDialog);
+        // Add New
+        registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddLossDialog);
         
-        registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
-        registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton1));
-        registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton2));
+        // Quick filters
+        registerKeyAction("ALT_T", KeyEvent.VK_T, KeyEvent.ALT_DOWN_MASK, condition, this::focusTimePeriod);
+        registerKeyAction("ALT_R", KeyEvent.VK_R, KeyEvent.ALT_DOWN_MASK, condition, this::focusReasonFilter);
         registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, this::clearFilters);
         
+        // Help
         registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, this::showKeyboardHints);
         
         setupSearchFieldShortcuts();
     }
     
+    /**
+     * Sets up search field specific shortcuts
+     */
     private void setupSearchFieldShortcuts() {
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
             KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
@@ -537,6 +640,9 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
     
+    /**
+     * Registers a keyboard action
+     */
     private void registerKeyAction(String actionName, int keyCode, int modifiers, int condition, Runnable action) {
         KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, modifiers);
         this.getInputMap(condition).put(keyStroke, actionName);
@@ -551,6 +657,9 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
     
+    /**
+     * Determines if key action should be ignored
+     */
     private boolean shouldIgnoreKeyAction(int keyCode, int modifiers) {
         return jTextField1.hasFocus() && 
                keyCode != KeyEvent.VK_ESCAPE && 
@@ -559,29 +668,41 @@ public class ChequePanel extends javax.swing.JPanel {
                keyCode != KeyEvent.VK_SLASH;
     }
     
+    /**
+     * Handles Enter key
+     */
     private void handleEnterKey() {
-        if (currentCardIndex == -1 && !chequeCardsList.isEmpty()) {
+        if (currentCardIndex == -1 && !lossCardsList.isEmpty()) {
             navigateCards(KeyEvent.VK_RIGHT);
         }
     }
     
+    /**
+     * Handles slash key
+     */
     private void handleSlashKey() {
         if (!jTextField1.hasFocus()) {
             focusSearch();
         }
     }
     
+    /**
+     * Clears search and filters
+     */
     private void clearSearchAndFilters() {
         jTextField1.setText("");
-        buttonGroup1.clearSelection();
+        sortByDays.setSelectedItem("All Time");
+        sortByReason.setSelectedItem("All Reasons");
         performSearch();
-        ChequePanel.this.requestFocusInWindow();
-        showPositionIndicator("Search and filters cleared");
+        StockLossPanel.this.requestFocusInWindow();
     }
     
+    /**
+     * Starts navigation from search field
+     */
     private void startNavigationFromSearch() {
-        if (!chequeCardsList.isEmpty()) {
-            ChequePanel.this.requestFocusInWindow();
+        if (!lossCardsList.isEmpty()) {
+            StockLossPanel.this.requestFocusInWindow();
             if (currentCardIndex == -1) {
                 currentCardIndex = 0;
                 selectCurrentCard();
@@ -591,9 +712,12 @@ public class ChequePanel extends javax.swing.JPanel {
         }
     }
 
+    /**
+     * Navigates between cards using arrow keys
+     */
     private void navigateCards(int direction) {
-        if (chequeCardsList.isEmpty()) {
-            showPositionIndicator("No cheques available");
+        if (lossCardsList.isEmpty()) {
+            showPositionIndicator("No stock loss records available");
             return;
         }
         
@@ -606,7 +730,7 @@ public class ChequePanel extends javax.swing.JPanel {
         }
         
         int oldIndex = currentCardIndex;
-        int newIndex = calculateNewIndex(direction, currentCardIndex, chequeCardsList.size());
+        int newIndex = calculateNewIndex(direction, currentCardIndex, lossCardsList.size());
         
         if (newIndex != oldIndex) {
             deselectCard(oldIndex);
@@ -619,6 +743,9 @@ public class ChequePanel extends javax.swing.JPanel {
         }
     }
     
+    /**
+     * Shows message when at navigation boundary
+     */
     private void showBoundaryMessage(int direction) {
         String message;
         switch (direction) {
@@ -640,6 +767,9 @@ public class ChequePanel extends javax.swing.JPanel {
         showPositionIndicator(message);
     }
     
+    /**
+     * Calculates new card index based on direction
+     */
     private int calculateNewIndex(int direction, int currentIndex, int totalCards) {
         int currentRow = currentIndex / currentColumns;
         int currentCol = currentIndex % currentColumns;
@@ -667,16 +797,14 @@ public class ChequePanel extends javax.swing.JPanel {
         if (currentCol > 0) {
             return currentIndex - 1;
         } else if (currentRow > 0) {
-            return Math.min((currentRow * currentColumns) - 1, chequeCardsList.size() - 1);
+            return Math.min((currentRow * currentColumns) - 1, lossCardsList.size() - 1);
         }
         return currentIndex;
     }
     
     private int calculateRightIndex(int currentIndex, int currentRow, int totalCards) {
         if (currentIndex < totalCards - 1) {
-            int nextIndex = currentIndex + 1;
-            int nextRow = nextIndex / currentColumns;
-            return nextIndex;
+            return currentIndex + 1;
         }
         return currentIndex;
     }
@@ -703,18 +831,21 @@ public class ChequePanel extends javax.swing.JPanel {
         return currentIndex;
     }
     
+    /**
+     * Updates position indicator with current position
+     */
     private void updatePositionIndicator() {
-        if (currentCardIndex < 0 || currentCardIndex >= chequeCardsList.size()) {
+        if (currentCardIndex < 0 || currentCardIndex >= lossCardsList.size()) {
             return;
         }
         
         int row = (currentCardIndex / currentColumns) + 1;
         int col = (currentCardIndex % currentColumns) + 1;
-        int totalRows = (int) Math.ceil((double) chequeCardsList.size() / currentColumns);
+        int totalRows = (int) Math.ceil((double) lossCardsList.size() / currentColumns);
         
-        String text = String.format("Card %d/%d (Row %d/%d, Col %d) | S: Change Status | E: Edit", 
+        String text = String.format("Loss Record %d/%d (Row %d/%d, Col %d) | E: Edit", 
             currentCardIndex + 1, 
-            chequeCardsList.size(),
+            lossCardsList.size(),
             row,
             totalRows,
             col
@@ -723,12 +854,15 @@ public class ChequePanel extends javax.swing.JPanel {
         showPositionIndicator(text);
     }
     
+    /**
+     * Selects current card visually
+     */
     private void selectCurrentCard() {
-        if (currentCardIndex < 0 || currentCardIndex >= chequeCardsList.size()) {
+        if (currentCardIndex < 0 || currentCardIndex >= lossCardsList.size()) {
             return;
         }
         
-        lk.com.pos.privateclasses.RoundedPanel card = chequeCardsList.get(currentCardIndex);
+        lk.com.pos.privateclasses.RoundedPanel card = lossCardsList.get(currentCardIndex);
         
         card.setBorder(BorderFactory.createCompoundBorder(
             new RoundedBorder(Colors.TEAL_PRIMARY, 4, 15),
@@ -739,12 +873,15 @@ public class ChequePanel extends javax.swing.JPanel {
         currentFocusedCard = card;
     }
     
+    /**
+     * Deselects card at index
+     */
     private void deselectCard(int index) {
-        if (index < 0 || index >= chequeCardsList.size()) {
+        if (index < 0 || index >= lossCardsList.size()) {
             return;
         }
         
-        lk.com.pos.privateclasses.RoundedPanel card = chequeCardsList.get(index);
+        lk.com.pos.privateclasses.RoundedPanel card = lossCardsList.get(index);
         
         card.setBorder(BorderFactory.createCompoundBorder(
             new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
@@ -754,6 +891,9 @@ public class ChequePanel extends javax.swing.JPanel {
         card.setBackground(Colors.CARD_WHITE);
     }
     
+    /**
+     * Deselects current card
+     */
     private void deselectCurrentCard() {
         if (currentFocusedCard != null) {
             deselectCard(currentCardIndex);
@@ -762,14 +902,17 @@ public class ChequePanel extends javax.swing.JPanel {
         currentCardIndex = -1;
     }
     
+    /**
+     * Scrolls to card smoothly
+     */
     private void scrollToCardSmooth(int index) {
-        if (index < 0 || index >= chequeCardsList.size()) {
+        if (index < 0 || index >= lossCardsList.size()) {
             return;
         }
         
         SwingUtilities.invokeLater(() -> {
             try {
-                lk.com.pos.privateclasses.RoundedPanel card = chequeCardsList.get(index);
+                lk.com.pos.privateclasses.RoundedPanel card = lossCardsList.get(index);
                 
                 Point cardLocation = card.getLocation();
                 Dimension cardSize = card.getSize();
@@ -792,6 +935,9 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
     
+    /**
+     * Calculates scroll target Y position
+     */
     private int calculateScrollTarget(int cardTop, int cardBottom, int viewTop, int viewBottom, int viewHeight) {
         int targetY = viewTop;
         
@@ -810,6 +956,9 @@ public class ChequePanel extends javax.swing.JPanel {
         return targetY;
     }
     
+    /**
+     * Animates scroll to position
+     */
     private void animateScroll(int x, int startY, int endY) {
         final int steps = 10;
         final int delay = 15;
@@ -832,79 +981,75 @@ public class ChequePanel extends javax.swing.JPanel {
         
         scrollTimer.start();
     }
-
-    private void changeStatusForSelectedCard() {
-        if (currentCardIndex < 0 || currentCardIndex >= chequeCardsList.size()) {
-            showPositionIndicator("Select a card first (use arrow keys)");
-            return;
-        }
-        
-        lk.com.pos.privateclasses.RoundedPanel card = chequeCardsList.get(currentCardIndex);
-        Integer chequeId = (Integer) card.getClientProperty("chequeId");
-        
-        if (chequeId != null) {
-            changeStatus(chequeId);
-            SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
-        }
-    }
     
+    /**
+     * Edits selected card
+     */
     private void editSelectedCard() {
-        if (currentCardIndex < 0 || currentCardIndex >= chequeCardsList.size()) {
+        if (currentCardIndex < 0 || currentCardIndex >= lossCardsList.size()) {
             showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
         
-        lk.com.pos.privateclasses.RoundedPanel card = chequeCardsList.get(currentCardIndex);
-        Integer chequeId = (Integer) card.getClientProperty("chequeId");
-        Integer salesId = (Integer) card.getClientProperty("salesId");
+        lk.com.pos.privateclasses.RoundedPanel card = lossCardsList.get(currentCardIndex);
+        Integer lossId = (Integer) card.getClientProperty("lossId");
         
-        if (chequeId != null) {
-            // Only pass salesId if it exists and is valid
-            Integer salesToPass = (salesId != null && salesId > 0) ? salesId : null;
-            editCheque(chequeId, salesToPass);
+        if (lossId != null) {
+            editStockLoss(lossId);
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
     
-    private void addBoundForSelectedCard() {
-        if (currentCardIndex < 0 || currentCardIndex >= chequeCardsList.size()) {
-            showPositionIndicator("Select a card first (use arrow keys)");
-            return;
-        }
-        
-        lk.com.pos.privateclasses.RoundedPanel card = chequeCardsList.get(currentCardIndex);
-        Integer chequeId = (Integer) card.getClientProperty("chequeId");
-        Integer salesId = (Integer) card.getClientProperty("salesId");
-        String chequeType = (String) card.getClientProperty("chequeType");
-        
-        if (chequeId != null && "Bounced".equalsIgnoreCase(chequeType)) {
-            // Only pass salesId if it exists and is valid
-            Integer invoiceToPass = (salesId != null && salesId > 0) ? salesId : null;
-            addNewBoundEntry(chequeId, invoiceToPass, chequeType);
-        } else {
-            showPositionIndicator("Add Bound is only available for bounced cheques");
-        }
-    }
-    
+    /**
+     * Focuses search field
+     */
     private void focusSearch() {
         jTextField1.requestFocus();
         jTextField1.selectAll();
-        showPositionIndicator("🔍 Search mode - Type to filter cheques (Press ↓ to navigate results)");
+        showPositionIndicator("🔍 Search mode - Type to filter records");
     }
     
+    /**
+     * Focuses time period combo box
+     */
+    private void focusTimePeriod() {
+        sortByDays.requestFocus();
+        sortByDays.showPopup();
+        showPositionIndicator("📅 Select time period filter");
+    }
+    
+    /**
+     * Focuses reason filter combo box
+     */
+    private void focusReasonFilter() {
+        sortByReason.requestFocus();
+        sortByReason.showPopup();
+        showPositionIndicator("📋 Select reason filter");
+    }
+    
+    /**
+     * Handles Escape key
+     */
     private void handleEscape() {
         if (currentCardIndex >= 0) {
             deselectCurrentCard();
             showPositionIndicator("Card deselected");
         } else if (!jTextField1.getText().isEmpty() || 
-                  (buttonGroup1.getSelection() != null)) {
-            clearSearchAndFilters();
+                   !sortByDays.getSelectedItem().equals("All Time") ||
+                   !sortByReason.getSelectedItem().equals("All Reasons")) {
+            jTextField1.setText("");
+            sortByDays.setSelectedItem("All Time");
+            sortByReason.setSelectedItem("All Reasons");
+            performSearch();
             showPositionIndicator("Filters cleared");
         }
         this.requestFocusInWindow();
     }
     
-    private void refreshCheques() {
+    /**
+     * Refreshes loss records
+     */
+    private void refreshLosses() {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastRefreshTime < Business.REFRESH_COOLDOWN_MS) {
             showPositionIndicator("Please wait before refreshing again");
@@ -913,96 +1058,94 @@ public class ChequePanel extends javax.swing.JPanel {
         
         lastRefreshTime = currentTime;
         performSearch();
-        showPositionIndicator("✅ Cheques refreshed");
+        showPositionIndicator("✅ Stock losses refreshed");
         this.requestFocusInWindow();
     }
     
-    private void openChequeReport() {
-        customerReportBtn.doClick();
-        showPositionIndicator("📊 Opening Cheque Report");
+    /**
+     * Opens loss report
+     */
+    private void openLossReport() {
+        lostReportBtn.doClick();
+        showPositionIndicator("📊 Opening Stock Loss Report");
     }
     
-    private void openAddChequeDialog() {
-        addNewCoustomerBtn.doClick();
-        showPositionIndicator("➕ Opening Add New Cheque dialog");
+    /**
+     * Opens Add Loss dialog
+     */
+    private void openAddLossDialog() {
+        addNewLostBtn.doClick();
+        showPositionIndicator("➕ Opening Add New Loss dialog");
     }
     
+    /**
+     * Clears all filters
+     */
     private void clearFilters() {
-        buttonGroup1.clearSelection();
+        jTextField1.setText("");
+        sortByDays.setSelectedItem("All Time");
+        sortByReason.setSelectedItem("All Reasons");
         performSearch();
-        showPositionIndicator("All filters cleared - showing all cheques");
-        this.requestFocusInWindow();
-    }
-    
-    private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
-        if (radioBtn.isSelected()) {
-            buttonGroup1.clearSelection();
-            showPositionIndicator("All filters cleared - showing all cheques");
-        } else {
-            radioBtn.setSelected(true);
-            showPositionIndicator("Filter applied: " + radioBtn.getText());
-        }
-        performSearch();
+        showPositionIndicator("All filters cleared");
         this.requestFocusInWindow();
     }
 
-    private static class ChequeCardData {
-        int chequeId;
-        String chequeNo, customerName, invoiceNo, bankName, branch;
-        String phone, nic, address;
-        String givenDate, chequeDate;
-        String chequeType;
-        double chequeAmount;
-        int salesId;
+    /**
+     * Data class to hold stock loss information
+     */
+    private static class StockLossData {
+        int lossId;
+        String productName, batchNo, invoiceNo, recordedBy, lossDate, reason;
+        int quantityLost;
+        double unitPrice, lossAmount;
+        boolean isPaid;
     }
     
-    private void loadCheques() {
+    /**
+     * Loads stock losses with filters
+     */
+    private void loadStockLosses() {
         String searchText = getSearchText();
-        boolean bouncedOnly = jRadioButton1.isSelected();
-        boolean clearedOnly = jRadioButton2.isSelected();
-        boolean pendingOnly = jRadioButton4.isSelected();
+        String timePeriod = (String) sortByDays.getSelectedItem();
+        String reasonFilter = (String) sortByReason.getSelectedItem();
         
-        loadChequesAsync(searchText, bouncedOnly, clearedOnly, pendingOnly);
+        loadLossesAsync(searchText, timePeriod, reasonFilter);
     }
     
+    /**
+     * Gets search text from field
+     */
     private String getSearchText() {
         String text = jTextField1.getText().trim();
         return text.equals(Strings.SEARCH_PLACEHOLDER) ? "" : text;
     }
     
+    /**
+     * Performs search based on current filters
+     */
     private void performSearch() {
-        System.out.println("Performing search - Pending: " + jRadioButton4.isSelected() + 
-                          ", Bounced: " + jRadioButton1.isSelected() + 
-                          ", Cleared: " + jRadioButton2.isSelected());
-        loadCheques();
+        loadStockLosses();
     }
     
-    private void loadChequesAsync(String searchText, boolean bouncedOnly, 
-                                  boolean clearedOnly, boolean pendingOnly) {
+    /**
+     * Loads losses asynchronously
+     */
+    private void loadLossesAsync(String searchText, String timePeriod, String reasonFilter) {
         showLoading(true);
-        loadingLabel.setText("Loading cheques...");
         
-        SwingWorker<List<ChequeCardData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<StockLossData>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<ChequeCardData> doInBackground() throws Exception {
-                return fetchChequesFromDatabase(searchText, bouncedOnly, clearedOnly, pendingOnly);
+            protected List<StockLossData> doInBackground() throws Exception {
+                return fetchLossesFromDatabase(searchText, timePeriod, reasonFilter);
             }
             
             @Override
             protected void done() {
                 try {
-                    List<ChequeCardData> cheques = get();
-                    displayCheques(cheques);
-                    
-                    if (cheques.isEmpty()) {
-                        showPositionIndicator("No cheques found with current filters");
-                    } else {
-                        showPositionIndicator("Loaded " + cheques.size() + " cheques");
-                    }
-                    
+                    List<StockLossData> losses = get();
+                    displayLosses(losses);
                 } catch (Exception e) {
                     handleLoadError(e);
-                    showPositionIndicator("Error loading cheques: " + e.getMessage());
                 } finally {
                     showLoading(false);
                 }
@@ -1012,84 +1155,152 @@ public class ChequePanel extends javax.swing.JPanel {
         worker.execute();
     }
     
-    private List<ChequeCardData> fetchChequesFromDatabase(String searchText, boolean bouncedOnly, 
-                                                          boolean clearedOnly, boolean pendingOnly) throws Exception {
-        List<ChequeCardData> cheques = new ArrayList<>();
+    /**
+     * Fetches losses from database
+     */
+    private List<StockLossData> fetchLossesFromDatabase(String searchText, String timePeriod,
+                                                        String reasonFilter) throws Exception {
+        List<StockLossData> losses = new ArrayList<>();
+        ResultSet rs = null;
         
         try {
-            String query = buildChequeQuery(searchText, bouncedOnly, clearedOnly, pendingOnly);
-            System.out.println("Executing query: " + query);
-            ResultSet rs = MySQL.executeSearch(query);
+            String query = buildLossQuery(searchText, timePeriod, reasonFilter);
+            rs = MySQL.executeSearch(query);
 
             while (rs.next()) {
-                ChequeCardData data = createChequeDataFromResultSet(rs);
-                cheques.add(data);
+                StockLossData data = createLossDataFromResultSet(rs);
+                losses.add(data);
             }
             
         } catch (SQLException e) {
-            throw new Exception("Database error while fetching cheques: " + e.getMessage(), e);
+            throw new Exception("Database error while fetching stock losses: " + e.getMessage(), e);
         }
         
-        return cheques;
+        return losses;
     }
     
-    private ChequeCardData createChequeDataFromResultSet(ResultSet rs) throws SQLException {
-        ChequeCardData data = new ChequeCardData();
+    /**
+     * Creates StockLossData from ResultSet
+     */
+    private StockLossData createLossDataFromResultSet(ResultSet rs) throws SQLException {
+        StockLossData data = new StockLossData();
         
-        data.chequeId = rs.getInt("cheque_id");
-        data.chequeNo = rs.getString("cheque_no");
-        data.customerName = rs.getString("customer_name");
+        data.lossId = rs.getInt("stock_loss_id");
+        data.productName = rs.getString("product_name");
+        data.batchNo = rs.getString("batch_no");
         data.invoiceNo = rs.getString("invoice_no");
-        data.bankName = rs.getString("bank_name");
-        data.branch = rs.getString("branch");
-        data.phone = rs.getString("customer_phone_no");
-        data.nic = rs.getString("nic");
-        data.address = rs.getString("customer_address");
-        data.givenDate = rs.getString("given_date");
-        data.chequeDate = rs.getString("cheque_date");
-        data.chequeType = rs.getString("cheque_type");
-        data.chequeAmount = rs.getDouble("cheque_amount");
-        data.salesId = rs.getInt("sales_id");
+        data.recordedBy = rs.getString("user_name");
+        data.lossDate = rs.getString("stock_loss_date");
+        data.reason = rs.getString("reason");
+        data.quantityLost = rs.getInt("qty");
+        data.unitPrice = rs.getDouble("selling_price");
+        data.lossAmount = data.quantityLost * data.unitPrice;
         
         return data;
     }
     
-    private String buildChequeQuery(String searchText, boolean bouncedOnly, 
-                                   boolean clearedOnly, boolean pendingOnly) {
+    /**
+     * Builds SQL query for losses
+     */
+    private String buildLossQuery(String searchText, String timePeriod, String reasonFilter) {
         StringBuilder query = new StringBuilder();
         
-        query.append("SELECT ch.cheque_id, ch.cheque_no, ch.cheque_date, ");
-        query.append("ch.bank_name, ch.branch, ch.amount as cheque_amount, ch.sales_id, ");
-        query.append("cc.customer_name, cc.customer_phone_no, cc.nic, cc.customer_address, ");
-        query.append("s.invoice_no, ct.cheque_type, ");
-        query.append("DATE(ch.given_date) as given_date ");
-        query.append("FROM cheque ch ");
-        query.append("LEFT JOIN credit_customer cc ON ch.credit_customer_id = cc.customer_id ");
-        query.append("LEFT JOIN sales s ON ch.sales_id = s.sales_id ");
-        query.append("LEFT JOIN cheque_type ct ON ch.cheque_type_id = ct.cheque_type_id ");
+        query.append("SELECT sl.stock_loss_id, sl.qty, sl.stock_loss_date, ");
+        query.append("p.product_name, s.batch_no, s.selling_price, ");
+        query.append("u.name AS user_name, rr.reason, ");
+        
+        // Get invoice number from sales if available
+        query.append("IFNULL(sa.sales_id, 'N/A') AS invoice_no ");
+        
+        query.append("FROM stock_loss sl ");
+        query.append("INNER JOIN stock s ON sl.stock_id = s.stock_id ");
+        query.append("INNER JOIN product p ON s.product_id = p.product_id ");
+        query.append("INNER JOIN user u ON sl.user_id = u.user_id ");
+        query.append("INNER JOIN return_reason rr ON sl.return_reason_id = rr.return_reason_id ");
+        query.append("LEFT JOIN sales sa ON sl.sales_id = sa.sales_id ");
         query.append("WHERE 1=1 ");
         
+        // Add search filter
         if (isValidSearchText(searchText)) {
             String escapedSearch = escapeSQL(searchText);
-            query.append("AND (ch.cheque_no LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR cc.customer_name LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR s.invoice_no LIKE '%").append(escapedSearch).append("%') ");
+            query.append("AND (p.product_name LIKE '%").append(escapedSearch).append("%' ");
+            query.append("OR CAST(sa.sales_id AS CHAR) LIKE '%").append(escapedSearch).append("%' ");
+            query.append("OR s.batch_no LIKE '%").append(escapedSearch).append("%') ");
         }
         
-        String statusFilter = buildStatusFilter(bouncedOnly, clearedOnly, pendingOnly);
-        query.append(statusFilter);
+        // Add time period filter
+        query.append(buildTimePeriodFilter(timePeriod));
         
-        query.append("ORDER BY ch.cheque_id DESC");
+        // Add reason filter
+        if (!reasonFilter.equals("All Reasons")) {
+            query.append("AND rr.reason LIKE '%").append(escapeSQL(reasonFilter)).append("%' ");
+        }
+        
+        query.append("ORDER BY sl.stock_loss_date DESC, sl.stock_loss_id DESC");
         
         return query.toString();
     }
     
+    /**
+     * Builds time period filter clause
+     */
+    private String buildTimePeriodFilter(String timePeriod) {
+        if (timePeriod == null || timePeriod.equals("All Time")) {
+            return "";
+        }
+        
+        Calendar cal = Calendar.getInstance();
+        String dateCondition = "";
+        
+        switch (timePeriod) {
+            case "Today":
+                dateCondition = "AND DATE(sl.stock_loss_date) = CURDATE() ";
+                break;
+            case "Last 7 Days":
+                cal.add(Calendar.DAY_OF_MONTH, -7);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+            case "Last 30 Days":
+                cal.add(Calendar.DAY_OF_MONTH, -30);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+            case "Last 90 Days":
+                cal.add(Calendar.DAY_OF_MONTH, -90);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+            case "1 Year":
+                cal.add(Calendar.YEAR, -1);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+            case "2 Years":
+                cal.add(Calendar.YEAR, -2);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+            case "5 Years":
+                cal.add(Calendar.YEAR, -5);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+            case "10 Years":
+                cal.add(Calendar.YEAR, -10);
+                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
+                break;
+        }
+        
+        return dateCondition;
+    }
+    
+    /**
+     * Checks if search text is valid
+     */
     private boolean isValidSearchText(String searchText) {
         return searchText != null && 
                !searchText.isEmpty() && 
                !searchText.equals(Strings.SEARCH_PLACEHOLDER);
     }
     
+    /**
+     * Escapes SQL special characters
+     */
     private String escapeSQL(String input) {
         if (input == null) return "";
         
@@ -1099,47 +1310,45 @@ public class ChequePanel extends javax.swing.JPanel {
                    .replace("_", "\\_");
     }
     
-    private String buildStatusFilter(boolean bouncedOnly, boolean clearedOnly, boolean pendingOnly) {
-        if (bouncedOnly) {
-            return "AND ct.cheque_type = 'Bounced' ";
-        } else if (clearedOnly) {
-            return "AND ct.cheque_type = 'Cleared' ";
-        } else if (pendingOnly) {
-            return "AND ct.cheque_type = 'Pending' ";
-        }
-        return "";
-    }
-    
+    /**
+     * Handles load error
+     */
     private void handleLoadError(Exception e) {
-        System.err.println("Error loading cheques: " + e.getMessage());
+        System.err.println("Error loading stock losses: " + e.getMessage());
         e.printStackTrace();
         
         SwingUtilities.invokeLater(() -> {
             JOptionPane.showMessageDialog(this,
-                    "Failed to load cheques. Please try again.\n" + e.getMessage(),
+                    "Failed to load stock losses. Please try again.\n" + e.getMessage(),
                     "Database Error",
                     JOptionPane.ERROR_MESSAGE);
         });
     }
 
-    private void displayCheques(List<ChequeCardData> cheques) {
-        clearChequeCards();
+    /**
+     * Displays losses in grid
+     */
+    private void displayLosses(List<StockLossData> losses) {
+        clearLossCards();
         
         currentCardIndex = -1;
         currentFocusedCard = null;
 
-        if (cheques.isEmpty()) {
+        if (losses.isEmpty()) {
             showEmptyState();
             return;
         }
 
-        currentColumns = calculateColumns(jPanel2.getWidth());
+        // Calculate initial columns based on current width
+        int panelWidth = jPanel2.getWidth();
+        currentColumns = calculateColumns(panelWidth);
+        
         final JPanel gridPanel = createGridPanel();
         
-        for (ChequeCardData data : cheques) {
-            lk.com.pos.privateclasses.RoundedPanel card = createChequeCard(data);
+        for (StockLossData data : losses) {
+            lk.com.pos.privateclasses.RoundedPanel card = createLossCard(data);
             gridPanel.add(card);
-            chequeCardsList.add(card);
+            lossCardsList.add(card);
         }
 
         layoutCardsInPanel(gridPanel);
@@ -1149,15 +1358,21 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel2.repaint();
     }
     
-    private void clearChequeCards() {
-        for (lk.com.pos.privateclasses.RoundedPanel card : chequeCardsList) {
+    /**
+     * Clears all loss cards
+     */
+    private void clearLossCards() {
+        for (lk.com.pos.privateclasses.RoundedPanel card : lossCardsList) {
             removeAllListeners(card);
         }
         
-        chequeCardsList.clear();
+        lossCardsList.clear();
         jPanel2.removeAll();
     }
     
+    /**
+     * Removes all listeners from component and children
+     */
     private void removeAllListeners(Component component) {
         for (java.awt.event.MouseListener ml : component.getMouseListeners()) {
             component.removeMouseListener(ml);
@@ -1173,6 +1388,9 @@ public class ChequePanel extends javax.swing.JPanel {
         }
     }
     
+    /**
+     * Gets all components recursively
+     */
     private List<Component> getAllComponents(Component container) {
         List<Component> list = new ArrayList<>();
         if (container instanceof java.awt.Container) {
@@ -1186,23 +1404,29 @@ public class ChequePanel extends javax.swing.JPanel {
         return list;
     }
     
+    /**
+     * Shows empty state message
+     */
     private void showEmptyState() {
         jPanel2.setLayout(new BorderLayout());
         JPanel messagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         messagePanel.setBackground(Colors.BACKGROUND);
         messagePanel.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
         
-        JLabel noCheques = new JLabel(Strings.NO_CHEQUES);
-        noCheques.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
-        noCheques.setForeground(Colors.TEXT_SECONDARY);
-        noCheques.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel noRecords = new JLabel(Strings.NO_RECORDS);
+        noRecords.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
+        noRecords.setForeground(Colors.TEXT_SECONDARY);
+        noRecords.setHorizontalAlignment(SwingConstants.CENTER);
         
-        messagePanel.add(noCheques);
+        messagePanel.add(noRecords);
         jPanel2.add(messagePanel, BorderLayout.CENTER);
         jPanel2.revalidate();
         jPanel2.repaint();
     }
     
+    /**
+     * Creates grid panel for cards
+     */
     private JPanel createGridPanel() {
         JPanel gridPanel = new JPanel();
         gridPanel.setLayout(new GridLayout(0, currentColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
@@ -1210,6 +1434,9 @@ public class ChequePanel extends javax.swing.JPanel {
         return gridPanel;
     }
     
+    /**
+     * Layouts cards in panel
+     */
     private void layoutCardsInPanel(JPanel gridPanel) {
         jPanel2.setLayout(new BorderLayout());
         
@@ -1226,6 +1453,9 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel2.add(mainContainer, BorderLayout.NORTH);
     }
     
+    /**
+     * Sets up grid resize listener
+     */
     private void setupGridResizeListener(final JPanel gridPanel) {
         jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
@@ -1243,19 +1473,32 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
     
+    /**
+     * Calculates number of columns based on width - RESPONSIVE
+     */
     private int calculateColumns(int panelWidth) {
+        // Account for padding (25px on each side)
         int availableWidth = panelWidth - 50;
 
-        if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 3) {
+        System.out.println("DEBUG - Panel Width: " + panelWidth + ", Available: " + availableWidth);
+
+        // Responsive column calculation
+        if (availableWidth >= Dimensions.THREE_COLUMN_MIN_WIDTH) {
+            System.out.println("DEBUG - Using 3 columns (Desktop)");
             return 3;
-        } else if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 2) {
+        } else if (availableWidth >= Dimensions.TWO_COLUMN_MIN_WIDTH) {
+            System.out.println("DEBUG - Using 2 columns (Tablet)");
             return 2;
         } else {
+            System.out.println("DEBUG - Using 1 column (Mobile)");
             return 1;
         }
     }
 
-    class RoundedBorder extends AbstractBorder {
+    /**
+     * Custom Rounded Border Class
+     */
+    class RoundedBorder extends javax.swing.border.AbstractBorder {
         private final Color color;
         private final int thickness;
         private final int arc;
@@ -1294,29 +1537,44 @@ public class ChequePanel extends javax.swing.JPanel {
         }
     }
     
-    private lk.com.pos.privateclasses.RoundedPanel createChequeCard(ChequeCardData data) {
-        String displayGivenDate = formatDate(data.givenDate);
-        String displayChequeDate = formatDate(data.chequeDate);
+    /**
+     * Creates loss card from data
+     */
+    private lk.com.pos.privateclasses.RoundedPanel createLossCard(StockLossData data) {
+        String displayDate = formatLossDate(data.lossDate);
 
-        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.chequeId, data.chequeNo, data.salesId, data.chequeType);
-        JPanel contentPanel = createCardContent(data, displayGivenDate, displayChequeDate);
+        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.lossId, data.productName);
+        JPanel contentPanel = createCardContent(data, displayDate);
         
         card.add(contentPanel, BorderLayout.CENTER);
         return card;
     }
     
-    private String formatDate(String date) {
-        if (date == null) return "N/A";
+    /**
+     * Formats loss date for display
+     */
+    private String formatLossDate(String lossDate) {
+        if (lossDate == null) {
+            return Strings.NO_VALUE;
+        }
         
         try {
-            Date d = DATE_FORMAT.parse(date);
-            return DISPLAY_DATE_FORMAT.format(d);
+            Date date = DATE_FORMAT.parse(lossDate);
+            return DISPLAY_DATE_FORMAT.format(date);
         } catch (Exception e) {
-            return date;
+            try {
+                Date date = DATETIME_FORMAT.parse(lossDate);
+                return DISPLAY_DATE_FORMAT.format(date);
+            } catch (Exception ex) {
+                return lossDate;
+            }
         }
     }
     
-    private lk.com.pos.privateclasses.RoundedPanel createBaseCard(int chequeId, String chequeNo, int salesId, String chequeType) {
+    /**
+     * Creates base card panel
+     */
+    private lk.com.pos.privateclasses.RoundedPanel createBaseCard(int lossId, String productName) {
         lk.com.pos.privateclasses.RoundedPanel card = new lk.com.pos.privateclasses.RoundedPanel();
         card.setLayout(new BorderLayout());
         card.setPreferredSize(Dimensions.CARD_SIZE);
@@ -1330,16 +1588,17 @@ public class ChequePanel extends javax.swing.JPanel {
                                           Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
         ));
         
-        card.putClientProperty("chequeId", chequeId);
-        card.putClientProperty("chequeNo", chequeNo);
-        card.putClientProperty("salesId", salesId);
-        card.putClientProperty("chequeType", chequeType);
+        card.putClientProperty("lossId", lossId);
+        card.putClientProperty("productName", productName);
         
         addCardMouseListeners(card);
         
         return card;
     }
     
+    /**
+     * Adds mouse listeners to card
+     */
     private void addCardMouseListeners(lk.com.pos.privateclasses.RoundedPanel card) {
         card.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -1373,102 +1632,79 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
     
+    /**
+     * Handles card click
+     */
     private void handleCardClick(lk.com.pos.privateclasses.RoundedPanel card) {
         if (currentFocusedCard != null && currentFocusedCard != card) {
             deselectCurrentCard();
         }
         
-        currentCardIndex = chequeCardsList.indexOf(card);
+        currentCardIndex = lossCardsList.indexOf(card);
         selectCurrentCard();
         updatePositionIndicator();
-        ChequePanel.this.requestFocusInWindow();
+        StockLossPanel.this.requestFocusInWindow();
     }
     
-    private JPanel createCardContent(ChequeCardData data, String displayGivenDate, String displayChequeDate) {
+    /**
+     * Creates card content panel
+     */
+    private JPanel createCardContent(StockLossData data, String displayDate) {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Colors.CARD_WHITE);
         contentPanel.setOpaque(false);
 
-        contentPanel.add(createHeaderSection(data.chequeId, data.customerName, data.salesId));
-        contentPanel.add(Box.createVerticalStrut(5));
-        contentPanel.add(createStatusBadgeSection(data.chequeType));
-        contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsSectionHeader(data.chequeType));
-        contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsGrid1(data.chequeNo, data.invoiceNo, displayGivenDate, displayChequeDate));
-        contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsGrid2(data.bankName, data.branch));
-        contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsGrid3(data.phone, data.nic));
-        contentPanel.add(Box.createVerticalStrut(10));
-        
-        if (data.address != null && !data.address.trim().isEmpty()) {
-            contentPanel.add(createAddressSection(data.address));
-            contentPanel.add(Box.createVerticalStrut(10));
-        }
-        
-        contentPanel.add(createAmountSectionHeader());
+        contentPanel.add(createHeaderSection(data.lossId, data.productName));
         contentPanel.add(Box.createVerticalStrut(8));
-        contentPanel.add(createAmountPanel(data.chequeAmount));
+        contentPanel.add(createReasonBadgeSection(data.reason));
+        contentPanel.add(Box.createVerticalStrut(15));
+        contentPanel.add(createDetailsSectionHeader());
+        contentPanel.add(Box.createVerticalStrut(15));
+        contentPanel.add(createDetailsGrid(data.batchNo, data.invoiceNo, data.unitPrice, 
+                                          data.quantityLost, data.recordedBy, displayDate));
+        contentPanel.add(Box.createVerticalStrut(20));
+        contentPanel.add(createLossAmountPanel(data.lossAmount));
 
         return contentPanel;
     }
     
-    private JPanel createHeaderSection(int chequeId, String customerName, int salesId) {
+    /**
+     * Creates header section
+     */
+    private JPanel createHeaderSection(int lossId, String productName) {
         JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setOpaque(false);
         headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
 
-        JLabel nameLabel = new JLabel(customerName != null ? customerName : "Unknown Customer");
+        JLabel nameLabel = new JLabel(productName);
         nameLabel.setFont(Fonts.HEADER);
         nameLabel.setForeground(Colors.TEXT_PRIMARY);
-        nameLabel.setToolTipText(customerName);
+        nameLabel.setToolTipText(productName);
         headerPanel.add(nameLabel, BorderLayout.CENTER);
 
-        headerPanel.add(createHeaderActionButtons(chequeId, salesId), BorderLayout.EAST);
+        headerPanel.add(createActionButtons(lossId), BorderLayout.EAST);
 
         return headerPanel;
     }
     
-    private JPanel createHeaderActionButtons(int chequeId, int salesId) {
+    /**
+     * Creates action buttons panel
+     */
+    private JPanel createActionButtons(int lossId) {
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         actionPanel.setOpaque(false);
 
-        // Add existing action buttons
-        JButton statusButton = createStatusButton(chequeId);
-        JButton editButton = createEditButton(chequeId, salesId);
-        
-        actionPanel.add(statusButton);
+        JButton editButton = createEditButton(lossId);
         actionPanel.add(editButton);
 
         return actionPanel;
     }
     
-    // Button creation methods
-    private JButton createStatusButton(int chequeId) {
-        JButton statusButton = new JButton();
-        statusButton.setPreferredSize(Dimensions.ACTION_BUTTON_SIZE);
-        statusButton.setMinimumSize(Dimensions.ACTION_BUTTON_SIZE);
-        statusButton.setMaximumSize(Dimensions.ACTION_BUTTON_SIZE);
-        statusButton.setBackground(Colors.BTN_STATUS_BG);
-        statusButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        statusButton.setText("S");
-        statusButton.setFont(new java.awt.Font("Nunito ExtraBold", 1, 12));
-        statusButton.setForeground(Color.decode("#7C3AED"));
-        statusButton.setBorder(BorderFactory.createLineBorder(Colors.BTN_STATUS_BORDER, 1));
-        statusButton.setFocusable(false);
-        statusButton.setToolTipText("Change Status (S)");
-        
-        statusButton.addActionListener(e -> {
-            changeStatus(chequeId);
-            ChequePanel.this.requestFocusInWindow();
-        });
-
-        return statusButton;
-    }
-    
-    private JButton createEditButton(int chequeId, int salesId) {
+    /**
+     * Creates edit button
+     */
+    private JButton createEditButton(int lossId) {
         JButton editButton = new JButton();
         editButton.setPreferredSize(Dimensions.ACTION_BUTTON_SIZE);
         editButton.setMinimumSize(Dimensions.ACTION_BUTTON_SIZE);
@@ -1487,286 +1723,104 @@ public class ChequePanel extends javax.swing.JPanel {
         
         editButton.setBorder(BorderFactory.createLineBorder(Colors.BTN_EDIT_BORDER, 1));
         editButton.setFocusable(false);
-        editButton.setToolTipText("Edit Cheque (E)");
+        editButton.setToolTipText("Edit Loss Record (E)");
         editButton.addActionListener(e -> {
-            // Only pass salesId if it exists and is valid
-            Integer salesToPass = (salesId > 0) ? salesId : null;
-            editCheque(chequeId, salesToPass);
-            ChequePanel.this.requestFocusInWindow();
+            editStockLoss(lossId);
+            StockLossPanel.this.requestFocusInWindow();
         });
 
         return editButton;
     }
     
-    private JPanel createDetailsSectionHeader(String chequeType) {
-    JPanel detailsHeaderPanel = new JPanel(new BorderLayout());
-    detailsHeaderPanel.setOpaque(false);
-    detailsHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25)); // Increased height for better alignment
+    /**
+     * Creates reason badge section (removed paid/unpaid badges)
+     */
+    private JPanel createReasonBadgeSection(String reason) {
+        JPanel reasonBadgePanel = new JPanel(new BorderLayout(10, 0));
+        reasonBadgePanel.setOpaque(false);
+        reasonBadgePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 
-    JLabel detailsHeader = new JLabel(Strings.SECTION_DETAILS);
-    detailsHeader.setFont(Fonts.SECTION_TITLE);
-    detailsHeader.setForeground(Colors.TEXT_MUTED);
-    detailsHeaderPanel.add(detailsHeader, BorderLayout.WEST);
+        JLabel reasonBadge = createReasonBadge(reason);
+        reasonBadgePanel.add(reasonBadge, BorderLayout.WEST);
 
-    // Create a container for the right-aligned elements
-    JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
-    rightPanel.setOpaque(false);
-    rightPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
+        // Removed paid/unpaid badges
 
-    // Add cheque status badge
-    JLabel statusBadge = createInlineStatusBadge(chequeType);
-    statusBadge.setAlignmentY(Component.CENTER_ALIGNMENT);
-
-    // Add + button for bounced cheques only
-    if ("Bounced".equalsIgnoreCase(chequeType)) {
-        JButton addBoundButton = createAddBoundButton(chequeType);
-        addBoundButton.setAlignmentY(Component.CENTER_ALIGNMENT);
-        rightPanel.add(addBoundButton);
-    }
-
-    rightPanel.add(statusBadge);
-    detailsHeaderPanel.add(rightPanel, BorderLayout.EAST);
-
-    return detailsHeaderPanel;
-}
-    
-    private JLabel createInlineStatusBadge(String chequeType) {
-    JLabel badge = new JLabel(chequeType != null ? chequeType.toUpperCase() : "UNKNOWN");
-    badge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 9)); // Slightly smaller font
-    badge.setOpaque(true);
-    badge.setHorizontalAlignment(SwingConstants.CENTER);
-    badge.setVerticalAlignment(SwingConstants.CENTER);
-    
-    // Set fixed size for consistent alignment
-    badge.setPreferredSize(new Dimension(70, 20));
-    badge.setMinimumSize(new Dimension(70, 20));
-    badge.setMaximumSize(new Dimension(70, 20));
-    
-    if ("Bounced".equalsIgnoreCase(chequeType)) {
-        badge.setForeground(Colors.BADGE_BOUNCED_FG);
-        badge.setBackground(Colors.BADGE_BOUNCED_BG);
-        badge.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Colors.BADGE_BOUNCED_BORDER, 1),
-                BorderFactory.createEmptyBorder(2, 6, 2, 6) // Reduced padding
-        ));
-    } else if ("Cleared".equalsIgnoreCase(chequeType)) {
-        badge.setForeground(Colors.BADGE_CLEARED_FG);
-        badge.setBackground(Colors.BADGE_CLEARED_BG);
-        badge.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Colors.BADGE_CLEARED_BORDER, 1),
-                BorderFactory.createEmptyBorder(2, 6, 2, 6)
-        ));
-    } else if ("Pending".equalsIgnoreCase(chequeType)) {
-        badge.setForeground(Colors.BADGE_PENDING_FG);
-        badge.setBackground(Colors.BADGE_PENDING_BG);
-        badge.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Colors.BADGE_PENDING_BORDER, 1),
-                BorderFactory.createEmptyBorder(2, 6, 2, 6)
-        ));
-    } else {
-        badge.setForeground(Colors.TEXT_PRIMARY);
-        badge.setBackground(Colors.BACKGROUND);
-        badge.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Colors.BORDER_DEFAULT, 1),
-                BorderFactory.createEmptyBorder(2, 6, 2, 6)
-        ));
+        return reasonBadgePanel;
     }
     
-    return badge;
-}
-    
-    private JButton createAddBoundButton(String chequeType) {
-    JButton addBoundButton = new JButton();
-    addBoundButton.setPreferredSize(new Dimension(28, 22)); // Slightly smaller for better alignment
-    addBoundButton.setMinimumSize(new Dimension(28, 22));
-    addBoundButton.setMaximumSize(new Dimension(28, 22));
-    addBoundButton.setBackground(Colors.BTN_ADD_BOUND_BG);
-    addBoundButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-    
-    try {
-        // Use + icon
-        FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 12, 12); // Smaller icon
-        addBoundButton.setIcon(addIcon);
-    } catch (Exception e) {
-        // Fallback to text if icon not found
-        addBoundButton.setText("+");
-        addBoundButton.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10)); // Smaller font
-    }
-    
-    addBoundButton.setForeground(Colors.BTN_ADD_BOUND_FG);
-    addBoundButton.setBorder(BorderFactory.createCompoundBorder(
-        BorderFactory.createLineBorder(Colors.BTN_ADD_BOUND_BORDER, 1),
-        BorderFactory.createEmptyBorder(2, 2, 2, 2) // Reduced padding
-    ));
-    addBoundButton.setFocusable(false);
-    addBoundButton.setToolTipText("Add New Bound Entry");
-    
-    // Store cheque type for later use
-    addBoundButton.putClientProperty("chequeType", chequeType);
-    
-    addBoundButton.addActionListener(e -> {
-        // Get the parent card to find cheque ID
-        Component parent = addBoundButton;
-        while (parent != null && !(parent instanceof lk.com.pos.privateclasses.RoundedPanel)) {
-            parent = parent.getParent();
-        }
-        
-        if (parent instanceof lk.com.pos.privateclasses.RoundedPanel) {
-            lk.com.pos.privateclasses.RoundedPanel card = (lk.com.pos.privateclasses.RoundedPanel) parent;
-            Integer chequeId = (Integer) card.getClientProperty("chequeId");
-            Integer invoiceId = (Integer) card.getClientProperty("salesId");
-            
-            if (chequeId != null) {
-                // Only pass invoiceId if it exists and is valid
-                Integer invoiceToPass = (invoiceId != null && invoiceId > 0) ? invoiceId : null;
-                addNewBoundEntry(chequeId, invoiceToPass, chequeType);
-            }
-        }
-        
-        ChequePanel.this.requestFocusInWindow();
-    });
-
-    return addBoundButton;
-}
-    
-    private void addNewBoundEntry(int chequeId, Integer invoiceId, String chequeType) {
-        showPositionIndicator("➕ Opening Add New Bound dialog");
-        
-        // Build message showing what's being passed
-        StringBuilder message = new StringBuilder();
-        message.append("Add New Bound Entry\n");
-        message.append("Cheque ID: ").append(chequeId).append("\n");
-        message.append("Cheque Type: ").append(chequeType).append("\n");
-        
-        if (invoiceId != null) {
-            message.append("Invoice ID: ").append(invoiceId);
-        } else {
-            message.append("Invoice ID: Not available (no invoice linked)");
-        }
-        
-        JOptionPane.showMessageDialog(
-            this,
-            message.toString(),
-            "Add New Bound",
-            JOptionPane.INFORMATION_MESSAGE
-        );
-        
-        // Here you would typically open your actual "Add New Bound" dialog
-        // and pass chequeId and invoiceId (which might be null)
-        openAddBoundDialog(chequeId, invoiceId, chequeType);
-    }
-    
-    private void openAddBoundDialog(int chequeId, Integer invoiceId, String chequeType) {
-        // This is where you would implement your actual "Add New Bound" dialog
-        // You have access to:
-        // - chequeId (always available)
-        // - invoiceId (might be null if no invoice exists)
-        // - chequeType (for context)
-        
-        System.out.println("Opening Add Bound Dialog:");
-        System.out.println("Cheque ID: " + chequeId);
-        System.out.println("Invoice ID: " + (invoiceId != null ? invoiceId : "No invoice"));
-        System.out.println("Cheque Type: " + chequeType);
-        
-        // Your dialog implementation would go here
-        // For example:
-        // new AddBoundDialog(chequeId, invoiceId, chequeType).setVisible(true);
-    }
-    
-    private JPanel createStatusBadgeSection(String chequeType) {
-        // This method now creates an empty panel since we moved the status to details header
-        JPanel statusBadgePanel = new JPanel(new BorderLayout(10, 0));
-        statusBadgePanel.setOpaque(false);
-        statusBadgePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 5)); // Reduced height
-        statusBadgePanel.setPreferredSize(new Dimension(0, 5));
-        
-        return statusBadgePanel;
-    }
-    
-    private JPanel createBadgePanel(String chequeType) {
-        JPanel badgePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        badgePanel.setOpaque(false);
-
-        JLabel badge = createStatusBadge(chequeType);
-        badgePanel.add(badge);
-
-        return badgePanel;
-    }
-    
-    private JLabel createStatusBadge(String chequeType) {
-        JLabel badge = new JLabel(chequeType != null ? chequeType : "Unknown");
+    /**
+     * Creates reason badge
+     */
+    private JLabel createReasonBadge(String reason) {
+        JLabel badge = new JLabel(reason != null ? reason : "Unknown");
         badge.setFont(Fonts.BADGE);
+        
+        Color bgColor, fgColor, borderColor;
+        
+        if (reason != null && reason.toLowerCase().contains("expire")) {
+            bgColor = Colors.BADGE_EXPIRED_BG;
+            fgColor = Colors.BADGE_EXPIRED_FG;
+            borderColor = Colors.BADGE_EXPIRED_BORDER;
+        } else if (reason != null && reason.toLowerCase().contains("damage")) {
+            bgColor = Colors.BADGE_DAMAGED_BG;
+            fgColor = Colors.BADGE_DAMAGED_FG;
+            borderColor = Colors.BADGE_DAMAGED_BORDER;
+        } else {
+            bgColor = Colors.BADGE_BOUNCED_BG;
+            fgColor = Colors.BADGE_BOUNCED_FG;
+            borderColor = Colors.BADGE_BOUNCED_BORDER;
+        }
+        
+        badge.setForeground(fgColor);
+        badge.setBackground(bgColor);
         badge.setOpaque(true);
         badge.setHorizontalAlignment(SwingConstants.CENTER);
-        
-        if ("Bounced".equalsIgnoreCase(chequeType)) {
-            badge.setForeground(Colors.BADGE_BOUNCED_FG);
-            badge.setBackground(Colors.BADGE_BOUNCED_BG);
-            badge.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colors.BADGE_BOUNCED_BORDER, 2),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-            ));
-        } else if ("Cleared".equalsIgnoreCase(chequeType)) {
-            badge.setForeground(Colors.BADGE_CLEARED_FG);
-            badge.setBackground(Colors.BADGE_CLEARED_BG);
-            badge.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colors.BADGE_CLEARED_BORDER, 2),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-            ));
-        } else if ("Pending".equalsIgnoreCase(chequeType)) {
-            badge.setForeground(Colors.BADGE_PENDING_FG);
-            badge.setBackground(Colors.BADGE_PENDING_BG);
-            badge.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colors.BADGE_PENDING_BORDER, 2),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-            ));
-        } else {
-            badge.setForeground(Colors.TEXT_PRIMARY);
-            badge.setBackground(Colors.BACKGROUND);
-            badge.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Colors.BORDER_DEFAULT, 2),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-            ));
-        }
+        badge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(borderColor, 1),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)
+        ));
         
         return badge;
     }
     
-    private JPanel createDetailsGrid1(String chequeNo, String invoiceNo, String givenDate, String chequeDate) {
-        JPanel detailsGrid = new JPanel(new GridLayout(2, 2, 20, 12));
-        detailsGrid.setOpaque(false);
-        detailsGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+    /**
+     * Creates details section header
+     */
+    private JPanel createDetailsSectionHeader() {
+        JPanel detailsHeaderPanel = new JPanel(new BorderLayout());
+        detailsHeaderPanel.setOpaque(false);
+        detailsHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
-        detailsGrid.add(createDetailPanel("Cheque No", chequeNo, Colors.DETAIL_STATUS));
-        detailsGrid.add(createDetailPanel("Invoice No", invoiceNo != null ? invoiceNo : "N/A", Colors.DETAIL_NIC));
-        detailsGrid.add(createDetailPanel("Given Date", givenDate, Colors.DETAIL_DATE));
-        detailsGrid.add(createDetailPanel("Cheque Date", chequeDate, Colors.DETAIL_BANK));
+        JLabel detailsHeader = new JLabel(Strings.SECTION_DETAILS);
+        detailsHeader.setFont(Fonts.SECTION_TITLE);
+        detailsHeader.setForeground(Colors.TEXT_MUTED);
+        detailsHeaderPanel.add(detailsHeader, BorderLayout.WEST);
+
+        return detailsHeaderPanel;
+    }
+    
+    /**
+     * Creates details grid
+     */
+    private JPanel createDetailsGrid(String batchNo, String invoiceNo, double unitPrice,
+                                     int quantityLost, String recordedBy, String displayDate) {
+        JPanel detailsGrid = new JPanel(new GridLayout(3, 2, 20, 15));
+        detailsGrid.setOpaque(false);
+        detailsGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
+
+        detailsGrid.add(createDetailPanel("Batch No", batchNo, Colors.DETAIL_BATCH));
+        detailsGrid.add(createDetailPanel("Invoice No", invoiceNo, Colors.DETAIL_INVOICE));
+        detailsGrid.add(createDetailPanel("Unit Price", formatPrice(unitPrice), Colors.DETAIL_PRICE));
+        detailsGrid.add(createDetailPanel("Quantity Lost", String.valueOf(quantityLost), Colors.DETAIL_QTY));
+        detailsGrid.add(createDetailPanel("Recorded By", recordedBy, Colors.DETAIL_USER));
+        detailsGrid.add(createDetailPanel("Loss Date", displayDate, Colors.DETAIL_DATE));
 
         return detailsGrid;
     }
     
-    private JPanel createDetailsGrid2(String bankName, String branch) {
-        JPanel detailsGrid = new JPanel(new GridLayout(1, 2, 20, 12));
-        detailsGrid.setOpaque(false);
-        detailsGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-
-        detailsGrid.add(createDetailPanel("Bank Name", bankName != null ? bankName : "N/A", Colors.DETAIL_BANK));
-        detailsGrid.add(createDetailPanel("Branch", branch != null ? branch : "N/A", Colors.DETAIL_DATE));
-
-        return detailsGrid;
-    }
-    
-    private JPanel createDetailsGrid3(String phone, String nic) {
-        JPanel detailsGrid = new JPanel(new GridLayout(1, 2, 20, 12));
-        detailsGrid.setOpaque(false);
-        detailsGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-
-        detailsGrid.add(createDetailPanel("Phone", formatPhoneNumber(phone), Colors.DETAIL_PHONE));
-        detailsGrid.add(createDetailPanel("NIC", nic != null ? nic : "N/A", Colors.DETAIL_NIC));
-
-        return detailsGrid;
-    }
-    
+    /**
+     * Creates detail panel
+     */
     private JPanel createDetailPanel(String title, String value, Color accentColor) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -1777,9 +1831,9 @@ public class ChequePanel extends javax.swing.JPanel {
         titleLabel.setForeground(accentColor);
         titleLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
 
-        String displayValue = value;
-        if (value != null && value.length() > 25) {
-            displayValue = "<html><div style='width:140px;'>" + value + "</div></html>";
+        String displayValue = value != null ? value : Strings.NO_VALUE;
+        if (displayValue.length() > 20) {
+            displayValue = "<html><div style='width:140px;'>" + displayValue + "</div></html>";
         }
 
         JLabel valueLabel = new JLabel(displayValue);
@@ -1789,201 +1843,104 @@ public class ChequePanel extends javax.swing.JPanel {
         valueLabel.setAlignmentX(JComponent.LEFT_ALIGNMENT);
 
         panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(3));
+        panel.add(Box.createVerticalStrut(5));
         panel.add(valueLabel);
 
         return panel;
     }
     
-    private JPanel createAddressSection(String address) {
-        JPanel addressPanel = new JPanel(new BorderLayout());
-        addressPanel.setOpaque(false);
-        addressPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
-        
-        JLabel addressTitle = new JLabel("Address");
-        addressTitle.setFont(new java.awt.Font("Nunito SemiBold", 1, 13));
-        addressTitle.setForeground(Colors.DETAIL_STATUS);
-        
-        JLabel addressLabel = new JLabel("<html><div style='width:360px;'>" + address + "</div></html>");
-        addressLabel.setFont(Fonts.DETAIL_VALUE);
-        addressLabel.setForeground(Colors.TEXT_PRIMARY);
-        addressLabel.setToolTipText(address);
-        
-        addressPanel.add(addressTitle, BorderLayout.NORTH);
-        addressPanel.add(Box.createVerticalStrut(3), BorderLayout.CENTER);
-        addressPanel.add(addressLabel, BorderLayout.CENTER);
-        
-        return addressPanel;
-    }
-    
-    private JPanel createAmountSectionHeader() {
-        JPanel amountHeaderPanel = new JPanel(new BorderLayout());
-        amountHeaderPanel.setOpaque(false);
-        amountHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-
-        JLabel amountHeader = new JLabel(Strings.SECTION_AMOUNT);
-        amountHeader.setFont(Fonts.SECTION_TITLE);
-        amountHeader.setForeground(Colors.TEXT_MUTED);
-        amountHeaderPanel.add(amountHeader, BorderLayout.WEST);
-
-        return amountHeaderPanel;
-    }
-    
-    private JPanel createAmountPanel(double amount) {
+    /**
+     * Creates loss amount panel with red color
+     */
+    private JPanel createLossAmountPanel(double lossAmount) {
         lk.com.pos.privateclasses.RoundedPanel panel = new lk.com.pos.privateclasses.RoundedPanel();
-        panel.setBackgroundColor(Colors.AMOUNT_BG);
+        
+        // Always use red color scheme for loss amount
+        Color bgColor = Colors.LOSS_BG;
+        Color fgColor = Colors.LOSS_HIGH;
+        Color borderColor = Colors.LOSS_BORDER;
+        
+        panel.setBackgroundColor(bgColor);
+        panel.setBorderColor(borderColor);
         panel.setBorderThickness(2);
-        panel.setBorderColor(Colors.AMOUNT_BORDER);
         panel.setLayout(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(15, 12, 15, 12));
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 75));
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 10, 15, 10));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.anchor = GridBagConstraints.CENTER;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
 
-        JLabel titleLabel = new JLabel("CHEQUE AMOUNT");
-        titleLabel.setFont(Fonts.AMOUNT_TITLE);
-        titleLabel.setForeground(Colors.AMOUNT_FG);
+        JLabel titleLabel = new JLabel("Loss Amount");
+        titleLabel.setFont(Fonts.SECTION_TITLE);
+        titleLabel.setForeground(fgColor);
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         panel.add(titleLabel, gbc);
 
         gbc.gridy = 1;
         gbc.insets = new Insets(8, 0, 0, 0);
 
-        JLabel amountLabel = new JLabel(formatPrice(amount));
-        amountLabel.setFont(Fonts.AMOUNT_VALUE);
-        amountLabel.setForeground(Colors.AMOUNT_FG);
+        JLabel amountLabel = new JLabel("Rs. " + PRICE_FORMAT.format(lossAmount));
+        amountLabel.setFont(Fonts.LOSS_AMOUNT);
+        amountLabel.setForeground(fgColor);
         amountLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        amountLabel.setToolTipText("Cheque Amount: " + formatPrice(amount));
+        amountLabel.setToolTipText("Total Loss: Rs." + String.format("%.2f", lossAmount));
         panel.add(amountLabel, gbc);
-        
+
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setOpaque(false);
-        wrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 75));
+        wrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
         wrapper.add(panel, BorderLayout.CENTER);
 
         return wrapper;
     }
 
-    private String formatPhoneNumber(String phone) {
-        if (phone == null || phone.trim().isEmpty()) {
-            return "N/A";
-        }
-        
-        String cleaned = phone.replaceAll("[^0-9]", "");
-        if (cleaned.length() == 10) {
-            return cleaned.replaceFirst("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
-        }
-        return phone;
-    }
-    
+    /**
+     * Formats price
+     */
     private String formatPrice(double price) {
-        return String.format("Rs.%.2f", price);
+        return "Rs." + PRICE_FORMAT.format(price);
     }
 
-    private void changeStatus(int chequeId) {
-        try {
-            String query = "SELECT ct.cheque_type, ct.cheque_type_id FROM cheque ch " +
-                          "INNER JOIN cheque_type ct ON ch.cheque_type_id = ct.cheque_type_id " +
-                          "WHERE ch.cheque_id = " + chequeId;
-            ResultSet rs = MySQL.executeSearch(query);
-            
-            String currentStatus = "Unknown";
-            int currentTypeId = 0;
-            
-            if (rs.next()) {
-                currentStatus = rs.getString("cheque_type");
-                currentTypeId = rs.getInt("cheque_type_id");
-            }
-            
-            String[] options = {"Pending", "Cleared", "Bounced"};
-            JComboBox<String> statusCombo = new JComboBox<>(options);
-            statusCombo.setSelectedItem(currentStatus);
-            
-            JPanel panel = new JPanel(new BorderLayout(10, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            panel.add(new JLabel("Current Status: " + currentStatus), BorderLayout.NORTH);
-            panel.add(new JLabel("Select New Status:"), BorderLayout.CENTER);
-            panel.add(statusCombo, BorderLayout.SOUTH);
-            
-            int result = JOptionPane.showConfirmDialog(
-                this,
-                panel,
-                "Change Cheque Status",
-                JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.PLAIN_MESSAGE
-            );
-            
-            if (result == JOptionPane.OK_OPTION) {
-                String newStatus = (String) statusCombo.getSelectedItem();
-                
-                if (!newStatus.equals(currentStatus)) {
-                    String typeQuery = "SELECT cheque_type_id FROM cheque_type WHERE cheque_type = '" + newStatus + "'";
-                    ResultSet typeRs = MySQL.executeSearch(typeQuery);
-                    
-                    if (typeRs.next()) {
-                        int newTypeId = typeRs.getInt("cheque_type_id");
-                        
-                        String updateQuery = "UPDATE cheque SET cheque_type_id = " + newTypeId + 
-                                           " WHERE cheque_id = " + chequeId;
-                        MySQL.executeIUD(updateQuery);
-                        
-                        JOptionPane.showMessageDialog(
-                            this,
-                            "Cheque status updated successfully!",
-                            "Success",
-                            JOptionPane.INFORMATION_MESSAGE
-                        );
-                        
-                        performSearch();
-                    }
-                }
-            }
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(
-                this,
-                "Failed to change status: " + e.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE
-            );
+    /**
+     * Opens edit stock loss dialog
+     */
+    private void editStockLoss(int lossId) {
+        if (lossId <= 0) {
+            System.err.println("Invalid loss ID: " + lossId);
+            return;
         }
+        
+        // TODO: Implement edit dialog
+        JOptionPane.showMessageDialog(this, 
+                "Edit Stock Loss functionality\nLoss ID: " + lossId + 
+                "\n\nThis would open an edit dialog for the stock loss record.",
+                "Edit Stock Loss",
+                JOptionPane.INFORMATION_MESSAGE);
+        
+        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
     
-    private void editCheque(int chequeId, Integer salesId) {
-        StringBuilder message = new StringBuilder();
-        message.append("Edit Cheque Dialog\n");
-        message.append("Cheque ID: ").append(chequeId).append("\n");
-        
-        if (salesId != null) {
-            message.append("Sales ID: ").append(salesId);
-        } else {
-            message.append("Sales ID: Not available (no sales linked)");
-        }
-        
-        JOptionPane.showMessageDialog(
-            this,
-            message.toString(),
-            "Edit Cheque",
-            JOptionPane.INFORMATION_MESSAGE
-        );
+    /**
+     * Generates stock loss report
+     */
+    private void generateLossReport() {
+        System.out.println("Stock Loss Report generation triggered.");
+        JOptionPane.showMessageDialog(this, 
+                "Stock Loss Report generation\n" +
+                "This would generate a report with current filters applied.",
+                "Loss Report",
+                JOptionPane.INFORMATION_MESSAGE);
+        this.requestFocusInWindow();
     }
-
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        buttonGroup1 = new javax.swing.ButtonGroup();
         jPanel1 = new javax.swing.JPanel();
         jTextField1 = new javax.swing.JTextField();
-        jRadioButton1 = new javax.swing.JRadioButton();
-        addNewCoustomerBtn = new javax.swing.JButton();
+        addNewLostBtn = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         jPanel2 = new javax.swing.JPanel();
         roundedPanel1 = new lk.com.pos.privateclasses.RoundedPanel();
@@ -2008,13 +1965,6 @@ public class ChequePanel extends javax.swing.JPanel {
         roundedPanel2 = new lk.com.pos.privateclasses.RoundedPanel();
         jLabel36 = new javax.swing.JLabel();
         jLabel35 = new javax.swing.JLabel();
-        jPanel3 = new javax.swing.JPanel();
-        jLabel31 = new javax.swing.JLabel();
-        jLabel32 = new javax.swing.JLabel();
-        jButton2 = new javax.swing.JButton();
-        jPanel4 = new javax.swing.JPanel();
-        jLabel33 = new javax.swing.JLabel();
-        jLabel34 = new javax.swing.JLabel();
         jPanel5 = new javax.swing.JPanel();
         jPanel12 = new javax.swing.JPanel();
         jLabel41 = new javax.swing.JLabel();
@@ -2022,11 +1972,9 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel13 = new javax.swing.JPanel();
         jLabel22 = new javax.swing.JLabel();
         jLabel43 = new javax.swing.JLabel();
-        statusbtn = new javax.swing.JButton();
-        addNewBound = new javax.swing.JButton();
-        jRadioButton2 = new javax.swing.JRadioButton();
-        jRadioButton4 = new javax.swing.JRadioButton();
-        customerReportBtn = new javax.swing.JButton();
+        lostReportBtn = new javax.swing.JButton();
+        sortByDays = new javax.swing.JComboBox<>();
+        sortByReason = new javax.swing.JComboBox<>();
 
         jPanel1.setBackground(new java.awt.Color(248, 250, 252));
 
@@ -2037,25 +1985,18 @@ public class ChequePanel extends javax.swing.JPanel {
             }
         });
 
-        buttonGroup1.add(jRadioButton1);
-        jRadioButton1.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jRadioButton1.setForeground(new java.awt.Color(255, 51, 51));
-        jRadioButton1.setText("Bounced");
-
-        addNewCoustomerBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewCoustomerBtn.setText("Add New Customer");
-        addNewCoustomerBtn.addActionListener(new java.awt.event.ActionListener() {
+        addNewLostBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        addNewLostBtn.setText("Add New Lost");
+        addNewLostBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewCoustomerBtnActionPerformed(evt);
+                addNewLostBtnActionPerformed(evt);
             }
         });
-
-        jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         jPanel2.setBackground(new java.awt.Color(248, 250, 252));
 
         jLabel1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20)); // NOI18N
-        jLabel1.setText("Customer Name ");
+        jLabel1.setText("Product Name");
 
         editBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
 
@@ -2074,7 +2015,7 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel15.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel15.setText("Cheque No");
+        jLabel15.setText("Batch No");
 
         jLabel20.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jLabel20.setForeground(new java.awt.Color(102, 102, 102));
@@ -2136,11 +2077,11 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel10.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel27.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel27.setText("Given Date");
+        jLabel27.setText("Unit Price");
 
         jLabel28.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jLabel28.setForeground(new java.awt.Color(102, 102, 102));
-        jLabel28.setText("2025-12-20");
+        jLabel28.setText("Rs.200");
 
         javax.swing.GroupLayout jPanel10Layout = new javax.swing.GroupLayout(jPanel10);
         jPanel10.setLayout(jPanel10Layout);
@@ -2167,11 +2108,11 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel11.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel29.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel29.setText("Cheque Date");
+        jLabel29.setText("Quantity Lost");
 
         jLabel30.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jLabel30.setForeground(new java.awt.Color(102, 102, 102));
-        jLabel30.setText("2025-12-20");
+        jLabel30.setText("10");
 
         javax.swing.GroupLayout jPanel11Layout = new javax.swing.GroupLayout(jPanel11);
         jPanel11.setLayout(jPanel11Layout);
@@ -2201,7 +2142,7 @@ public class ChequePanel extends javax.swing.JPanel {
 
         jLabel36.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
         jLabel36.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        jLabel36.setText("Cheque Amount");
+        jLabel36.setText("Lost Amount");
 
         jLabel35.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
         jLabel35.setForeground(new java.awt.Color(102, 102, 102));
@@ -2215,7 +2156,7 @@ public class ChequePanel extends javax.swing.JPanel {
             .addGroup(roundedPanel2Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(roundedPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel36, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel36, javax.swing.GroupLayout.DEFAULT_SIZE, 335, Short.MAX_VALUE)
                     .addComponent(jLabel35, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -2229,82 +2170,17 @@ public class ChequePanel extends javax.swing.JPanel {
                 .addContainerGap(20, Short.MAX_VALUE))
         );
 
-        jPanel3.setBackground(new java.awt.Color(255, 255, 255));
-
-        jLabel31.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel31.setText("Address");
-
-        jLabel32.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel32.setForeground(new java.awt.Color(102, 102, 102));
-        jLabel32.setText("N0.25 Muruthalawa Kandy");
-
-        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
-        jPanel3.setLayout(jPanel3Layout);
-        jPanel3Layout.setHorizontalGroup(
-            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(jLabel32, javax.swing.GroupLayout.PREFERRED_SIZE, 284, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addComponent(jLabel31, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGap(281, 281, 281))))
-        );
-        jPanel3Layout.setVerticalGroup(
-            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabel31)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel32, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
-        );
-
-        jButton2.setText("V");
-
-        jPanel4.setBackground(new java.awt.Color(255, 255, 255));
-
-        jLabel33.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel33.setText("Bank Name");
-
-        jLabel34.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel34.setForeground(new java.awt.Color(102, 102, 102));
-        jLabel34.setText("Branch Name");
-
-        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
-        jPanel4.setLayout(jPanel4Layout);
-        jPanel4Layout.setHorizontalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel33, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel34, javax.swing.GroupLayout.DEFAULT_SIZE, 322, Short.MAX_VALUE))
-                .addContainerGap())
-        );
-        jPanel4Layout.setVerticalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabel33)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jLabel34, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
-        );
-
         jPanel5.setBackground(new java.awt.Color(255, 255, 255));
         jPanel5.setLayout(new java.awt.GridLayout(1, 2));
 
         jPanel12.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel41.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel41.setText("Phone");
+        jLabel41.setText("Recored By");
 
         jLabel42.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jLabel42.setForeground(new java.awt.Color(102, 102, 102));
-        jLabel42.setText("0715698745");
+        jLabel42.setText("Hirun");
 
         javax.swing.GroupLayout jPanel12Layout = new javax.swing.GroupLayout(jPanel12);
         jPanel12.setLayout(jPanel12Layout);
@@ -2333,11 +2209,11 @@ public class ChequePanel extends javax.swing.JPanel {
         jPanel13.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel22.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jLabel22.setText("NIC");
+        jLabel22.setText("Date");
 
         jLabel43.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
         jLabel43.setForeground(new java.awt.Color(102, 102, 102));
-        jLabel43.setText("200645789658");
+        jLabel43.setText("2025-10-20");
 
         javax.swing.GroupLayout jPanel13Layout = new javax.swing.GroupLayout(jPanel13);
         jPanel13.setLayout(jPanel13Layout);
@@ -2361,10 +2237,6 @@ public class ChequePanel extends javax.swing.JPanel {
 
         jPanel5.add(jPanel13);
 
-        statusbtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-
-        addNewBound.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(255, 255, 255)));
-
         javax.swing.GroupLayout roundedPanel1Layout = new javax.swing.GroupLayout(roundedPanel1);
         roundedPanel1.setLayout(roundedPanel1Layout);
         roundedPanel1Layout.setHorizontalGroup(
@@ -2374,27 +2246,13 @@ public class ChequePanel extends javax.swing.JPanel {
                 .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(roundedPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jButton8, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 137, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jSeparator2)
-                            .addGroup(roundedPanel1Layout.createSequentialGroup()
-                                .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, roundedPanel1Layout.createSequentialGroup()
-                                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 217, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 15, Short.MAX_VALUE)
-                                        .addComponent(addNewBound, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(statusbtn, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addComponent(jPanel3, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 305, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(roundedPanel1Layout.createSequentialGroup()
-                                        .addComponent(jButton2)
-                                        .addGap(0, 12, Short.MAX_VALUE))
-                                    .addComponent(editBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                            .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                            .addComponent(jSeparator1))
-                        .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jSeparator2)
+                    .addGroup(roundedPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 217, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 96, Short.MAX_VALUE)
+                        .addComponent(editBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                    .addComponent(jSeparator1)
                     .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
                 .addContainerGap(18, Short.MAX_VALUE))
         );
@@ -2404,9 +2262,7 @@ public class ChequePanel extends javax.swing.JPanel {
                 .addGap(25, 25, 25)
                 .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(editBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel1)
-                    .addComponent(statusbtn, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(addNewBound, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jLabel1))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButton8)
                 .addGap(8, 8, 8)
@@ -2414,13 +2270,7 @@ public class ChequePanel extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(1, 1, 1)
                 .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, 52, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton2))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -2447,21 +2297,29 @@ public class ChequePanel extends javax.swing.JPanel {
 
         jScrollPane1.setViewportView(jPanel2);
 
-        buttonGroup1.add(jRadioButton2);
-        jRadioButton2.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jRadioButton2.setForeground(new java.awt.Color(99, 102, 241));
-        jRadioButton2.setText("Cleared");
-
-        buttonGroup1.add(jRadioButton4);
-        jRadioButton4.setFont(new java.awt.Font("Nunito SemiBold", 0, 16)); // NOI18N
-        jRadioButton4.setForeground(new java.awt.Color(255, 153, 0));
-        jRadioButton4.setText("Pending");
-
-        customerReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        customerReportBtn.setText("Cheque Report");
-        customerReportBtn.addActionListener(new java.awt.event.ActionListener() {
+        lostReportBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        lostReportBtn.setText("Expense Lost");
+        lostReportBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                customerReportBtnActionPerformed(evt);
+                lostReportBtnActionPerformed(evt);
+            }
+        });
+
+        sortByDays.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        sortByDays.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        sortByDays.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
+        sortByDays.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                sortByDaysActionPerformed(evt);
+            }
+        });
+
+        sortByReason.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        sortByReason.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        sortByReason.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
+        sortByReason.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                sortByReasonActionPerformed(evt);
             }
         });
 
@@ -2472,19 +2330,17 @@ public class ChequePanel extends javax.swing.JPanel {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 852, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 83, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jRadioButton4)
+                        .addComponent(sortByDays, 0, 151, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jRadioButton1)
+                        .addComponent(sortByReason, 0, 157, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jRadioButton2)
-                        .addGap(79, 79, 79)
-                        .addComponent(customerReportBtn)
+                        .addComponent(lostReportBtn)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(addNewCoustomerBtn)))
+                        .addComponent(addNewLostBtn)))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(
@@ -2493,16 +2349,15 @@ public class ChequePanel extends javax.swing.JPanel {
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(addNewCoustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(customerReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(addNewLostBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(lostReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(jRadioButton2)
-                        .addComponent(jRadioButton4)
-                        .addComponent(jRadioButton1)))
+                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 615, Short.MAX_VALUE)
-                .addGap(19, 19, 19))
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 437, Short.MAX_VALUE)
+                .addGap(14, 14, 14))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
@@ -2515,9 +2370,7 @@ public class ChequePanel extends javax.swing.JPanel {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGap(0, 0, 0))
+            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -2525,26 +2378,30 @@ public class ChequePanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_jTextField1ActionPerformed
 
-    private void addNewCoustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCoustomerBtnActionPerformed
-        
-    }//GEN-LAST:event_addNewCoustomerBtnActionPerformed
+    private void addNewLostBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewLostBtnActionPerformed
+
+    }//GEN-LAST:event_addNewLostBtnActionPerformed
+
+    private void lostReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lostReportBtnActionPerformed
+
+    }//GEN-LAST:event_lostReportBtnActionPerformed
+
+    private void sortByDaysActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sortByDaysActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_sortByDaysActionPerformed
 
     private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_jButton8ActionPerformed
 
-    private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed
-      
-    }//GEN-LAST:event_customerReportBtnActionPerformed
+    private void sortByReasonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sortByReasonActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_sortByReasonActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton addNewBound;
-    private javax.swing.JButton addNewCoustomerBtn;
-    private javax.swing.ButtonGroup buttonGroup1;
-    private javax.swing.JButton customerReportBtn;
+    private javax.swing.JButton addNewLostBtn;
     private javax.swing.JButton editBtn;
-    private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton8;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel15;
@@ -2556,10 +2413,6 @@ public class ChequePanel extends javax.swing.JPanel {
     private javax.swing.JLabel jLabel28;
     private javax.swing.JLabel jLabel29;
     private javax.swing.JLabel jLabel30;
-    private javax.swing.JLabel jLabel31;
-    private javax.swing.JLabel jLabel32;
-    private javax.swing.JLabel jLabel33;
-    private javax.swing.JLabel jLabel34;
     private javax.swing.JLabel jLabel35;
     private javax.swing.JLabel jLabel36;
     private javax.swing.JLabel jLabel41;
@@ -2571,21 +2424,18 @@ public class ChequePanel extends javax.swing.JPanel {
     private javax.swing.JPanel jPanel12;
     private javax.swing.JPanel jPanel13;
     private javax.swing.JPanel jPanel2;
-    private javax.swing.JPanel jPanel3;
-    private javax.swing.JPanel jPanel4;
     private javax.swing.JPanel jPanel5;
     private javax.swing.JPanel jPanel7;
     private javax.swing.JPanel jPanel8;
     private javax.swing.JPanel jPanel9;
-    private javax.swing.JRadioButton jRadioButton1;
-    private javax.swing.JRadioButton jRadioButton2;
-    private javax.swing.JRadioButton jRadioButton4;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JTextField jTextField1;
+    private javax.swing.JButton lostReportBtn;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel1;
     private lk.com.pos.privateclasses.RoundedPanel roundedPanel2;
-    private javax.swing.JButton statusbtn;
+    private javax.swing.JComboBox<String> sortByDays;
+    private javax.swing.JComboBox<String> sortByReason;
     // End of variables declaration//GEN-END:variables
 }

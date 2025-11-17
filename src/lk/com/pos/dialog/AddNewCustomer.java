@@ -1124,9 +1124,9 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }//GEN-LAST:event_saveBtnKeyPressed
 
     private void creditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditBtnActionPerformed
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        AddCredit dialog = new AddCredit(parentFrame, true);
-        dialog.setLocationRelativeTo(parentFrame);
+      
+        AddCredit dialog = new AddCredit(null, true);
+        dialog.setLocationRelativeTo(null);
         dialog.setVisible(true);
     }//GEN-LAST:event_creditBtnActionPerformed
 

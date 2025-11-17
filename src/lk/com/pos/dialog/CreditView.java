@@ -539,9 +539,9 @@ public class CreditView extends javax.swing.JDialog {
 
     private void openAddCreditDialog() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddCredit dialog = new AddCredit(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+
+            AddCredit dialog = new AddCredit(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             
             // Refresh data after dialog closes
@@ -553,9 +553,9 @@ public class CreditView extends javax.swing.JDialog {
 
     private void openUpdateCreditDialog(int creditId) {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            UpdateCredit dialog = new UpdateCredit(parentFrame, true, creditId);
-            dialog.setLocationRelativeTo(parentFrame);
+         
+            UpdateCredit dialog = new UpdateCredit(null, true, creditId);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             
             // Refresh data after dialog closes
@@ -567,9 +567,9 @@ public class CreditView extends javax.swing.JDialog {
 
     private void openUpdateCreditPayDialog(int creditPayId) {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            UpdateCreditPay dialog = new UpdateCreditPay(parentFrame, true, creditPayId);
-            dialog.setLocationRelativeTo(parentFrame);
+  
+            UpdateCreditPay dialog = new UpdateCreditPay(null, true, creditPayId);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             
             // Refresh data after dialog closes

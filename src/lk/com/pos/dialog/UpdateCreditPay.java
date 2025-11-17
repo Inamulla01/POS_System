@@ -1031,9 +1031,9 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
     private void openAddNewCredit() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddCredit dialog = new AddCredit(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+           
+            AddCredit dialog = new AddCredit(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadCreditCombo();
             creditCombo.requestFocus();

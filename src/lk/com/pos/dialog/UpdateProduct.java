@@ -1043,9 +1043,9 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void openAddNewCategory() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewCategoryDialog dialog = new AddNewCategoryDialog(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+
+            AddNewCategoryDialog dialog = new AddNewCategoryDialog(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadCategoryCombo();
 
@@ -1061,9 +1061,9 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void openAddNewBrand() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewBrandDialog dialog = new AddNewBrandDialog(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+           
+            AddNewBrandDialog dialog = new AddNewBrandDialog(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadBrandCombo();
 

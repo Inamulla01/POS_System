@@ -1058,9 +1058,9 @@ public class UpdateCredit extends javax.swing.JDialog {
 
     private void openCreditPayDialog() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddCreditPay dialog = new AddCreditPay(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+         
+            AddCreditPay dialog = new AddCreditPay(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1070,9 +1070,9 @@ public class UpdateCredit extends javax.swing.JDialog {
 
     private void openAddNewCustomer() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewCustomer dialog = new AddNewCustomer(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+            
+            AddNewCustomer dialog = new AddNewCustomer(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
 
         } catch (Exception e) {

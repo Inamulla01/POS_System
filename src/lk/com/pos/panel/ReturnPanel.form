@@ -41,9 +41,9 @@
                   <Group type="103" groupAlignment="0" attributes="0">
                       <Component id="jScrollPane1" pref="796" max="32767" attributes="0"/>
                       <Group type="102" attributes="0">
-                          <Component id="jTextField1" pref="218" max="32767" attributes="0"/>
+                          <Component id="jTextField1" pref="247" max="32767" attributes="0"/>
                           <EmptySpace min="-2" max="-2" attributes="0"/>
-                          <Component id="sortByDays" pref="214" max="32767" attributes="0"/>
+                          <Component id="sortByDays" max="32767" attributes="0"/>
                           <EmptySpace min="-2" max="-2" attributes="0"/>
                           <Component id="sortByReason" pref="0" max="32767" attributes="0"/>
                           <EmptySpace min="-2" max="-2" attributes="0"/>

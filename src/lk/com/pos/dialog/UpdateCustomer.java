@@ -801,9 +801,9 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
     private void openCreditPayment() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddCredit dialog = new AddCredit(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+      
+            AddCredit dialog = new AddCredit(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,

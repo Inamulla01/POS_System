@@ -986,9 +986,9 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void openAddNewProduct() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewProduct dialog = new AddNewProduct(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+ 
+            AddNewProduct dialog = new AddNewProduct(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadProductCombo();
             productNameCombo.requestFocus();
@@ -1000,9 +1000,9 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void openAddNewSupplier() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddSupplier dialog = new AddSupplier(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+     
+            AddSupplier dialog = new AddSupplier(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
             loadSupplierCombo();
             SupplierCombo.requestFocus();

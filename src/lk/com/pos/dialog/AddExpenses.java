@@ -878,9 +878,9 @@ public class AddExpenses extends javax.swing.JDialog {
 
     private void openAddNewExpensesType() {
         try {
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            AddNewExpenseType dialog = new AddNewExpenseType(parentFrame, true);
-            dialog.setLocationRelativeTo(parentFrame);
+
+            AddNewExpenseType dialog = new AddNewExpenseType(null, true);
+            dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
 
         } catch (Exception e) {

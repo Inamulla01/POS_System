@@ -41,22 +41,22 @@ import raven.toast.Notifications;
  *
  * @author moham
  */
-public class UpdateExpenses extends javax.swing.JDialog {
+public class UpdateIncome extends javax.swing.JDialog {
 
-    private Map<String, Integer> expensesTypeIdMap = new HashMap<>();
+    private Map<String, Integer> incomeTypeIdMap = new HashMap<>();
     private ButtonGroup statusGroup;
-    private int expensesId;
+    private int incomeId;
     private boolean isSaving = false;
 
     // Focus traversal order
     private java.util.List<Component> focusOrder = new ArrayList<>();
 
     /**
-     * Creates new form UpdateExpenses with expenses ID for editing
+     * Creates new form UpdateIncome with income ID for editing
      */
-    public UpdateExpenses(java.awt.Frame parent, boolean modal, int expensesId) {
+    public UpdateIncome(java.awt.Frame parent, boolean modal, int incomeId) {
         super(parent, modal);
-        this.expensesId = expensesId;
+        this.incomeId = incomeId;
         initComponents();
         initializeDialog();
     }
@@ -79,8 +79,8 @@ public class UpdateExpenses extends javax.swing.JDialog {
         setupButtonStyles();
         setupTooltips();
 
-        loadExpensesTypeCombo();
-        AutoCompleteDecorator.decorate(comboExpensesType);
+        loadIncomeTypeCombo();
+        AutoCompleteDecorator.decorate(comboIncomeType);
 
         // Set default date and time to current
         paymentDate.setDate(new Date());
@@ -98,11 +98,11 @@ public class UpdateExpenses extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        // Load existing expenses data
-        loadExpensesData();
+        // Load existing income data
+        loadIncomeData();
 
         setupFocusTraversal();
-        comboExpensesType.requestFocusInWindow();
+        comboIncomeType.requestFocusInWindow();
     }
 
     private void initializeFocusOrder() {
@@ -110,7 +110,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
         Component timeTextField = timePicker1.getComponent(0);
 
         // Focus traversal order
-        focusOrder.add(comboExpensesType);
+        focusOrder.add(comboIncomeType);
         focusOrder.add(paymentDate.getDateEditor().getUiComponent());
         focusOrder.add(timeTextField); // Use the internal text field
         focusOrder.add(txtAmount);
@@ -125,7 +125,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
     private void setupGlobalShortcuts() {
         // F1 - Save
         getRootPane().registerKeyboardAction(
-                evt -> saveExpense(),
+                evt -> saveIncome(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
@@ -139,29 +139,29 @@ public class UpdateExpenses extends javax.swing.JDialog {
     }
 
     private void setupKeyboardNavigation() {
-        comboExpensesType.addKeyListener(new java.awt.event.KeyAdapter() {
+        comboIncomeType.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    if (comboExpensesType.isPopupVisible()) {
-                        comboExpensesType.setPopupVisible(false);
+                    if (comboIncomeType.isPopupVisible()) {
+                        comboIncomeType.setPopupVisible(false);
                     }
-                    if (comboExpensesType.getSelectedIndex() > 0) {
+                    if (comboIncomeType.getSelectedIndex() > 0) {
                         paymentDate.requestFocusInWindow();
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    if (!comboExpensesType.isPopupVisible()) {
-                        comboExpensesType.showPopup();
+                    if (!comboIncomeType.isPopupVisible()) {
+                        comboIncomeType.showPopup();
                         evt.consume();
                     }
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    if (!comboExpensesType.isPopupVisible()) {
+                    if (!comboIncomeType.isPopupVisible()) {
                         btnSave.requestFocusInWindow();
                         evt.consume();
                     }
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -181,10 +181,10 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     timePicker1.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    comboExpensesType.requestFocusInWindow();
+                    comboIncomeType.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -223,7 +223,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     paymentDate.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -259,7 +259,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                         paymentDate.requestFocusInWindow();
                         evt.consume();
                     } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                        saveExpense();
+                        saveIncome();
                         evt.consume();
                     } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                         clearForm();
@@ -283,7 +283,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     jRadioButton1.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -318,7 +318,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                         evt.consume();
                         break;
                     case KeyEvent.VK_F1:
-                        saveExpense();
+                        saveIncome();
                         evt.consume();
                         break;
                     case KeyEvent.VK_F2:
@@ -354,7 +354,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                         evt.consume();
                         break;
                     case KeyEvent.VK_F1:
-                        saveExpense();
+                        saveIncome();
                         evt.consume();
                         break;
                     case KeyEvent.VK_F2:
@@ -378,7 +378,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     btnSave.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -391,7 +391,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     jTextArea1.requestFocusInWindow();
@@ -406,7 +406,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     btnClear.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -434,7 +434,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     btnCancel.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -462,7 +462,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     btnSave.requestFocusInWindow();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F1) {
-                    saveExpense();
+                    saveIncome();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_F2) {
                     clearForm();
@@ -603,8 +603,8 @@ public class UpdateExpenses extends javax.swing.JDialog {
     }
 
     private void setupTooltips() {
-        comboExpensesType.setToolTipText("Select expenses type (F1: Save, F2: Clear)");
-        txtAmount.setToolTipText("Enter expenses amount (F1: Save, F2: Clear)");
+        comboIncomeType.setToolTipText("Select income type (F1: Save, F2: Clear)");
+        txtAmount.setToolTipText("Enter income amount (F1: Save, F2: Clear)");
         jRadioButton1.setToolTipText("Select Paid status (Space/Enter: Select, Arrow keys: Switch)");
         jRadioButton2.setToolTipText("Select Unpaid status (Space/Enter: Select, Arrow keys: Switch)");
     }
@@ -632,37 +632,37 @@ public class UpdateExpenses extends javax.swing.JDialog {
         });
     }
 
-    private void loadExpensesTypeCombo() {
+    private void loadIncomeTypeCombo() {
         Connection conn = null;
         PreparedStatement pst = null;
         ResultSet rs = null;
 
         try {
-            expensesTypeIdMap.clear();
+            incomeTypeIdMap.clear();
 
-            String sql = "SELECT expenses_type_id, expenses_type FROM expenses_type ORDER BY expenses_type";
+            String sql = "SELECT income_type_id, income_type FROM income_type ORDER BY income_type";
             conn = MySQL.getConnection();
             pst = conn.prepareStatement(sql);
             rs = pst.executeQuery();
 
-            Vector<String> expensesTypes = new Vector<>();
-            expensesTypes.add("Select Expenses Type");
+            Vector<String> incomeTypes = new Vector<>();
+            incomeTypes.add("Select Income Type");
 
             while (rs.next()) {
-                int expensesTypeId = rs.getInt("expenses_type_id");
-                String expensesType = rs.getString("expenses_type");
+                int incomeTypeId = rs.getInt("income_type_id");
+                String incomeType = rs.getString("income_type");
 
-                expensesTypes.add(expensesType);
-                expensesTypeIdMap.put(expensesType, expensesTypeId);
+                incomeTypes.add(incomeType);
+                incomeTypeIdMap.put(incomeType, incomeTypeId);
             }
 
-            comboExpensesType.setModel(new javax.swing.DefaultComboBoxModel<>(expensesTypes));
+            comboIncomeType.setModel(new javax.swing.DefaultComboBoxModel<>(incomeTypes));
 
         } catch (Exception e) {
-            System.err.println("Error loading expenses types: " + e.getMessage());
+            System.err.println("Error loading income types: " + e.getMessage());
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading expenses types: " + e.getMessage());
+                    "Error loading income types: " + e.getMessage());
         } finally {
             // Close resources
             try {
@@ -678,9 +678,9 @@ public class UpdateExpenses extends javax.swing.JDialog {
         }
     }
 
-    private void loadExpensesData() {
-        if (expensesId <= 0) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid expenses ID");
+    private void loadIncomeData() {
+        if (incomeId <= 0) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid income ID");
             dispose();
             return;
         }
@@ -690,14 +690,14 @@ public class UpdateExpenses extends javax.swing.JDialog {
         ResultSet rs = null;
 
         try {
-            String sql = "SELECT e.date, e.amount, e.expenses_type_id, e.e_status_id, e.time, e.description, et.expenses_type "
-                    + "FROM expenses e "
-                    + "JOIN expenses_type et ON e.expenses_type_id = et.expenses_type_id "
-                    + "WHERE e.expenses_id = ?";
+            String sql = "SELECT i.amount, i.date, i.time, i.description, i.income_type_id, i.status_id, it.income_type "
+                    + "FROM income i "
+                    + "JOIN income_type it ON i.income_type_id = it.income_type_id "
+                    + "WHERE i.income_id = ?";
 
             conn = MySQL.getConnection();
             pst = conn.prepareStatement(sql);
-            pst.setInt(1, expensesId);
+            pst.setInt(1, incomeId);
             rs = pst.executeQuery();
 
             if (rs.next()) {
@@ -706,9 +706,9 @@ public class UpdateExpenses extends javax.swing.JDialog {
                 java.sql.Date date = rs.getDate("date");
                 java.sql.Time time = rs.getTime("time");
                 String description = rs.getString("description");
-                int expensesTypeId = rs.getInt("expenses_type_id");
-                int statusId = rs.getInt("e_status_id");
-                String expensesType = rs.getString("expenses_type");
+                int incomeTypeId = rs.getInt("income_type_id");
+                int statusId = rs.getInt("status_id");
+                String incomeType = rs.getString("income_type");
 
                 // Set form fields
                 txtAmount.setText(String.valueOf(amount));
@@ -724,10 +724,10 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     jTextArea1.setText(description);
                 }
 
-                // Set expenses type
-                for (int i = 0; i < comboExpensesType.getItemCount(); i++) {
-                    if (comboExpensesType.getItemAt(i).equals(expensesType)) {
-                        comboExpensesType.setSelectedIndex(i);
+                // Set income type
+                for (int i = 0; i < comboIncomeType.getItemCount(); i++) {
+                    if (comboIncomeType.getItemAt(i).equals(incomeType)) {
+                        comboIncomeType.setSelectedIndex(i);
                         break;
                     }
                 }
@@ -740,15 +740,15 @@ public class UpdateExpenses extends javax.swing.JDialog {
                 }
 
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Expenses record not found");
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Income record not found");
                 dispose();
             }
 
         } catch (Exception e) {
-            System.err.println("Error loading expenses data: " + e.getMessage());
+            System.err.println("Error loading income data: " + e.getMessage());
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading expenses data: " + e.getMessage());
+                    "Error loading income data: " + e.getMessage());
             dispose();
         } finally {
             // Close resources
@@ -766,9 +766,9 @@ public class UpdateExpenses extends javax.swing.JDialog {
     }
 
     private boolean validateInputs() {
-        if (comboExpensesType.getSelectedIndex() == 0) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select an expenses type");
-            comboExpensesType.requestFocus();
+        if (comboIncomeType.getSelectedIndex() == 0) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select an income type");
+            comboIncomeType.requestFocus();
             return false;
         }
 
@@ -806,7 +806,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
         return true;
     }
 
-    private void saveExpense() {
+    private void saveIncome() {
         if (isSaving) {
             return;
         }
@@ -821,8 +821,8 @@ public class UpdateExpenses extends javax.swing.JDialog {
         try {
             isSaving = true;
 
-            String selectedExpensesType = (String) comboExpensesType.getSelectedItem();
-            int expensesTypeId = expensesTypeIdMap.get(selectedExpensesType);
+            String selectedIncomeType = (String) comboIncomeType.getSelectedItem();
+            int incomeTypeId = incomeTypeIdMap.get(selectedIncomeType);
             double amount = Double.parseDouble(txtAmount.getText().trim());
             java.sql.Date date = new java.sql.Date(paymentDate.getDate().getTime());
             java.sql.Time time = java.sql.Time.valueOf(timePicker1.getTime());
@@ -831,29 +831,30 @@ public class UpdateExpenses extends javax.swing.JDialog {
 
             conn = MySQL.getConnection();
 
-            String query = "UPDATE expenses SET date = ?, amount = ?, expenses_type_id = ?, e_status_id = ?, time = ?, description = ? WHERE expenses_id = ?";
+            // Since your MySQL class doesn't support transactions directly, we'll use auto-commit
+            String query = "UPDATE income SET amount = ?, date = ?, time = ?, description = ?, income_type_id = ?, status_id = ? WHERE income_id = ?";
 
             pst = conn.prepareStatement(query);
-            pst.setDate(1, date);
-            pst.setDouble(2, amount);
-            pst.setInt(3, expensesTypeId);
-            pst.setInt(4, statusId);
-            pst.setTime(5, time);
-            pst.setString(6, description.isEmpty() ? null : description);
-            pst.setInt(7, expensesId);
+            pst.setDouble(1, amount);
+            pst.setDate(2, date);
+            pst.setTime(3, time);
+            pst.setString(4, description.isEmpty() ? null : description);
+            pst.setInt(5, incomeTypeId);
+            pst.setInt(6, statusId);
+            pst.setInt(7, incomeId);
 
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
-                createExpenseNotification(selectedExpensesType, amount);
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Expenses updated successfully!");
+                createIncomeNotification(selectedIncomeType, amount);
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Income updated successfully!");
                 dispose();
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update expenses!");
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update income!");
             }
 
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating expenses: " + e.getMessage());
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating income: " + e.getMessage());
             e.printStackTrace();
         } finally {
             try {
@@ -867,14 +868,14 @@ public class UpdateExpenses extends javax.swing.JDialog {
         }
     }
 
-    private void createExpenseNotification(String expensesType, double amount) {
+    private void createIncomeNotification(String incomeType, double amount) {
         Connection conn = null;
         PreparedStatement pstMassage = null;
         PreparedStatement pstNotification = null;
         ResultSet rs = null;
 
         try {
-            String messageText = String.format("Expenses updated | Type: %s | Amount: Rs %.2f", expensesType, amount);
+            String messageText = String.format("Income updated | Type: %s | Amount: Rs %.2f", incomeType, amount);
 
             conn = MySQL.getConnection();
 
@@ -911,7 +912,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 29); // Expenses message type (using same as income for now)
+            pstNotification.setInt(2, 29); // Income message type
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
@@ -936,15 +937,10 @@ public class UpdateExpenses extends javax.swing.JDialog {
 
     private void clearForm() {
         // Reload original data
-        loadExpensesData();
-        comboExpensesType.requestFocus();
+        loadIncomeData();
+        comboIncomeType.requestFocus();
     }
 
-    /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
-     */
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -952,7 +948,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
         jPanel2 = new javax.swing.JPanel();
         jLabel3 = new javax.swing.JLabel();
         jSeparator3 = new javax.swing.JSeparator();
-        comboExpensesType = new javax.swing.JComboBox<>();
+        comboIncomeType = new javax.swing.JComboBox<>();
         paymentDate = new com.toedter.calendar.JDateChooser();
         timePicker1 = new com.github.lgooddatepicker.components.TimePicker();
         txtAmount = new javax.swing.JTextField();
@@ -965,27 +961,27 @@ public class UpdateExpenses extends javax.swing.JDialog {
         btnSave = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("Edit Expenses");
+        setTitle("Edit Income");
 
         jPanel2.setBackground(new java.awt.Color(255, 255, 255));
 
-        jLabel3.setText("Edit Expenses");
         jLabel3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel3.setForeground(new java.awt.Color(8, 147, 176));
+        jLabel3.setText("Edit Income");
 
         jSeparator3.setForeground(new java.awt.Color(0, 137, 176));
 
-        comboExpensesType.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        comboExpensesType.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        comboExpensesType.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Expenses Type *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
-        comboExpensesType.addActionListener(new java.awt.event.ActionListener() {
+        comboIncomeType.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        comboIncomeType.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        comboIncomeType.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Income Type *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        comboIncomeType.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                comboExpensesTypeActionPerformed(evt);
+                comboIncomeTypeActionPerformed(evt);
             }
         });
-        comboExpensesType.addKeyListener(new java.awt.event.KeyAdapter() {
+        comboIncomeType.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                comboExpensesTypeKeyPressed(evt);
+                comboIncomeTypeKeyPressed(evt);
             }
         });
 
@@ -1082,11 +1078,11 @@ public class UpdateExpenses extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jSeparator3, javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(comboExpensesType, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(comboIncomeType, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
                         .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(timePicker1, javax.swing.GroupLayout.DEFAULT_SIZE, 207, Short.MAX_VALUE))
+                        .addComponent(timePicker1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
                         .addComponent(txtAmount)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -1116,7 +1112,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(comboExpensesType, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(comboIncomeType, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(timePicker1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -1132,7 +1128,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
                     .addComponent(btnSave, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnClear, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(29, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1149,33 +1145,33 @@ public class UpdateExpenses extends javax.swing.JDialog {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void comboExpensesTypeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboExpensesTypeActionPerformed
-        if (comboExpensesType.getSelectedIndex() > 0 && !comboExpensesType.isPopupVisible()) {
+    private void comboIncomeTypeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_comboIncomeTypeActionPerformed
+        if (comboIncomeType.getSelectedIndex() > 0 && !comboIncomeType.isPopupVisible()) {
             paymentDate.requestFocusInWindow();
         }
-    }//GEN-LAST:event_comboExpensesTypeActionPerformed
+    }//GEN-LAST:event_comboIncomeTypeActionPerformed
 
-    private void comboExpensesTypeKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_comboExpensesTypeKeyPressed
+    private void comboIncomeTypeKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_comboIncomeTypeKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (comboExpensesType.isPopupVisible()) {
-                comboExpensesType.setPopupVisible(false);
+            if (comboIncomeType.isPopupVisible()) {
+                comboIncomeType.setPopupVisible(false);
             }
-            if (comboExpensesType.getSelectedIndex() > 0) {
+            if (comboIncomeType.getSelectedIndex() > 0) {
                 paymentDate.requestFocusInWindow();
             }
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            if (!comboExpensesType.isPopupVisible()) {
-                comboExpensesType.showPopup();
+            if (!comboIncomeType.isPopupVisible()) {
+                comboIncomeType.showPopup();
                 evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            if (!comboExpensesType.isPopupVisible()) {
+            if (!comboIncomeType.isPopupVisible()) {
                 btnSave.requestFocusInWindow();
                 evt.consume();
             }
         }
-    }//GEN-LAST:event_comboExpensesTypeKeyPressed
+    }//GEN-LAST:event_comboIncomeTypeKeyPressed
 
     private void paymentDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_paymentDateKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -1185,7 +1181,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
             timePicker1.requestFocusInWindow();
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            comboExpensesType.requestFocusInWindow();
+            comboIncomeType.requestFocusInWindow();
             evt.consume();
         }
     }//GEN-LAST:event_paymentDateKeyPressed
@@ -1221,12 +1217,12 @@ public class UpdateExpenses extends javax.swing.JDialog {
     }//GEN-LAST:event_btnClearKeyPressed
 
     private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
-        saveExpense();
+        saveIncome();
     }//GEN-LAST:event_btnSaveActionPerformed
 
     private void btnSaveKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnSaveKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            saveExpense();
+            saveIncome();
             evt.consume();
         }
     }//GEN-LAST:event_btnSaveKeyPressed
@@ -1248,20 +1244,20 @@ public class UpdateExpenses extends javax.swing.JDialog {
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(UpdateExpenses.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateIncome.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(UpdateExpenses.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateIncome.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(UpdateExpenses.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateIncome.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(UpdateExpenses.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UpdateIncome.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
 
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                UpdateExpenses dialog = new UpdateExpenses(new javax.swing.JFrame(), true, 3);
+                UpdateIncome dialog = new UpdateIncome(new javax.swing.JFrame(), true, 2);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {
@@ -1277,7 +1273,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
     private javax.swing.JButton btnCancel;
     private javax.swing.JButton btnClear;
     private javax.swing.JButton btnSave;
-    private javax.swing.JComboBox<String> comboExpensesType;
+    private javax.swing.JComboBox<String> comboIncomeType;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JRadioButton jRadioButton1;

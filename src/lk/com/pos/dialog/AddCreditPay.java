@@ -35,9 +35,16 @@ public class AddCreditPay extends javax.swing.JDialog {
 
     private Integer customerId;
     private double remainingAmount = 0.0;
+    private double originalRemainingAmount = 0.0;
     private boolean isSaving = false;
     private Map<String, Integer> customerIdMap = new HashMap<>();
+    private Map<String, Double> customerDiscountMap = new HashMap<>();
+    private Map<String, String> customerDiscountTypeMap = new HashMap<>();
+    private Map<String, Double> customerRemainingAmountMap = new HashMap<>();
     private double paidAmount = 0.0;
+    private double discountAmount = 0.0;
+    private double discountPercentage = 0.0;
+    private boolean hasDiscount = false;
 
     public AddCreditPay(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -70,13 +77,6 @@ public class AddCreditPay extends javax.swing.JDialog {
 
         loadCustomerCombo();
         AutoCompleteDecorator.decorate(customerCombo);
-
-        if (customerId == null) {
-            remainingAmountLabel.setVisible(false);
-        } else {
-            loadCustomerData();
-            remainingAmountLabel.setVisible(true);
-        }
 
         paymentDate.setDate(new Date());
 
@@ -543,22 +543,31 @@ public class AddCreditPay extends javax.swing.JDialog {
     private void loadCustomerCombo() {
         try {
             customerIdMap.clear();
+            customerDiscountMap.clear();
+            customerDiscountTypeMap.clear();
+            customerRemainingAmountMap.clear();
 
-            // Fixed SQL query using subqueries for accurate calculation
-            String sql = "SELECT cc.customer_id, cc.customer_name, " +
-                         "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) as total_credit, " +
-                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id) as total_paid, " +
-                         "((SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) - " +
-                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id)) as remaining_amount " +
-                         "FROM credit_customer cc " +
-                         "WHERE cc.status_id = 1 " +
-                         "HAVING remaining_amount > 0 " +
-                         "ORDER BY cc.customer_name";
+            // Fixed SQL query with proper joins and calculations
+            String sql = "SELECT cc.customer_id, cc.customer_name, "
+                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, "
+                    + "d.discount, dt.discount_type "
+                    + "FROM credit_customer cc "
+                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
+                    + "LEFT JOIN credit_discount cd ON cc.customer_id = cd.credit_id "
+                    + "LEFT JOIN discount d ON cd.discount_id = d.discount_id "
+                    + "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
+                    + "WHERE cc.status_id = 1 "
+                    + "GROUP BY cc.customer_id, cc.customer_name, d.discount, dt.discount_type "
+                    + "HAVING remaining_amount > 0 "
+                    + "ORDER BY cc.customer_name";
 
             ResultSet rs = MySQL.executeSearch(sql);
             Vector<String> customers = new Vector<>();
             customers.add("Select Customer");
-            
+
             int count = 0;
             while (rs.next()) {
                 int customerId = rs.getInt("customer_id");
@@ -566,22 +575,45 @@ public class AddCreditPay extends javax.swing.JDialog {
                 double totalCredit = rs.getDouble("total_credit");
                 double totalPaid = rs.getDouble("total_paid");
                 double remaining = rs.getDouble("remaining_amount");
+                double discount = rs.getDouble("discount");
+                String discountType = rs.getString("discount_type");
 
-                String displayText = String.format("%s - Total Due: %.2f", customerName, remaining);
+                String displayText;
+                if (discountType != null && !rs.wasNull()) {
+                    if ("percentage".equals(discountType)) {
+                        double discountedAmount = remaining - (remaining * discount / 100);
+                        displayText = String.format("%s - Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
+                                customerName, remaining, discount, discountedAmount);
+                    } else {
+                        double discountedAmount = remaining - discount;
+                        if (discountedAmount < 0) {
+                            discountedAmount = 0;
+                        }
+                        displayText = String.format("%s - Due: %.2f (Disc: Rs.%.2f -> Pay: %.2f)",
+                                customerName, remaining, discount, discountedAmount);
+                    }
+                    // Store discount info for later use
+                    customerDiscountMap.put(displayText, discount);
+                    customerDiscountTypeMap.put(displayText, discountType);
+                } else {
+                    displayText = String.format("%s - Due: %.2f", customerName, remaining);
+                }
+
                 customers.add(displayText);
-
                 customerIdMap.put(displayText, customerId);
+                customerRemainingAmountMap.put(displayText, remaining);
                 count++;
-                
+
                 // Debug output
-                System.out.println("Loaded customer: " + customerName + " | Credit: " + totalCredit + 
-                                 " | Paid: " + totalPaid + " | Remaining: " + remaining);
+                System.out.println("Loaded customer: " + customerName + " | Credit: " + totalCredit
+                        + " | Paid: " + totalPaid + " | Remaining: " + remaining
+                        + " | Discount: " + discount + " | Type: " + discountType);
             }
-            
+
             if (count == 0) {
                 System.out.println("No customers with due amount found");
             }
-            
+
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             customerCombo.setModel(dcm);
         } catch (Exception e) {
@@ -591,16 +623,68 @@ public class AddCreditPay extends javax.swing.JDialog {
         }
     }
 
+    private void loadCustomerDiscount(int customerId) {
+        try {
+            String sql = "SELECT d.discount, dt.discount_type "
+                    + "FROM credit_discount cd "
+                    + "JOIN discount d ON cd.discount_id = d.discount_id "
+                    + "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
+                    + "WHERE cd.credit_id = ? "
+                    + "ORDER BY d.discount_id DESC LIMIT 1";
+
+            Connection conn = MySQL.getConnection();
+            PreparedStatement pst = conn.prepareStatement(sql);
+            pst.setInt(1, customerId);
+            ResultSet rs = pst.executeQuery();
+
+            hasDiscount = false;
+            discountAmount = 0.0;
+            discountPercentage = 0.0;
+
+            double discountValue = rs.getDouble("discount");
+            String discountType = rs.getString("discount_type");
+            hasDiscount = true;
+
+            if ("percentage".equals(discountType)) {
+                discountPercentage = discountValue;
+                discountAmount = originalRemainingAmount * (discountPercentage / 100);
+            } else if ("fixed amount".equals(discountType)) {
+                discountAmount = discountValue;
+                discountPercentage = (discountAmount / originalRemainingAmount) * 100;
+            }
+
+            updateDiscountLabel();
+            System.out.println("Discount loaded: " + discountValue + " | Type: " + discountType);
+
+            rs.close();
+            pst.close();
+        } catch (Exception e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error loading discount: " + e.getMessage());
+            e.printStackTrace();
+
+        }
+    }
+
+    private void updateDiscountLabel() {
+
+        String discountText = String.format("Discount: %.2f%% (Rs. %.2f) | Payable: Rs. %.2f",
+                discountPercentage, discountAmount, remainingAmount);
+
+    }
+
     private void loadCustomerInfo() {
         try {
-            // Fixed SQL query using subqueries for accurate calculation
-            String sql = "SELECT cc.customer_id, cc.customer_name, " +
-                         "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) as total_credit, " +
-                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id) as total_paid, " +
-                         "((SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = cc.customer_id) - " +
-                         "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = cc.customer_id)) as remaining_amount " +
-                         "FROM credit_customer cc " +
-                         "WHERE cc.customer_id = ?";
+            // Fixed SQL query using proper joins
+            String sql = "SELECT cc.customer_id, cc.customer_name, "
+                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
+                    + "FROM credit_customer cc "
+                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
+                    + "WHERE cc.customer_id = ? "
+                    + "GROUP BY cc.customer_id, cc.customer_name";
 
             Connection conn = MySQL.getConnection();
             PreparedStatement pst = conn.prepareStatement(sql);
@@ -611,22 +695,37 @@ public class AddCreditPay extends javax.swing.JDialog {
                 String customerName = rs.getString("customer_name");
                 double totalCredit = rs.getDouble("total_credit");
                 double totalPaid = rs.getDouble("total_paid");
-                remainingAmount = rs.getDouble("remaining_amount");
+                originalRemainingAmount = rs.getDouble("remaining_amount");
+                remainingAmount = originalRemainingAmount;
 
-                String displayText = String.format("%s - Total Due: %.2f", customerName, remainingAmount);
+                String displayText = String.format("%s - Due: %.2f", customerName, originalRemainingAmount);
 
+                // Find and select the customer in combo box
                 for (int i = 0; i < customerCombo.getItemCount(); i++) {
-                    if (customerCombo.getItemAt(i).equals(displayText)) {
+                    String item = customerCombo.getItemAt(i);
+                    if (item.startsWith(customerName + " - Due: ")) {
                         customerCombo.setSelectedIndex(i);
                         break;
                     }
                 }
 
+                // Load discount for customer
+                loadCustomerDiscount(customerId);
+
+                // Apply discount to remaining amount
+                if (hasDiscount) {
+                    remainingAmount = originalRemainingAmount - discountAmount;
+                    if (remainingAmount < 0) {
+                        remainingAmount = 0;
+                    }
+                }
+
                 updateRemainingAmountLabel();
-                
+
                 // Debug output
-                System.out.println("Customer Info - " + customerName + " | Credit: " + totalCredit + 
-                                 " | Paid: " + totalPaid + " | Remaining: " + remainingAmount);
+                System.out.println("Customer Info - " + customerName + " | Credit: " + totalCredit
+                        + " | Paid: " + totalPaid + " | Original Remaining: " + originalRemainingAmount
+                        + " | After Discount: " + remainingAmount);
             }
 
             rs.close();
@@ -639,37 +738,56 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private void updateRemainingAmountLabel() {
-        remainingAmountLabel.setText(String.format("Remaining Amount: %.2f", remainingAmount));
-        amountField.setToolTipText("Type payment amount (max: " + remainingAmount + ") and press ENTER to move to next field");
+
+        String tooltipText = "Type payment amount (max: " + remainingAmount + ") and press ENTER to move to next field";
+        if (hasDiscount) {
+            tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
+        }
+        amountField.setToolTipText(tooltipText);
     }
 
     private void updateSelectedCustomerRemainingAmount() {
         String selected = (String) customerCombo.getSelectedItem();
         if (selected == null || selected.equals("Select Customer")) {
             remainingAmount = 0.0;
+            originalRemainingAmount = 0.0;
+            hasDiscount = false;
             updateRemainingAmountLabel();
+
             return;
         }
 
-        try {
-            // Extract remaining amount from display text
-            String[] parts = selected.split(" - Total Due: ");
-            if (parts.length > 1) {
-                String amountStr = parts[1].trim();
-                if (!amountStr.isEmpty()) {
-                    remainingAmount = Double.parseDouble(amountStr);
-                } else {
-                    remainingAmount = 0.0;
-                }
+        // Get original remaining amount from map
+        originalRemainingAmount = customerRemainingAmountMap.getOrDefault(selected, 0.0);
+        remainingAmount = originalRemainingAmount;
+
+        // Check if this customer has discount from our maps
+        if (customerDiscountMap.containsKey(selected) && customerDiscountTypeMap.containsKey(selected)) {
+            hasDiscount = true;
+            double discountValue = customerDiscountMap.get(selected);
+            String discountType = customerDiscountTypeMap.get(selected);
+
+            if ("percentage".equals(discountType)) {
+                discountPercentage = discountValue;
+                discountAmount = originalRemainingAmount * (discountPercentage / 100);
             } else {
-                remainingAmount = 0.0;
+                discountAmount = discountValue;
+                discountPercentage = (discountAmount / originalRemainingAmount) * 100;
             }
-        } catch (Exception e) {
-            remainingAmount = 0.0;
-            System.err.println("Error parsing remaining amount: " + e.getMessage());
+
+            // Apply discount to remaining amount
+            remainingAmount = originalRemainingAmount - discountAmount;
+            if (remainingAmount < 0) {
+                remainingAmount = 0;
+            }
+        } else {
+            hasDiscount = false;
+            discountAmount = 0.0;
+            discountPercentage = 0.0;
         }
 
         updateRemainingAmountLabel();
+        updateDiscountLabel();
     }
 
     private void loadCustomerData() {
@@ -720,12 +838,23 @@ public class AddCreditPay extends javax.swing.JDialog {
             return false;
         }
 
-        // Debug current remaining amount
-        System.out.println("Validation - Payment Amount: " + amount + " | Remaining Amount: " + remainingAmount);
+        // Enhanced debug information
+        System.out.println("=== VALIDATION DEBUG ===");
+        System.out.println("Payment Amount: " + amount);
+        System.out.println("Remaining Amount: " + remainingAmount);
+        System.out.println("Original Remaining Amount: " + originalRemainingAmount);
+        System.out.println("Has Discount: " + hasDiscount);
+        System.out.println("Discount Amount: " + discountAmount);
+        System.out.println("Discount Percentage: " + discountPercentage);
+        System.out.println("========================");
 
         if (amount > remainingAmount) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    String.format("Payment amount (%.2f) cannot exceed remaining amount: %.2f", amount, remainingAmount));
+            String message = String.format("Payment amount (%.2f) cannot exceed remaining amount: %.2f", amount, remainingAmount);
+            if (hasDiscount) {
+                message += String.format("\n(Original due: %.2f - Discount: %.2f = %.2f)",
+                        originalRemainingAmount, discountAmount, remainingAmount);
+            }
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, message);
             amountField.requestFocus();
             return false;
         }
@@ -777,16 +906,16 @@ public class AddCreditPay extends javax.swing.JDialog {
             if (rowsAffected > 0) {
                 this.paidAmount = amount;
 
-                // Check if customer still has due amount using fixed subquery
-                String checkDueSql = "SELECT " +
-                                    "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = ?) - " +
-                                    "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = ?) as remaining_amount";
-                
+                // Check if customer still has due amount using proper calculation
+                String checkDueSql = "SELECT "
+                        + "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = ?) - "
+                        + "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = ?) as remaining_amount";
+
                 PreparedStatement pstCheck = conn.prepareStatement(checkDueSql);
                 pstCheck.setInt(1, selectedCustomerId);
                 pstCheck.setInt(2, selectedCustomerId);
                 ResultSet rs = pstCheck.executeQuery();
-                
+
                 if (rs.next()) {
                     double newRemaining = rs.getDouble("remaining_amount");
                     // Update customer status if no due amount
@@ -805,7 +934,11 @@ public class AddCreditPay extends javax.swing.JDialog {
 
                 conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit payment added successfully!");
+                String successMessage = String.format("Credit payment added successfully! Amount: Rs. %.2f", amount);
+                if (hasDiscount) {
+                    successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
+                }
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
                 dispose();
             } else {
                 conn.rollback();
@@ -855,6 +988,9 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
 
             String messageText = String.format("Credit payment received from %s: Rs.%,.2f", customerName, amount);
+            if (hasDiscount) {
+                messageText += String.format(" (Discount applied: Rs.%,.2f)", discountAmount);
+            }
 
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
@@ -918,11 +1054,12 @@ public class AddCreditPay extends javax.swing.JDialog {
         customerCombo.setSelectedIndex(0);
         paymentDate.setDate(new Date());
         amountField.setText("");
-        remainingAmountLabel.setText("Remaining Amount: 0.00");
+
         remainingAmount = 0.0;
-        if (customerId == null) {
-            remainingAmountLabel.setVisible(false);
-        }
+        originalRemainingAmount = 0.0;
+        hasDiscount = false;
+        discountAmount = 0.0;
+        discountPercentage = 0.0;
         customerCombo.requestFocus();
     }
 
@@ -941,6 +1078,7 @@ public class AddCreditPay extends javax.swing.JDialog {
             System.err.println("Error in focus traversal setup: " + e.getMessage());
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -954,7 +1092,6 @@ public class AddCreditPay extends javax.swing.JDialog {
         customerCombo = new javax.swing.JComboBox<>();
         paymentDate = new com.toedter.calendar.JDateChooser();
         amountField = new javax.swing.JTextField();
-        remainingAmountLabel = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Add New Credit Payment");
@@ -1045,30 +1182,30 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
         });
 
-        remainingAmountLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 18)); // NOI18N
-
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addGap(21, 21, 21)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGap(19, 19, 19)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                         .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addGroup(jPanel2Layout.createSequentialGroup()
+                            .addComponent(jLabel3)
+                            .addGap(83, 83, 83)))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel2Layout.createSequentialGroup()
                                 .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 134, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(jLabel3)
                             .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(amountField)))
-                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(remainingAmountLabel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addComponent(amountField, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(2, 2, 2)))
                 .addGap(0, 21, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
@@ -1078,9 +1215,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(remainingAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1091,7 +1226,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(13, Short.MAX_VALUE))
+                .addGap(18, 18, 18))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1148,35 +1283,9 @@ public class AddCreditPay extends javax.swing.JDialog {
             paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
         }
     }//GEN-LAST:event_customerComboActionPerformed
-    private void updateSelectedCreditRemainingAmount() {
-        String selected = (String) customerCombo.getSelectedItem();
-        if (selected == null || selected.equals("Select Customer")) {
-            remainingAmount = 0.0;
-            updateRemainingAmountLabel();
-            return;
-        }
 
-        try {
-            // Extract remaining amount from display text
-            String[] parts = selected.split(" - Total Due: ");
-            if (parts.length > 1) {
-                String amountStr = parts[1].trim();
-                if (!amountStr.isEmpty()) {
-                    remainingAmount = Double.parseDouble(amountStr);
-                } else {
-                    remainingAmount = 0.0;
-                }
-            } else {
-                remainingAmount = 0.0;
-            }
-        } catch (Exception e) {
-            remainingAmount = 0.0;
-        }
-
-        updateRemainingAmountLabel();
-    }
     private void customerComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_customerComboKeyPressed
-              if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             if (customerCombo.isPopupVisible()) {
                 customerCombo.setPopupVisible(false);
             }
@@ -1263,7 +1372,6 @@ public class AddCreditPay extends javax.swing.JDialog {
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator3;
     private com.toedter.calendar.JDateChooser paymentDate;
-    private javax.swing.JLabel remainingAmountLabel;
     private javax.swing.JButton saveBtn;
     // End of variables declaration//GEN-END:variables
 }

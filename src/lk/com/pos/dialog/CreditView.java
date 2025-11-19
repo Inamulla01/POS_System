@@ -15,6 +15,11 @@ public class CreditView extends javax.swing.JDialog {
     private JPanel creditsContainer;
     private JPanel paymentsContainer;
     private boolean paymentsVisible = false;
+    private JLabel discountLabel;
+    private JLabel netCreditLabel; // Added for net credit amount
+    private double customerDiscount = 0;
+    private String customerDiscountType = null;
+    private boolean hasCustomerDiscount = false;
 
     public CreditView(java.awt.Frame parent, boolean modal, int customerId) {
         super(parent, modal);
@@ -25,60 +30,97 @@ public class CreditView extends javax.swing.JDialog {
     }
 
     private void initializeCustomComponents() {
-        // Create containers for dynamic content
         creditsContainer = new JPanel();
         creditsContainer.setLayout(new BoxLayout(creditsContainer, BoxLayout.Y_AXIS));
         creditsContainer.setBackground(Color.WHITE);
-        
+
         paymentsContainer = new JPanel();
         paymentsContainer.setLayout(new BoxLayout(paymentsContainer, BoxLayout.Y_AXIS));
         paymentsContainer.setBackground(Color.WHITE);
 
-        // Replace the static panels with our dynamic containers
+        discountLabel = new JLabel("Rs 0.00");
+        discountLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+        discountLabel.setForeground(new Color(220, 53, 69));
+        discountLabel.setBorder(new EmptyBorder(0, 10, 0, 0));
+
+        // Initialize net credit label
+        netCreditLabel = new JLabel("Rs 0.00");
+        netCreditLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+        netCreditLabel.setForeground(new Color(40, 167, 69)); // Green color for net amount
+        netCreditLabel.setBorder(new EmptyBorder(0, 10, 0, 0));
+
         replaceCreditPanel();
         replacePaymentPanel();
 
-        // Set icons for buttons
         setButtonIcons();
-        
-        // Add action listeners
+
         addBtn.addActionListener(evt -> openAddCreditDialog());
         dropBtn.addActionListener(evt -> togglePaymentsVisibility());
-        
-        // Hide static content that will be replaced
+
         amount.setText("");
         date.setText("");
         invoiceId.setText("");
         amount1.setText("");
         date1.setText("");
         totalPayed.setText("Loading...");
-        
-        // Fix scroll pane settings - Enable mouse wheel scrolling
+
         jScrollPane1.getViewport().setBackground(Color.WHITE);
         jScrollPane1.setWheelScrollingEnabled(true);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
-        
+
         jPanel1.setBackground(Color.WHITE);
-        
-        // Remove fixed size constraints for proper scrolling
         jPanel1.setPreferredSize(null);
-        
-        // Enable scrolling on all components
+
         enableScrollingOnAllComponents(jPanel1);
-        
-        // Update labels to match the design
+
         jLabel1.setText("AVAILABLE CREDITS");
         jLabel2.setText("PAYMENT HISTORY");
         jLabel3.setText("Credit Overview");
-        
-        // Style adjustments to match the design
+
         styleHeaderLabels();
+        addDiscountLabelsToLayout(); // Updated method name
+    }
+
+    private void addDiscountLabelsToLayout() {
+        jPanel1.remove(jLabel4);
+
+        JPanel discountPanel = new JPanel();
+        discountPanel.setLayout(new BoxLayout(discountPanel, BoxLayout.Y_AXIS));
+        discountPanel.setBackground(Color.WHITE);
+
+        // Total Discount Panel
+        JPanel totalDiscountPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        totalDiscountPanel.setBackground(Color.WHITE);
+
+        JLabel discountTitle = new JLabel("TOTAL DISCOUNT : ");
+        discountTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        discountTitle.setForeground(new Color(60, 60, 60));
+
+        totalDiscountPanel.add(discountTitle);
+        totalDiscountPanel.add(discountLabel);
+
+        // Net Credit Panel
+        JPanel netCreditPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        netCreditPanel.setBackground(Color.WHITE);
+        netCreditPanel.setBorder(new EmptyBorder(5, 0, 0, 0)); // Add some spacing
+
+        JLabel netCreditTitle = new JLabel("NET CREDITS : ");
+        netCreditTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        netCreditTitle.setForeground(new Color(60, 60, 60));
+
+        netCreditPanel.add(netCreditTitle);
+        netCreditPanel.add(netCreditLabel);
+
+        discountPanel.add(totalDiscountPanel);
+        discountPanel.add(netCreditPanel);
+
+        jPanel1.add(discountPanel);
+        jPanel1.revalidate();
+        jPanel1.repaint();
     }
 
     private void enableScrollingOnAllComponents(Container container) {
-        // Enable mouse wheel scrolling for all components in the container
         for (Component comp : container.getComponents()) {
-            // Add mouse wheel listener to forward events to the scroll pane
             comp.addMouseWheelListener(evt -> {
                 JScrollBar verticalBar = jScrollPane1.getVerticalScrollBar();
                 if (verticalBar != null && verticalBar.isVisible()) {
@@ -88,8 +130,7 @@ public class CreditView extends javax.swing.JDialog {
                     evt.consume();
                 }
             });
-            
-            // Recursively process child containers
+
             if (comp instanceof Container) {
                 enableScrollingOnAllComponents((Container) comp);
             }
@@ -97,30 +138,24 @@ public class CreditView extends javax.swing.JDialog {
     }
 
     private void styleHeaderLabels() {
-        // Style for AVAILABLE CREDITS label
         jLabel1.setFont(new Font("Nunito SemiBold", Font.BOLD, 16));
         jLabel1.setForeground(new Color(60, 60, 60));
-        
-        // Style for PAYMENT HISTORY label
+
         jLabel2.setFont(new Font("Nunito SemiBold", Font.BOLD, 16));
         jLabel2.setForeground(new Color(60, 60, 60));
-        
-        // Style for Credit Overview title
+
         jLabel3.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
         jLabel3.setForeground(new Color(8, 147, 176));
-        
-        // Style for total payments label
+
         totalPayed.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
         totalPayed.setForeground(Color.BLACK);
     }
 
     private void replaceCreditPanel() {
-        // Remove all components from creditPanel
         creditPanel.removeAll();
         creditPanel.setLayout(new BorderLayout());
         creditPanel.setBackground(Color.WHITE);
-        
-        // Enable scrolling on credit panel
+
         creditPanel.addMouseWheelListener(evt -> {
             JScrollBar verticalBar = jScrollPane1.getVerticalScrollBar();
             if (verticalBar != null && verticalBar.isVisible()) {
@@ -130,21 +165,17 @@ public class CreditView extends javax.swing.JDialog {
                 evt.consume();
             }
         });
-        
-        // Add the credits container directly
+
         creditPanel.add(creditsContainer, BorderLayout.NORTH);
-        
         creditPanel.revalidate();
         creditPanel.repaint();
     }
 
     private void replacePaymentPanel() {
-        // Remove all components from creditPayPanel
         creditPayPanel.removeAll();
         creditPayPanel.setLayout(new BorderLayout());
         creditPayPanel.setBackground(Color.WHITE);
-        
-        // Enable scrolling on payment panel
+
         creditPayPanel.addMouseWheelListener(evt -> {
             JScrollBar verticalBar = jScrollPane1.getVerticalScrollBar();
             if (verticalBar != null && verticalBar.isVisible()) {
@@ -154,32 +185,27 @@ public class CreditView extends javax.swing.JDialog {
                 evt.consume();
             }
         });
-        
-        // Add payments container directly
+
         creditPayPanel.add(paymentsContainer, BorderLayout.NORTH);
-        
         creditPayPanel.revalidate();
         creditPayPanel.repaint();
-        
-        // Initially hide the payments
+
         creditPayPanel.setVisible(false);
     }
 
     private void setButtonIcons() {
         try {
-            // Set icons using FlatSVGIcon
             FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 15, 15);
             addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
             addBtn.setIcon(addIcon);
             addBtn.setText("");
             addBtn.setBackground(new Color(8, 147, 176));
             addBtn.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-            
+
             updateDropButtonIcon();
-            
+
         } catch (Exception e) {
             System.out.println("Icons not available, using text buttons: " + e.getMessage());
-            // Fallback to text
             addBtn.setText("A");
             dropBtn.setText("▼");
         }
@@ -212,19 +238,15 @@ public class CreditView extends javax.swing.JDialog {
         paymentsVisible = !paymentsVisible;
         creditPayPanel.setVisible(paymentsVisible);
         updateDropButtonIcon();
-        
-        // Force layout update
+
         creditPanel1.revalidate();
         creditPanel1.repaint();
-        
-        // Update the main scroll pane
+
         jScrollPane1.revalidate();
         jScrollPane1.repaint();
-        
-        // Ensure proper scrolling
+
         SwingUtilities.invokeLater(() -> {
             if (paymentsVisible) {
-                // Scroll to show the expanded payments section
                 Rectangle visibleRect = creditPanel1.getVisibleRect();
                 creditPanel1.scrollRectToVisible(visibleRect);
             }
@@ -233,27 +255,103 @@ public class CreditView extends javax.swing.JDialog {
 
     private void loadCustomerData() {
         System.out.println("Loading data for customer ID: " + customerId);
+        loadCustomerDiscount(); // Load customer-level discount first
         loadCredits();
         loadTotalPayed();
         loadPayments();
     }
 
+    private void loadCustomerDiscount() {
+        // First check if there's a customer-level discount
+        String customerDiscountQuery = "SELECT d.discount, dt.discount_type " +
+                "FROM credit_discount cd " +
+                "JOIN discount d ON cd.discount_id = d.discount_id " +
+                "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id " +
+                "WHERE cd.credit_id IN (SELECT credit_id FROM credit WHERE credit_customer_id = ?) " +
+                "LIMIT 1";
+
+        try {
+            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(customerDiscountQuery);
+            pstmt.setInt(1, customerId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                customerDiscount = rs.getDouble("discount");
+                customerDiscountType = rs.getString("discount_type");
+                hasCustomerDiscount = !rs.wasNull() && customerDiscount > 0;
+                
+                if (hasCustomerDiscount) {
+                    // Calculate total discount amount for all credits
+                    double totalCreditAmount = getTotalCreditAmount();
+                    double totalDiscountAmount = calculateDiscountAmount(totalCreditAmount, customerDiscount, customerDiscountType);
+                    double netCreditAmount = totalCreditAmount - totalDiscountAmount;
+                    
+                    discountLabel.setText("Rs " + String.format("%,.2f", totalDiscountAmount));
+                    netCreditLabel.setText("Rs " + String.format("%,.2f", netCreditAmount));
+                } else {
+                    discountLabel.setText("Rs 0.00");
+                    netCreditLabel.setText("Rs " + String.format("%,.2f", getTotalCreditAmount()));
+                }
+            } else {
+                hasCustomerDiscount = false;
+                discountLabel.setText("Rs 0.00");
+                netCreditLabel.setText("Rs " + String.format("%,.2f", getTotalCreditAmount()));
+            }
+            
+            rs.close();
+            pstmt.close();
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            discountLabel.setText("Rs 0.00");
+            try {
+                netCreditLabel.setText("Rs " + String.format("%,.2f", getTotalCreditAmount()));
+            } catch (Exception ex) {
+                netCreditLabel.setText("Rs 0.00");
+            }
+            System.out.println("Error loading customer discount: " + e.getMessage());
+        }
+    }
+
+    private double getTotalCreditAmount() {
+        String query = "SELECT SUM(credit_amout) as total_amount FROM credit WHERE credit_customer_id = ?";
+        try {
+            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
+            pstmt.setInt(1, customerId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                double total = rs.getDouble("total_amount");
+                return !rs.wasNull() ? total : 0.0;
+            }
+            
+            rs.close();
+            pstmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 0.0;
+    }
+
     private void loadCredits() {
         creditsContainer.removeAll();
-        
-        String query = "SELECT c.credit_id, c.credit_given_date, c.credit_final_date, " +
-                      "c.credit_amout, s.invoice_no " +
-                      "FROM credit c " +
-                      "LEFT JOIN sales s ON c.sales_id = s.sales_id " +
-                      "WHERE c.credit_customer_id = " + customerId + " " +
-                      "ORDER BY c.credit_given_date DESC";
-        
-        System.out.println("Executing credit query: " + query);
-        
+
+        String query = "SELECT c.credit_id, c.credit_given_date, c.credit_final_date, "
+                + "c.credit_amout, s.invoice_no "
+                + "FROM credit c "
+                + "LEFT JOIN sales s ON c.sales_id = s.sales_id "
+                + "WHERE c.credit_customer_id = ? "
+                + "ORDER BY c.credit_given_date DESC";
+
+        System.out.println("Executing credit query for customer: " + customerId);
+
         try {
-            ResultSet rs = MySQL.executeSearch(query);
-            boolean hasCredits = false;
+            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
+            pstmt.setInt(1, customerId);
+            ResultSet rs = pstmt.executeQuery();
             
+            boolean hasCredits = false;
+
             while (rs.next()) {
                 hasCredits = true;
                 int creditId = rs.getInt("credit_id");
@@ -261,14 +359,25 @@ public class CreditView extends javax.swing.JDialog {
                 java.sql.Date finalDate = rs.getDate("credit_final_date");
                 double amount = rs.getDouble("credit_amout");
                 String invoiceNo = rs.getString("invoice_no");
-                
+
                 System.out.println("Found credit: ID=" + creditId + ", Amount=" + amount + ", Invoice=" + invoiceNo);
+
+                // Apply customer-level discount to this credit
+                double discountAmount = 0;
+                double netAmount = amount;
                 
-                JPanel creditCard = createCreditCard(creditId, givenDate, finalDate, amount, invoiceNo);
+                if (hasCustomerDiscount) {
+                    discountAmount = calculateDiscountAmount(amount, customerDiscount, customerDiscountType);
+                    netAmount = amount - discountAmount;
+                }
+
+                JPanel creditCard = createCreditCard(creditId, givenDate, finalDate, amount,
+                        invoiceNo, hasCustomerDiscount, customerDiscount,
+                        customerDiscountType, discountAmount, netAmount);
                 creditsContainer.add(creditCard);
                 creditsContainer.add(Box.createRigidArea(new Dimension(0, 12)));
             }
-            
+
             if (!hasCredits) {
                 JLabel noCreditsLabel = new JLabel("No credit records found");
                 noCreditsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 14));
@@ -277,38 +386,42 @@ public class CreditView extends javax.swing.JDialog {
                 noCreditsLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
                 creditsContainer.add(noCreditsLabel);
             }
-            
+
+            rs.close();
+            pstmt.close();
+
         } catch (SQLException e) {
             e.printStackTrace();
             showError("Error loading credits: " + e.getMessage());
-            
-            // Add error label to container
+
             JLabel errorLabel = new JLabel("Error loading credits");
             errorLabel.setForeground(Color.RED);
             errorLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
             creditsContainer.add(errorLabel);
         }
-        
+
         creditsContainer.revalidate();
         creditsContainer.repaint();
-        
-        // Update scroll pane
+
         jScrollPane1.revalidate();
         jScrollPane1.repaint();
     }
 
-    private JPanel createCreditCard(int creditId, java.sql.Timestamp givenDate, 
-                                   java.sql.Date finalDate, double amount, String invoiceNo) {
+    private JPanel createCreditCard(int creditId, java.sql.Timestamp givenDate,
+            java.sql.Date finalDate, double amount, String invoiceNo,
+            boolean hasDiscount, double discount, String discountType,
+            double discountAmount, double netAmount) {
         JPanel card = new JPanel();
         card.setLayout(new BorderLayout());
-        card.setBackground(new Color(240, 245, 240)); // Light green background
+        card.setBackground(new Color(240, 245, 240));
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(200, 200, 200)),
-            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+                BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
 
-        // Enable scrolling on credit card
+        int cardHeight = hasDiscount ? 120 : 100;
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, cardHeight));
+
         card.addMouseWheelListener(evt -> {
             JScrollBar verticalBar = jScrollPane1.getVerticalScrollBar();
             if (verticalBar != null && verticalBar.isVisible()) {
@@ -319,53 +432,86 @@ public class CreditView extends javax.swing.JDialog {
             }
         });
 
-        // Main content panel
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBackground(new Color(240, 245, 240));
 
-        // Top panel with status, invoice ID and edit button
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(new Color(240, 245, 240));
-        
+
         JLabel statusLabel = new JLabel("Active Credit");
         statusLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         statusLabel.setForeground(new Color(80, 80, 80));
-        
-        // Right panel for invoice ID and edit button
+
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         rightPanel.setBackground(new Color(240, 245, 240));
-        
+
         JLabel invoiceLabel = new JLabel("#" + (invoiceNo != null ? invoiceNo : "N/A"));
         invoiceLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         invoiceLabel.setForeground(new Color(100, 100, 100));
-        
-        // Edit button for credit - positioned in top right corner
+
         JButton editCreditBtn = createEditButton();
         editCreditBtn.addActionListener(e -> openUpdateCreditDialog(creditId));
-        
+
         rightPanel.add(invoiceLabel);
         rightPanel.add(Box.createRigidArea(new Dimension(10, 0)));
         rightPanel.add(editCreditBtn);
-        
+
         topPanel.add(statusLabel, BorderLayout.WEST);
         topPanel.add(rightPanel, BorderLayout.EAST);
 
-        // Center panel with amount
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.setBackground(new Color(240, 245, 240));
+        centerPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+
         JLabel amountLabel = new JLabel("Rs " + String.format("%,.2f", amount));
         amountLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 20));
         amountLabel.setForeground(Color.BLACK);
+        amountLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Bottom panel with dates
+        centerPanel.add(amountLabel);
+
+        if (hasDiscount) {
+            JPanel discountPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            discountPanel.setBackground(new Color(240, 245, 240));
+
+            String discountText;
+            if ("percentage".equals(discountType)) {
+                discountText = String.format("Customer Discount: -%.0f%% (Rs %,.2f)", discount, discountAmount);
+            } else {
+                discountText = String.format("Customer Discount: -Rs %,.2f", discount);
+            }
+
+            JLabel discountLabel = new JLabel(discountText);
+            discountLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 12));
+            discountLabel.setForeground(new Color(220, 53, 69));
+
+            JLabel netAmountLabel = new JLabel("Net: Rs " + String.format("%,.2f", netAmount));
+            netAmountLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 12));
+            netAmountLabel.setForeground(new Color(40, 167, 69));
+            netAmountLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+
+            discountPanel.add(discountLabel);
+            discountPanel.add(netAmountLabel);
+            discountPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            centerPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+            centerPanel.add(discountPanel);
+        }
+
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd");
-        String dateRange = "Valid: " + dateFormat.format(givenDate) + " - " + dateFormat.format(finalDate) + ", " + 
-                         new SimpleDateFormat("yyyy").format(finalDate);
+        String dateRange = "Valid: " + dateFormat.format(givenDate) + " - " + dateFormat.format(finalDate) + ", "
+                + new SimpleDateFormat("yyyy").format(finalDate);
         JLabel dateLabel = new JLabel(dateRange);
         dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         dateLabel.setForeground(new Color(120, 120, 120));
+        dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        centerPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        centerPanel.add(dateLabel);
 
         contentPanel.add(topPanel, BorderLayout.NORTH);
-        contentPanel.add(amountLabel, BorderLayout.CENTER);
-        contentPanel.add(dateLabel, BorderLayout.SOUTH);
+        contentPanel.add(centerPanel, BorderLayout.CENTER);
 
         card.add(contentPanel, BorderLayout.CENTER);
         return card;
@@ -384,32 +530,33 @@ public class CreditView extends javax.swing.JDialog {
         editBtn.setPreferredSize(new Dimension(30, 30));
         editBtn.setBackground(Color.WHITE);
         editBtn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(200, 200, 200)),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
         ));
         editBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         editBtn.setToolTipText("Edit");
-        
-        // Add hover effect
+
         editBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 editBtn.setBackground(new Color(245, 245, 245));
             }
+
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 editBtn.setBackground(Color.WHITE);
             }
         });
-        
+
         return editBtn;
     }
 
     private void loadTotalPayed() {
-        String query = "SELECT SUM(credit_pay_amount) as total_payed " +
-                      "FROM credit_pay " +
-                      "WHERE credit_customer_id = " + customerId;
-        
+        String query = "SELECT SUM(credit_pay_amount) as total_payed FROM credit_pay WHERE credit_customer_id = ?";
+
         try {
-            ResultSet rs = MySQL.executeSearch(query);
+            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
+            pstmt.setInt(1, customerId);
+            ResultSet rs = pstmt.executeQuery();
+            
             if (rs.next()) {
                 double total = rs.getDouble("total_payed");
                 if (!rs.wasNull()) {
@@ -420,6 +567,9 @@ public class CreditView extends javax.swing.JDialog {
             } else {
                 totalPayed.setText("Rs 0.00");
             }
+            
+            rs.close();
+            pstmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
             totalPayed.setText("Total Payed : Rs 0.00");
@@ -429,31 +579,34 @@ public class CreditView extends javax.swing.JDialog {
 
     private void loadPayments() {
         paymentsContainer.removeAll();
-        
-        String query = "SELECT credit_pay_id, credit_pay_date, credit_pay_amount " +
-                      "FROM credit_pay " +
-                      "WHERE credit_customer_id = " + customerId + " " +
-                      "ORDER BY credit_pay_date DESC";
-        
-        System.out.println("Executing payment query: " + query);
-        
+
+        String query = "SELECT credit_pay_id, credit_pay_date, credit_pay_amount "
+                + "FROM credit_pay "
+                + "WHERE credit_customer_id = ? "
+                + "ORDER BY credit_pay_date DESC";
+
+        System.out.println("Executing payment query for customer: " + customerId);
+
         try {
-            ResultSet rs = MySQL.executeSearch(query);
-            boolean hasPayments = false;
+            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
+            pstmt.setInt(1, customerId);
+            ResultSet rs = pstmt.executeQuery();
             
+            boolean hasPayments = false;
+
             while (rs.next()) {
                 hasPayments = true;
                 int payId = rs.getInt("credit_pay_id");
                 java.sql.Timestamp payDate = rs.getTimestamp("credit_pay_date");
                 double amount = rs.getDouble("credit_pay_amount");
-                
+
                 System.out.println("Found payment: ID=" + payId + ", Amount=" + amount + ", Date=" + payDate);
-                
+
                 JPanel paymentCard = createPaymentCard(payId, payDate, amount);
                 paymentsContainer.add(paymentCard);
                 paymentsContainer.add(Box.createRigidArea(new Dimension(0, 8)));
             }
-            
+
             if (!hasPayments) {
                 JLabel noPaymentsLabel = new JLabel("No payment records found");
                 noPaymentsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 12));
@@ -462,18 +615,20 @@ public class CreditView extends javax.swing.JDialog {
                 noPaymentsLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
                 paymentsContainer.add(noPaymentsLabel);
             }
-            
+
+            rs.close();
+            pstmt.close();
+
         } catch (SQLException e) {
             e.printStackTrace();
             showError("Error loading payments: " + e.getMessage());
-            
-            // Add error label to container
+
             JLabel errorLabel = new JLabel("Error loading payments");
             errorLabel.setForeground(Color.RED);
             errorLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
             paymentsContainer.add(errorLabel);
         }
-        
+
         paymentsContainer.revalidate();
         paymentsContainer.repaint();
     }
@@ -483,12 +638,11 @@ public class CreditView extends javax.swing.JDialog {
         card.setLayout(new BorderLayout());
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)),
-            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)),
+                BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80)); // Increased height for date
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
 
-        // Enable scrolling on payment card
         card.addMouseWheelListener(evt -> {
             JScrollBar verticalBar = jScrollPane1.getVerticalScrollBar();
             if (verticalBar != null && verticalBar.isVisible()) {
@@ -502,31 +656,25 @@ public class CreditView extends javax.swing.JDialog {
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBackground(Color.WHITE);
 
-        // Left side - Amount
         JLabel amountLabel = new JLabel("Rs " + String.format("%,.2f", amount));
         amountLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
         amountLabel.setForeground(Color.BLACK);
 
-        // Center - Date and Time
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a");
         JLabel dateLabel = new JLabel(dateFormat.format(payDate));
         dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
         dateLabel.setForeground(new Color(120, 120, 120));
         dateLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-        // Right side - Status and Edit button
         JPanel rightPanel = new JPanel();
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setBackground(Color.WHITE);
-        
 
-        
-        // Edit button
         JButton editPaymentBtn = createEditButton();
         editPaymentBtn.addActionListener(e -> openUpdateCreditPayDialog(payId));
         editPaymentBtn.setAlignmentX(Component.RIGHT_ALIGNMENT);
-        
-        rightPanel.add(Box.createRigidArea(new Dimension(0, 5))); // Space between status and button
+
+        rightPanel.add(Box.createRigidArea(new Dimension(0, 5)));
         rightPanel.add(editPaymentBtn);
 
         contentPanel.add(amountLabel, BorderLayout.WEST);
@@ -537,14 +685,20 @@ public class CreditView extends javax.swing.JDialog {
         return card;
     }
 
+    private double calculateDiscountAmount(double totalAmount, double discount, String discountType) {
+        if ("percentage".equals(discountType)) {
+            return totalAmount * discount / 100;
+        } else {
+            return discount; // fixed amount
+        }
+    }
+
     private void openAddCreditDialog() {
         try {
-
             AddCredit dialog = new AddCredit(null, true);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
-            
-            // Refresh data after dialog closes
+
             loadCustomerData();
         } catch (Exception e) {
             showError("Error opening add credit dialog: " + e.getMessage());
@@ -553,12 +707,10 @@ public class CreditView extends javax.swing.JDialog {
 
     private void openUpdateCreditDialog(int creditId) {
         try {
-         
             UpdateCredit dialog = new UpdateCredit(null, true, creditId);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
-            
-            // Refresh data after dialog closes
+
             loadCustomerData();
         } catch (Exception e) {
             showError("Error opening update credit dialog: " + e.getMessage());
@@ -567,12 +719,10 @@ public class CreditView extends javax.swing.JDialog {
 
     private void openUpdateCreditPayDialog(int creditPayId) {
         try {
-  
             UpdateCreditPay dialog = new UpdateCreditPay(null, true, creditPayId);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
-            
-            // Refresh data after dialog closes
+
             loadCustomerData();
         } catch (Exception e) {
             showError("Error opening update payment dialog: " + e.getMessage());
@@ -583,7 +733,6 @@ public class CreditView extends javax.swing.JDialog {
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -607,6 +756,7 @@ public class CreditView extends javax.swing.JDialog {
         addBtn = new javax.swing.JButton();
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
+        jLabel4 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -650,9 +800,7 @@ public class CreditView extends javax.swing.JDialog {
             .addGroup(creditPanelLayout.createSequentialGroup()
                 .addGap(17, 17, 17)
                 .addGroup(creditPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(creditPanelLayout.createSequentialGroup()
-                        .addComponent(invoiceId)
-                        .addGap(216, 216, 216))
+                    .addComponent(invoiceId)
                     .addComponent(amount, javax.swing.GroupLayout.PREFERRED_SIZE, 297, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(date))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -673,7 +821,7 @@ public class CreditView extends javax.swing.JDialog {
                 .addComponent(amount, javax.swing.GroupLayout.PREFERRED_SIZE, 29, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(8, 8, 8)
                 .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 13, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(26, Short.MAX_VALUE))
         );
 
         creditPanel1.setBackground(new java.awt.Color(204, 204, 204));
@@ -767,6 +915,9 @@ public class CreditView extends javax.swing.JDialog {
         jLabel2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
         jLabel2.setText("CREDIT PAYMENT DETAILS");
 
+        jLabel4.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
+        jLabel4.setText("DISCOUNT : ");
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -781,32 +932,36 @@ public class CreditView extends javax.swing.JDialog {
                         .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(33, 33, 33))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jSeparator3)
-                            .addComponent(jLabel1)
-                            .addComponent(jLabel2)
-                            .addComponent(creditPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(creditPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel4)
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addComponent(jSeparator3)
+                                .addComponent(jLabel1)
+                                .addComponent(jLabel2)
+                                .addComponent(creditPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(creditPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                         .addGap(0, 32, Short.MAX_VALUE))))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(25, 25, 25)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel3)
-                    .addComponent(addBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(addBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel3))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jLabel4)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel1)
                 .addGap(7, 7, 7)
                 .addComponent(creditPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel2)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(creditPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(150, Short.MAX_VALUE))
+                .addContainerGap(115, Short.MAX_VALUE))
         );
 
         jScrollPane1.setViewportView(jPanel1);
@@ -862,7 +1017,7 @@ public class CreditView extends javax.swing.JDialog {
             public void run() {
                 // This main method is for testing only
                 // In your actual application, use: new CreditView(parent, modal, customerId)
-                CreditView dialog = new CreditView(new javax.swing.JFrame(), true, 3); // Example customer ID
+                CreditView dialog = new CreditView(new javax.swing.JFrame(), true, 9); // Example customer ID
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {
@@ -890,6 +1045,7 @@ public class CreditView extends javax.swing.JDialog {
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSeparator jSeparator3;

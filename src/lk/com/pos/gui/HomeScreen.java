@@ -2151,7 +2151,7 @@ public class HomeScreen extends JFrame {
         });
 
         notificasionBtn1.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        notificasionBtn1.setText("Stock Loss");
+        notificasionBtn1.setText(" Stock Loss");
         notificasionBtn1.setBorder(null);
         notificasionBtn1.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         notificasionBtn1.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);

@@ -444,9 +444,13 @@ public class PrintProductLabel extends javax.swing.JDialog {
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
         barcodeField.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        barcodeField.setForeground(new java.awt.Color(8, 147, 176));
 
-        printBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        printBtn.setBackground(new java.awt.Color(8, 147, 176));
+        printBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16)); // NOI18N
+        printBtn.setForeground(new java.awt.Color(255, 255, 255));
         printBtn.setText("Print");
+        printBtn.setOpaque(true);
         printBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 printBtnActionPerformed(evt);
@@ -454,6 +458,7 @@ public class PrintProductLabel extends javax.swing.JDialog {
         });
 
         barcodePrintQtyField.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        barcodePrintQtyField.setForeground(new java.awt.Color(8, 147, 176));
 
         includeBusinessNameCheckbox.setFont(new java.awt.Font("Nunito SemiBold", 1, 12)); // NOI18N
         includeBusinessNameCheckbox.setForeground(new java.awt.Color(0, 0, 0));
@@ -468,6 +473,7 @@ public class PrintProductLabel extends javax.swing.JDialog {
         includePriceCheckbox.setText("Product Price");
 
         productName.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        productName.setForeground(new java.awt.Color(8, 147, 176));
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);

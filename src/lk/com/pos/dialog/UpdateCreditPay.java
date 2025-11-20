@@ -36,8 +36,15 @@ public class UpdateCreditPay extends javax.swing.JDialog {
     private int creditPayId; // Credit Pay ID passed from calling dialog
     private Integer creditCustomerId; // Credit Customer ID from the record
     private double remainingAmount = 0.0;
+    private double originalRemainingAmount = 0.0;
     private boolean isUpdating = false; // Flag to prevent multiple updates
     private Map<String, Integer> creditCustomerIdMap = new HashMap<>(); // Map to store display text to credit customer ID mapping
+    private Map<String, Double> customerRemainingAmountMap = new HashMap<>(); // Map to store remaining amounts
+    private Map<String, Double> creditCustomerDiscountMap = new HashMap<>(); // Map to store discount amounts
+    private Map<String, String> creditCustomerDiscountTypeMap = new HashMap<>(); // Map to store discount types
+    private double discountAmount = 0.0;
+    private double discountPercentage = 0.0;
+    private boolean hasDiscount = false;
 
     /**
      * Creates new form UpdateCreditPay
@@ -611,21 +618,28 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         try {
             // Clear the mapping first
             creditCustomerIdMap.clear();
+            customerRemainingAmountMap.clear();
+            creditCustomerDiscountMap.clear();
+            creditCustomerDiscountTypeMap.clear();
 
-            // Load credit customers with their credit information
+            // Updated SQL query with discount information
             String sql = "SELECT cc.customer_id, cc.customer_name, "
                     + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
                     + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
-                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
+                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, "
+                    + "d.discount, dt.discount_type "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
                     + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
-                    + "WHERE cc.status_id = 1 " // Only active customers with due amounts
-                    + "GROUP BY cc.customer_id, cc.customer_name "
+                    + "LEFT JOIN credit_discount cd ON cc.customer_id = cd.credit_id "
+                    + "LEFT JOIN discount d ON cd.discount_id = d.discount_id "
+                    + "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
+                    + "WHERE cc.status_id = 1 "
+                    + "GROUP BY cc.customer_id, cc.customer_name, d.discount, dt.discount_type "
                     + "HAVING remaining_amount > 0 "
                     + "ORDER BY cc.customer_name";
 
-            System.out.println("Loading credit customers combo...");
+            System.out.println("Loading credit customers combo with discount information...");
 
             ResultSet rs = MySQL.executeSearch(sql);
             Vector<String> creditCustomers = new Vector<>();
@@ -638,14 +652,42 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 double totalCredit = rs.getDouble("total_credit");
                 double totalPaid = rs.getDouble("total_paid");
                 double remaining = rs.getDouble("remaining_amount");
+                double discount = rs.getDouble("discount");
+                String discountType = rs.getString("discount_type");
 
-                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, totalCredit, totalPaid, remaining);
+                String displayText;
+                if (discountType != null && !rs.wasNull()) {
+                    if ("percentage".equals(discountType)) {
+                        double discountedAmount = remaining - (remaining * discount / 100);
+                        displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
+                                customerName, totalCredit, totalPaid, remaining, discount, discountedAmount);
+                    } else {
+                        double discountedAmount = remaining - discount;
+                        if (discountedAmount < 0) {
+                            discountedAmount = 0;
+                        }
+                        displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: Rs.%.2f -> Pay: %.2f)",
+                                customerName, totalCredit, totalPaid, remaining, discount, discountedAmount);
+                    }
+                    // Store discount info for later use
+                    creditCustomerDiscountMap.put(displayText, discount);
+                    creditCustomerDiscountTypeMap.put(displayText, discountType);
+                } else {
+                    displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                            customerName, totalCredit, totalPaid, remaining);
+                }
+
                 creditCustomers.add(displayText);
 
                 // Store the mapping between display text and customer ID
                 creditCustomerIdMap.put(displayText, customerId);
+                customerRemainingAmountMap.put(displayText, remaining);
                 count++;
+
+                // Debug output
+                System.out.println("Loaded customer: " + customerName + " | Credit: " + totalCredit
+                        + " | Paid: " + totalPaid + " | Remaining: " + remaining
+                        + " | Discount: " + discount + " | Type: " + discountType);
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(creditCustomers);
@@ -661,18 +703,142 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         }
     }
 
+    private void loadCustomerDiscount(int customerId) {
+        try {
+            String sql = "SELECT d.discount, dt.discount_type "
+                    + "FROM credit_discount cd "
+                    + "JOIN discount d ON cd.discount_id = d.discount_id "
+                    + "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
+                    + "WHERE cd.credit_id = ? "
+                    + "ORDER BY d.discount_id DESC LIMIT 1";
+
+            Connection conn = MySQL.getConnection();
+            PreparedStatement pst = conn.prepareStatement(sql);
+            pst.setInt(1, customerId);
+            ResultSet rs = pst.executeQuery();
+
+            hasDiscount = false;
+            discountAmount = 0.0;
+            discountPercentage = 0.0;
+
+            if (rs.next()) {
+                double discountValue = rs.getDouble("discount");
+                String discountType = rs.getString("discount_type");
+                hasDiscount = true;
+
+                if ("percentage".equals(discountType)) {
+                    discountPercentage = discountValue;
+                    discountAmount = originalRemainingAmount * (discountPercentage / 100);
+                } else if ("fixed amount".equals(discountType)) {
+                    discountAmount = discountValue;
+                    discountPercentage = (discountAmount / originalRemainingAmount) * 100;
+                }
+
+                updateDiscountLabel();
+                System.out.println("Discount loaded: " + discountValue + " | Type: " + discountType);
+            } else {
+                discountAmountLabel.setText("No Discount Available");
+                discountAmountLabel.setForeground(Color.GRAY);
+            }
+
+            rs.close();
+            pst.close();
+        } catch (Exception e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error loading discount: " + e.getMessage());
+            e.printStackTrace();
+            discountAmountLabel.setText("Error loading discount");
+            discountAmountLabel.setForeground(Color.RED);
+        }
+    }
+
+    private void updateDiscountLabel() {
+        if (hasDiscount) {
+            String discountText = String.format("Discount: %.2f%% (Rs. %.2f) | Payable: Rs. %.2f",
+                    discountPercentage, discountAmount, remainingAmount);
+            discountAmountLabel.setText(discountText);
+            discountAmountLabel.setForeground(Color.BLUE);
+        } else {
+            discountAmountLabel.setText("No Discount Available");
+            discountAmountLabel.setForeground(Color.GRAY);
+        }
+    }
+
+    private void updateRemainingAmountLabel() {
+        if (hasDiscount) {
+            remainingAmountLabel.setText(String.format("Original Due: %.2f | After Discount: %.2f",
+                    originalRemainingAmount, remainingAmount));
+        } else {
+            remainingAmountLabel.setText(String.format("Remaining Amount: %.2f", remainingAmount));
+        }
+    }
+
+    private void updateSelectedCreditRemainingAmount() {
+        String selected = (String) creditCombo.getSelectedItem();
+        if (selected == null || selected.equals("Select Credit Customer")) {
+            remainingAmount = 0.0;
+            originalRemainingAmount = 0.0;
+            hasDiscount = false;
+            updateRemainingAmountLabel();
+            updateDiscountLabel();
+            return;
+        }
+
+        // Get original remaining amount from map
+        originalRemainingAmount = customerRemainingAmountMap.getOrDefault(selected, 0.0);
+        remainingAmount = originalRemainingAmount;
+
+        // Check if this customer has discount from our maps
+        if (creditCustomerDiscountMap.containsKey(selected) && creditCustomerDiscountTypeMap.containsKey(selected)) {
+            hasDiscount = true;
+            double discountValue = creditCustomerDiscountMap.get(selected);
+            String discountType = creditCustomerDiscountTypeMap.get(selected);
+
+            if ("percentage".equals(discountType)) {
+                discountPercentage = discountValue;
+                discountAmount = originalRemainingAmount * (discountPercentage / 100);
+            } else {
+                discountAmount = discountValue;
+                discountPercentage = (discountAmount / originalRemainingAmount) * 100;
+            }
+
+            // Apply discount to remaining amount
+            remainingAmount = originalRemainingAmount - discountAmount;
+            if (remainingAmount < 0) {
+                remainingAmount = 0;
+            }
+        } else {
+            hasDiscount = false;
+            discountAmount = 0.0;
+            discountPercentage = 0.0;
+        }
+
+        updateRemainingAmountLabel();
+        updateDiscountLabel();
+        
+        // Update tooltip with discount information
+        String tooltipText = "Type payment amount (max: " + String.format("%.2f", remainingAmount) + ") and press ENTER to move to next field";
+        if (hasDiscount) {
+            tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
+        }
+        address.setToolTipText(tooltipText);
+    }
+
     private void loadCreditPayData() {
         try {
             Connection conn = MySQL.getConnection();
 
-            // Load the specific credit payment record with all details
+            // Fixed SQL query with proper joins
             String sql = "SELECT cp.*, cc.customer_id, cc.customer_name, "
-                    + "(SELECT COALESCE(SUM(c.credit_amout), 0) FROM credit c WHERE c.credit_customer_id = cc.customer_id) as total_credit, "
-                    + "(SELECT COALESCE(SUM(cp2.credit_pay_amount), 0) FROM credit_pay cp2 WHERE cp2.credit_customer_id = cc.customer_id) as total_paid, "
+                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                    + "COALESCE(SUM(cp2.credit_pay_amount), 0) as total_paid, "
                     + "cp.credit_pay_amount as current_payment "
                     + "FROM credit_pay cp "
                     + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
-                    + "WHERE cp.credit_pay_id = ?";
+                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                    + "LEFT JOIN credit_pay cp2 ON cc.customer_id = cp2.credit_customer_id "
+                    + "WHERE cp.credit_pay_id = ? "
+                    + "GROUP BY cp.credit_pay_id, cc.customer_id, cc.customer_name, cp.credit_pay_amount";
 
             System.out.println("Loading credit payment data for ID: " + creditPayId);
 
@@ -696,12 +862,37 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
                 // Calculate remaining amount
                 // Remaining = Total credit - Total paid + Current payment (since we're editing current payment)
-                remainingAmount = (totalCredit - totalPaid) + currentPayment;
+                originalRemainingAmount = (totalCredit - totalPaid) + currentPayment;
+                remainingAmount = originalRemainingAmount;
                 System.out.println("Calculated remaining amount: " + remainingAmount);
 
+                // Load discount for customer
+                loadCustomerDiscount(creditCustomerId);
+
+                // Apply discount to remaining amount if exists
+                if (hasDiscount) {
+                    remainingAmount = originalRemainingAmount - discountAmount;
+                    if (remainingAmount < 0) {
+                        remainingAmount = 0;
+                    }
+                }
+
                 // Create display text for the combo box
-                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, totalCredit, totalPaid - currentPayment, remainingAmount);
+                String displayText;
+                if (hasDiscount) {
+                    if (discountPercentage > 0) {
+                        displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
+                                customerName, totalCredit, totalPaid - currentPayment, originalRemainingAmount, 
+                                discountPercentage, remainingAmount);
+                    } else {
+                        displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: Rs.%.2f -> Pay: %.2f)",
+                                customerName, totalCredit, totalPaid - currentPayment, originalRemainingAmount, 
+                                discountAmount, remainingAmount);
+                    }
+                } else {
+                    displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                            customerName, totalCredit, totalPaid - currentPayment, remainingAmount);
+                }
 
                 System.out.println("Looking for customer: " + displayText);
 
@@ -751,7 +942,13 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
                 // Update remaining amount label and tooltip
                 updateRemainingAmountLabel();
-                address.setToolTipText("Type payment amount (max: " + String.format("%.2f", remainingAmount) + ") and press ENTER to move to next field");
+                updateDiscountLabel();
+                
+                String tooltipText = "Type payment amount (max: " + String.format("%.2f", remainingAmount) + ") and press ENTER to move to next field";
+                if (hasDiscount) {
+                    tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
+                }
+                address.setToolTipText(tooltipText);
 
                 System.out.println("All data loaded successfully!");
 
@@ -768,36 +965,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading credit payment data: " + e.getMessage());
-        }
-    }
-
-    private void updateRemainingAmountLabel() {
-        remainingAmountLabel.setText(String.format("Remaining Amount: %.2f", remainingAmount));
-        System.out.println("Updated remaining amount label to: " + remainingAmount);
-    }
-
-    private void updateSelectedCreditRemainingAmount() {
-        String selected = (String) creditCombo.getSelectedItem();
-        if (selected == null || selected.equals("Select Credit Customer")) {
-            remainingAmount = 0.0;
-            updateRemainingAmountLabel();
-            return;
-        }
-
-        // Extract the remaining amount from the display text
-        String[] parts = selected.split(", Due: ");
-        if (parts.length > 1) {
-            String amountStr = parts[1].trim();
-            // Use regex to validate the amount format
-            if (amountStr.matches("^[0-9]*\\.?[0-9]+$")) {
-                remainingAmount = Double.parseDouble(amountStr);
-            } else {
-                remainingAmount = 0.0;
-            }
-            updateRemainingAmountLabel();
-        } else {
-            remainingAmount = 0.0;
-            updateRemainingAmountLabel();
         }
     }
 
@@ -850,10 +1017,24 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             return false;
         }
 
+        // Enhanced debug information with discount
+        System.out.println("=== VALIDATION DEBUG ===");
+        System.out.println("Payment Amount: " + amount);
+        System.out.println("Remaining Amount: " + remainingAmount);
+        System.out.println("Original Remaining Amount: " + originalRemainingAmount);
+        System.out.println("Has Discount: " + hasDiscount);
+        System.out.println("Discount Amount: " + discountAmount);
+        System.out.println("Discount Percentage: " + discountPercentage);
+        System.out.println("========================");
+
         // Check if payment amount exceeds remaining amount
         if (amount > remainingAmount) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    String.format("Payment amount (%.2f) cannot exceed remaining amount: %.2f", amount, remainingAmount));
+            String message = String.format("Payment amount (%.2f) cannot exceed remaining amount: %.2f", amount, remainingAmount);
+            if (hasDiscount) {
+                message += String.format("\n(Original due: %.2f - Discount: %.2f = %.2f)",
+                        originalRemainingAmount, discountAmount, remainingAmount);
+            }
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, message);
             address.requestFocus();
             return false;
         }
@@ -929,9 +1110,15 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             int rowsAffected = pstUpdate.executeUpdate();
 
             if (rowsAffected > 0) {
-                // 3. Create notification message
-                String messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f",
-                        customerName, oldAmount, amount);
+                // 3. Create notification message with discount information
+                String messageText;
+                if (hasDiscount) {
+                    messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f (Discount: Rs.%.2f)",
+                            customerName, oldAmount, amount, discountAmount);
+                } else {
+                    messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f",
+                            customerName, oldAmount, amount);
+                }
 
                 // Check if message already exists in massage table
                 String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
@@ -970,8 +1157,11 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 // Commit transaction
                 conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Credit payment updated successfully!");
+                String successMessage = String.format("Credit payment updated successfully! Amount: Rs. %.2f", amount);
+                if (hasDiscount) {
+                    successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
+                }
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
                 dispose(); // Close the dialog after successful update
             } else {
                 conn.rollback();
@@ -1031,7 +1221,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
     private void openAddNewCredit() {
         try {
-           
             AddCredit dialog = new AddCredit(null, true);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
@@ -1078,6 +1267,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         address = new javax.swing.JTextField();
         addNewCredit = new javax.swing.JButton();
         remainingAmountLabel = new javax.swing.JLabel();
+        discountAmountLabel = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Credit Payment");
@@ -1137,7 +1327,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
         creditCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         creditCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        creditCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Credit *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        creditCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Credit Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         creditCombo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 creditComboActionPerformed(evt);
@@ -1185,6 +1375,8 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
         remainingAmountLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 18)); // NOI18N
 
+        discountAmountLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 18)); // NOI18N
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -1192,8 +1384,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(remainingAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addGroup(jPanel2Layout.createSequentialGroup()
                             .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 122, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1201,14 +1391,19 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                             .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                             .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addComponent(jLabel3)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addGroup(jPanel2Layout.createSequentialGroup()
                                 .addComponent(creditCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 345, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addComponent(addNewCredit, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(givenDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 383, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                            .addComponent(givenDate, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 383, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(discountAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(remainingAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel3)
+                        .addGap(106, 106, 106)))
                 .addGap(0, 24, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
@@ -1220,7 +1415,9 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(remainingAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 12, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(discountAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(creditCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(addNewCredit, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -1233,7 +1430,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(24, Short.MAX_VALUE))
+                .addGap(18, 18, 18))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1398,6 +1595,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
     private javax.swing.JComboBox<String> creditCombo;
+    private javax.swing.JLabel discountAmountLabel;
     private com.toedter.calendar.JDateChooser givenDate;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel2;

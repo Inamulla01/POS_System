@@ -25,6 +25,7 @@ import javax.swing.plaf.basic.BasicMenuItemUI;
 import lk.com.pos.connection.MySQL;
 import lk.com.pos.dialog.AddNewUser;
 import lk.com.pos.dialog.EditProfile;
+import lk.com.pos.panel.ChartPanel;
 import lk.com.pos.panel.ChequePanel;
 import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
@@ -40,10 +41,13 @@ import lk.com.pos.panel.SupplierPanel;
 import lk.com.pos.util.AppIconUtil;
 import raven.toast.Notifications;
 import lk.com.pos.privateclasses.NotificationScheduler;
+import lk.com.pos.privateclasses.SystemRefreshListener;
 import lk.com.pos.session.Session;
 
 public class HomeScreen extends JFrame {
 
+    private SystemRefreshListener refreshListener;
+    
     int userId = 1;
     String roleName = "Admin";
 
@@ -78,6 +82,7 @@ public class HomeScreen extends JFrame {
     private ChequePanel chequePanel;
     private ExpensePanel expensePanel;
     private StockLossPanel stockLossPanel;
+    private ChartPanel chartPanel;
 
     private JButton activeButton = null;
     private Color activeTopColor = new Color(0x12B5A6);
@@ -1231,6 +1236,7 @@ public class HomeScreen extends JFrame {
         this.chequePanel = new ChequePanel();
         this.expensePanel = new ExpensePanel();
         this.stockLossPanel = new StockLossPanel();
+        this.chartPanel = new ChartPanel();
 
         this.cardPanel.add(dashboardPanel, "dashboard_panel");
         this.cardPanel.add(posPanel, "pos_panel");
@@ -1244,6 +1250,7 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(chequePanel, "cheque_Panel");
         this.cardPanel.add(expensePanel, "Expense_Panel");
         this.cardPanel.add(stockLossPanel, "StockLoss_Panel");
+        this.cardPanel.add(chartPanel, "Chart_Panel");
 
         SwingUtilities.updateComponentTreeUI(cardPanel);
     }
@@ -1429,6 +1436,10 @@ public class HomeScreen extends JFrame {
 
     private void showStockLossPanel() {
         contentPanelLayout.show(cardPanel, "StockLoss_Panel");
+    }
+    
+    private void showsChartPanel(){
+        contentPanelLayout.show(cardPanel, "Chart_Panel");
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1848,6 +1859,7 @@ public class HomeScreen extends JFrame {
         expenseBtn = new javax.swing.JButton();
         chequeBtn = new javax.swing.JButton();
         notificasionBtn1 = new javax.swing.JButton();
+        notificasionBtn2 = new javax.swing.JButton();
         cardPanel = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -1946,7 +1958,7 @@ public class HomeScreen extends JFrame {
                 .addComponent(menuBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(helloLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 57, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 45, Short.MAX_VALUE)
                 .addComponent(keyBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(calBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2164,6 +2176,20 @@ public class HomeScreen extends JFrame {
             }
         });
 
+        notificasionBtn2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        notificasionBtn2.setText("ChartPanel");
+        notificasionBtn2.setBorder(null);
+        notificasionBtn2.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        notificasionBtn2.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        notificasionBtn2.setIconTextGap(3);
+        notificasionBtn2.setMargin(new java.awt.Insets(2, 14, 10, 14));
+        notificasionBtn2.setPreferredSize(new java.awt.Dimension(75, 40));
+        notificasionBtn2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                notificasionBtn2ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout sidePenalLayout = new javax.swing.GroupLayout(sidePenal);
         sidePenal.setLayout(sidePenalLayout);
         sidePenalLayout.setHorizontalGroup(
@@ -2171,9 +2197,6 @@ public class HomeScreen extends JFrame {
             .addComponent(stockBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(productBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(salesBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addGroup(sidePenalLayout.createSequentialGroup()
-                .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(12, Short.MAX_VALUE))
             .addComponent(posBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(dashboardBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -2183,7 +2206,16 @@ public class HomeScreen extends JFrame {
             .addComponent(chequeBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(expenseBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(signOutBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addComponent(notificasionBtn1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(sidePenalLayout.createSequentialGroup()
+                .addGroup(sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(sidePenalLayout.createSequentialGroup()
+                        .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 18, Short.MAX_VALUE))
+                    .addGroup(sidePenalLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(notificasionBtn1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(notificasionBtn2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap())
         );
         sidePenalLayout.setVerticalGroup(
             sidePenalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -2213,7 +2245,9 @@ public class HomeScreen extends JFrame {
                 .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(notificasionBtn1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 55, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(notificasionBtn2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 33, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -2555,6 +2589,10 @@ public class HomeScreen extends JFrame {
         showStockLossPanel();
     }//GEN-LAST:event_notificasionBtn1ActionPerformed
 
+    private void notificasionBtn2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_notificasionBtn2ActionPerformed
+        showsChartPanel();
+    }//GEN-LAST:event_notificasionBtn2ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -2592,6 +2630,7 @@ public class HomeScreen extends JFrame {
     private javax.swing.JPanel navPanel;
     private javax.swing.JButton notificasionBtn;
     private javax.swing.JButton notificasionBtn1;
+    private javax.swing.JButton notificasionBtn2;
     private javax.swing.JPanel penal1;
     private javax.swing.JButton posBtn;
     private javax.swing.JButton productBtn;

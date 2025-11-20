@@ -12,14 +12,17 @@ import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import lk.com.pos.privateclasses.RoundedPanel;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,6 +51,14 @@ import lk.com.pos.dialog.ExchangeProductDialog;
 import lk.com.pos.privateclasses.Invoice;
 import raven.toast.Notifications;
 
+// ✅ ADD: Import statements at the top
+import lk.com.pos.session.Session;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import lk.com.pos.dialog.AddCheque;
+
 public class PosCartPanel extends javax.swing.JPanel {
 
     private java.util.List<Invoice> recentInvoices = new ArrayList<>();
@@ -68,6 +79,16 @@ public class PosCartPanel extends javax.swing.JPanel {
     private JLabel noProductsLabel;
     private CartListener cartListener;
 
+    // ✅ ADDED DISCOUNT FIELDS
+    private double appliedDiscountAmount = 0.0;
+    private int appliedDiscountTypeId = -1;
+    
+    // ✅ ADDED EXCHANGE REFUND FIELD
+    private double exchangeRefundAmount = 0.0;
+
+    // ✅ ADD: Instance variable for generated sales ID
+    private int lastGeneratedSalesId = -1;
+
     // Interface for callback
     public interface InvoiceSelectionListener {
 
@@ -85,53 +106,324 @@ public class PosCartPanel extends javax.swing.JPanel {
         init();
     }
 
-    private void init() {
-        FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
-        deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
-        jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
-        jPanel10.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
-        jScrollPane1.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
-        jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
-        jScrollPane1.getVerticalScrollBar().setBlockIncrement(80);
-        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
-                "track: #F5F5F5;"
-                + "thumb: #1CB5BB;"
-                + "width: 10");
+   private void init() {
+    FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
+    deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
+    jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
+    jPanel10.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
+    jScrollPane1.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
+    jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
+    jScrollPane1.getVerticalScrollBar().setBlockIncrement(80);
+    jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+            "track: #F5F5F5;"
+            + "thumb: #1CB5BB;"
+            + "width: 10");
 
-        this.putClientProperty(FlatClientProperties.STYLE, "arc:15");
+    this.putClientProperty(FlatClientProperties.STYLE, "arc:15");
 
-        jPanel1.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
-        jPanel3.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
+    jPanel1.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
+    jPanel3.setBorder(BorderFactory.createEmptyBorder(15, 15, 0, 15));
 
-        jPanel10.setLayout(new javax.swing.BoxLayout(jPanel10, javax.swing.BoxLayout.Y_AXIS));
-        jPanel10.setBackground(Color.WHITE);
+    jPanel10.setLayout(new javax.swing.BoxLayout(jPanel10, javax.swing.BoxLayout.Y_AXIS));
+    jPanel10.setBackground(Color.WHITE);
 
-        jPanel2.putClientProperty(FlatClientProperties.STYLE, "arc:20;");
-        jPanel2.setBorder(BorderFactory.createEmptyBorder());
-        jPanel10.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+    jPanel2.putClientProperty(FlatClientProperties.STYLE, "arc:20;");
+    jPanel2.setBorder(BorderFactory.createEmptyBorder());
+    jPanel10.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
 
-        clearCartBtn.addActionListener(evt -> clearCart());
+    clearCartBtn.addActionListener(evt -> clearCart());
 
-        jTextField2.getDocument().addDocumentListener(new DocumentListener() {
-            public void changedUpdate(DocumentEvent e) {
-                updateBalance();
+    jTextField2.getDocument().addDocumentListener(new DocumentListener() {
+        public void changedUpdate(DocumentEvent e) {
+            updateBalance();
+        }
+
+        public void removeUpdate(DocumentEvent e) {
+            updateBalance();
+        }
+
+        public void insertUpdate(DocumentEvent e) {
+            updateBalance();
+        }
+    });
+
+    ((AbstractDocument) jTextField2.getDocument()).setDocumentFilter(new NumericDocumentFilter());
+
+    loadPaymentMethods();
+    showNoProductsMessage();
+    
+    // ✅ ADDED: Setup keyboard shortcuts and tooltips (delayed initialization)
+    SwingUtilities.invokeLater(() -> {
+        setupKeyboardShortcuts();
+    });
+    
+    discountBtn.setToolTipText("Apply discount (Ctrl+D)");
+    exchangeBtn.setToolTipText("Process exchange/return (Ctrl+E)");
+    switchBtn.setToolTipText("Switch invoice (Ctrl+W)");
+    
+    // ✅ ADDED: Initially hide discount and exchange refund labels
+    jLabel24.setVisible(false); // "Discount:" label
+    jLabel25.setVisible(false); // Discount amount
+    jLabel25.setText("Rs.0.00");
+
+    jLabel26.setVisible(false); // "Exchange Refund:" label
+    jLabel27.setVisible(false); // Exchange refund amount
+    jLabel27.setText("Rs.0.00");
+
+    // ✅ ADDED: Setup payment method combo listener for Amount Received visibility
+    paymentcombo.addActionListener(new java.awt.event.ActionListener() {
+        public void actionPerformed(java.awt.event.ActionEvent evt) {
+            updateAmountReceivedVisibility();
+        }
+    });
+    
+    // ✅ ADDED: Setup search functionality with placeholder
+    jTextField3.setText("Search by barcode or product name");
+    jTextField3.setForeground(new Color(128, 128, 128)); // Gray color
+
+    jTextField3.addFocusListener(new java.awt.event.FocusAdapter() {
+        @Override
+        public void focusGained(java.awt.event.FocusEvent evt) {
+            if (jTextField3.getText().equals("Search by barcode or product name")) {
+                jTextField3.setText("");
+                jTextField3.setForeground(Color.BLACK);
             }
+        }
 
-            public void removeUpdate(DocumentEvent e) {
-                updateBalance();
+        @Override
+        public void focusLost(java.awt.event.FocusEvent evt) {
+            if (jTextField3.getText().isEmpty()) {
+                jTextField3.setText("Search by barcode or product name");
+                jTextField3.setForeground(new Color(128, 128, 128));
             }
+        }
+    });
 
-            public void insertUpdate(DocumentEvent e) {
-                updateBalance();
+    jTextField3.getDocument().addDocumentListener(new DocumentListener() {
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            filterCartItems();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            filterCartItems();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            filterCartItems();
+        }
+    });
+    
+    // ✅ ADDED: Barcode scanning support
+    jTextField3.addActionListener(new java.awt.event.ActionListener() {
+        public void actionPerformed(java.awt.event.ActionEvent evt) {
+            // When Enter is pressed (barcode scanner sends Enter)
+            String searchText = jTextField3.getText().trim();
+            
+            if (!searchText.isEmpty() && !searchText.equals("Search by barcode or product name")) {
+                // Try to find product by barcode
+                searchAndAddProductByBarcode(searchText);
             }
-        });
-
+        }
+    });
+    
+    // ✅ ADDED: Remove the panel border and wrap the search field in a panel with margins
+    // Remove any previous border from jPanel2
+    jPanel2.setBorder(BorderFactory.createEmptyBorder());
+    
+    // Create a wrapper panel for the search field with margins
+    javax.swing.JPanel searchWrapperPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
+    searchWrapperPanel.setBackground(Color.WHITE);
+    searchWrapperPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 15));
+    
+    // Remove jTextField3 from its current parent and add it to the wrapper
+    if (jTextField3.getParent() != null) {
+        java.awt.Container parent = jTextField3.getParent();
+        parent.remove(jTextField3);
+        searchWrapperPanel.add(jTextField3, java.awt.BorderLayout.CENTER);
         
+        // Find the position of jTextField3 in the layout and replace it with the wrapper
+        java.awt.Component[] components = parent.getComponents();
+        for (int i = 0; i < components.length; i++) {
+            if (components[i] == jTextField3) {
+                parent.remove(i);
+                parent.add(searchWrapperPanel, i);
+                break;
+            }
+        }
+    }
+    
+    // ✅ ADDED: Initially hide amount received field and balance payable
+    updateAmountReceivedVisibility();
+}
 
-        ((AbstractDocument) jTextField2.getDocument()).setDocumentFilter(new NumericDocumentFilter());
+// ✅ ADDED: Auto-add product by barcode
+private void searchAndAddProductByBarcode(String barcode) {
+    try {
+        String query = "SELECT p.product_id, p.product_name, b.brand_name, s.batch_no, " +
+                      "s.qty, s.selling_price, p.barcode " +
+                      "FROM product p " +
+                      "INNER JOIN brand b ON p.brand_id = b.brand_id " +
+                      "INNER JOIN stock s ON p.product_id = s.product_id " +
+                      "WHERE p.barcode = ? AND s.qty > 0 " +
+                      "ORDER BY s.batch_no ASC LIMIT 1";
+        
+        PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
+        pst.setString(1, barcode);
+        ResultSet rs = pst.executeQuery();
+        
+        if (rs.next()) {
+            // Product found - add to cart
+            int productId = rs.getInt("product_id");
+            String productName = rs.getString("product_name");
+            String brandName = rs.getString("brand_name");
+            String batchNo = rs.getString("batch_no");
+            int availableQty = rs.getInt("qty");
+            double sellingPrice = rs.getDouble("selling_price");
+            String foundBarcode = rs.getString("barcode");
+            
+            // Add to cart
+            addToCart(productId, productName, brandName, batchNo, 
+                     availableQty, sellingPrice, foundBarcode, 0.0);
+            
+            // Play beep sound (optional)
+            java.awt.Toolkit.getDefaultToolkit().beep();
+            
+            // Clear search field
+            jTextField3.setText("");
+            
+            Notifications.getInstance().show(
+                    Notifications.Type.SUCCESS,
+                    Notifications.Location.TOP_RIGHT,
+                    "Added: " + productName + " (" + brandName + ")"
+            );
+        } else {
+            // Product not found
+            Notifications.getInstance().show(
+                    Notifications.Type.WARNING,
+                    Notifications.Location.TOP_RIGHT,
+                    "Product not found: " + barcode
+            );
+            jTextField3.selectAll();
+        }
+        
+    } catch (Exception e) {
+        System.err.println("Error searching by barcode: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
 
-        loadPaymentMethods();
-        showNoProductsMessage();
+// ✅ ADDED: Method to apply margins to search bar
+private void applySearchBarMargins() {
+    if (jTextField3.getParent() != null) {
+        // Get the current preferred size
+        Dimension currentSize = jTextField3.getPreferredSize();
+        // Add 30px to width (15px left + 15px right)
+        jTextField3.setPreferredSize(new Dimension(currentSize.width + 30, currentSize.height));
+        
+        // Also set minimum and maximum sizes to maintain consistency
+        jTextField3.setMinimumSize(new Dimension(100 + 30, currentSize.height));
+        if (jTextField3.getMaximumSize() != null) {
+            jTextField3.setMaximumSize(new Dimension(
+                Integer.MAX_VALUE, 
+                currentSize.height
+            ));
+        }
+    }
+}
+
+    // ✅ ADDED: Filter cart items based on search
+    private void filterCartItems() {
+        String searchText = jTextField3.getText().trim().toLowerCase();
+        
+        if (searchText.isEmpty()) {
+            updateCartPanel();
+            return;
+        }
+        
+        jPanel10.removeAll();
+
+        if (cartItems.isEmpty()) {
+            showNoProductsMessage();
+            return;
+        }
+
+        jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 18)));
+
+        boolean foundItems = false;
+        for (CartItem item : cartItems.values()) {
+            String productName = item.getProductName().toLowerCase();
+            String brandName = item.getBrandName().toLowerCase();
+            String barcode = item.getBarcode() != null ? item.getBarcode().toLowerCase() : "";
+            
+            if (productName.contains(searchText) || brandName.contains(searchText) || barcode.contains(searchText)) {
+                RoundedPanel cartCard = createCartItemPanel(item);
+                jPanel10.add(cartCard);
+                jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(18, 18)));
+                foundItems = true;
+            }
+        }
+
+        if (!foundItems) {
+            showNoSearchResults();
+        }
+
+        jPanel10.revalidate();
+        jPanel10.repaint();
+    }
+
+    // ✅ ADDED: Show no search results message
+    private void showNoSearchResults() {
+        jPanel10.removeAll();
+
+        JPanel messagePanel = new JPanel(new java.awt.GridBagLayout());
+        messagePanel.setBackground(Color.WHITE);
+        messagePanel.setPreferredSize(new Dimension(jScrollPane1.getViewport().getWidth(), 300));
+
+        JLabel noResultsLabel = new JLabel("No products found for: \"" + jTextField3.getText() + "\"");
+        noResultsLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 16));
+        noResultsLabel.setForeground(TEXT_GRAY);
+
+        messagePanel.add(noResultsLabel);
+        jPanel10.add(messagePanel);
+
+        jPanel10.revalidate();
+        jPanel10.repaint();
+    }
+
+    // ✅ ADDED: NEW METHOD - Update Amount Received Visibility
+    private void updateAmountReceivedVisibility() {
+        String selectedPayment = (String) paymentcombo.getSelectedItem();
+        
+        // Show Amount Received and Balance only for Cash payment
+        boolean isCashPayment = selectedPayment != null && 
+                               selectedPayment.toLowerCase().contains("cash");
+        
+        jTextField2.setVisible(isCashPayment);
+        jLabel22.setVisible(isCashPayment); // "Balance Payable:" label
+        jLabel23.setVisible(isCashPayment); // Balance amount
+        
+        // Always show discount and exchange refund labels if they have values
+        if (appliedDiscountAmount > 0) {
+            jLabel24.setVisible(true);
+            jLabel25.setVisible(true);
+        }
+        
+        if (exchangeRefundAmount > 0) {
+            jLabel26.setVisible(true);
+            jLabel27.setVisible(true);
+        }
+        
+        // Clear amount received if not cash payment
+        if (!isCashPayment) {
+            jTextField2.setText("");
+            jLabel23.setText("Rs.0.00");
+            jLabel23.setForeground(Color.BLACK);
+        }
+        
+        updateBalance();
     }
 
     private void loadPaymentMethods() {
@@ -163,7 +455,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private class NumericDocumentFilter extends DocumentFilter {
 
         @Override
-        public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+        public void insertString(DocumentFilter.FilterBypass fb, int offset, String string, AttributeSet attr)
                 throws BadLocationException {
             if (isValidNumber(string)) {
                 super.insertString(fb, offset, string, attr);
@@ -171,7 +463,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
 
         @Override
-        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+        public void replace(DocumentFilter.FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
                 throws BadLocationException {
             if (isValidNumber(text)) {
                 super.replace(fb, offset, length, text, attrs);
@@ -214,8 +506,6 @@ public class PosCartPanel extends javax.swing.JPanel {
             updateCartPanel();
         }
     }
-
-    
 
     private void showNoProductsMessage() {
         jPanel10.removeAll();
@@ -261,6 +551,52 @@ public class PosCartPanel extends javax.swing.JPanel {
         jPanel10.repaint();
 
         updateTotals();
+    }
+
+    // ✅ ADDED: Helper method to apply discount value
+    private void applyDiscountValue(JTextField discountField, CartItem item) {
+        try {
+            String text = discountField.getText().trim();
+            if (text.isEmpty()) {
+                item.setDiscountPrice(0);
+                discountField.setText("0");
+                updateTotals();
+                return;
+            }
+
+            double discountInput = Double.parseDouble(text);
+            double unitPrice = item.getUnitPrice();
+            double lastPrice = item.getLastPrice();
+            double finalPricePerUnit = unitPrice - discountInput;
+
+            if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
+                discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+                discountField.setForeground(Color.BLACK);
+
+                String message;
+                if (discountInput < 0) {
+                    message = "Discount cannot be negative";
+                } else if (discountInput > unitPrice) {
+                    message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
+                } else {
+                    double maxAllowedDiscount = unitPrice - lastPrice;
+                    message = String.format(
+                            "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
+                            finalPricePerUnit, lastPrice, maxAllowedDiscount
+                    );
+                }
+
+                JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
+            } else {
+                item.setDiscountPrice(discountInput);
+                discountField.setText(String.format("%.2f", discountInput));
+                discountField.setForeground(Color.BLACK);
+                updateTotals();
+            }
+        } catch (NumberFormatException e) {
+            discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+            discountField.setForeground(Color.BLACK);
+        }
     }
 
     private RoundedPanel createCartItemPanel(CartItem item) {
@@ -326,6 +662,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         JPanel middlePanel = new JPanel(new java.awt.BorderLayout(15, 0));
         middlePanel.setOpaque(false);
 
+        // ✅ UPDATED: Enhanced quantity panel with JTextField
         JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 10));
         qtyPanel.setOpaque(false);
 
@@ -333,35 +670,264 @@ public class PosCartPanel extends javax.swing.JPanel {
         minusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
         minusBtn.setPreferredSize(new Dimension(40, 35));
         minusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        minusBtn.addActionListener(e -> {
-            if (item.getQuantity() > 1) {
-                item.setQuantity(item.getQuantity() - 1);
+
+        // ✅ CHANGED: Replace JLabel with JTextField
+        JTextField qtyField = new JTextField(String.valueOf(item.getQuantity()));
+        qtyField.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        qtyField.setHorizontalAlignment(JTextField.CENTER);
+        qtyField.setPreferredSize(new Dimension(60, 35));
+        qtyField.setToolTipText("Enter quantity (1-" + item.getAvailableQty() + ")");
+
+        // ✅ ADD: Numeric filter for quantity field - only allows digits
+        ((AbstractDocument) qtyField.getDocument()).setDocumentFilter(new DocumentFilter() {
+            @Override
+            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+                    throws BadLocationException {
+                if (string == null) {
+                    return;
+                }
+                
+                // Only allow digits
+                if (string.matches("[0-9]*")) {
+                    // Check if resulting text would be valid
+                    String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                    String newText = currentText.substring(0, offset) + string + 
+                                   currentText.substring(offset);
+                    
+                    // Prevent leading zeros (except single "0")
+                    if (newText.length() > 1 && newText.startsWith("0")) {
+                        return;
+                    }
+                    
+                    // Check max length (prevent entering huge numbers)
+                    if (newText.length() <= 6) { // Max 999999
+                        super.insertString(fb, offset, string, attr);
+                    }
+                }
+            }
+
+            @Override
+            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                    throws BadLocationException {
+                if (text == null) {
+                    super.replace(fb, offset, length, text, attrs);
+                    return;
+                }
+                
+                // Only allow digits
+                if (text.matches("[0-9]*")) {
+                    // Check if resulting text would be valid
+                    String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                    String newText = currentText.substring(0, offset) + text + 
+                                   currentText.substring(offset + length);
+                    
+                    // Prevent leading zeros (except single "0")
+                    if (newText.length() > 1 && newText.startsWith("0")) {
+                        return;
+                    }
+                    
+                    // Check max length
+                    if (newText.length() <= 6) {
+                        super.replace(fb, offset, length, text, attrs);
+                    }
+                }
+            }
+        });
+
+        // ✅ ADD: Real-time validation with visual feedback
+        qtyField.getDocument().addDocumentListener(new DocumentListener() {
+            private void validateAndUpdate() {
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        String text = qtyField.getText().trim();
+                        
+                        // Empty field validation
+                        if (text.isEmpty()) {
+                            qtyField.setForeground(ERROR_COLOR);
+                            qtyField.setToolTipText("Quantity cannot be empty");
+                            return;
+                        }
+
+                        int newQty = Integer.parseInt(text);
+                        
+                        // Zero or negative validation
+                        if (newQty <= 0) {
+                            qtyField.setForeground(ERROR_COLOR);
+                            qtyField.setToolTipText("Quantity must be at least 1");
+                            return;
+                        }
+                        
+                        // Stock limit validation
+                        if (newQty > item.getAvailableQty()) {
+                            qtyField.setForeground(ERROR_COLOR);
+                            qtyField.setToolTipText("Exceeds available stock: " + item.getAvailableQty());
+                            return;
+                        }
+                        
+                        // Valid quantity
+                        qtyField.setForeground(SUCCESS_COLOR);
+                        qtyField.setToolTipText("Valid quantity (" + newQty + " available)");
+                        
+                        // Only update if quantity actually changed
+                        if (item.getQuantity() != newQty) {
+                            item.setQuantity(newQty);
+                            updateCartPanel();
+                        }
+                        
+                    } catch (NumberFormatException e) {
+                        qtyField.setForeground(ERROR_COLOR);
+                        qtyField.setToolTipText("Invalid number format");
+                    }
+                });
+            }
+
+            public void changedUpdate(DocumentEvent e) {
+                validateAndUpdate();
+            }
+
+            public void removeUpdate(DocumentEvent e) {
+                validateAndUpdate();
+            }
+
+            public void insertUpdate(DocumentEvent e) {
+                validateAndUpdate();
+            }
+        });
+
+        // ✅ ADD: Focus listener with comprehensive validation
+        qtyField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                // Select all text when focused for easy editing
+                SwingUtilities.invokeLater(() -> qtyField.selectAll());
+                qtyField.setToolTipText("Enter quantity (1-" + item.getAvailableQty() + ")");
+            }
+            
+            @Override
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                String text = qtyField.getText().trim();
+                boolean isValid = false;
+                String errorMessage = null;
+                
+                try {
+                    // Empty field - reset to 1
+                    if (text.isEmpty()) {
+                        errorMessage = "Quantity cannot be empty. Reset to 1.";
+                        item.setQuantity(1);
+                        qtyField.setText("1");
+                    } else {
+                        int newQty = Integer.parseInt(text);
+                        
+                        // Zero or negative - reset to 1
+                        if (newQty <= 0) {
+                            errorMessage = "Quantity must be at least 1. Reset to 1.";
+                            item.setQuantity(1);
+                            qtyField.setText("1");
+                        }
+                        // Exceeds stock - reset to max available
+                        else if (newQty > item.getAvailableQty()) {
+                            errorMessage = String.format(
+                                "Quantity exceeds available stock (%d). Set to maximum available.",
+                                item.getAvailableQty()
+                            );
+                            item.setQuantity(item.getAvailableQty());
+                            qtyField.setText(String.valueOf(item.getAvailableQty()));
+                        }
+                        // Valid quantity
+                        else {
+                            isValid = true;
+                            item.setQuantity(newQty);
+                            qtyField.setText(String.valueOf(newQty));
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    errorMessage = "Invalid number format. Reset to previous value.";
+                    qtyField.setText(String.valueOf(item.getQuantity()));
+                }
+                
+                // Reset color to normal
+                qtyField.setForeground(Color.BLACK);
+                qtyField.setToolTipText(null);
+                
+                // Show error message if validation failed
+                if (!isValid && errorMessage != null) {
+                    JOptionPane.showMessageDialog(
+                        SwingUtilities.getWindowAncestor(qtyField),
+                        errorMessage,
+                        "Invalid Quantity",
+                        JOptionPane.WARNING_MESSAGE
+                    );
+                }
+                
+                // Update cart display
                 updateCartPanel();
             }
         });
-        qtyPanel.add(minusBtn);
 
-        JLabel qtyLabel = new JLabel(String.valueOf(item.getQuantity()));
-        qtyLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
-        qtyLabel.setHorizontalAlignment(JLabel.CENTER);
-        qtyLabel.setPreferredSize(new Dimension(60, 35));
-        qtyPanel.add(qtyLabel);
+        // ✅ ADD: Key listener for Enter key
+        qtyField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    // Transfer focus to trigger validation
+                    qtyField.transferFocus();
+                } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                    // Cancel editing - revert to original value
+                    qtyField.setText(String.valueOf(item.getQuantity()));
+                    qtyField.setForeground(Color.BLACK);
+                    qtyField.transferFocus();
+                }
+            }
+        });
+
+        // ✅ UPDATED: Minus button action with validation
+        minusBtn.addActionListener(e -> {
+            if (item.getQuantity() > 1) {
+                item.setQuantity(item.getQuantity() - 1);
+                qtyField.setText(String.valueOf(item.getQuantity()));
+                qtyField.setForeground(Color.BLACK);
+                qtyField.setToolTipText(null);
+                updateCartPanel();
+            } else {
+                // Already at minimum
+                qtyField.setForeground(ERROR_COLOR);
+                javax.swing.Timer timer = new javax.swing.Timer(500, evt -> {
+                    qtyField.setForeground(Color.BLACK);
+                });
+                timer.setRepeats(false);
+                timer.start();
+            }
+        });
+
+        qtyPanel.add(minusBtn);
+        qtyPanel.add(qtyField);
 
         JButton plusBtn = new JButton("+");
         plusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
         plusBtn.setPreferredSize(new Dimension(40, 35));
         plusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // ✅ UPDATED: Plus button action with validation
         plusBtn.addActionListener(e -> {
             if (item.getQuantity() < item.getAvailableQty()) {
                 item.setQuantity(item.getQuantity() + 1);
+                qtyField.setText(String.valueOf(item.getQuantity()));
+                qtyField.setForeground(Color.BLACK);
+                qtyField.setToolTipText(null);
                 updateCartPanel();
             } else {
-                JOptionPane.showMessageDialog(this,
-                        "Cannot add more. Available stock: " + item.getAvailableQty(),
-                        "Stock Limit",
-                        JOptionPane.WARNING_MESSAGE);
+                // Already at maximum
+                qtyField.setForeground(ERROR_COLOR);
+                JOptionPane.showMessageDialog(
+                    SwingUtilities.getWindowAncestor(plusBtn),
+                    "Cannot add more. Available stock: " + item.getAvailableQty(),
+                    "Stock Limit",
+                    JOptionPane.WARNING_MESSAGE
+                );
+                qtyField.setForeground(Color.BLACK);
             }
         });
+
         qtyPanel.add(plusBtn);
 
         middlePanel.add(qtyPanel, java.awt.BorderLayout.WEST);
@@ -445,58 +1011,37 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
+        // ✅ ADD: Enter key listener for instant update
+        discountField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    // Apply the discount immediately
+                    applyDiscountValue(discountField, item);
+                    // Transfer focus to trigger visual feedback
+                    discountField.transferFocus();
+                } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                    // Cancel editing - revert to original value
+                    discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+                    discountField.setForeground(Color.BLACK);
+                    discountField.transferFocus();
+                }
+            }
+        });
+
         discountField.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusGained(java.awt.event.FocusEvent evt) {
                 if (discountField.getText().trim().equals("0") || discountField.getText().trim().equals("0.00")) {
                     discountField.setText("");
                 }
+                // Select all text for easy editing
+                SwingUtilities.invokeLater(() -> discountField.selectAll());
             }
 
             @Override
             public void focusLost(java.awt.event.FocusEvent evt) {
-                try {
-                    String text = discountField.getText().trim();
-                    if (text.isEmpty()) {
-                        item.setDiscountPrice(0);
-                        discountField.setText("0");
-                        updateTotals();
-                        return;
-                    }
-
-                    double discountInput = Double.parseDouble(text);
-                    double unitPrice = item.getUnitPrice();
-                    double lastPrice = item.getLastPrice();
-                    double finalPricePerUnit = unitPrice - discountInput;
-
-                    if (discountInput < 0 || discountInput > unitPrice || finalPricePerUnit < lastPrice) {
-                        discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-                        discountField.setForeground(Color.BLACK);
-
-                        String message;
-                        if (discountInput < 0) {
-                            message = "Discount cannot be negative";
-                        } else if (discountInput > unitPrice) {
-                            message = "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice);
-                        } else {
-                            double maxAllowedDiscount = unitPrice - lastPrice;
-                            message = String.format(
-                                    "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                                    finalPricePerUnit, lastPrice, maxAllowedDiscount
-                            );
-                        }
-
-                        JOptionPane.showMessageDialog(null, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-                    } else {
-                        item.setDiscountPrice(discountInput);
-                        discountField.setText(String.format("%.2f", discountInput));
-                        discountField.setForeground(Color.BLACK);
-                        updateTotals();
-                    }
-                } catch (NumberFormatException e) {
-                    discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-                    discountField.setForeground(Color.BLACK);
-                }
+                applyDiscountValue(discountField, item);
             }
         });
 
@@ -572,14 +1117,21 @@ public class PosCartPanel extends javax.swing.JPanel {
         if (confirm == JOptionPane.YES_OPTION) {
             cartItems.clear();
             jTextField2.setText("");
+            
+            // ✅ FIXED: Clear discount and exchange refund when clearing cart
+            appliedDiscountAmount = 0.0;
+            appliedDiscountTypeId = -1;
+            exchangeRefundAmount = 0.0;
+            
             updateCartPanel();
         }
     }
 
+    // ✅ FIXED: Updated updateBalance() method
     private void updateBalance() {
         try {
             String amountText = jTextField2.getText().trim();
-            double total = getTotal();
+            double total = getTotal(); // This already includes discount and exchange refund
 
             if (!amountText.isEmpty()) {
                 double amountReceived = Double.parseDouble(amountText);
@@ -604,19 +1156,53 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
+    // ✅ FIXED: Updated updateTotals() method
     private void updateTotals() {
-        double total = 0;
+        double subtotal = 0;
 
+        // Calculate subtotal from cart items
         for (CartItem item : cartItems.values()) {
-            total += item.getTotalPrice();
+            subtotal += item.getTotalPrice();
+        }
+        
+        // Apply discount to subtotal
+        double totalAfterDiscount = subtotal - appliedDiscountAmount;
+        if (totalAfterDiscount < 0) totalAfterDiscount = 0;
+        
+        // Add exchange refund to get final total
+        double finalTotal = totalAfterDiscount + exchangeRefundAmount;
+
+        // Update total label
+        jLabel15.setText(String.format("Rs.%.2f", finalTotal));
+
+        // Update discount label visibility and value
+        if (appliedDiscountAmount > 0) {
+            jLabel25.setText(String.format("-Rs.%.2f", appliedDiscountAmount));
+            jLabel25.setVisible(true);
+            jLabel24.setVisible(true); // "Discount:" label
+        } else {
+            jLabel25.setText("Rs.0.00");
+            jLabel25.setVisible(false);
+            jLabel24.setVisible(false);
+        }
+        
+        // Update exchange refund label visibility and value
+        if (exchangeRefundAmount > 0) {
+            jLabel27.setText(String.format("+Rs.%.2f", exchangeRefundAmount));
+            jLabel27.setVisible(true);
+            jLabel26.setVisible(true); // "Exchange Refund:" label
+        } else {
+            jLabel27.setText("Rs.0.00");
+            jLabel27.setVisible(false);
+            jLabel26.setVisible(false);
         }
 
-        jLabel15.setText(String.format("Rs.%.2f", total));
-
+        // Update balance
         updateBalance();
 
+        // Notify listener
         if (cartListener != null) {
-            cartListener.onCartUpdated(total, cartItems.size());
+            cartListener.onCartUpdated(finalTotal, cartItems.size());
         }
     }
 
@@ -624,14 +1210,70 @@ public class PosCartPanel extends javax.swing.JPanel {
         return new HashMap<>(cartItems);
     }
 
+    // ✅ FIXED: Updated getTotal() method
     public double getTotal() {
         double total = 0;
+        
+        // Calculate subtotal from cart items
         for (CartItem item : cartItems.values()) {
             total += item.getTotalPrice();
         }
+        
+        // Apply discount (subtract)
+        total -= appliedDiscountAmount;
+        if (total < 0) total = 0;
+        
+        // Add exchange refund (add)
+        total += exchangeRefundAmount;
+        
         return total;
     }
 
+//    // ✅ ADD: Show sale summary dialog
+//    private boolean showSaleSummary() {
+//        StringBuilder summary = new StringBuilder();
+//        summary.append("<html><body style='font-family: Nunito; font-size: 12px;'>");
+//        summary.append("<h2 style='color: #0893B0;'>Sale Summary</h2>");
+//        summary.append("<table cellpadding='5'>");
+//        
+//        double subtotal = 0;
+//        for (CartItem item : cartItems.values()) {
+//            subtotal += item.getUnitPrice() * item.getQuantity();
+//            summary.append(String.format(
+//                "<tr><td>%s (%s)</td><td>x%d</td><td align='right'>Rs.%.2f</td></tr>",
+//                item.getProductName(), item.getBrandName(), 
+//                item.getQuantity(), item.getTotalPrice()
+//            ));
+//        }
+//        
+//        summary.append("<tr><td colspan='3'><hr></td></tr>");
+//        summary.append(String.format("<tr><td><b>Subtotal:</b></td><td></td><td align='right'><b>Rs.%.2f</b></td></tr>", subtotal));
+//        
+//        if (appliedDiscountAmount > 0) {
+//            summary.append(String.format("<tr style='color: red;'><td>Discount:</td><td></td><td align='right'>-Rs.%.2f</td></tr>", appliedDiscountAmount));
+//        }
+//        
+//        if (exchangeRefundAmount > 0) {
+//            summary.append(String.format("<tr style='color: orange;'><td>Exchange Refund:</td><td></td><td align='right'>+Rs.%.2f</td></tr>", exchangeRefundAmount));
+//        }
+//        
+//        summary.append(String.format("<tr><td colspan='3'><hr></td></tr>"));
+//        summary.append(String.format("<tr><td><b>TOTAL:</b></td><td></td><td align='right'><b style='color: #0893B0; font-size: 16px;'>Rs.%.2f</b></td></tr>", getTotal()));
+//        
+//        summary.append("</table>");
+//        summary.append("<br><p>Payment Method: <b>" + paymentcombo.getSelectedItem() + "</b></p>");
+//        summary.append("</body></html>");
+//        
+//        int confirm = JOptionPane.showConfirmDialog(this,
+//                new JLabel(summary.toString()),
+//                "Confirm Sale",
+//                JOptionPane.YES_NO_OPTION,
+//                JOptionPane.QUESTION_MESSAGE);
+//        
+//        return confirm == JOptionPane.YES_OPTION;
+//    }
+
+    // ✅ MODIFIED: Updated to use discounted total
     public boolean validateCheckout() {
         if (cartItems.isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -651,43 +1293,103 @@ public class PosCartPanel extends javax.swing.JPanel {
             return false;
         }
 
-        try {
-            String amountText = jTextField2.getText().trim();
-            if (amountText.isEmpty()) {
+        // ✅ FIXED: Only validate amount for cash payments
+        boolean isCashPayment = selectedPayment.toLowerCase().contains("cash");
+        if (isCashPayment) {
+            try {
+                String amountText = jTextField2.getText().trim();
+                if (amountText.isEmpty()) {
+                    JOptionPane.showMessageDialog(this,
+                            "Please enter amount received.",
+                            "Missing Amount",
+                            JOptionPane.WARNING_MESSAGE);
+                    jTextField2.requestFocus();
+                    return false;
+                }
+
+                double amountReceived = Double.parseDouble(amountText);
+                double total = getTotal(); // This now includes discount and exchange refund
+
+                if (amountReceived < total) {
+                    JOptionPane.showMessageDialog(this,
+                            String.format("Insufficient amount. Need Rs.%.2f more.", total - amountReceived),
+                            "Insufficient Payment",
+                            JOptionPane.WARNING_MESSAGE);
+                    return false;
+                }
+            } catch (NumberFormatException e) {
                 JOptionPane.showMessageDialog(this,
-                        "Please enter amount received.",
-                        "Missing Amount",
-                        JOptionPane.WARNING_MESSAGE);
-                jTextField2.requestFocus();
+                        "Invalid amount entered.",
+                        "Invalid Amount",
+                        JOptionPane.ERROR_MESSAGE);
                 return false;
             }
-
-            double amountReceived = Double.parseDouble(amountText);
-            double total = getTotal();
-
-            if (amountReceived < total) {
-                JOptionPane.showMessageDialog(this,
-                        String.format("Insufficient amount. Need Rs.%.2f more.", total - amountReceived),
-                        "Insufficient Payment",
-                        JOptionPane.WARNING_MESSAGE);
-                return false;
-            }
-
-            return true;
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Invalid amount entered.",
-                    "Invalid Amount",
-                    JOptionPane.ERROR_MESSAGE);
-            return false;
         }
+
+        return true;
     }
 
+    // ✅ FIXED: Updated resetCart() method
     public void resetCart() {
         cartItems.clear();
         jTextField2.setText("");
         paymentcombo.setSelectedIndex(0);
+        
+        // Clear discount
+        appliedDiscountAmount = 0.0;
+        appliedDiscountTypeId = -1;
+        
+        // Clear exchange refund
+        exchangeRefundAmount = 0.0;
+        
+        // Reset label visibility and values
+        if (jLabel25 != null) {
+            jLabel25.setText("Rs.0.00");
+            jLabel25.setVisible(false);
+        }
+        if (jLabel24 != null) {
+            jLabel24.setVisible(false);
+        }
+        if (jLabel27 != null) {
+            jLabel27.setText("Rs.0.00");
+            jLabel27.setVisible(false);
+        }
+        if (jLabel26 != null) {
+            jLabel26.setVisible(false);
+        }
+        
         updateCartPanel();
+    }
+
+    /**
+     * Setup keyboard shortcuts
+     */
+    private void setupKeyboardShortcuts() {
+        // Wait until the component is properly initialized
+        SwingUtilities.invokeLater(() -> {
+            if (getRootPane() != null) {
+                // Ctrl+D for Discount
+                getRootPane().registerKeyboardAction(
+                    evt -> discountBtnActionPerformed(null),
+                    KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.CTRL_DOWN_MASK),
+                    JComponent.WHEN_IN_FOCUSED_WINDOW
+                );
+
+                // Ctrl+E for Exchange
+                getRootPane().registerKeyboardAction(
+                    evt -> exchangeBtnActionPerformed(null),
+                    KeyStroke.getKeyStroke(KeyEvent.VK_E, KeyEvent.CTRL_DOWN_MASK),
+                    JComponent.WHEN_IN_FOCUSED_WINDOW
+                );
+
+                // Ctrl+W for Switch (already exists)
+                getRootPane().registerKeyboardAction(
+                    evt -> showSwitchInvoicePanel(),
+                    KeyStroke.getKeyStroke(KeyEvent.VK_W, KeyEvent.CTRL_DOWN_MASK),
+                    JComponent.WHEN_IN_FOCUSED_WINDOW
+                );
+            }
+        });
     }
 
     // Enhanced dialog positioning to ensure it stays on screen
@@ -1385,7 +2087,7 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
 
             try {
-                FlatSVGIcon icon = new FlatSVGIcon(iconPath, 16, 16);
+                FlatSVGIcon icon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 16, 16);
                 final Color[] colors = getButtonColors(getText());
 
                 icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> colors[0]));
@@ -1639,6 +2341,785 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
+    // ✅ FIXED: Updated exchangeBtnActionPerformed() method to properly add exchange item price to refund
+    
+    // ✅ ADDED: NEW METHOD - Get Refund Amount
+    private double getRefundAmountFromReturn(int returnId) {
+        try {
+            String query = "SELECT total_return_amount FROM `return` WHERE return_id = " + returnId;
+            ResultSet rs = MySQL.executeSearch(query);
+            
+            if (rs.next()) {
+                return rs.getDouble("total_return_amount");
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting refund amount: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return 0.0;
+    }
+
+    // ✅ ADDED: GETTER METHODS FOR DISCOUNT AND EXCHANGE
+    public double getAppliedDiscountAmount() {
+        return appliedDiscountAmount;
+    }
+
+    public int getAppliedDiscountTypeId() {
+        return appliedDiscountTypeId;
+    }
+
+    public double getExchangeRefundAmount() {
+        return exchangeRefundAmount;
+    }
+
+    public void setExchangeRefundAmount(double amount) {
+        this.exchangeRefundAmount = amount;
+        updateTotals();
+    }
+
+    // ✅ ADD: Main Complete Sale Handler
+    private void handleCompleteSale() {
+        // Validate checkout first
+        if (!validateCheckout()) {
+            return;
+        }
+//        
+//        // Show summary before proceeding
+//        if (!showSaleSummary()) {
+//            return;
+//        }
+        
+        String selectedPayment = (String) paymentcombo.getSelectedItem();
+        
+        // Check payment method selection
+        if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a payment method before completing the sale.",
+                    "Missing Payment Method",
+                    JOptionPane.WARNING_MESSAGE);
+            paymentcombo.requestFocus();
+            return;
+        }
+        
+        // Handle Cash Payment - Direct save
+        if (selectedPayment.toLowerCase().contains("cash")) {
+            handleCashPayment();
+            return;
+        }
+        
+        // For other payment methods, save sale first then open dialog
+        int salesId = saveSale(1); // status_id = 1 for Completed
+        
+        if (salesId == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to save sale. Please try again.",
+                    "Save Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Open appropriate payment dialog based on selection
+        if (selectedPayment.toLowerCase().contains("credit")) {
+            openCreditPaymentDialog(salesId);
+        } else if (selectedPayment.toLowerCase().contains("card")) {
+            openCardPaymentDialog(salesId);
+        } else if (selectedPayment.toLowerCase().contains("cheque")) {
+            openChequePaymentDialog(salesId);
+        } else {
+            // Unknown payment method - show success and clear cart
+            Notifications.getInstance().show(
+                    Notifications.Type.SUCCESS,
+                    Notifications.Location.TOP_RIGHT,
+                    "Sale completed successfully! Sale ID: " + salesId
+            );
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCartUpdated(0, 0);
+            }
+        }
+    }
+
+    // ✅ ADD: Hold Sale Handler
+    private void handleHoldSale() {
+        // Basic validation - just check if cart has items
+        if (cartItems.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Cart is empty. Add products before placing on hold.",
+                    "Empty Cart",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Confirm hold action
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Place this sale on hold?\n" +
+                "You can switch back to this invoice later.",
+                "Hold Sale",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+        
+        // Save sale with Hold status (status_id = 2)
+        int salesId = saveSale(2);
+        
+        if (salesId != -1) {
+            Notifications.getInstance().show(
+                    Notifications.Type.SUCCESS,
+                    Notifications.Location.TOP_RIGHT,
+                    "Sale placed on hold! Sale ID: " + salesId
+            );
+            
+            // Clear cart after successful hold
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCartUpdated(0, 0);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to place sale on hold. Please try again.",
+                    "Hold Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // ✅ ADD: Cash Payment Handler
+    private void handleCashPayment() {
+        try {
+            double amountReceived = Double.parseDouble(jTextField2.getText().trim());
+            double total = getTotal();
+            double balance = amountReceived - total;
+            
+            if (balance < 0) {
+                JOptionPane.showMessageDialog(this,
+                        String.format("Insufficient payment!\nRequired: Rs.%.2f\nReceived: Rs.%.2f\nShort: Rs.%.2f",
+                                total, amountReceived, Math.abs(balance)),
+                        "Insufficient Payment",
+                        JOptionPane.WARNING_MESSAGE);
+                jTextField2.requestFocus();
+                jTextField2.selectAll();
+                return;
+            }
+            
+            // Confirm cash payment
+            String confirmMessage = String.format(
+                    "Complete cash payment?\n\n" +
+                    "Total: Rs.%.2f\n" +
+                    "Received: Rs.%.2f\n" +
+                    "Balance: Rs.%.2f",
+                    total, amountReceived, balance
+            );
+            
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    confirmMessage,
+                    "Confirm Cash Payment",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+            
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+            
+            // Save sale with Completed status
+            int salesId = saveSale(1);
+            
+            if (salesId != -1) {
+                // Show success message with balance
+                String successMessage = String.format(
+                        "Cash payment completed successfully!\n\n" +
+                        "Sale ID: %d\n" +
+                        "Total: Rs.%.2f\n" +
+                        "Received: Rs.%.2f\n" +
+                        "Change: Rs.%.2f",
+                        salesId, total, amountReceived, balance
+                );
+                
+                JOptionPane.showMessageDialog(this,
+                        successMessage,
+                        "Payment Successful",
+                        JOptionPane.INFORMATION_MESSAGE);
+                
+                Notifications.getInstance().show(
+                        Notifications.Type.SUCCESS,
+                        Notifications.Location.TOP_RIGHT,
+                        "Cash payment completed! Sale ID: " + salesId
+                );
+                
+                // Clear cart
+                resetCart();
+                if (cartListener != null) {
+                    cartListener.onCartUpdated(0, 0);
+                }
+            }
+            
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid amount received. Please enter a valid number.",
+                    "Invalid Input",
+                    JOptionPane.ERROR_MESSAGE);
+            jTextField2.requestFocus();
+            jTextField2.selectAll();
+        }
+    }
+
+    // ✅ ADD: Update Stock Quantity Method
+    private boolean updateStockQuantities(Connection conn) throws Exception {
+        PreparedStatement pstUpdateStock = null;
+        PreparedStatement pstCheckStock = null;
+        
+        try {
+            // First, verify all stock quantities are sufficient
+            String checkQuery = "SELECT stock_id, qty FROM stock WHERE stock_id = ?";
+            pstCheckStock = conn.prepareStatement(checkQuery);
+            
+            for (CartItem item : cartItems.values()) {
+                int stockId = getStockId(item.getProductId(), item.getBatchNo());
+                
+                if (stockId == -1) {
+                    throw new Exception("Stock not found for: " + item.getProductName() + " (Batch: " + item.getBatchNo() + ")");
+                }
+                
+                // Check current stock
+                pstCheckStock.setInt(1, stockId);
+                ResultSet rs = pstCheckStock.executeQuery();
+                
+                if (rs.next()) {
+                    int currentQty = rs.getInt("qty");
+                    int requestedQty = item.getQuantity();
+                    
+                    if (currentQty < requestedQty) {
+                        throw new Exception(
+                            String.format("Insufficient stock for %s!\nAvailable: %d, Required: %d",
+                            item.getProductName(), currentQty, requestedQty)
+                        );
+                    }
+                } else {
+                    throw new Exception("Stock record not found for: " + item.getProductName());
+                }
+            }
+            
+            // All stock quantities verified - now update them
+            String updateQuery = "UPDATE stock SET qty = qty - ? WHERE stock_id = ?";
+            pstUpdateStock = conn.prepareStatement(updateQuery);
+            
+            for (CartItem item : cartItems.values()) {
+                int stockId = getStockId(item.getProductId(), item.getBatchNo());
+                
+                pstUpdateStock.setInt(1, item.getQuantity());
+                pstUpdateStock.setInt(2, stockId);
+                pstUpdateStock.addBatch();
+                
+                System.out.println(String.format("Updating stock: Product=%s, Batch=%s, Qty Sold=%d, Stock ID=%d",
+                    item.getProductName(), item.getBatchNo(), item.getQuantity(), stockId));
+            }
+            
+            int[] updateResults = pstUpdateStock.executeBatch();
+            
+            // Verify all updates succeeded
+            for (int result : updateResults) {
+                if (result <= 0) {
+                    throw new Exception("Failed to update stock quantity for one or more items");
+                }
+            }
+            
+            System.out.println("All stock quantities updated successfully!");
+            return true;
+            
+        } finally {
+            if (pstCheckStock != null) pstCheckStock.close();
+            if (pstUpdateStock != null) pstUpdateStock.close();
+        }
+    }
+
+    // ✅ ADD: Generate Invoice Number Method
+    private String generateInvoiceNumber() {
+        try {
+            String query = "SELECT invoice_no FROM sales ORDER BY sales_id DESC LIMIT 1";
+            ResultSet rs = MySQL.executeSearch(query);
+            
+            if (rs.next()) {
+                String lastInvoice = rs.getString("invoice_no");
+                if (lastInvoice != null && lastInvoice.startsWith("INV")) {
+                    // Extract number from INV00001 format
+                    int lastNumber = Integer.parseInt(lastInvoice.substring(3));
+                    int newNumber = lastNumber + 1;
+                    return String.format("INV%05d", newNumber);
+                }
+            }
+            
+            // First invoice
+            return "INV00001";
+            
+        } catch (Exception e) {
+            System.err.println("Error generating invoice number: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback to timestamp-based invoice
+            return "INV" + System.currentTimeMillis();
+        }
+    }
+
+    // ✅ FIXED: Save Sale Method - Updated to match actual database schema
+private int saveSale(int statusId) {
+    Connection conn = null;
+    PreparedStatement pstSale = null;
+    PreparedStatement pstSaleItem = null;
+    ResultSet generatedKeys = null;
+    int generatedSalesId = -1;
+    
+    try {
+        // Get session user ID
+        int userId = Session.getInstance().getUserId();
+        
+        if (userId <= 0) {
+            JOptionPane.showMessageDialog(this,
+                    "User session not found. Please log in again.",
+                    "Session Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return -1;
+        }
+        
+        // Get payment method ID
+        String selectedPayment = (String) paymentcombo.getSelectedItem();
+        int paymentMethodId = getPaymentMethodId(selectedPayment);
+        
+        if (paymentMethodId == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid payment method selected.",
+                    "Payment Method Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return -1;
+        }
+        
+        // Calculate totals
+        double total = getTotal();
+        
+        // Start transaction
+        conn = MySQL.getConnection();
+        conn.setAutoCommit(false);
+        
+        // ✅ Update stock quantities FIRST
+        try {
+            updateStockQuantities(conn);
+        } catch (Exception stockError) {
+            throw new Exception("Stock update failed: " + stockError.getMessage());
+        }
+        
+        // ✅ FIXED: Insert into sales table - using ONLY columns that exist
+        // Based on your schema: sales_id, datetime, total, user_id, payment_method_id, invoice_no, status_id, discount_id
+        String salesQuery = "INSERT INTO sales (invoice_no, datetime, total, user_id, payment_method_id, status_id, discount_id) " +
+                           "VALUES (?, NOW(), ?, ?, ?, ?, ?)";
+        
+        pstSale = conn.prepareStatement(salesQuery, Statement.RETURN_GENERATED_KEYS);
+        pstSale.setString(1, generateInvoiceNumber());
+        pstSale.setDouble(2, total);
+        pstSale.setInt(3, userId);
+        pstSale.setInt(4, paymentMethodId);
+        pstSale.setInt(5, statusId);
+        
+        // ✅ FIXED: Handle discount_id (references discount table)
+        // If no discount applied, set to NULL
+        if (appliedDiscountTypeId > 0 && appliedDiscountAmount > 0) {
+            // Create a discount record first and get its ID
+            int discountId = createDiscountRecord(conn, appliedDiscountTypeId, appliedDiscountAmount);
+            if (discountId > 0) {
+                pstSale.setInt(6, discountId);
+            } else {
+                pstSale.setNull(6, java.sql.Types.INTEGER);
+            }
+        } else {
+            pstSale.setNull(6, java.sql.Types.INTEGER);
+        }
+        
+        int rowsAffected = pstSale.executeUpdate();
+        
+        if (rowsAffected > 0) {
+            // Get generated sales ID
+            generatedKeys = pstSale.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                generatedSalesId = generatedKeys.getInt(1);
+                lastGeneratedSalesId = generatedSalesId;
+                
+                // Insert sale items
+                String saleItemQuery = "INSERT INTO sale_item (qty, price, discount_price, total, sales_id, stock_id) " +
+                                      "VALUES (?, ?, ?, ?, ?, ?)";
+                
+                pstSaleItem = conn.prepareStatement(saleItemQuery);
+                
+                for (CartItem item : cartItems.values()) {
+                    int stockId = getStockId(item.getProductId(), item.getBatchNo());
+                    
+                    if (stockId == -1) {
+                        throw new Exception("Stock not found for product: " + item.getProductName() + " (Batch: " + item.getBatchNo() + ")");
+                    }
+                    
+                    pstSaleItem.setInt(1, item.getQuantity());
+                    pstSaleItem.setDouble(2, item.getUnitPrice());
+                    pstSaleItem.setDouble(3, item.getDiscountPrice());
+                    pstSaleItem.setDouble(4, item.getTotalPrice());
+                    pstSaleItem.setInt(5, generatedSalesId);
+                    pstSaleItem.setInt(6, stockId);
+                    
+                    pstSaleItem.addBatch();
+                }
+                
+                pstSaleItem.executeBatch();
+                
+                // ✅ If exchange refund exists, create a record in the return table
+                if (exchangeRefundAmount > 0) {
+                    createExchangeRefundRecord(conn, generatedSalesId, exchangeRefundAmount);
+                }
+                
+                // Commit transaction
+                conn.commit();
+                
+                System.out.println("Sale saved successfully! Sales ID: " + generatedSalesId + ", Status ID: " + statusId);
+                System.out.println("Stock quantities decreased for all items.");
+                
+                return generatedSalesId;
+            } else {
+                throw new Exception("Failed to retrieve generated sales ID");
+            }
+        } else {
+            throw new Exception("Failed to insert sale record");
+        }
+        
+    } catch (Exception e) {
+        // Rollback on error
+        try {
+            if (conn != null) {
+                conn.rollback();
+                System.out.println("Transaction rolled back - stock quantities restored");
+            }
+        } catch (Exception rollbackEx) {
+            rollbackEx.printStackTrace();
+        }
+        
+        System.err.println("Error saving sale: " + e.getMessage());
+        e.printStackTrace();
+        
+        JOptionPane.showMessageDialog(this,
+                "Error saving sale: " + e.getMessage(),
+                "Database Error",
+                JOptionPane.ERROR_MESSAGE);
+        
+        return -1;
+        
+    } finally {
+        try {
+            if (generatedKeys != null) generatedKeys.close();
+            if (pstSaleItem != null) pstSaleItem.close();
+            if (pstSale != null) pstSale.close();
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+    // ✅ NEW METHOD: Create discount record in discount table
+    private int createDiscountRecord(Connection conn, int discountTypeId, double discountAmount) {
+        PreparedStatement pst = null;
+        ResultSet rs = null;
+        
+        try {
+            String query = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
+            pst = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            pst.setDouble(1, discountAmount);
+            pst.setInt(2, discountTypeId);
+            
+            int rowsAffected = pst.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                rs = pst.getGeneratedKeys();
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error creating discount record: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pst != null) pst.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        
+        return -1;
+    }
+
+    // ✅ NEW METHOD: Create exchange refund record
+    private void createExchangeRefundRecord(Connection conn, int salesId, double refundAmount) {
+        PreparedStatement pst = null;
+        
+        try {
+            // Note: Adjust this query based on your actual return table structure
+            // This is a placeholder - you may need to modify based on your requirements
+            String query = "INSERT INTO `return` (sales_id, total_return_amount, datetime, user_id, status_id) " +
+                          "VALUES (?, ?, NOW(), ?, 1)";
+            
+            pst = conn.prepareStatement(query);
+            pst.setInt(1, salesId);
+            pst.setDouble(2, refundAmount);
+            pst.setInt(3, Session.getInstance().getUserId());
+            
+            pst.executeUpdate();
+            
+            System.out.println("Exchange refund record created: Rs." + refundAmount);
+            
+        } catch (Exception e) {
+            System.err.println("Error creating exchange refund record: " + e.getMessage());
+            e.printStackTrace();
+            // Don't throw - just log the error as this is supplementary information
+        } finally {
+            try {
+                if (pst != null) pst.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // ✅ ADD: Get Payment Method ID
+    private int getPaymentMethodId(String paymentMethodName) {
+        try {
+            String query = "SELECT payment_method_id FROM payment_method WHERE payment_method_name = ?";
+            PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
+            pst.setString(1, paymentMethodName);
+            ResultSet rs = pst.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt("payment_method_id");
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting payment method ID: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    // ✅ ADD: Get Stock ID
+    private int getStockId(int productId, String batchNo) {
+        try {
+            String query = "SELECT stock_id FROM stock WHERE product_id = ? AND batch_no = ?";
+            PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
+            pst.setInt(1, productId);
+            pst.setString(2, batchNo);
+            ResultSet rs = pst.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt("stock_id");
+            }
+        } catch (Exception e) {
+            System.err.println("Error getting stock ID: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    
+
+    // ✅ ADD: Open Credit Payment Dialog
+    private void openCreditPaymentDialog(int salesId) {
+        try {
+            double totalAmount = getTotal();
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            
+            AddCredit dialog = new AddCredit(parentFrame, true, totalAmount, salesId);
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+            
+            // Check if credit was saved
+            if (dialog.isCreditSaved()) {
+                double paidAmount = dialog.getPaidAmount();
+                
+                if (paidAmount > 0) {
+                    Notifications.getInstance().show(
+                            Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            String.format("Credit sale completed! Sale ID: %d, Payment: Rs.%.2f", salesId, paidAmount)
+                    );
+                } else {
+                    Notifications.getInstance().show(
+                            Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            "Credit sale completed! Sale ID: " + salesId
+                    );
+                }
+                
+                // Clear cart
+                resetCart();
+                if (cartListener != null) {
+                    cartListener.onCartUpdated(0, 0);
+                }
+            } else {
+                // Credit dialog was closed without saving - inform user
+                JOptionPane.showMessageDialog(this,
+                        "Sale was saved but credit record was not completed.\n" +
+                        "Sale ID: " + salesId + "\n" +
+                        "Please add credit record manually if needed.",
+                        "Credit Record Incomplete",
+                        JOptionPane.WARNING_MESSAGE);
+                
+                // Still clear cart as sale was saved
+                resetCart();
+                if (cartListener != null) {
+                    cartListener.onCartUpdated(0, 0);
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error opening credit payment dialog: " + e.getMessage());
+            e.printStackTrace();
+            
+            JOptionPane.showMessageDialog(this,
+                    "Sale was saved but error opening credit dialog.\n" +
+                    "Sale ID: " + salesId + "\n" +
+                    "Error: " + e.getMessage(),
+                    "Dialog Error",
+                    JOptionPane.ERROR_MESSAGE);
+            
+            // Clear cart anyway
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCartUpdated(0, 0);
+            }
+        }
+    }
+
+    // ✅ ADD: Open Card Payment Dialog
+    private void openCardPaymentDialog(int salesId) {
+        try {
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            
+            CardPayDialog dialog = new CardPayDialog(parentFrame, true, salesId);
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+            
+            // Check if card payment was saved
+            Integer cardPaymentId = dialog.getGeneratedCardPaymentId();
+            
+            if (cardPaymentId != null && cardPaymentId > 0) {
+                Notifications.getInstance().show(
+                        Notifications.Type.SUCCESS,
+                        Notifications.Location.TOP_RIGHT,
+                        String.format("Card payment completed! Sale ID: %d, Card Payment ID: %d", salesId, cardPaymentId)
+                );
+                
+                // Clear cart
+                resetCart();
+                if (cartListener != null) {
+                    cartListener.onCartUpdated(0, 0);
+                }
+            } else {
+                // Card dialog was closed without saving
+                JOptionPane.showMessageDialog(this,
+                        "Sale was saved but card payment record was not completed.\n" +
+                        "Sale ID: " + salesId + "\n" +
+                        "Please add card payment record manually if needed.",
+                        "Card Payment Incomplete",
+                        JOptionPane.WARNING_MESSAGE);
+                
+                // Still clear cart
+                resetCart();
+                if (cartListener != null) {
+                    cartListener.onCartUpdated(0, 0);
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error opening card payment dialog: " + e.getMessage());
+            e.printStackTrace();
+            
+            JOptionPane.showMessageDialog(this,
+                    "Sale was saved but error opening card payment dialog.\n" +
+                    "Sale ID: " + salesId + "\n" +
+                    "Error: " + e.getMessage(),
+                    "Dialog Error",
+                    JOptionPane.ERROR_MESSAGE);
+            
+            // Clear cart anyway
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCartUpdated(0, 0);
+            }
+        }
+    }
+
+    private void openChequePaymentDialog(int salesId) {
+    try {
+        double totalAmount = getTotal();
+        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+        
+        // ✅ FIXED: Create and show the AddCheque dialog
+        AddCheque dialog = new AddCheque(parentFrame, true, salesId, totalAmount);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
+        
+        // Check if cheque was saved
+        if (dialog.isChequeSaved()) {
+            String chequeNo = dialog.getChequeNo();
+            double chequeAmount = dialog.getChequeAmount();
+            
+            Notifications.getInstance().show(
+                    Notifications.Type.SUCCESS,
+                    Notifications.Location.TOP_RIGHT,
+                    String.format("Cheque payment completed! Sale ID: %d, Cheque: %s, Amount: Rs.%.2f", 
+                                 salesId, chequeNo, chequeAmount)
+            );
+            
+            // Clear cart
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCartUpdated(0, 0);
+            }
+        } else {
+            // Cheque dialog was closed without saving
+            JOptionPane.showMessageDialog(this,
+                    "Sale was saved but cheque record was not completed.\n" +
+                    "Sale ID: " + salesId + "\n" +
+                    "Please add cheque record manually if needed.",
+                    "Cheque Payment Incomplete",
+                    JOptionPane.WARNING_MESSAGE);
+            
+            // Still clear cart as sale was saved
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCartUpdated(0, 0);
+            }
+        }
+        
+    } catch (Exception e) {
+        System.err.println("Error opening cheque payment dialog: " + e.getMessage());
+        e.printStackTrace();
+        
+        JOptionPane.showMessageDialog(this,
+                "Sale was saved but error opening cheque dialog.\n" +
+                "Sale ID: " + salesId + "\n" +
+                "Error: " + e.getMessage(),
+                "Dialog Error",
+                JOptionPane.ERROR_MESSAGE);
+        
+        // Clear cart anyway
+        resetCart();
+        if (cartListener != null) {
+            cartListener.onCartUpdated(0, 0);
+        }
+    }
+}
+
+    // ✅ ADD: Get Last Generated Sales ID (helper method)
+    public int getLastGeneratedSalesId() {
+        return lastGeneratedSalesId;
+    }
+    
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1678,10 +3159,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         jLabel27 = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         clearCartBtn = new javax.swing.JButton();
-        jButton1 = new javax.swing.JButton();
+        holdBtn = new javax.swing.JButton();
         cartCount = new javax.swing.JLabel();
-        jButton3 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
+        exchangeBtn = new javax.swing.JButton();
+        discountBtn = new javax.swing.JButton();
         switchBtn = new javax.swing.JButton();
         jButton4 = new javax.swing.JButton();
         jTextField3 = new javax.swing.JTextField();
@@ -2009,32 +3490,32 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
 
-        jButton1.setBackground(new java.awt.Color(255, 51, 51));
-        jButton1.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton1.setText("H");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
+        holdBtn.setBackground(new java.awt.Color(255, 51, 51));
+        holdBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        holdBtn.setText("H");
+        holdBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
+                holdBtnActionPerformed(evt);
             }
         });
 
         cartCount.setFont(new java.awt.Font("Nunito ExtraBold", 1, 22)); // NOI18N
         cartCount.setText("Cart (01)");
 
-        jButton3.setBackground(new java.awt.Color(255, 204, 0));
-        jButton3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton3.setText("E");
-        jButton3.addActionListener(new java.awt.event.ActionListener() {
+        exchangeBtn.setBackground(new java.awt.Color(255, 204, 0));
+        exchangeBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        exchangeBtn.setText("E");
+        exchangeBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton3ActionPerformed(evt);
+                exchangeBtnActionPerformed(evt);
             }
         });
 
-        jButton2.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        jButton2.setText("Di");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
+        discountBtn.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        discountBtn.setText("Di");
+        discountBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
+                discountBtnActionPerformed(evt);
             }
         });
 
@@ -2063,13 +3544,13 @@ public class PosCartPanel extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(discountBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(switchBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(exchangeBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(holdBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(clearCartBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
@@ -2080,11 +3561,11 @@ public class PosCartPanel extends javax.swing.JPanel {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
                         .addGap(4, 4, 4)
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jButton1)
+                            .addComponent(holdBtn)
                             .addComponent(clearCartBtn)
-                            .addComponent(jButton3)
+                            .addComponent(exchangeBtn)
                             .addComponent(switchBtn)
-                            .addComponent(jButton2)
+                            .addComponent(discountBtn)
                             .addComponent(jButton4)))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addComponent(cartCount)
@@ -2136,7 +3617,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_cplusBtnActionPerformed
 
     private void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_gradientButton1ActionPerformed
-        // TODO add your handling code here:
+        handleCompleteSale();
     }//GEN-LAST:event_gradientButton1ActionPerformed
 
     private void cplusBtn1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cplusBtn1ActionPerformed
@@ -2147,46 +3628,134 @@ public class PosCartPanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_clearCartBtnActionPerformed
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void holdBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_holdBtnActionPerformed
+        handleHoldSale();
+    }//GEN-LAST:event_holdBtnActionPerformed
 
-    }//GEN-LAST:event_jButton1ActionPerformed
-
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        Double totalAmount = 1000.0; // Your total amount here
+    private void discountBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_discountBtnActionPerformed
+        if (cartItems.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Cart is empty. Add products before applying discount.",
+                    "Empty Cart",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Calculate current subtotal (before any discount)
+        double currentSubtotal = 0;
+        for (CartItem item : cartItems.values()) {
+            currentSubtotal += item.getTotalPrice();
+        }
 
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        DiscountDialog dialog = new DiscountDialog(parentFrame, true, totalAmount);
+        DiscountDialog dialog = new DiscountDialog(parentFrame, true, currentSubtotal);
         dialog.setLocationRelativeTo(parentFrame);
         dialog.setVisible(true);
 
-// Check results after dialog closes
+        // Check if discount was applied
         if (dialog.isDiscountApplied()) {
-            Double discountAmount = dialog.getDiscountAmount();
+            double discountAmount = dialog.getDiscountAmount();
             int discountTypeId = dialog.getDiscountTypeId();
-
-            // Calculate final amount after discount
-            Double finalAmount = totalAmount - discountAmount;
-
-            System.out.println("Original Total: " + totalAmount);
-            System.out.println("Discount: " + discountAmount);
-            System.out.println("Final Amount: " + finalAmount);
-            System.out.println("Discount Type ID: " + discountTypeId);
-
-            // Update your UI with the discounted amount
+            
+            // Store discount info
+            this.appliedDiscountAmount = discountAmount;
+            this.appliedDiscountTypeId = discountTypeId;
+            
+            // Update UI to show discount
+            updateTotals();
+            
+            Notifications.getInstance().show(
+                    Notifications.Type.SUCCESS, 
+                    Notifications.Location.TOP_RIGHT,
+                    String.format("Discount of Rs.%.2f applied successfully!", discountAmount)
+            );
         }
-
-    }//GEN-LAST:event_jButton2ActionPerformed
+    }//GEN-LAST:event_discountBtnActionPerformed
 
     private void switchBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_switchBtnActionPerformed
         showSwitchInvoicePanel();
     }//GEN-LAST:event_switchBtnActionPerformed
-    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        ExchangeProductDialog dialog = new ExchangeProductDialog(parentFrame, true);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
+    private void exchangeBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exchangeBtnActionPerformed
+       JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+    ExchangeProductDialog dialog = new ExchangeProductDialog(parentFrame, true);
+    dialog.setLocationRelativeTo(parentFrame);
+    dialog.setVisible(true);
+    
+    // Check if exchange was processed
+    int returnId = dialog.getGeneratedReturnId();
+    if (returnId > 0) {
+        try {
+            // Exchange was successful - get the refund amount from database
+            double refundAmount = getRefundAmountFromReturn(returnId);
+            
+            // ✅ FIXED: If we can't get the exchange item price from dialog,
+            // we'll use a different approach to calculate total refund
+            double totalRefundAmount = refundAmount;
+            
+            // Alternative: If the dialog provides the total amount directly
+            // You might need to check what methods are available in ExchangeProductDialog
+            try {
+                // Try to get total amount using reflection or available methods
+                // This is a fallback approach
+                java.lang.reflect.Method getTotalAmountMethod = dialog.getClass().getMethod("getTotalAmount");
+                if (getTotalAmountMethod != null) {
+                    Object result = getTotalAmountMethod.invoke(dialog);
+                    if (result instanceof Double) {
+                        totalRefundAmount = (Double) result;
+                    }
+                }
+            } catch (Exception e) {
+                // Method not available, use the refund amount from database
+                System.out.println("getTotalAmount method not available, using refund amount from database");
+            }
+            
+            // Ensure we have a valid refund amount
+            if (totalRefundAmount <= 0 && refundAmount > 0) {
+                totalRefundAmount = refundAmount;
+            }
+            
+            if (totalRefundAmount > 0) {
+                // Store exchange refund amount
+                this.exchangeRefundAmount = totalRefundAmount;
+                
+                // Update UI to show exchange refund
+                updateTotals();
+                
+                Notifications.getInstance().show(
+                        Notifications.Type.SUCCESS, 
+                        Notifications.Location.TOP_RIGHT,
+                        String.format("Exchange processed successfully! Refund: Rs.%.2f (Return ID: %d)", 
+                                    totalRefundAmount, returnId)
+                );
+            } else {
+                // If no valid refund amount, reset and show basic success
+                this.exchangeRefundAmount = 0.0;
+                updateTotals();
+                
+                Notifications.getInstance().show(
+                        Notifications.Type.SUCCESS, 
+                        Notifications.Location.TOP_RIGHT,
+                        "Exchange processed successfully! Return ID: " + returnId
+                );
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error processing exchange refund: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Reset exchange refund on error
+            this.exchangeRefundAmount = 0.0;
+            updateTotals();
+            
+            Notifications.getInstance().show(
+                    Notifications.Type.ERROR, 
+                    Notifications.Location.TOP_RIGHT,
+                    "Exchange processed but error calculating refund amount. Return ID: " + returnId
+            );
+        }
+    }
 
-    }//GEN-LAST:event_jButton3ActionPerformed
+    }//GEN-LAST:event_exchangeBtnActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
@@ -2204,12 +3773,12 @@ public class PosCartPanel extends javax.swing.JPanel {
     private javax.swing.JButton cminusBtn1;
     private javax.swing.JButton cplusBtn;
     private javax.swing.JButton cplusBtn1;
+    private javax.swing.JButton discountBtn;
     private javax.swing.JTextField discountPriceinput;
     private javax.swing.JTextField discountPriceinput1;
+    private javax.swing.JButton exchangeBtn;
     private lk.com.pos.privateclasses.GradientButton gradientButton1;
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
+    private javax.swing.JButton holdBtn;
     private javax.swing.JButton jButton4;
     private javax.swing.JLabel jLabel14;
     private javax.swing.JLabel jLabel15;

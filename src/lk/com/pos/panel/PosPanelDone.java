@@ -10,7 +10,6 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.sql.ResultSet;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -20,8 +19,14 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Connection;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import lk.com.pos.privateclasses.StockTracker;
+import lk.com.pos.privateclasses.ProductCardReference;
 
-// WrapLayout class for responsive wrapping
 class WrapLayout extends FlowLayout {
 
     public WrapLayout(int align, int hgap, int vgap) {
@@ -106,7 +111,6 @@ class WrapLayout extends FlowLayout {
     }
 }
 
-// Custom rounded border class for badges
 class RoundBorder extends javax.swing.border.AbstractBorder {
 
     private Color color;
@@ -127,7 +131,6 @@ class RoundBorder extends javax.swing.border.AbstractBorder {
         g2d.setColor(color);
         g2d.setStroke(new java.awt.BasicStroke(thickness));
 
-        // Adjust for stroke width to prevent clipping
         int adjustment = thickness / 2;
         g2d.drawRoundRect(x + adjustment, y + adjustment,
                 width - thickness, height - thickness,
@@ -156,7 +159,24 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
     @Override
     public void onCheckoutComplete() {
-        System.out.println("Checkout completed");
+        System.out.println("Checkout completed - refreshing stock display");
+
+        // ✅ Stock tracker is already cleared by PosCartPanel.resetCart()
+        // Just refresh the UI to show updated stock
+        SwingUtilities.invokeLater(() -> {
+            // Force refresh all visible cards
+            for (RoundedPanel card : productCards) {
+                int productId = (int) card.getClientProperty("productId");
+                String batchNo = (String) card.getClientProperty("batchNo");
+                String key = productId + "_" + batchNo;
+
+                // Get the card reference and update it
+                ProductCardReference cardRef = StockTracker.getInstance().getCardReference(key);
+                if (cardRef != null) {
+                    cardRef.updateStock(0); // Cart is empty after checkout
+                }
+            }
+        });
     }
 
     private static final Color TEAL_COLOR = new Color(28, 181, 187);
@@ -176,29 +196,25 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     public PosPanelDone() {
         initComponents();
         init();
-        javax.swing.SwingUtilities.invokeLater(() -> {
-            loadProduct();
+        SwingUtilities.invokeLater(() -> {
+            loadProductInBackground("");
         });
     }
 
     private void init() {
         setupKeyboardNavigation();
         setupSearchFunctionality();
-        setupSearchShortcut(); // Add keyboard shortcut functionality
+        setupSearchShortcut();
 
-        // Completely remove border from selectProductPanel - SIMPLIFIED APPROACH
         selectProductPanel.setBorder(BorderFactory.createEmptyBorder());
         selectProductPanel.setBorder(null);
-        
-        // Remove any FlatLaf styling that might add borders
         selectProductPanel.putClientProperty(FlatClientProperties.STYLE, "");
 
-        // Apply rounding to cartPanel (keep your existing styling)
         cartPanel.putClientProperty(FlatClientProperties.STYLE, "arc:15;");
         cartPanel.setBorder(BorderFactory.createEmptyBorder());
 
-        // Initialize and add PosCartPanel
         posCartPanel = new PosCartPanel();
+        posCartPanel.setCartListener(this);
 
         cartPanel.setLayout(new java.awt.BorderLayout());
         cartPanel.add(posCartPanel, java.awt.BorderLayout.CENTER);
@@ -207,11 +223,9 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         jScrollPane2.getVerticalScrollBar().setUnitIncrement(16);
         jScrollPane2.getVerticalScrollBar().setBlockIncrement(80);
 
-        // Setup jPanel7 with responsive grid layout
         jPanel7.setLayout(new WrapLayout(FlowLayout.LEADING, 15, 15));
         jPanel7.setBackground(Color.WHITE);
 
-        // Add component listener for responsive resizing
         jScrollPane2.addComponentListener(new java.awt.event.ComponentAdapter() {
             public void componentResized(java.awt.event.ComponentEvent evt) {
                 updateProductCardSizes();
@@ -219,16 +233,14 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Set initial placeholder state
         setupSearchBarPlaceholder();
 
-        // Add hierarchy listener to detect when component is shown
         addHierarchyListener(new java.awt.event.HierarchyListener() {
             @Override
             public void hierarchyChanged(java.awt.event.HierarchyEvent e) {
                 if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0) {
                     if (isShowing()) {
-                        javax.swing.SwingUtilities.invokeLater(() -> {
+                        SwingUtilities.invokeLater(() -> {
                             updateProductCardSizes();
                             calculateColumnsPerRow();
                         });
@@ -237,7 +249,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Simple scrollbar styling with FlatLaf
         jScrollPane2.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
                 "track: #F5F5F5;"
                 + "thumb: #1CB5BB;"
@@ -245,7 +256,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void setupSearchShortcut() {
-        // Create the focus search action
         javax.swing.Action focusSearchAction = new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -258,28 +268,22 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         };
 
-        // Get the input map and action map for WHEN_IN_FOCUSED_WINDOW (global)
         javax.swing.InputMap globalInputMap = getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
         javax.swing.ActionMap globalActionMap = getActionMap();
 
-        // Define the keys for both F and Ctrl+F
         String fKey = "FocusSearchF";
         String ctrlFKey = "FocusSearchCtrlF";
 
-        // Bind F key (no modifiers)
         globalInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
         globalActionMap.put(fKey, focusSearchAction);
 
-        // Bind Ctrl+F
         globalInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
         globalActionMap.put(ctrlFKey, focusSearchAction);
 
-        // Also set up for ancestor focus for broader coverage
         javax.swing.InputMap ancestorInputMap = getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         ancestorInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, 0), fKey);
         ancestorInputMap.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F, java.awt.event.InputEvent.CTRL_DOWN_MASK), ctrlFKey);
 
-        // Setup for the scroll pane
         javax.swing.InputMap scrollInputMap = jScrollPane2.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         javax.swing.ActionMap scrollActionMap = jScrollPane2.getActionMap();
 
@@ -288,7 +292,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         scrollActionMap.put(fKey, focusSearchAction);
         scrollActionMap.put(ctrlFKey, focusSearchAction);
 
-        // Setup for products panel
         javax.swing.InputMap panelInputMap = jPanel7.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         javax.swing.ActionMap panelActionMap = jPanel7.getActionMap();
 
@@ -297,7 +300,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         panelActionMap.put(fKey, focusSearchAction);
         panelActionMap.put(ctrlFKey, focusSearchAction);
 
-        // Setup for cart panel
         javax.swing.InputMap cartInputMap = cartPanel.getInputMap(javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         javax.swing.ActionMap cartActionMap = cartPanel.getActionMap();
 
@@ -331,7 +333,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void setupSearchFunctionality() {
-        // Create a timer for delayed search (400ms after user stops typing)
         searchTimer = new javax.swing.Timer(400, new java.awt.event.ActionListener() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -340,7 +341,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         });
         searchTimer.setRepeats(false);
 
-        // Add document listener to search bar for real-time search with delay
         productSearchBar.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) {
                 handleSearchInput();
@@ -355,25 +355,22 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
 
             private void handleSearchInput() {
-                // Only search if it's not placeholder text
                 if (!productSearchBar.getForeground().equals(java.awt.Color.GRAY)) {
                     searchTimer.restart();
                 }
             }
         });
 
-        // Add clear button functionality to reload button
         reloadBtn.setToolTipText("Refresh products and clear search");
     }
 
     private void performSearch() {
         String searchText = productSearchBar.getText().trim();
 
-        // Don't search if it's placeholder text or empty
         if (productSearchBar.getForeground().equals(java.awt.Color.GRAY) || searchText.isEmpty()) {
-            loadProduct(""); // Load all products
+            loadProductInBackground("");
         } else {
-            loadProduct(searchText);
+            loadProductInBackground(searchText);
         }
     }
 
@@ -381,8 +378,8 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         productSearchBar.setText("");
         productSearchBar.setForeground(java.awt.Color.GRAY);
         productSearchBar.setText("Search products by name or barcode...");
-        loadProduct("");
-        requestFocusInWindow(); // Return focus to main panel
+        loadProductInBackground("");
+        requestFocusInWindow();
     }
 
     private void calculateColumnsPerRow() {
@@ -405,11 +402,9 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void setupKeyboardNavigation() {
-        // Enable keyboard focus for the panel
         setFocusable(true);
         requestFocusInWindow();
 
-        // Add key listener to the main panel
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -417,7 +412,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Add key listener to search bar
         productSearchBar.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -425,7 +419,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Add key listener to scroll pane
         jScrollPane2.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -433,7 +426,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Add key listener to products panel
         jPanel7.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -441,7 +433,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Ensure components are focusable
         jScrollPane2.setFocusable(true);
         jPanel7.setFocusable(true);
         productSearchBar.setFocusable(true);
@@ -450,19 +441,16 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     private void handleSearchBarKeyPress(KeyEvent e) {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_ESCAPE:
-                // Escape clears search and returns focus
                 clearSearch();
                 e.consume();
                 break;
             case KeyEvent.VK_ENTER:
-                // Enter performs immediate search
                 searchTimer.stop();
                 performSearch();
                 e.consume();
                 break;
             case KeyEvent.VK_UP:
             case KeyEvent.VK_DOWN:
-                // Arrow keys in search bar return focus to main panel for navigation
                 requestFocusInWindow();
                 if (productCards.size() > 0) {
                     selectCardByIndex(0);
@@ -473,10 +461,9 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void handleKeyPress(KeyEvent e) {
-        // Handle keyboard shortcuts
         if (e.isControlDown()) {
             switch (e.getKeyCode()) {
-                case KeyEvent.VK_F: // Ctrl+F - Focus search
+                case KeyEvent.VK_F:
                     productSearchBar.requestFocusInWindow();
                     if (productSearchBar.getForeground().equals(java.awt.Color.GRAY)) {
                         productSearchBar.setText("");
@@ -485,20 +472,19 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                     productSearchBar.selectAll();
                     e.consume();
                     return;
-                case KeyEvent.VK_R: // Ctrl+R - Refresh
+                case KeyEvent.VK_R:
                     reloadBtnActionPerformed(null);
                     e.consume();
                     return;
-                case KeyEvent.VK_L: // Ctrl+L - Clear search
+                case KeyEvent.VK_L:
                     clearSearch();
                     e.consume();
                     return;
             }
         }
 
-        // Single key shortcuts (no modifier needed)
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_F: // F key alone - Focus search
+            case KeyEvent.VK_F:
                 productSearchBar.requestFocusInWindow();
                 if (productSearchBar.getForeground().equals(java.awt.Color.GRAY)) {
                     productSearchBar.setText("");
@@ -507,11 +493,11 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                 productSearchBar.selectAll();
                 e.consume();
                 return;
-            case KeyEvent.VK_F5: // F5 - Refresh
+            case KeyEvent.VK_F5:
                 reloadBtnActionPerformed(null);
                 e.consume();
                 return;
-            case KeyEvent.VK_ESCAPE: // Escape - Clear search
+            case KeyEvent.VK_ESCAPE:
                 if (productSearchBar.hasFocus()) {
                     clearSearch();
                 } else {
@@ -521,7 +507,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                 return;
         }
 
-        // Handle arrow key navigation (only when not in search bar)
         if (!productSearchBar.hasFocus() && !productCards.isEmpty()) {
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_DOWN:
@@ -753,91 +738,138 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void SearchFilters() {
-        // This method is kept for backward compatibility
         performSearch();
     }
 
     private void loadProduct() {
-        loadProduct("");
+        loadProductInBackground("");
     }
 
-    private void loadProduct(String productSearch) {
-        try {
-            jPanel7.removeAll();
-            productCards.clear();
-            currentCardIndex = -1;
-
-            String query = "SELECT product.product_id, product.product_name, suppliers.suppliers_name, "
-                    + "brand.brand_name, category.category_name, "
-                    + "stock.qty, stock.expriy_date, stock.batch_no, product.barcode, "
-                    + "stock.purchase_price, stock.last_price, stock.selling_price "
-                    + "FROM product "
-                    + "JOIN stock ON stock.product_id = product.product_id "
-                    + "JOIN category ON category.category_id = product.category_id "
-                    + "JOIN brand ON brand.brand_id = product.brand_id "
-                    + "JOIN suppliers ON suppliers.suppliers_id = stock.suppliers_id "
-                    + "WHERE stock.qty > 0 ";
-
-            if (productSearch != null && !productSearch.isEmpty()) {
-                query += "AND (product.product_name LIKE '%" + productSearch + "%' "
-                        + "OR product.barcode LIKE '%" + productSearch + "%') ";
+    private void loadProductInBackground(String productSearch) {
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                loadProductFromDatabase(productSearch);
+                return null;
             }
 
-            query += "ORDER BY product.product_name ASC";
+            @Override
+            protected void done() {
+                try {
+                    get();
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(PosPanelDone.this,
+                                "Error loading products: " + e.getMessage(),
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                    });
+                }
+            }
+        };
+        worker.execute();
+    }
 
-            ResultSet rs = MySQL.executeSearch(query);
+    private void loadProductFromDatabase(String productSearch) {
+        String query = "SELECT product.product_id, product.product_name, suppliers.suppliers_name, "
+                + "brand.brand_name, category.category_name, "
+                + "stock.qty, stock.expriy_date, stock.batch_no, product.barcode, "
+                + "stock.purchase_price, stock.last_price, stock.selling_price "
+                + "FROM product "
+                + "JOIN stock ON stock.product_id = product.product_id "
+                + "JOIN category ON category.category_id = product.category_id "
+                + "JOIN brand ON brand.brand_id = product.brand_id "
+                + "JOIN suppliers ON suppliers.suppliers_id = stock.suppliers_id "
+                + "WHERE stock.qty > 0 ";
 
-            while (rs.next()) {
-                int productId = rs.getInt("product_id");
-                String productName = rs.getString("product_name");
-                String brandName = rs.getString("brand_name");
-                String batchNo = rs.getString("batch_no");
-                int qty = rs.getInt("qty");
-                double sellingPrice = rs.getDouble("selling_price");
-                String barcode = rs.getString("barcode");
-                double lastPrice = rs.getDouble("last_price");
+        if (productSearch != null && !productSearch.isEmpty()) {
+            query += "AND (product.product_name LIKE ? OR product.barcode LIKE ?) ";
+        }
 
+        query += "ORDER BY product.product_name ASC LIMIT 100";
+
+        try (Connection conn = MySQL.getConnection(); PreparedStatement pst = conn.prepareStatement(query)) {
+
+            if (productSearch != null && !productSearch.isEmpty()) {
+                String searchPattern = "%" + productSearch + "%";
+                pst.setString(1, searchPattern);
+                pst.setString(2, searchPattern);
+            }
+
+            try (ResultSet rs = pst.executeQuery()) {
+                final List<ProductData> products = new ArrayList<>();
+
+                while (rs.next()) {
+                    ProductData product = new ProductData(
+                            rs.getInt("product_id"),
+                            rs.getString("product_name"),
+                            rs.getString("brand_name"),
+                            rs.getString("batch_no"),
+                            rs.getInt("qty"),
+                            rs.getDouble("selling_price"),
+                            rs.getString("barcode"),
+                            rs.getDouble("last_price")
+                    );
+                    products.add(product);
+                }
+
+                SwingUtilities.invokeLater(() -> {
+                    updateProductCards(products);
+                });
+            }
+
+        } catch (Exception e) {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(PosPanelDone.this,
+                        "Error loading products: " + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            });
+        }
+    }
+
+    private void updateProductCards(List<ProductData> products) {
+        jPanel7.removeAll();
+        productCards.clear();
+        currentCardIndex = -1;
+
+        // ✅ CLEAR all card registrations before loading new ones
+        StockTracker.getInstance().clearAllCards();
+
+        if (products.isEmpty()) {
+            JPanel messagePanel = new JPanel(new java.awt.GridBagLayout());
+            messagePanel.setBackground(Color.WHITE);
+            messagePanel.setPreferredSize(new Dimension(jScrollPane2.getViewport().getWidth(), 400));
+
+            String message = !productSearchBar.getText().isEmpty()
+                    && !productSearchBar.getForeground().equals(java.awt.Color.GRAY)
+                    ? "No products found for: '" + productSearchBar.getText() + "'"
+                    : "No products available";
+
+            JLabel noProductLabel = new JLabel(message);
+            noProductLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 18));
+            noProductLabel.setForeground(TEXT_GRAY);
+
+            messagePanel.add(noProductLabel);
+            jPanel7.add(messagePanel);
+        } else {
+            for (ProductData product : products) {
                 RoundedPanel productCard = createProductCard(
-                        productId, productName, brandName, batchNo, qty, sellingPrice, barcode, lastPrice
+                        product.productId, product.productName, product.brandName,
+                        product.batchNo, product.qty, product.sellingPrice,
+                        product.barcode, product.lastPrice
                 );
 
                 jPanel7.add(productCard);
                 productCards.add(productCard);
             }
-
-            if (jPanel7.getComponentCount() == 0) {
-                JPanel messagePanel = new JPanel(new java.awt.GridBagLayout());
-                messagePanel.setBackground(Color.WHITE);
-                messagePanel.setPreferredSize(new Dimension(jScrollPane2.getViewport().getWidth(), 400));
-
-                String message = productSearch != null && !productSearch.isEmpty()
-                        ? "No products found for: '" + productSearch + "'"
-                        : "No products available";
-
-                JLabel noProductLabel = new JLabel(message);
-                noProductLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 18));
-                noProductLabel.setForeground(TEXT_GRAY);
-
-                messagePanel.add(noProductLabel);
-                jPanel7.add(messagePanel);
-            }
-
-            jPanel7.revalidate();
-            jPanel7.repaint();
-
-            calculateColumnsPerRow();
-
-            javax.swing.SwingUtilities.invokeLater(() -> {
-                requestFocusInWindow();
-            });
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error loading products: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
         }
+
+        jPanel7.revalidate();
+        jPanel7.repaint();
+        calculateColumnsPerRow();
+
+        requestFocusInWindow();
     }
 
     private RoundedPanel createProductCard(int productId, String productName,
@@ -903,18 +935,52 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 10, 0));
         bottomPanel.setOpaque(false);
 
+        // ✅ GET cart quantity from tracker (O(1) operation)
+        int cartQty = StockTracker.getInstance().getCartQuantity(productId, batchNo);
+        int availableQty = qty - cartQty;
+
         JPanel stockBadge = new JPanel();
         stockBadge.setLayout(new FlowLayout(FlowLayout.LEADING, 0, 0));
         stockBadge.setOpaque(true);
-        stockBadge.setBackground(new Color(230, 245, 230));
 
-        JLabel lblStock = new JLabel("Stock: " + qty);
+        // Set initial background color
+        if (availableQty <= 0) {
+            stockBadge.setBackground(new Color(255, 230, 230));
+        } else if (availableQty < 10) {
+            stockBadge.setBackground(new Color(255, 243, 224));
+        } else {
+            stockBadge.setBackground(new Color(230, 245, 230));
+        }
+
+        // ✅ CREATE stock label
+        JLabel lblStock;
+        if (cartQty > 0) {
+            lblStock = new JLabel(String.format("Stock: %d (%d in cart)", availableQty, cartQty));
+        } else {
+            lblStock = new JLabel("Stock: " + availableQty);
+        }
+
         lblStock.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-        lblStock.setForeground(new Color(34, 139, 34));
+
+        // Set initial text color
+        if (availableQty <= 0) {
+            lblStock.setForeground(new Color(220, 53, 69));
+        } else if (availableQty < 10) {
+            lblStock.setForeground(new Color(255, 152, 0));
+        } else {
+            lblStock.setForeground(new Color(34, 139, 34));
+        }
+
         lblStock.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
 
         stockBadge.add(lblStock);
         bottomPanel.add(stockBadge);
+
+        // ✅ REGISTER this card with stock tracker (O(1) operation)
+        ProductCardReference cardRef = new ProductCardReference(
+                productId, batchNo, qty, lblStock, stockBadge
+        );
+        StockTracker.getInstance().registerCard(productId, batchNo, cardRef);
 
         JPanel batchBadge = new JPanel();
         batchBadge.setLayout(new FlowLayout(FlowLayout.LEADING, 0, 0));
@@ -956,7 +1022,22 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                addToCart(productId, productName, brandName, batchNo, qty, sellingPrice, barcode, lastPrice);
+                // ✅ CHECK availability using tracker (O(1) operation)
+                int cartQty = StockTracker.getInstance().getCartQuantity(productId, batchNo);
+                int available = qty - cartQty;
+
+                if (available > 0) {
+                    // ✅ FIX: Pass original stock qty (qty), not available qty
+                    addToCart(productId, productName, brandName, batchNo,
+                            qty, sellingPrice, barcode, lastPrice);
+                } else {
+                    JOptionPane.showMessageDialog(
+                            PosPanelDone.this,
+                            "No stock available. All units are in cart.",
+                            "Out of Stock",
+                            JOptionPane.WARNING_MESSAGE
+                    );
+                }
             }
         });
 
@@ -988,6 +1069,30 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         posCartPanel.addToCart(productId, productName, brandName, batchNo, qty, sellingPrice, barcode, lastPrice);
     }
 
+    // Helper class for product data
+    private static class ProductData {
+
+        final int productId;
+        final String productName;
+        final String brandName;
+        final String batchNo;
+        final int qty;
+        final double sellingPrice;
+        final String barcode;
+        final double lastPrice;
+
+        ProductData(int productId, String productName, String brandName, String batchNo,
+                int qty, double sellingPrice, String barcode, double lastPrice) {
+            this.productId = productId;
+            this.productName = productName;
+            this.brandName = brandName;
+            this.batchNo = batchNo;
+            this.qty = qty;
+            this.sellingPrice = sellingPrice;
+            this.barcode = barcode;
+            this.lastPrice = lastPrice;
+        }
+    }
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -1204,5 +1309,4 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     private javax.swing.JLabel sellingPrice;
     // End of variables declaration//GEN-END:variables
 
-   
 }

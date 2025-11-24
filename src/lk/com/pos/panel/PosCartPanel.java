@@ -87,6 +87,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private Connection currentConnection = null;
 
     public interface InvoiceSelectionListener {
+
         void onInvoiceSelected(Invoice invoice, String action);
     }
 
@@ -132,9 +133,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             public void changedUpdate(DocumentEvent e) {
                 updateBalance();
             }
+
             public void removeUpdate(DocumentEvent e) {
                 updateBalance();
             }
+
             public void insertUpdate(DocumentEvent e) {
                 updateBalance();
             }
@@ -177,6 +180,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                     jTextField3.setForeground(Color.BLACK);
                 }
             }
+
             @Override
             public void focusLost(java.awt.event.FocusEvent evt) {
                 if (jTextField3.getText().isEmpty()) {
@@ -191,10 +195,12 @@ public class PosCartPanel extends javax.swing.JPanel {
             public void insertUpdate(DocumentEvent e) {
                 filterCartItems();
             }
+
             @Override
             public void removeUpdate(DocumentEvent e) {
                 filterCartItems();
             }
+
             @Override
             public void changedUpdate(DocumentEvent e) {
                 filterCartItems();
@@ -401,6 +407,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private class NumericDocumentFilter extends DocumentFilter {
+
         @Override
         public void insertString(DocumentFilter.FilterBypass fb, int offset, String string, AttributeSet attr)
                 throws BadLocationException {
@@ -430,106 +437,106 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     public void addToCart(int productId, String productName, String brandName,
-        String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) {
+            String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) {
 
-    String cartKey = productId + "_" + batchNo;
-    
-    // ✅ FIX: Check current cart quantity against database stock
-    int currentCartQty = StockTracker.getInstance().getCartQuantity(productId, batchNo);
-    int availableToAdd = qty - currentCartQty;
-    
-    if (availableToAdd <= 0) {
-        JOptionPane.showMessageDialog(this,
-                "Cannot add more. All available stock (" + qty + " units) is already in cart.",
-                "Stock Limit",
-                JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    if (cartItems.containsKey(cartKey)) {
-        CartItem item = cartItems.get(cartKey);
-        // ✅ Validate against database stock, not stored availableQty
-        if (currentCartQty < qty) {
-            item.setQuantity(item.getQuantity() + 1);
-            updateCartPanel();
-            StockTracker.getInstance().addToCart(productId, batchNo, 1);
-        } else {
+        String cartKey = productId + "_" + batchNo;
+
+        // ✅ FIX: Check current cart quantity against database stock
+        int currentCartQty = StockTracker.getInstance().getCartQuantity(productId, batchNo);
+        int availableToAdd = qty - currentCartQty;
+
+        if (availableToAdd <= 0) {
             JOptionPane.showMessageDialog(this,
-                    "Cannot add more. Available stock: " + qty,
+                    "Cannot add more. All available stock (" + qty + " units) is already in cart.",
                     "Stock Limit",
                     JOptionPane.WARNING_MESSAGE);
+            return;
         }
-    } else {
-        CartItem newItem = new CartItem(productId, productName, brandName,
-                batchNo, qty, sellingPrice, barcode, lastPrice);
-        cartItems.put(cartKey, newItem);
-        updateCartPanel();
-        StockTracker.getInstance().addToCart(productId, batchNo, 1);
+
+        if (cartItems.containsKey(cartKey)) {
+            CartItem item = cartItems.get(cartKey);
+            // ✅ Validate against database stock, not stored availableQty
+            if (currentCartQty < qty) {
+                item.setQuantity(item.getQuantity() + 1);
+                updateCartPanel();
+                StockTracker.getInstance().addToCart(productId, batchNo, 1);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Cannot add more. Available stock: " + qty,
+                        "Stock Limit",
+                        JOptionPane.WARNING_MESSAGE);
+            }
+        } else {
+            CartItem newItem = new CartItem(productId, productName, brandName,
+                    batchNo, qty, sellingPrice, barcode, lastPrice);
+            cartItems.put(cartKey, newItem);
+            updateCartPanel();
+            StockTracker.getInstance().addToCart(productId, batchNo, 1);
+        }
     }
-}
 
     private boolean validateAndAdjustLoadedItems() {
-    boolean adjustmentsMade = false;
-    List<String> itemsToRemove = new ArrayList<>();
-    StringBuilder adjustmentMessage = new StringBuilder();
-    
-    for (Map.Entry<String, CartItem> entry : cartItems.entrySet()) {
-        CartItem item = entry.getValue();
-        int currentQty = item.getQuantity();
-        int availableStock = item.getAvailableQty();
-        
-        if (currentQty > availableStock) {
-            if (availableStock > 0) {
-                // Adjust quantity to available stock
-                int difference = currentQty - availableStock;
-                item.setQuantity(availableStock);
-                StockTracker.getInstance().removeFromCart(
-                    item.getProductId(), 
-                    item.getBatchNo(), 
-                    difference
-                );
-                adjustmentsMade = true;
-                
-                adjustmentMessage.append(String.format(
-                    "• %s: Adjusted from %d to %d units\n",
-                    item.getProductName(), currentQty, availableStock));
-            } else {
-                // No stock available - remove item
-                itemsToRemove.add(entry.getKey());
-                StockTracker.getInstance().removeFromCart(
-                    item.getProductId(), 
-                    item.getBatchNo(), 
-                    currentQty
-                );
-                adjustmentsMade = true;
-                
-                adjustmentMessage.append(String.format(
-                    "• %s: Removed (no stock available)\n",
-                    item.getProductName()));
+        boolean adjustmentsMade = false;
+        List<String> itemsToRemove = new ArrayList<>();
+        StringBuilder adjustmentMessage = new StringBuilder();
+
+        for (Map.Entry<String, CartItem> entry : cartItems.entrySet()) {
+            CartItem item = entry.getValue();
+            int currentQty = item.getQuantity();
+            int availableStock = item.getAvailableQty();
+
+            if (currentQty > availableStock) {
+                if (availableStock > 0) {
+                    // Adjust quantity to available stock
+                    int difference = currentQty - availableStock;
+                    item.setQuantity(availableStock);
+                    StockTracker.getInstance().removeFromCart(
+                            item.getProductId(),
+                            item.getBatchNo(),
+                            difference
+                    );
+                    adjustmentsMade = true;
+
+                    adjustmentMessage.append(String.format(
+                            "• %s: Adjusted from %d to %d units\n",
+                            item.getProductName(), currentQty, availableStock));
+                } else {
+                    // No stock available - remove item
+                    itemsToRemove.add(entry.getKey());
+                    StockTracker.getInstance().removeFromCart(
+                            item.getProductId(),
+                            item.getBatchNo(),
+                            currentQty
+                    );
+                    adjustmentsMade = true;
+
+                    adjustmentMessage.append(String.format(
+                            "• %s: Removed (no stock available)\n",
+                            item.getProductName()));
+                }
             }
         }
+
+        // Remove items with no stock
+        for (String key : itemsToRemove) {
+            cartItems.remove(key);
+        }
+
+        // Show single message with all adjustments
+        if (adjustmentsMade) {
+            String message = "Stock levels have changed:\n\n" + adjustmentMessage.toString();
+            JOptionPane.showMessageDialog(this,
+                    message,
+                    "Stock Adjustments",
+                    JOptionPane.WARNING_MESSAGE);
+
+            updateCartPanel();
+            updateTotals();
+        }
+
+        return adjustmentsMade;
     }
-    
-    // Remove items with no stock
-    for (String key : itemsToRemove) {
-        cartItems.remove(key);
-    }
-    
-    // Show single message with all adjustments
-    if (adjustmentsMade) {
-        String message = "Stock levels have changed:\n\n" + adjustmentMessage.toString();
-        JOptionPane.showMessageDialog(this,
-            message,
-            "Stock Adjustments",
-            JOptionPane.WARNING_MESSAGE);
-        
-        updateCartPanel();
-        updateTotals();
-    }
-    
-    return adjustmentsMade;
-}
-    
+
     private void showNoProductsMessage() {
         jPanel10.removeAll();
         JPanel messagePanel = new JPanel(new java.awt.GridBagLayout());
@@ -615,6 +622,7 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     private RoundedPanel createCartItemPanel(CartItem item) {
         class RoundBorder extends javax.swing.border.AbstractBorder {
+
             private Color color;
             private int thickness;
             private int radius;
@@ -774,9 +782,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             public void changedUpdate(DocumentEvent e) {
                 validateAndUpdate();
             }
+
             public void removeUpdate(DocumentEvent e) {
                 validateAndUpdate();
             }
+
             public void insertUpdate(DocumentEvent e) {
                 validateAndUpdate();
             }
@@ -978,9 +988,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             public void changedUpdate(DocumentEvent e) {
                 validateDiscount();
             }
+
             public void removeUpdate(DocumentEvent e) {
                 validateDiscount();
             }
+
             public void insertUpdate(DocumentEvent e) {
                 validateDiscount();
             }
@@ -1008,6 +1020,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                 }
                 SwingUtilities.invokeLater(() -> discountField.selectAll());
             }
+
             @Override
             public void focusLost(java.awt.event.FocusEvent evt) {
                 applyDiscountValue(discountField, item);
@@ -1055,258 +1068,258 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private void removeFromCart(String cartKey) {
-    int confirm = JOptionPane.showConfirmDialog(this, 
-        "Remove this item from cart?", 
-        "Confirm Removal", 
-        JOptionPane.YES_NO_OPTION);
-        
-    if (confirm == JOptionPane.YES_OPTION) {
-        CartItem removedItem = cartItems.get(cartKey);
-        if (removedItem != null) {
-            // ✅ Notify stock tracker BEFORE removing
-            StockTracker.getInstance().removeFromCart(
-                removedItem.getProductId(), 
-                removedItem.getBatchNo(), 
-                removedItem.getQuantity()
-            );
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Remove this item from cart?",
+                "Confirm Removal",
+                JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            CartItem removedItem = cartItems.get(cartKey);
+            if (removedItem != null) {
+                // ✅ Notify stock tracker BEFORE removing
+                StockTracker.getInstance().removeFromCart(
+                        removedItem.getProductId(),
+                        removedItem.getBatchNo(),
+                        removedItem.getQuantity()
+                );
+            }
+            cartItems.remove(cartKey);
+            updateCartPanel();
         }
-        cartItems.remove(cartKey);
-        updateCartPanel();
     }
-}
 
     private void clearCart() {
-    if (cartItems.isEmpty()) {
-        return;
-    }
-
-    int confirm = JOptionPane.showConfirmDialog(this, 
-        "Are you sure you want to clear the cart?", 
-        "Clear Cart", 
-        JOptionPane.YES_NO_OPTION, 
-        JOptionPane.WARNING_MESSAGE);
-        
-    if (confirm == JOptionPane.YES_OPTION) {
-        // ✅ Notify stock tracker for each item
-        for (CartItem item : cartItems.values()) {
-            StockTracker.getInstance().removeFromCart(
-                item.getProductId(), 
-                item.getBatchNo(), 
-                item.getQuantity()
-            );
+        if (cartItems.isEmpty()) {
+            return;
         }
-        
-        cartItems.clear();
-        jTextField2.setText("");
-        appliedDiscountAmount = 0.0;
-        appliedDiscountTypeId = -1;
-        exchangeRefundAmount = 0.0;
-        updateCartPanel();
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to clear the cart?",
+                "Clear Cart",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            // ✅ Notify stock tracker for each item
+            for (CartItem item : cartItems.values()) {
+                StockTracker.getInstance().removeFromCart(
+                        item.getProductId(),
+                        item.getBatchNo(),
+                        item.getQuantity()
+                );
+            }
+
+            cartItems.clear();
+            jTextField2.setText("");
+            appliedDiscountAmount = 0.0;
+            appliedDiscountTypeId = -1;
+            exchangeRefundAmount = 0.0;
+            updateCartPanel();
+        }
     }
-}
 
     private void updateBalance() {
-    try {
-        String amountText = jTextField2.getText().trim();
-        double total = getTotal();
+        try {
+            String amountText = jTextField2.getText().trim();
+            double total = getTotal();
 
-        if (!amountText.isEmpty()) {
-            double amountReceived = Double.parseDouble(amountText);
-            double balance = amountReceived - total;
-            
-            // ✅ Handle negative totals properly
-            if (total < 0) {
-                // You owe customer money (return scenario)
-                jLabel23.setText(String.format("Refund Due: Rs.%.2f", Math.abs(total)));
-                jLabel23.setForeground(new Color(255, 102, 0)); // Orange for refund
-            } else {
-                jLabel23.setText(String.format("Rs.%.2f", balance));
-                if (balance < 0) {
-                    jLabel23.setForeground(ERROR_COLOR);
-                } else if (balance > 0) {
-                    jLabel23.setForeground(SUCCESS_COLOR);
+            if (!amountText.isEmpty()) {
+                double amountReceived = Double.parseDouble(amountText);
+                double balance = amountReceived - total;
+
+                // ✅ Handle negative totals properly
+                if (total < 0) {
+                    // You owe customer money (return scenario)
+                    jLabel23.setText(String.format("Refund Due: Rs.%.2f", Math.abs(total)));
+                    jLabel23.setForeground(new Color(255, 102, 0)); // Orange for refund
                 } else {
+                    jLabel23.setText(String.format("Rs.%.2f", balance));
+                    if (balance < 0) {
+                        jLabel23.setForeground(ERROR_COLOR);
+                    } else if (balance > 0) {
+                        jLabel23.setForeground(SUCCESS_COLOR);
+                    } else {
+                        jLabel23.setForeground(Color.BLACK);
+                    }
+                }
+            } else {
+                if (total < 0) {
+                    jLabel23.setText(String.format("Refund Due: Rs.%.2f", Math.abs(total)));
+                    jLabel23.setForeground(new Color(255, 102, 0));
+                } else {
+                    jLabel23.setText("Rs.0.00");
                     jLabel23.setForeground(Color.BLACK);
                 }
             }
-        } else {
-            if (total < 0) {
-                jLabel23.setText(String.format("Refund Due: Rs.%.2f", Math.abs(total)));
-                jLabel23.setForeground(new Color(255, 102, 0));
-            } else {
-                jLabel23.setText("Rs.0.00");
-                jLabel23.setForeground(Color.BLACK);
-            }
+        } catch (NumberFormatException e) {
+            jLabel23.setText("Rs.0.00");
+            jLabel23.setForeground(Color.BLACK);
         }
-    } catch (NumberFormatException e) {
-        jLabel23.setText("Rs.0.00");
-        jLabel23.setForeground(Color.BLACK);
     }
-}
 
     private void updateTotals() {
-    double subtotal = 0;
-    for (CartItem item : cartItems.values()) {
-        subtotal += item.getTotalPrice();
-    }
+        double subtotal = 0;
+        for (CartItem item : cartItems.values()) {
+            subtotal += item.getTotalPrice();
+        }
 
-    double totalAfterDiscount = subtotal - appliedDiscountAmount;
-    if (totalAfterDiscount < 0) {
-        totalAfterDiscount = 0;
-    }
-    
-    // ✅ SUBTRACT exchange refund (customer credit reduces what they owe)
-    double finalTotal = totalAfterDiscount - exchangeRefundAmount;
+        double totalAfterDiscount = subtotal - appliedDiscountAmount;
+        if (totalAfterDiscount < 0) {
+            totalAfterDiscount = 0;
+        }
 
-    jLabel15.setText(String.format("Rs.%.2f", finalTotal));
+        // ✅ SUBTRACT exchange refund (customer credit reduces what they owe)
+        double finalTotal = totalAfterDiscount - exchangeRefundAmount;
 
-    if (appliedDiscountAmount > 0) {
-        jLabel25.setText(String.format("-Rs.%.2f", appliedDiscountAmount));
-        jLabel25.setVisible(true);
-        jLabel24.setVisible(true);
-    } else {
-        jLabel25.setText("Rs.0.00");
-        jLabel25.setVisible(false);
-        jLabel24.setVisible(false);
-    }
+        jLabel15.setText(String.format("Rs.%.2f", finalTotal));
 
-    // ✅ Show exchange refund as CREDIT (with minus sign)
-    if (exchangeRefundAmount > 0) {
-        jLabel27.setText(String.format("-Rs.%.2f", exchangeRefundAmount));
-        jLabel27.setForeground(new Color(76, 175, 80)); // Green for credit
-        jLabel27.setVisible(true);
-        jLabel26.setVisible(true);
-    } else {
-        jLabel27.setText("Rs.0.00");
-        jLabel27.setVisible(false);
-        jLabel26.setVisible(false);
-    }
+        if (appliedDiscountAmount > 0) {
+            jLabel25.setText(String.format("-Rs.%.2f", appliedDiscountAmount));
+            jLabel25.setVisible(true);
+            jLabel24.setVisible(true);
+        } else {
+            jLabel25.setText("Rs.0.00");
+            jLabel25.setVisible(false);
+            jLabel24.setVisible(false);
+        }
 
-    updateBalance();
-    if (cartListener != null) {
-        cartListener.onCartUpdated(finalTotal, cartItems.size());
+        // ✅ Show exchange refund as CREDIT (with minus sign)
+        if (exchangeRefundAmount > 0) {
+            jLabel27.setText(String.format("-Rs.%.2f", exchangeRefundAmount));
+            jLabel27.setForeground(new Color(76, 175, 80)); // Green for credit
+            jLabel27.setVisible(true);
+            jLabel26.setVisible(true);
+        } else {
+            jLabel27.setText("Rs.0.00");
+            jLabel27.setVisible(false);
+            jLabel26.setVisible(false);
+        }
+
+        updateBalance();
+        if (cartListener != null) {
+            cartListener.onCartUpdated(finalTotal, cartItems.size());
+        }
     }
-}
 
     public Map<String, CartItem> getCartItems() {
         return new HashMap<>(cartItems);
     }
 
-   public double getTotal() {
-    double total = 0;
-    for (CartItem item : cartItems.values()) {
-        total += item.getTotalPrice();
+    public double getTotal() {
+        double total = 0;
+        for (CartItem item : cartItems.values()) {
+            total += item.getTotalPrice();
+        }
+        total -= appliedDiscountAmount;
+        if (total < 0) {
+            total = 0;
+        }
+        // ✅ SUBTRACT the exchange refund (customer credit)
+        total -= exchangeRefundAmount;
+        return total;
     }
-    total -= appliedDiscountAmount;
-    if (total < 0) {
-        total = 0;
-    }
-    // ✅ SUBTRACT the exchange refund (customer credit)
-    total -= exchangeRefundAmount;
-    return total;
-}
 
     public boolean validateCheckout() {
-    if (cartItems.isEmpty() && exchangeRefundAmount <= 0) {
-        JOptionPane.showMessageDialog(this, 
-            "Cart is empty. Add products before checkout.", 
-            "Empty Cart", 
-            JOptionPane.WARNING_MESSAGE);
-        return false;
-    }
-
-    double total = getTotal();
-    
-    // ✅ Handle return-only scenario (negative total)
-    if (total < 0) {
-        int response = JOptionPane.showConfirmDialog(this,
-            String.format("This is a return-only transaction.\nRefund amount: Rs.%.2f\n\nProcess refund?", 
-                Math.abs(total)),
-            "Refund Transaction",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        return response == JOptionPane.YES_OPTION;
-    }
-    
-    // For hold sales, payment method is optional
-    if (selectedInvoice == null || !"Hold".equalsIgnoreCase(selectedInvoice.getStatus())) {
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-        if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
-            JOptionPane.showMessageDialog(this, 
-                "Please select a payment method.", 
-                "Missing Payment Method", 
-                JOptionPane.WARNING_MESSAGE);
-            paymentcombo.requestFocus();
+        if (cartItems.isEmpty() && exchangeRefundAmount <= 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Cart is empty. Add products before checkout.",
+                    "Empty Cart",
+                    JOptionPane.WARNING_MESSAGE);
             return false;
         }
 
-        boolean isCashPayment = selectedPayment.toLowerCase().contains("cash");
-        if (isCashPayment && total > 0) { // Only check amount if customer owes money
-            try {
-                String amountText = jTextField2.getText().trim();
-                if (amountText.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, 
-                        "Please enter amount received.", 
-                        "Missing Amount", 
-                        JOptionPane.WARNING_MESSAGE);
-                    jTextField2.requestFocus();
-                    return false;
-                }
+        double total = getTotal();
 
-                double amountReceived = Double.parseDouble(amountText);
-                if (amountReceived < total) {
-                    JOptionPane.showMessageDialog(this, 
-                        String.format("Insufficient amount. Need Rs.%.2f more.", total - amountReceived), 
-                        "Insufficient Payment", 
+        // ✅ Handle return-only scenario (negative total)
+        if (total < 0) {
+            int response = JOptionPane.showConfirmDialog(this,
+                    String.format("This is a return-only transaction.\nRefund amount: Rs.%.2f\n\nProcess refund?",
+                            Math.abs(total)),
+                    "Refund Transaction",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+            return response == JOptionPane.YES_OPTION;
+        }
+
+        // For hold sales, payment method is optional
+        if (selectedInvoice == null || !"Hold".equalsIgnoreCase(selectedInvoice.getStatus())) {
+            String selectedPayment = (String) paymentcombo.getSelectedItem();
+            if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
+                JOptionPane.showMessageDialog(this,
+                        "Please select a payment method.",
+                        "Missing Payment Method",
                         JOptionPane.WARNING_MESSAGE);
-                    return false;
-                }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(this, 
-                    "Invalid amount entered.", 
-                    "Invalid Amount", 
-                    JOptionPane.ERROR_MESSAGE);
+                paymentcombo.requestFocus();
                 return false;
             }
+
+            boolean isCashPayment = selectedPayment.toLowerCase().contains("cash");
+            if (isCashPayment && total > 0) { // Only check amount if customer owes money
+                try {
+                    String amountText = jTextField2.getText().trim();
+                    if (amountText.isEmpty()) {
+                        JOptionPane.showMessageDialog(this,
+                                "Please enter amount received.",
+                                "Missing Amount",
+                                JOptionPane.WARNING_MESSAGE);
+                        jTextField2.requestFocus();
+                        return false;
+                    }
+
+                    double amountReceived = Double.parseDouble(amountText);
+                    if (amountReceived < total) {
+                        JOptionPane.showMessageDialog(this,
+                                String.format("Insufficient amount. Need Rs.%.2f more.", total - amountReceived),
+                                "Insufficient Payment",
+                                JOptionPane.WARNING_MESSAGE);
+                        return false;
+                    }
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(this,
+                            "Invalid amount entered.",
+                            "Invalid Amount",
+                            JOptionPane.ERROR_MESSAGE);
+                    return false;
+                }
+            }
         }
+        return true;
     }
-    return true;
-}
 
     public void resetCart() {
-    // ✅ Clear stock tracker for all items
-    for (CartItem item : cartItems.values()) {
-        StockTracker.getInstance().removeFromCart(
-            item.getProductId(), 
-            item.getBatchNo(), 
-            item.getQuantity()
-        );
-    }
-    
-    cartItems.clear();
-    jTextField2.setText("");
-    paymentcombo.setSelectedIndex(0);
-    appliedDiscountAmount = 0.0;
-    appliedDiscountTypeId = -1;
-    exchangeRefundAmount = 0.0;
+        // ✅ Clear stock tracker for all items
+        for (CartItem item : cartItems.values()) {
+            StockTracker.getInstance().removeFromCart(
+                    item.getProductId(),
+                    item.getBatchNo(),
+                    item.getQuantity()
+            );
+        }
 
-    if (jLabel25 != null) {
-        jLabel25.setText("Rs.0.00");
-        jLabel25.setVisible(false);
-    }
-    if (jLabel24 != null) {
-        jLabel24.setVisible(false);
-    }
-    if (jLabel27 != null) {
-        jLabel27.setText("Rs.0.00");
-        jLabel27.setVisible(false);
-    }
-    if (jLabel26 != null) {
-        jLabel26.setVisible(false);
-    }
+        cartItems.clear();
+        jTextField2.setText("");
+        paymentcombo.setSelectedIndex(0);
+        appliedDiscountAmount = 0.0;
+        appliedDiscountTypeId = -1;
+        exchangeRefundAmount = 0.0;
 
-    updateCartPanel();
-}
+        if (jLabel25 != null) {
+            jLabel25.setText("Rs.0.00");
+            jLabel25.setVisible(false);
+        }
+        if (jLabel24 != null) {
+            jLabel24.setVisible(false);
+        }
+        if (jLabel27 != null) {
+            jLabel27.setText("Rs.0.00");
+            jLabel27.setVisible(false);
+        }
+        if (jLabel26 != null) {
+            jLabel26.setVisible(false);
+        }
+
+        updateCartPanel();
+    }
 
     private void setupKeyboardShortcuts() {
         SwingUtilities.invokeLater(() -> {
@@ -1355,163 +1368,165 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private int saveSale(int statusId) {
-    Connection conn = null;
-    PreparedStatement pstSale = null;
-    ResultSet generatedKeys = null;
-    
-    try {
-        int userId = Session.getInstance().getUserId();
-        if (userId <= 0) {
-            JOptionPane.showMessageDialog(this, "User session not found. Please log in again.", "Session Error", JOptionPane.ERROR_MESSAGE);
-            return -1;
-        }
-        
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-        Integer paymentMethodId = null;
-        
-        // For hold sales, payment method can be null
-        if (statusId == 2) {
-            if (selectedPayment != null && !selectedPayment.equals("Select Payment Method")) {
+        Connection conn = null;
+        PreparedStatement pstSale = null;
+        ResultSet generatedKeys = null;
+
+        try {
+            int userId = Session.getInstance().getUserId();
+            if (userId <= 0) {
+                JOptionPane.showMessageDialog(this, "User session not found. Please log in again.", "Session Error", JOptionPane.ERROR_MESSAGE);
+                return -1;
+            }
+
+            String selectedPayment = (String) paymentcombo.getSelectedItem();
+            Integer paymentMethodId = null;
+
+            // For hold sales, payment method can be null
+            if (statusId == 2) {
+                if (selectedPayment != null && !selectedPayment.equals("Select Payment Method")) {
+                    paymentMethodId = getPaymentMethodId(selectedPayment);
+                    if (paymentMethodId == -1) {
+                        paymentMethodId = null;
+                    }
+                }
+            } else {
+                if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
+                    JOptionPane.showMessageDialog(this, "Please select a payment method for completed sales.", "Payment Method Required", JOptionPane.ERROR_MESSAGE);
+                    return -1;
+                }
                 paymentMethodId = getPaymentMethodId(selectedPayment);
                 if (paymentMethodId == -1) {
-                    paymentMethodId = null;
+                    JOptionPane.showMessageDialog(this, "Invalid payment method selected.", "Payment Method Error", JOptionPane.ERROR_MESSAGE);
+                    return -1;
                 }
             }
-        } else {
-            if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
-                JOptionPane.showMessageDialog(this, "Please select a payment method for completed sales.", "Payment Method Required", JOptionPane.ERROR_MESSAGE);
+
+            double total = getTotal();
+
+            conn = MySQL.getConnection();
+            if (conn == null || conn.isClosed()) {
+                JOptionPane.showMessageDialog(this, "Database connection failed. Please check connection.", "Connection Error", JOptionPane.ERROR_MESSAGE);
                 return -1;
             }
-            paymentMethodId = getPaymentMethodId(selectedPayment);
-            if (paymentMethodId == -1) {
-                JOptionPane.showMessageDialog(this, "Invalid payment method selected.", "Payment Method Error", JOptionPane.ERROR_MESSAGE);
+
+            conn.setAutoCommit(false);
+
+            if (!validateStockAvailability(conn)) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rbEx) {
+                    System.err.println("Rollback failed during stock validation: " + rbEx.getMessage());
+                }
                 return -1;
             }
-        }
-        
-        double total = getTotal();
-        
-        conn = MySQL.getConnection();
-        if (conn == null || conn.isClosed()) {
-            JOptionPane.showMessageDialog(this, "Database connection failed. Please check connection.", "Connection Error", JOptionPane.ERROR_MESSAGE);
-            return -1;
-        }
-        
-        conn.setAutoCommit(false);
-        
-        if (!validateStockAvailability(conn)) {
-            try {
-                conn.rollback();
-            } catch (SQLException rbEx) {
-                System.err.println("Rollback failed during stock validation: " + rbEx.getMessage());
-            }
-            return -1;
-        }
-        
-        String salesQuery = "INSERT INTO sales (invoice_no, datetime, total, user_id, payment_method_id, status_id, discount_id) VALUES (?, NOW(), ?, ?, ?, ?, ?)";
-        pstSale = conn.prepareStatement(salesQuery, Statement.RETURN_GENERATED_KEYS);
-        
-        String invoiceNo = generateInvoiceNumber(conn);
-        pstSale.setString(1, invoiceNo);
-        pstSale.setDouble(2, total);
-        pstSale.setInt(3, userId);
-        
-        if (paymentMethodId != null) {
-            pstSale.setInt(4, paymentMethodId);
-        } else {
-            pstSale.setNull(4, java.sql.Types.INTEGER);
-        }
-        
-        pstSale.setInt(5, statusId);
-        
-        // ✅ BEST PRACTICE: Use NULL for no discount (cleaner, more efficient)
-        if (appliedDiscountTypeId > 0 && appliedDiscountAmount > 0) {
-            int discountId = createDiscountRecord(conn, appliedDiscountTypeId, appliedDiscountAmount);
-            if (discountId > 0) {
-                pstSale.setInt(6, discountId);
-                System.out.println("✅ Discount applied: Rs." + String.format("%.2f", appliedDiscountAmount) + " (Type ID: " + appliedDiscountTypeId + ", Discount ID: " + discountId + ")");
+
+            String salesQuery = "INSERT INTO sales (invoice_no, datetime, total, user_id, payment_method_id, status_id, discount_id) VALUES (?, NOW(), ?, ?, ?, ?, ?)";
+            pstSale = conn.prepareStatement(salesQuery, Statement.RETURN_GENERATED_KEYS);
+
+            String invoiceNo = generateInvoiceNumber(conn);
+            pstSale.setString(1, invoiceNo);
+            pstSale.setDouble(2, total);
+            pstSale.setInt(3, userId);
+
+            if (paymentMethodId != null) {
+                pstSale.setInt(4, paymentMethodId);
             } else {
+                pstSale.setNull(4, java.sql.Types.INTEGER);
+            }
+
+            pstSale.setInt(5, statusId);
+
+            // ✅ BEST PRACTICE: Use NULL for no discount (cleaner, more efficient)
+            if (appliedDiscountTypeId > 0 && appliedDiscountAmount > 0) {
+                int discountId = createDiscountRecord(conn, appliedDiscountTypeId, appliedDiscountAmount);
+                if (discountId > 0) {
+                    pstSale.setInt(6, discountId);
+                    System.out.println("✅ Discount applied: Rs." + String.format("%.2f", appliedDiscountAmount) + " (Type ID: " + appliedDiscountTypeId + ", Discount ID: " + discountId + ")");
+                } else {
+                    pstSale.setNull(6, java.sql.Types.INTEGER);
+                    System.out.println("⚠️ Failed to create discount record - using NULL");
+                }
+            } else {
+                // No discount applied - use NULL (recommended best practice)
                 pstSale.setNull(6, java.sql.Types.INTEGER);
-                System.out.println("⚠️ Failed to create discount record - using NULL");
+                System.out.println("✅ No discount applied - discount_id set to NULL");
             }
-        } else {
-            // No discount applied - use NULL (recommended best practice)
-            pstSale.setNull(6, java.sql.Types.INTEGER);
-            System.out.println("✅ No discount applied - discount_id set to NULL");
-        }
-        
-        int rowsAffected = pstSale.executeUpdate();
-        if (rowsAffected > 0) {
-            generatedKeys = pstSale.getGeneratedKeys();
-            if (generatedKeys.next()) {
-                int generatedSalesId = generatedKeys.getInt(1);
-                lastGeneratedSalesId = generatedSalesId;
-                
-                if (!saveSaleItems(conn, generatedSalesId)) {
-                    try {
-                        conn.rollback();
-                    } catch (SQLException rbEx) {
-                        System.err.println("Rollback failed during sale items: " + rbEx.getMessage());
+
+            int rowsAffected = pstSale.executeUpdate();
+            if (rowsAffected > 0) {
+                generatedKeys = pstSale.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    int generatedSalesId = generatedKeys.getInt(1);
+                    lastGeneratedSalesId = generatedSalesId;
+
+                    if (!saveSaleItems(conn, generatedSalesId)) {
+                        try {
+                            conn.rollback();
+                        } catch (SQLException rbEx) {
+                            System.err.println("Rollback failed during sale items: " + rbEx.getMessage());
+                        }
+                        return -1;
                     }
-                    return -1;
-                }
-                
-                if (!updateStockQuantities(conn)) {
-                    try {
-                        conn.rollback();
-                    } catch (SQLException rbEx) {
-                        System.err.println("Rollback failed during stock update: " + rbEx.getMessage());
+
+                    if (!updateStockQuantities(conn)) {
+                        try {
+                            conn.rollback();
+                        } catch (SQLException rbEx) {
+                            System.err.println("Rollback failed during stock update: " + rbEx.getMessage());
+                        }
+                        return -1;
                     }
-                    return -1;
+
+                    if (exchangeRefundAmount > 0) {
+                        createExchangeRefundRecord(conn, generatedSalesId, exchangeRefundAmount);
+                    }
+
+                    conn.commit();
+                    System.out.println("✅ Sale saved successfully! Sales ID: " + generatedSalesId + ", Invoice: " + invoiceNo + ", Status ID: " + statusId);
+                    return generatedSalesId;
+                } else {
+                    throw new Exception("Failed to retrieve generated sales ID");
                 }
-                
-                if (exchangeRefundAmount > 0) {
-                    createExchangeRefundRecord(conn, generatedSalesId, exchangeRefundAmount);
-                }
-               
-                
-                conn.commit();
-                System.out.println("✅ Sale saved successfully! Sales ID: " + generatedSalesId + ", Invoice: " + invoiceNo + ", Status ID: " + statusId);
-                return generatedSalesId;
             } else {
-                throw new Exception("Failed to retrieve generated sales ID");
+                throw new Exception("Failed to insert sale record");
             }
-        } else {
-            throw new Exception("Failed to insert sale record");
-        }
-        
-    } catch (Exception e) {
-        if (conn != null) {
-            try {
-                System.err.println("Rolling back transaction due to error: " + e.getMessage());
-                conn.rollback();
-            } catch (SQLException rollbackEx) {
-                System.err.println("Rollback failed: " + rollbackEx.getMessage());
-            }
-        }
-        System.err.println("Error saving sale: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, "Error saving sale: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
-        return -1;
-    } finally {
-        try {
-            if (generatedKeys != null) {
-                generatedKeys.close();
-            }
-        } catch (SQLException e) { }
-        try {
-            if (pstSale != null) {
-                pstSale.close();
-            }
-        } catch (SQLException e) { }
-        try {
+
+        } catch (Exception e) {
             if (conn != null) {
-                conn.setAutoCommit(true);
-                conn.close();
+                try {
+                    System.err.println("Rolling back transaction due to error: " + e.getMessage());
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    System.err.println("Rollback failed: " + rollbackEx.getMessage());
+                }
             }
-        } catch (SQLException e) { }
+            System.err.println("Error saving sale: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saving sale: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            return -1;
+        } finally {
+            try {
+                if (generatedKeys != null) {
+                    generatedKeys.close();
+                }
+            } catch (SQLException e) {
+            }
+            try {
+                if (pstSale != null) {
+                    pstSale.close();
+                }
+            } catch (SQLException e) {
+            }
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) {
+            }
+        }
     }
-}
 
     private boolean validateStockAvailability(Connection conn) throws SQLException {
         if (cartItems.isEmpty()) {
@@ -1597,7 +1612,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private boolean saveSaleItems(Connection conn, int salesId) throws SQLException {
         String query = "INSERT INTO sale_item (qty, price, discount_price, total, sales_id, stock_id) VALUES (?, ?, ?, ?, ?, ?)";
         PreparedStatement pst = null;
-        
+
         try {
             pst = conn.prepareStatement(query);
             for (CartItem item : cartItems.values()) {
@@ -1629,7 +1644,7 @@ public class PosCartPanel extends javax.swing.JPanel {
     private boolean updateStockQuantities(Connection conn) throws SQLException {
         String query = "UPDATE stock SET qty = qty - ? WHERE stock_id = ?";
         PreparedStatement pst = null;
-        
+
         try {
             pst = conn.prepareStatement(query);
             for (CartItem item : cartItems.values()) {
@@ -1655,7 +1670,7 @@ public class PosCartPanel extends javax.swing.JPanel {
         String query = "SELECT invoice_no FROM sales ORDER BY sales_id DESC LIMIT 1";
         PreparedStatement pst = null;
         ResultSet rs = null;
-        
+
         try {
             pst = conn.prepareStatement(query);
             rs = pst.executeQuery();
@@ -1678,12 +1693,16 @@ public class PosCartPanel extends javax.swing.JPanel {
             return "INV" + System.currentTimeMillis();
         } finally {
             try {
-                if (rs != null) rs.close();
+                if (rs != null) {
+                    rs.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing result set: " + e.getMessage());
             }
             try {
-                if (pst != null) pst.close();
+                if (pst != null) {
+                    pst.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing statement: " + e.getMessage());
             }
@@ -1767,93 +1786,93 @@ public class PosCartPanel extends javax.swing.JPanel {
         if ("Hold".equalsIgnoreCase(invoice.getStatus())) {
             paymentcombo.setSelectedItem("Cash");
         }
-        
+
         this.selectedInvoice = invoice;
     }
 
     private void loadInvoiceItems(Invoice invoice) {
-    String query = "SELECT si.qty, p.product_name, b.brand_name, st.batch_no, si.price, si.discount_price, si.total, p.barcode, "
-            + "st.selling_price as last_price, p.product_id, st.stock_id, st.qty as current_stock "
-            + "FROM sale_item si "
-            + "INNER JOIN stock st ON si.stock_id = st.stock_id "
-            + "INNER JOIN product p ON st.product_id = p.product_id "
-            + "INNER JOIN brand b ON p.brand_id = b.brand_id "
-            + "WHERE si.sales_id = ?";
+        String query = "SELECT si.qty, p.product_name, b.brand_name, st.batch_no, si.price, si.discount_price, si.total, p.barcode, "
+                + "st.selling_price as last_price, p.product_id, st.stock_id, st.qty as current_stock "
+                + "FROM sale_item si "
+                + "INNER JOIN stock st ON si.stock_id = st.stock_id "
+                + "INNER JOIN product p ON st.product_id = p.product_id "
+                + "INNER JOIN brand b ON p.brand_id = b.brand_id "
+                + "WHERE si.sales_id = ?";
 
-    try (Connection conn = getConnection(); PreparedStatement pst = conn.prepareStatement(query)) {
+        try (Connection conn = getConnection(); PreparedStatement pst = conn.prepareStatement(query)) {
 
-        pst.setInt(1, invoice.getSalesId());
-        try (ResultSet rs = pst.executeQuery()) {
-            boolean hasAdjustments = false;
-            StringBuilder adjustmentMessage = new StringBuilder();
-            
-            while (rs.next()) {
-                int productId = rs.getInt("product_id");
-                String productName = rs.getString("product_name");
-                String brandName = rs.getString("brand_name");
-                String batchNo = rs.getString("batch_no");
-                int savedQty = rs.getInt("qty");
-                int currentStock = rs.getInt("current_stock");
-                double sellingPrice = rs.getDouble("price");
-                String barcode = rs.getString("barcode");
-                double lastPrice = rs.getDouble("last_price");
-                double discountPrice = rs.getDouble("discount_price");
-                
-                // ✅ VALIDATE: Use current database stock, not saved quantity
-                int qtyToLoad = Math.min(savedQty, currentStock);
-                
-                if (qtyToLoad <= 0) {
-                    hasAdjustments = true;
-                    adjustmentMessage.append(String.format(
-                        "• %s (%s): Removed from cart (out of stock)\n",
-                        productName, brandName));
-                    continue; // Skip this item
+            pst.setInt(1, invoice.getSalesId());
+            try (ResultSet rs = pst.executeQuery()) {
+                boolean hasAdjustments = false;
+                StringBuilder adjustmentMessage = new StringBuilder();
+
+                while (rs.next()) {
+                    int productId = rs.getInt("product_id");
+                    String productName = rs.getString("product_name");
+                    String brandName = rs.getString("brand_name");
+                    String batchNo = rs.getString("batch_no");
+                    int savedQty = rs.getInt("qty");
+                    int currentStock = rs.getInt("current_stock");
+                    double sellingPrice = rs.getDouble("price");
+                    String barcode = rs.getString("barcode");
+                    double lastPrice = rs.getDouble("last_price");
+                    double discountPrice = rs.getDouble("discount_price");
+
+                    // ✅ VALIDATE: Use current database stock, not saved quantity
+                    int qtyToLoad = Math.min(savedQty, currentStock);
+
+                    if (qtyToLoad <= 0) {
+                        hasAdjustments = true;
+                        adjustmentMessage.append(String.format(
+                                "• %s (%s): Removed from cart (out of stock)\n",
+                                productName, brandName));
+                        continue; // Skip this item
+                    }
+
+                    String cartKey = productId + "_" + batchNo;
+                    CartItem item = new CartItem(productId, productName, brandName, batchNo,
+                            currentStock, sellingPrice, barcode, lastPrice);
+                    item.setQuantity(qtyToLoad);
+                    item.setDiscountPrice(discountPrice);
+                    cartItems.put(cartKey, item);
+
+                    // ✅ Update stock tracker
+                    StockTracker.getInstance().addToCart(productId, batchNo, qtyToLoad);
+
+                    // ✅ Track if quantity was adjusted
+                    if (qtyToLoad < savedQty) {
+                        hasAdjustments = true;
+                        adjustmentMessage.append(String.format(
+                                "• %s (%s): Quantity adjusted from %d to %d\n",
+                                productName, brandName, savedQty, qtyToLoad));
+                    }
                 }
-                
-                String cartKey = productId + "_" + batchNo;
-                CartItem item = new CartItem(productId, productName, brandName, batchNo, 
-                                            currentStock, sellingPrice, barcode, lastPrice);
-                item.setQuantity(qtyToLoad);
-                item.setDiscountPrice(discountPrice);
-                cartItems.put(cartKey, item);
-                
-                // ✅ Update stock tracker
-                StockTracker.getInstance().addToCart(productId, batchNo, qtyToLoad);
-                
-                // ✅ Track if quantity was adjusted
-                if (qtyToLoad < savedQty) {
-                    hasAdjustments = true;
-                    adjustmentMessage.append(String.format(
-                        "• %s (%s): Quantity adjusted from %d to %d\n",
-                        productName, brandName, savedQty, qtyToLoad));
+
+                // Show warning if any adjustments were made
+                if (hasAdjustments) {
+                    final String message = "Stock levels have changed since this sale was placed on hold:\n\n"
+                            + adjustmentMessage.toString()
+                            + "\nThe cart has been updated with current stock availability.";
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(this,
+                                message,
+                                "Stock Adjustments",
+                                JOptionPane.WARNING_MESSAGE);
+                    });
                 }
+
+                updateTotals();
+                updateCartPanel();
             }
-            
-            // Show warning if any adjustments were made
-            if (hasAdjustments) {
-                final String message = "Stock levels have changed since this sale was placed on hold:\n\n" 
-                                     + adjustmentMessage.toString()
-                                     + "\nThe cart has been updated with current stock availability.";
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(this,
-                        message,
-                        "Stock Adjustments",
-                        JOptionPane.WARNING_MESSAGE);
-                });
-            }
-            
-            updateTotals();
-            updateCartPanel();
+        } catch (Exception e) {
+            System.err.println("Error loading invoice items: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error loading invoice items: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
-    } catch (Exception e) {
-        System.err.println("Error loading invoice items: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, 
-            "Error loading invoice items: " + e.getMessage(), 
-            "Error", 
-            JOptionPane.ERROR_MESSAGE);
     }
-}
 
     public double getAppliedDiscountAmount() {
         return appliedDiscountAmount;
@@ -1873,475 +1892,486 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private void handleCompleteSale() {
-    // Check if we're completing a hold invoice that was switched to
-    if (selectedInvoice != null && "Hold".equalsIgnoreCase(selectedInvoice.getStatus())) {
-        completeHoldSale(selectedInvoice);
-        return;
-    }
-    
-    if (!validateCheckout()) {
-        return;
-    }
-    
-    String selectedPayment = (String) paymentcombo.getSelectedItem();
-    if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
-        JOptionPane.showMessageDialog(this, 
-            "Please select a payment method before completing the sale.", 
-            "Missing Payment Method", 
-            JOptionPane.WARNING_MESSAGE);
-        paymentcombo.requestFocus();
-        return;
-    }
-    
-    if (selectedPayment.toLowerCase().contains("cash")) {
-        handleCashPayment();
-        return;
-    }
-    
-    int salesId = saveSale(1);
-    if (salesId == -1) {
-        JOptionPane.showMessageDialog(this, 
-            "Failed to save sale. Please try again.", 
-            "Save Error", 
-            JOptionPane.ERROR_MESSAGE);
-        return;
-    }
-    
-    if (selectedPayment.toLowerCase().contains("credit")) {
-        openCreditPaymentDialog(salesId);
-    } else if (selectedPayment.toLowerCase().contains("card")) {
-        openCardPaymentDialog(salesId);
-    } else if (selectedPayment.toLowerCase().contains("cheque")) {
-        openChequePaymentDialog(salesId);
-    } else {
-        Notifications.getInstance().show(
-            Notifications.Type.SUCCESS, 
-            Notifications.Location.TOP_RIGHT, 
-            "Sale completed successfully! Sale ID: " + salesId);
-        
-        // ✅ Properly reset and notify
-        resetCart();
-        if (cartListener != null) {
-            cartListener.onCheckoutComplete();
-        }
-    }
-}
-
-    private void completeHoldSale(Invoice holdInvoice) {
-    if (cartItems.isEmpty()) {
-        JOptionPane.showMessageDialog(this, 
-            "Cart is empty. Add products before completing the sale.", 
-            "Empty Cart", 
-            JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    // ✅ ADD: Validate stock before completing
-    if (validateAndAdjustLoadedItems()) {
-        int response = JOptionPane.showConfirmDialog(this,
-            "Some item quantities were adjusted due to stock changes.\n\nDo you want to continue with the adjusted cart?",
-            "Stock Adjustments Made",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        
-        if (response != JOptionPane.YES_OPTION) {
+        // Check if we're completing a hold invoice that was switched to
+        if (selectedInvoice != null && "Hold".equalsIgnoreCase(selectedInvoice.getStatus())) {
+            completeHoldSale(selectedInvoice);
             return;
         }
-    }
-    
-    String selectedPayment = (String) paymentcombo.getSelectedItem();
-    if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
-        JOptionPane.showMessageDialog(this, 
-            "Please select a payment method to complete the sale.", 
-            "Payment Method Required", 
-            JOptionPane.WARNING_MESSAGE);
-        paymentcombo.requestFocus();
-        return;
-    }
-    
-    if (selectedPayment.toLowerCase().contains("cash")) {
-        try {
-            String amountText = jTextField2.getText().trim();
-            if (amountText.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "Please enter amount received for cash payment.", 
-                    "Amount Required", 
+
+        if (!validateCheckout()) {
+            return;
+        }
+
+        String selectedPayment = (String) paymentcombo.getSelectedItem();
+        if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a payment method before completing the sale.",
+                    "Missing Payment Method",
                     JOptionPane.WARNING_MESSAGE);
-                jTextField2.requestFocus();
+            paymentcombo.requestFocus();
+            return;
+        }
+
+        if (selectedPayment.toLowerCase().contains("cash")) {
+            handleCashPayment();
+            return;
+        }
+
+        int salesId = saveSale(1);
+        if (salesId == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to save sale. Please try again.",
+                    "Save Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (selectedPayment.toLowerCase().contains("credit")) {
+            openCreditPaymentDialog(salesId);
+        } else if (selectedPayment.toLowerCase().contains("card")) {
+            openCardPaymentDialog(salesId);
+        } else if (selectedPayment.toLowerCase().contains("cheque")) {
+            openChequePaymentDialog(salesId);
+        } else {
+            Notifications.getInstance().show(
+                    Notifications.Type.SUCCESS,
+                    Notifications.Location.TOP_RIGHT,
+                    "Sale completed successfully! Sale ID: " + salesId);
+
+            // ✅ Properly reset and notify
+            resetCart();
+            if (cartListener != null) {
+                cartListener.onCheckoutComplete();
+            }
+        }
+    }
+
+    private void completeHoldSale(Invoice holdInvoice) {
+        if (cartItems.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Cart is empty. Add products before completing the sale.",
+                    "Empty Cart",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // ✅ ADD: Validate stock before completing
+        if (validateAndAdjustLoadedItems()) {
+            int response = JOptionPane.showConfirmDialog(this,
+                    "Some item quantities were adjusted due to stock changes.\n\nDo you want to continue with the adjusted cart?",
+                    "Stock Adjustments Made",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
+            if (response != JOptionPane.YES_OPTION) {
                 return;
             }
-            
-            double amountReceived = Double.parseDouble(amountText);
-            double total = getTotal();
-            if (amountReceived < total) {
-                JOptionPane.showMessageDialog(this, 
-                    String.format("Insufficient payment!\nRequired: Rs.%.2f\nReceived: Rs.%.2f\nShort: Rs.%.2f", 
-                        total, amountReceived, Math.abs(total - amountReceived)), 
-                    "Insufficient Payment", 
+        }
+
+        String selectedPayment = (String) paymentcombo.getSelectedItem();
+        if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a payment method to complete the sale.",
+                    "Payment Method Required",
                     JOptionPane.WARNING_MESSAGE);
+            paymentcombo.requestFocus();
+            return;
+        }
+
+        if (selectedPayment.toLowerCase().contains("cash")) {
+            try {
+                String amountText = jTextField2.getText().trim();
+                if (amountText.isEmpty()) {
+                    JOptionPane.showMessageDialog(this,
+                            "Please enter amount received for cash payment.",
+                            "Amount Required",
+                            JOptionPane.WARNING_MESSAGE);
+                    jTextField2.requestFocus();
+                    return;
+                }
+
+                double amountReceived = Double.parseDouble(amountText);
+                double total = getTotal();
+                if (amountReceived < total) {
+                    JOptionPane.showMessageDialog(this,
+                            String.format("Insufficient payment!\nRequired: Rs.%.2f\nReceived: Rs.%.2f\nShort: Rs.%.2f",
+                                    total, amountReceived, Math.abs(total - amountReceived)),
+                            "Insufficient Payment",
+                            JOptionPane.WARNING_MESSAGE);
+                    jTextField2.requestFocus();
+                    jTextField2.selectAll();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this,
+                        "Invalid amount received. Please enter a valid number.",
+                        "Invalid Input",
+                        JOptionPane.ERROR_MESSAGE);
                 jTextField2.requestFocus();
                 jTextField2.selectAll();
                 return;
             }
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, 
-                "Invalid amount received. Please enter a valid number.", 
-                "Invalid Input", 
-                JOptionPane.ERROR_MESSAGE);
-            jTextField2.requestFocus();
-            jTextField2.selectAll();
-            return;
         }
-    }
-    
-    double total = getTotal();
-    String confirmMessage = String.format(
-        "Complete hold invoice %s?\n\nOriginal Amount: Rs.%.2f\nNew Amount: Rs.%.2f\nPayment Method: %s",
-        holdInvoice.getInvoiceNo(), holdInvoice.getTotal(), total, selectedPayment
-    );
-    
-    if (selectedPayment.toLowerCase().contains("cash")) {
-        try {
-            double amountReceived = Double.parseDouble(jTextField2.getText().trim());
-            double balance = amountReceived - total;
-            confirmMessage += String.format("\n\nAmount Received: Rs.%.2f\nBalance: Rs.%.2f", 
-                amountReceived, balance);
-        } catch (NumberFormatException e) {
-            // Ignore formatting error for display
-        }
-    }
-    
-    int confirm = JOptionPane.showConfirmDialog(this, 
-        confirmMessage, 
-        "Complete Hold Sale", 
-        JOptionPane.YES_NO_OPTION, 
-        JOptionPane.QUESTION_MESSAGE);
-        
-    if (confirm != JOptionPane.YES_OPTION) {
-        return;
-    }
-    
-    if (updateHoldSaleToCompleted(holdInvoice)) {
+
+        double total = getTotal();
+        String confirmMessage = String.format(
+                "Complete hold invoice %s?\n\nOriginal Amount: Rs.%.2f\nNew Amount: Rs.%.2f\nPayment Method: %s",
+                holdInvoice.getInvoiceNo(), holdInvoice.getTotal(), total, selectedPayment
+        );
+
         if (selectedPayment.toLowerCase().contains("cash")) {
             try {
                 double amountReceived = Double.parseDouble(jTextField2.getText().trim());
-                double totalAmount = getTotal();
-                double balance = amountReceived - totalAmount;
-                
-                String successMessage = String.format(
-                    "Hold sale completed successfully!\n\nInvoice: %s\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nChange: Rs.%.2f", 
-                    holdInvoice.getInvoiceNo(), totalAmount, amountReceived, balance
-                );
-                JOptionPane.showMessageDialog(this, 
-                    successMessage, 
-                    "Payment Successful", 
-                    JOptionPane.INFORMATION_MESSAGE);
+                double balance = amountReceived - total;
+                confirmMessage += String.format("\n\nAmount Received: Rs.%.2f\nBalance: Rs.%.2f",
+                        amountReceived, balance);
             } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(this, 
-                    "Hold sale completed successfully!\nInvoice: " + holdInvoice.getInvoiceNo(), 
-                    "Sale Completed", 
-                    JOptionPane.INFORMATION_MESSAGE);
+                // Ignore formatting error for display
             }
-        } else if (selectedPayment.toLowerCase().contains("credit")) {
-            openCreditPaymentDialog(holdInvoice.getSalesId());
-            return;
-        } else if (selectedPayment.toLowerCase().contains("card")) {
-            openCardPaymentDialog(holdInvoice.getSalesId());
-            return;
-        } else if (selectedPayment.toLowerCase().contains("cheque")) {
-            openChequePaymentDialog(holdInvoice.getSalesId());
-            return;
-        } else {
-            JOptionPane.showMessageDialog(this, 
-                "Hold sale completed successfully!\nInvoice: " + holdInvoice.getInvoiceNo(), 
-                "Sale Completed", 
-                JOptionPane.INFORMATION_MESSAGE);
         }
-        
-        Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                Notifications.Location.TOP_RIGHT, 
-                "Hold sale completed! Invoice: " + holdInvoice.getInvoiceNo());
-        
-        resetCartAndSelectedInvoice();
-    }
-}
 
-    private boolean updateHoldSaleToCompleted(Invoice holdInvoice) {
-    Connection conn = null;
-    PreparedStatement pstSale = null;
-    PreparedStatement pstDeleteItems = null;
-    
-    try {
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-        int paymentMethodId = getPaymentMethodId(selectedPayment);
-        
-        if (paymentMethodId == -1) {
-            JOptionPane.showMessageDialog(this, "Invalid payment method selected.", "Payment Method Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
-        double total = getTotal();
-        
-        conn = MySQL.getConnection();
-        if (conn == null || conn.isClosed()) {
-            JOptionPane.showMessageDialog(this, "Database connection failed.", "Connection Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        
-        conn.setAutoCommit(false);
-        
-        if (!validateStockAvailability(conn)) {
-            conn.rollback();
-            return false;
-        }
-        
-        String updateSalesQuery = "UPDATE sales SET total = ?, payment_method_id = ?, status_id = 1, datetime = NOW() WHERE sales_id = ?";
-        pstSale = conn.prepareStatement(updateSalesQuery);
-        pstSale.setDouble(1, total);
-        pstSale.setInt(2, paymentMethodId);
-        pstSale.setInt(3, holdInvoice.getSalesId());
-        
-        int salesUpdated = pstSale.executeUpdate();
-        if (salesUpdated <= 0) {
-            throw new Exception("Failed to update sales record");
-        }
-        
-        String deleteItemsQuery = "DELETE FROM sale_item WHERE sales_id = ?";
-        pstDeleteItems = conn.prepareStatement(deleteItemsQuery);
-        pstDeleteItems.setInt(1, holdInvoice.getSalesId());
-        pstDeleteItems.executeUpdate();
-        
-        if (!saveSaleItems(conn, holdInvoice.getSalesId())) {
-            conn.rollback();
-            return false;
-        }
-        
-        if (!updateStockQuantities(conn)) {
-            conn.rollback();
-            return false;
-        }
-        
-        // ✅ BEST PRACTICE: Use NULL for no discount
-        if (appliedDiscountAmount > 0 && appliedDiscountTypeId > 0) {
-            int discountId = createDiscountRecord(conn, appliedDiscountTypeId, appliedDiscountAmount);
-            if (discountId > 0) {
-                String updateDiscountQuery = "UPDATE sales SET discount_id = ? WHERE sales_id = ?";
-                try (PreparedStatement pstDiscount = conn.prepareStatement(updateDiscountQuery)) {
-                    pstDiscount.setInt(1, discountId);
-                    pstDiscount.setInt(2, holdInvoice.getSalesId());
-                    pstDiscount.executeUpdate();
-                }
-                System.out.println("✅ Updated hold sale with discount: Rs." + String.format("%.2f", appliedDiscountAmount) + " (Discount ID: " + discountId + ")");
-            }
-        } else {
-            // No discount applied - set to NULL
-            String updateDiscountQuery = "UPDATE sales SET discount_id = NULL WHERE sales_id = ?";
-            try (PreparedStatement pstDiscount = conn.prepareStatement(updateDiscountQuery)) {
-                pstDiscount.setInt(1, holdInvoice.getSalesId());
-                pstDiscount.executeUpdate();
-            }
-            System.out.println("✅ Updated hold sale - no discount (discount_id set to NULL)");
-        }
-        
-        conn.commit();
-        System.out.println("✅ Hold sale completed successfully! Sales ID: " + holdInvoice.getSalesId());
-        return true;
-        
-    } catch (Exception e) {
-        if (conn != null) {
-            try {
-                System.err.println("Rolling back transaction due to error: " + e.getMessage());
-                conn.rollback();
-            } catch (SQLException rollbackEx) {
-                System.err.println("Rollback failed: " + rollbackEx.getMessage());
-            }
-        }
-        System.err.println("Error completing hold sale: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, "Error completing hold sale: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
-        return false;
-    } finally {
-        try {
-            if (pstDeleteItems != null) pstDeleteItems.close();
-        } catch (SQLException e) { }
-        try {
-            if (pstSale != null) pstSale.close();
-        } catch (SQLException e) { }
-        try {
-            if (conn != null) {
-                conn.setAutoCommit(true);
-                conn.close();
-            }
-        } catch (SQLException e) { }
-    }
-}
+        int confirm = JOptionPane.showConfirmDialog(this,
+                confirmMessage,
+                "Complete Hold Sale",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
 
-   private void resetCartAndSelectedInvoice() {
-    resetCart(); // This already clears stock tracker
-    selectedInvoice = null;
-    
-    // ✅ Notify listener AFTER reset
-    if (cartListener != null) {
-        cartListener.onCheckoutComplete();
-    }
-}
-
-    private void handleCashPayment() {
-    try {
-        double amountReceived = Double.parseDouble(jTextField2.getText().trim());
-        double total = getTotal();
-        double balance = amountReceived - total;
-        
-        if (balance < 0) {
-            JOptionPane.showMessageDialog(this, 
-                String.format("Insufficient payment!\nRequired: Rs.%.2f\nReceived: Rs.%.2f\nShort: Rs.%.2f", 
-                    total, amountReceived, Math.abs(balance)), 
-                "Insufficient Payment", 
-                JOptionPane.WARNING_MESSAGE);
-            jTextField2.requestFocus();
-            jTextField2.selectAll();
-            return;
-        }
-        
-        String confirmMessage = String.format(
-            "Complete cash payment?\n\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nBalance: Rs.%.2f", 
-            total, amountReceived, balance);
-            
-        int confirm = JOptionPane.showConfirmDialog(this, confirmMessage, 
-            "Confirm Cash Payment", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-            
         if (confirm != JOptionPane.YES_OPTION) {
             return;
         }
-        
-        int salesId;
-        if (selectedInvoice != null && "Hold".equalsIgnoreCase(selectedInvoice.getStatus())) {
-            if (updateHoldSaleToCompleted(selectedInvoice)) {
-                String successMessage = String.format(
-                    "Cash payment completed successfully!\n\nInvoice: %s\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nChange: Rs.%.2f", 
-                    selectedInvoice.getInvoiceNo(), total, amountReceived, balance);
-                    
-                JOptionPane.showMessageDialog(this, successMessage, 
-                    "Payment Successful", JOptionPane.INFORMATION_MESSAGE);
-                    
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                    Notifications.Location.TOP_RIGHT, 
-                    "Cash payment completed! Invoice: " + selectedInvoice.getInvoiceNo());
-                    
-                resetCartAndSelectedInvoice(); // ✅ This triggers stock refresh
+
+        if (updateHoldSaleToCompleted(holdInvoice)) {
+            if (selectedPayment.toLowerCase().contains("cash")) {
+                try {
+                    double amountReceived = Double.parseDouble(jTextField2.getText().trim());
+                    double totalAmount = getTotal();
+                    double balance = amountReceived - totalAmount;
+
+                    String successMessage = String.format(
+                            "Hold sale completed successfully!\n\nInvoice: %s\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nChange: Rs.%.2f",
+                            holdInvoice.getInvoiceNo(), totalAmount, amountReceived, balance
+                    );
+                    JOptionPane.showMessageDialog(this,
+                            successMessage,
+                            "Payment Successful",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(this,
+                            "Hold sale completed successfully!\nInvoice: " + holdInvoice.getInvoiceNo(),
+                            "Sale Completed",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+            } else if (selectedPayment.toLowerCase().contains("credit")) {
+                openCreditPaymentDialog(holdInvoice.getSalesId());
+                return;
+            } else if (selectedPayment.toLowerCase().contains("card")) {
+                openCardPaymentDialog(holdInvoice.getSalesId());
+                return;
+            } else if (selectedPayment.toLowerCase().contains("cheque")) {
+                openChequePaymentDialog(holdInvoice.getSalesId());
+                return;
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Hold sale completed successfully!\nInvoice: " + holdInvoice.getInvoiceNo(),
+                        "Sale Completed",
+                        JOptionPane.INFORMATION_MESSAGE);
             }
-        } else {
-            salesId = saveSale(1);
-            if (salesId != -1) {
-                String successMessage = String.format(
-                    "Cash payment completed successfully!\n\nSale ID: %d\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nChange: Rs.%.2f", 
-                    salesId, total, amountReceived, balance);
-                    
-                JOptionPane.showMessageDialog(this, successMessage, 
-                    "Payment Successful", JOptionPane.INFORMATION_MESSAGE);
-                    
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                    Notifications.Location.TOP_RIGHT, 
-                    "Cash payment completed! Sale ID: " + salesId);
-                    
-                resetCart();
-                if (cartListener != null) {
-                    cartListener.onCheckoutComplete(); // ✅ Trigger refresh
+
+            Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                    Notifications.Location.TOP_RIGHT,
+                    "Hold sale completed! Invoice: " + holdInvoice.getInvoiceNo());
+
+            resetCartAndSelectedInvoice();
+        }
+    }
+
+    private boolean updateHoldSaleToCompleted(Invoice holdInvoice) {
+        Connection conn = null;
+        PreparedStatement pstSale = null;
+        PreparedStatement pstDeleteItems = null;
+
+        try {
+            String selectedPayment = (String) paymentcombo.getSelectedItem();
+            int paymentMethodId = getPaymentMethodId(selectedPayment);
+
+            if (paymentMethodId == -1) {
+                JOptionPane.showMessageDialog(this, "Invalid payment method selected.", "Payment Method Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+
+            double total = getTotal();
+
+            conn = MySQL.getConnection();
+            if (conn == null || conn.isClosed()) {
+                JOptionPane.showMessageDialog(this, "Database connection failed.", "Connection Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+
+            conn.setAutoCommit(false);
+
+            if (!validateStockAvailability(conn)) {
+                conn.rollback();
+                return false;
+            }
+
+            String updateSalesQuery = "UPDATE sales SET total = ?, payment_method_id = ?, status_id = 1, datetime = NOW() WHERE sales_id = ?";
+            pstSale = conn.prepareStatement(updateSalesQuery);
+            pstSale.setDouble(1, total);
+            pstSale.setInt(2, paymentMethodId);
+            pstSale.setInt(3, holdInvoice.getSalesId());
+
+            int salesUpdated = pstSale.executeUpdate();
+            if (salesUpdated <= 0) {
+                throw new Exception("Failed to update sales record");
+            }
+
+            String deleteItemsQuery = "DELETE FROM sale_item WHERE sales_id = ?";
+            pstDeleteItems = conn.prepareStatement(deleteItemsQuery);
+            pstDeleteItems.setInt(1, holdInvoice.getSalesId());
+            pstDeleteItems.executeUpdate();
+
+            if (!saveSaleItems(conn, holdInvoice.getSalesId())) {
+                conn.rollback();
+                return false;
+            }
+
+            if (!updateStockQuantities(conn)) {
+                conn.rollback();
+                return false;
+            }
+
+            // ✅ BEST PRACTICE: Use NULL for no discount
+            if (appliedDiscountAmount > 0 && appliedDiscountTypeId > 0) {
+                int discountId = createDiscountRecord(conn, appliedDiscountTypeId, appliedDiscountAmount);
+                if (discountId > 0) {
+                    String updateDiscountQuery = "UPDATE sales SET discount_id = ? WHERE sales_id = ?";
+                    try (PreparedStatement pstDiscount = conn.prepareStatement(updateDiscountQuery)) {
+                        pstDiscount.setInt(1, discountId);
+                        pstDiscount.setInt(2, holdInvoice.getSalesId());
+                        pstDiscount.executeUpdate();
+                    }
+                    System.out.println("✅ Updated hold sale with discount: Rs." + String.format("%.2f", appliedDiscountAmount) + " (Discount ID: " + discountId + ")");
+                }
+            } else {
+                // No discount applied - set to NULL
+                String updateDiscountQuery = "UPDATE sales SET discount_id = NULL WHERE sales_id = ?";
+                try (PreparedStatement pstDiscount = conn.prepareStatement(updateDiscountQuery)) {
+                    pstDiscount.setInt(1, holdInvoice.getSalesId());
+                    pstDiscount.executeUpdate();
+                }
+                System.out.println("✅ Updated hold sale - no discount (discount_id set to NULL)");
+            }
+
+            conn.commit();
+            System.out.println("✅ Hold sale completed successfully! Sales ID: " + holdInvoice.getSalesId());
+            return true;
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    System.err.println("Rolling back transaction due to error: " + e.getMessage());
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    System.err.println("Rollback failed: " + rollbackEx.getMessage());
                 }
             }
-        }
-    } catch (NumberFormatException e) {
-        JOptionPane.showMessageDialog(this, 
-            "Invalid amount received. Please enter a valid number.", 
-            "Invalid Input", JOptionPane.ERROR_MESSAGE);
-        jTextField2.requestFocus();
-        jTextField2.selectAll();
-    }
-}
-
-    private int createDiscountRecord(Connection conn, int discountTypeId, double discountAmount) {
-    String query = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
-    PreparedStatement pst = null;
-    ResultSet generatedKeys = null;
-    
-    try {
-        pst = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
-        // ✅ This will insert 0.0 if discountAmount is 0
-        pst.setDouble(1, discountAmount);
-        pst.setInt(2, discountTypeId);
-        
-        System.out.println("Creating discount record: Amount=" + discountAmount + ", Type ID=" + discountTypeId);
-        
-        int rowsAffected = pst.executeUpdate();
-        
-        if (rowsAffected > 0) {
-            generatedKeys = pst.getGeneratedKeys();
-            if (generatedKeys.next()) {
-                int discountId = generatedKeys.getInt(1);
-                System.out.println("✅ Discount record created successfully with ID: " + discountId);
-                return discountId;
+            System.err.println("Error completing hold sale: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error completing hold sale: " + e.getMessage(), "Database Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        } finally {
+            try {
+                if (pstDeleteItems != null) {
+                    pstDeleteItems.close();
+                }
+            } catch (SQLException e) {
+            }
+            try {
+                if (pstSale != null) {
+                    pstSale.close();
+                }
+            } catch (SQLException e) {
+            }
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) {
             }
         }
-        System.err.println("⚠️ Failed to create discount record - no rows affected");
-    } catch (Exception e) {
-        System.err.println("❌ Error creating discount record: " + e.getMessage());
-        e.printStackTrace();
-    } finally {
-        try {
-            if (generatedKeys != null) generatedKeys.close();
-        } catch (SQLException e) {
-            System.err.println("Error closing generated keys: " + e.getMessage());
-        }
-        try {
-            if (pst != null) pst.close();
-        } catch (SQLException e) {
-            System.err.println("Error closing statement: " + e.getMessage());
+    }
+
+    private void resetCartAndSelectedInvoice() {
+        resetCart(); // This already clears stock tracker
+        selectedInvoice = null;
+
+        // ✅ Notify listener AFTER reset
+        if (cartListener != null) {
+            cartListener.onCheckoutComplete();
         }
     }
-    return -1;
-}
 
-    private void createExchangeRefundRecord(Connection conn, int salesId, double refundAmount) {
-    // ✅ FIXED: Include total_discount_price column
-    String query = "INSERT INTO `return` (sales_id, total_return_amount, total_discount_price, return_date, user_id, status_id, return_reason_id) VALUES (?, ?, ?, NOW(), ?, 1, ?)";
-    PreparedStatement pst = null;
-    
-    try {
-        pst = conn.prepareStatement(query);
-        pst.setInt(1, salesId);
-        pst.setDouble(2, refundAmount);
-        pst.setDouble(3, 0.0); // ✅ Set total_discount_price to 0.0 (or calculate if needed)
-        pst.setInt(4, Session.getInstance().getUserId());
-        pst.setInt(5, 1); // return_reason_id
-        
-        pst.executeUpdate();
-        System.out.println("✅ Exchange record created: Rs." + refundAmount + " for Sales ID: " + salesId);
-    } catch (Exception e) {
-        System.err.println("❌ Error creating exchange record: " + e.getMessage());
-        e.printStackTrace();
-    } finally {
-        if (pst != null) {
+    private void handleCashPayment() {
+        try {
+            double amountReceived = Double.parseDouble(jTextField2.getText().trim());
+            double total = getTotal();
+            double balance = amountReceived - total;
+
+            if (balance < 0) {
+                JOptionPane.showMessageDialog(this,
+                        String.format("Insufficient payment!\nRequired: Rs.%.2f\nReceived: Rs.%.2f\nShort: Rs.%.2f",
+                                total, amountReceived, Math.abs(balance)),
+                        "Insufficient Payment",
+                        JOptionPane.WARNING_MESSAGE);
+                jTextField2.requestFocus();
+                jTextField2.selectAll();
+                return;
+            }
+
+            String confirmMessage = String.format(
+                    "Complete cash payment?\n\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nBalance: Rs.%.2f",
+                    total, amountReceived, balance);
+
+            int confirm = JOptionPane.showConfirmDialog(this, confirmMessage,
+                    "Confirm Cash Payment", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+
+            int salesId;
+            if (selectedInvoice != null && "Hold".equalsIgnoreCase(selectedInvoice.getStatus())) {
+                if (updateHoldSaleToCompleted(selectedInvoice)) {
+                    String successMessage = String.format(
+                            "Cash payment completed successfully!\n\nInvoice: %s\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nChange: Rs.%.2f",
+                            selectedInvoice.getInvoiceNo(), total, amountReceived, balance);
+
+                    JOptionPane.showMessageDialog(this, successMessage,
+                            "Payment Successful", JOptionPane.INFORMATION_MESSAGE);
+
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            "Cash payment completed! Invoice: " + selectedInvoice.getInvoiceNo());
+
+                    resetCartAndSelectedInvoice(); // ✅ This triggers stock refresh
+                }
+            } else {
+                salesId = saveSale(1);
+                if (salesId != -1) {
+                    String successMessage = String.format(
+                            "Cash payment completed successfully!\n\nSale ID: %d\nTotal: Rs.%.2f\nReceived: Rs.%.2f\nChange: Rs.%.2f",
+                            salesId, total, amountReceived, balance);
+
+                    JOptionPane.showMessageDialog(this, successMessage,
+                            "Payment Successful", JOptionPane.INFORMATION_MESSAGE);
+
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            "Cash payment completed! Sale ID: " + salesId);
+
+                    resetCart();
+                    if (cartListener != null) {
+                        cartListener.onCheckoutComplete(); // ✅ Trigger refresh
+                    }
+                }
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid amount received. Please enter a valid number.",
+                    "Invalid Input", JOptionPane.ERROR_MESSAGE);
+            jTextField2.requestFocus();
+            jTextField2.selectAll();
+        }
+    }
+
+    private int createDiscountRecord(Connection conn, int discountTypeId, double discountAmount) {
+        String query = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
+        PreparedStatement pst = null;
+        ResultSet generatedKeys = null;
+
+        try {
+            pst = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            // ✅ This will insert 0.0 if discountAmount is 0
+            pst.setDouble(1, discountAmount);
+            pst.setInt(2, discountTypeId);
+
+            System.out.println("Creating discount record: Amount=" + discountAmount + ", Type ID=" + discountTypeId);
+
+            int rowsAffected = pst.executeUpdate();
+
+            if (rowsAffected > 0) {
+                generatedKeys = pst.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    int discountId = generatedKeys.getInt(1);
+                    System.out.println("✅ Discount record created successfully with ID: " + discountId);
+                    return discountId;
+                }
+            }
+            System.err.println("⚠️ Failed to create discount record - no rows affected");
+        } catch (Exception e) {
+            System.err.println("❌ Error creating discount record: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
             try {
-                pst.close();
+                if (generatedKeys != null) {
+                    generatedKeys.close();
+                }
+            } catch (SQLException e) {
+                System.err.println("Error closing generated keys: " + e.getMessage());
+            }
+            try {
+                if (pst != null) {
+                    pst.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing statement: " + e.getMessage());
             }
         }
+        return -1;
     }
-}
+
+    private void createExchangeRefundRecord(Connection conn, int salesId, double refundAmount) {
+        // ✅ FIXED: Include total_discount_price column
+        String query = "INSERT INTO `return` (sales_id, total_return_amount, total_discount_price, return_date, user_id, status_id, return_reason_id) VALUES (?, ?, ?, NOW(), ?, 1, ?)";
+        PreparedStatement pst = null;
+
+        try {
+            pst = conn.prepareStatement(query);
+            pst.setInt(1, salesId);
+            pst.setDouble(2, refundAmount);
+            pst.setDouble(3, 0.0); // ✅ Set total_discount_price to 0.0 (or calculate if needed)
+            pst.setInt(4, Session.getInstance().getUserId());
+            pst.setInt(5, 1); // return_reason_id
+
+            pst.executeUpdate();
+            System.out.println("✅ Exchange record created: Rs." + refundAmount + " for Sales ID: " + salesId);
+        } catch (Exception e) {
+            System.err.println("❌ Error creating exchange record: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            if (pst != null) {
+                try {
+                    pst.close();
+                } catch (SQLException e) {
+                    System.err.println("Error closing statement: " + e.getMessage());
+                }
+            }
+        }
+    }
 
     private int getPaymentMethodId(String paymentMethodName) {
         String query = "SELECT payment_method_id FROM payment_method WHERE payment_method_name = ?";
         Connection conn = null;
         PreparedStatement pst = null;
         ResultSet rs = null;
-        
+
         try {
             conn = MySQL.getConnection();
             pst = conn.prepareStatement(query);
             pst.setString(1, paymentMethodName);
             rs = pst.executeQuery();
-            
+
             if (rs.next()) {
                 return rs.getInt("payment_method_id");
             }
@@ -2350,17 +2380,23 @@ public class PosCartPanel extends javax.swing.JPanel {
             e.printStackTrace();
         } finally {
             try {
-                if (rs != null) rs.close();
+                if (rs != null) {
+                    rs.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing result set: " + e.getMessage());
             }
             try {
-                if (pst != null) pst.close();
+                if (pst != null) {
+                    pst.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing statement: " + e.getMessage());
             }
             try {
-                if (conn != null) conn.close();
+                if (conn != null) {
+                    conn.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing connection: " + e.getMessage());
             }
@@ -2372,13 +2408,13 @@ public class PosCartPanel extends javax.swing.JPanel {
         String query = "SELECT stock_id FROM stock WHERE product_id = ? AND batch_no = ?";
         PreparedStatement pst = null;
         ResultSet rs = null;
-        
+
         try {
             pst = conn.prepareStatement(query);
             pst.setInt(1, productId);
             pst.setString(2, batchNo);
             rs = pst.executeQuery();
-            
+
             if (rs.next()) {
                 return rs.getInt("stock_id");
             }
@@ -2387,12 +2423,16 @@ public class PosCartPanel extends javax.swing.JPanel {
             e.printStackTrace();
         } finally {
             try {
-                if (rs != null) rs.close();
+                if (rs != null) {
+                    rs.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing result set: " + e.getMessage());
             }
             try {
-                if (pst != null) pst.close();
+                if (pst != null) {
+                    pst.close();
+                }
             } catch (SQLException e) {
                 System.err.println("Error closing statement: " + e.getMessage());
             }
@@ -2401,107 +2441,107 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private void openCreditPaymentDialog(int salesId) {
-    try {
-        double totalAmount = getTotal();
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        AddCredit dialog = new AddCredit(parentFrame, true, totalAmount, salesId);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-        
-        if (dialog.isCreditSaved()) {
-            double paidAmount = dialog.getPaidAmount();
-            if (paidAmount > 0) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                    Notifications.Location.TOP_RIGHT, 
-                    String.format("Credit sale completed! Sale ID: %d, Payment: Rs.%.2f", salesId, paidAmount));
+        try {
+            double totalAmount = getTotal();
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            AddCredit dialog = new AddCredit(parentFrame, true, totalAmount, salesId);
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+
+            if (dialog.isCreditSaved()) {
+                double paidAmount = dialog.getPaidAmount();
+                if (paidAmount > 0) {
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            String.format("Credit sale completed! Sale ID: %d, Payment: Rs.%.2f", salesId, paidAmount));
+                } else {
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            "Credit sale completed! Sale ID: " + salesId);
+                }
+                resetCartAndSelectedInvoice(); // ✅ Changed from just resetCart()
             } else {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                    Notifications.Location.TOP_RIGHT, 
-                    "Credit sale completed! Sale ID: " + salesId);
+                JOptionPane.showMessageDialog(this,
+                        "Sale was saved but credit record was not completed.\nSale ID: " + salesId
+                        + "\nPlease add credit record manually if needed.",
+                        "Credit Record Incomplete", JOptionPane.WARNING_MESSAGE);
+                resetCartAndSelectedInvoice(); // ✅ Changed from just resetCart()
             }
-            resetCartAndSelectedInvoice(); // ✅ Changed from just resetCart()
-        } else {
-            JOptionPane.showMessageDialog(this, 
-                "Sale was saved but credit record was not completed.\nSale ID: " + salesId + 
-                "\nPlease add credit record manually if needed.", 
-                "Credit Record Incomplete", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception e) {
+            System.err.println("Error opening credit payment dialog: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Sale was saved but error opening credit dialog.\nSale ID: " + salesId
+                    + "\nError: " + e.getMessage(),
+                    "Dialog Error", JOptionPane.ERROR_MESSAGE);
             resetCartAndSelectedInvoice(); // ✅ Changed from just resetCart()
         }
-    } catch (Exception e) {
-        System.err.println("Error opening credit payment dialog: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, 
-            "Sale was saved but error opening credit dialog.\nSale ID: " + salesId + 
-            "\nError: " + e.getMessage(), 
-            "Dialog Error", JOptionPane.ERROR_MESSAGE);
-        resetCartAndSelectedInvoice(); // ✅ Changed from just resetCart()
     }
-}
 
     private void openCardPaymentDialog(int salesId) {
-    try {
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        CardPayDialog dialog = new CardPayDialog(parentFrame, true, salesId);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-        
-        Integer cardPaymentId = dialog.getGeneratedCardPaymentId();
-        if (cardPaymentId != null && cardPaymentId > 0) {
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                Notifications.Location.TOP_RIGHT, 
-                String.format("Card payment completed! Sale ID: %d, Card Payment ID: %d", salesId, cardPaymentId));
-            resetCartAndSelectedInvoice(); // ✅ Changed
-        } else {
-            JOptionPane.showMessageDialog(this, 
-                "Sale was saved but card payment record was not completed.\nSale ID: " + salesId + 
-                "\nPlease add card payment record manually if needed.", 
-                "Card Payment Incomplete", JOptionPane.WARNING_MESSAGE);
+        try {
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            CardPayDialog dialog = new CardPayDialog(parentFrame, true, salesId);
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+
+            Integer cardPaymentId = dialog.getGeneratedCardPaymentId();
+            if (cardPaymentId != null && cardPaymentId > 0) {
+                Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                        Notifications.Location.TOP_RIGHT,
+                        String.format("Card payment completed! Sale ID: %d, Card Payment ID: %d", salesId, cardPaymentId));
+                resetCartAndSelectedInvoice(); // ✅ Changed
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Sale was saved but card payment record was not completed.\nSale ID: " + salesId
+                        + "\nPlease add card payment record manually if needed.",
+                        "Card Payment Incomplete", JOptionPane.WARNING_MESSAGE);
+                resetCartAndSelectedInvoice(); // ✅ Changed
+            }
+        } catch (Exception e) {
+            System.err.println("Error opening card payment dialog: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Sale was saved but error opening card payment dialog.\nSale ID: " + salesId
+                    + "\nError: " + e.getMessage(),
+                    "Dialog Error", JOptionPane.ERROR_MESSAGE);
             resetCartAndSelectedInvoice(); // ✅ Changed
         }
-    } catch (Exception e) {
-        System.err.println("Error opening card payment dialog: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, 
-            "Sale was saved but error opening card payment dialog.\nSale ID: " + salesId + 
-            "\nError: " + e.getMessage(), 
-            "Dialog Error", JOptionPane.ERROR_MESSAGE);
-        resetCartAndSelectedInvoice(); // ✅ Changed
     }
-}
 
     private void openChequePaymentDialog(int salesId) {
-    try {
-        double totalAmount = getTotal();
-        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        AddCheque dialog = new AddCheque(parentFrame, true, salesId, totalAmount);
-        dialog.setLocationRelativeTo(parentFrame);
-        dialog.setVisible(true);
-        
-        if (dialog.isChequeSaved()) {
-            String chequeNo = dialog.getChequeNo();
-            double chequeAmount = dialog.getChequeAmount();
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, 
-                Notifications.Location.TOP_RIGHT, 
-                String.format("Cheque payment completed! Sale ID: %d, Cheque: %s, Amount: Rs.%.2f", 
-                    salesId, chequeNo, chequeAmount));
-            resetCartAndSelectedInvoice(); // ✅ Changed
-        } else {
-            JOptionPane.showMessageDialog(this, 
-                "Sale was saved but cheque record was not completed.\nSale ID: " + salesId + 
-                "\nPlease add cheque record manually if needed.", 
-                "Cheque Payment Incomplete", JOptionPane.WARNING_MESSAGE);
+        try {
+            double totalAmount = getTotal();
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            AddCheque dialog = new AddCheque(parentFrame, true, salesId, totalAmount);
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+
+            if (dialog.isChequeSaved()) {
+                String chequeNo = dialog.getChequeNo();
+                double chequeAmount = dialog.getChequeAmount();
+                Notifications.getInstance().show(Notifications.Type.SUCCESS,
+                        Notifications.Location.TOP_RIGHT,
+                        String.format("Cheque payment completed! Sale ID: %d, Cheque: %s, Amount: Rs.%.2f",
+                                salesId, chequeNo, chequeAmount));
+                resetCartAndSelectedInvoice(); // ✅ Changed
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Sale was saved but cheque record was not completed.\nSale ID: " + salesId
+                        + "\nPlease add cheque record manually if needed.",
+                        "Cheque Payment Incomplete", JOptionPane.WARNING_MESSAGE);
+                resetCartAndSelectedInvoice(); // ✅ Changed
+            }
+        } catch (Exception e) {
+            System.err.println("Error opening cheque payment dialog: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Sale was saved but error opening cheque dialog.\nSale ID: " + salesId
+                    + "\nError: " + e.getMessage(),
+                    "Dialog Error", JOptionPane.ERROR_MESSAGE);
             resetCartAndSelectedInvoice(); // ✅ Changed
         }
-    } catch (Exception e) {
-        System.err.println("Error opening cheque payment dialog: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, 
-            "Sale was saved but error opening cheque dialog.\nSale ID: " + salesId + 
-            "\nError: " + e.getMessage(), 
-            "Dialog Error", JOptionPane.ERROR_MESSAGE);
-        resetCartAndSelectedInvoice(); // ✅ Changed
     }
-}
 
     public int getLastGeneratedSalesId() {
         return lastGeneratedSalesId;
@@ -3734,31 +3774,31 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     private void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_gradientButton1ActionPerformed
 //       System.out.println("\n=== SALE SUMMARY ===");
-    System.out.println("Payment Method: " + paymentcombo.getSelectedItem());
-    System.out.println("Amount Received: " + jTextField2.getText().trim());
-    
-    // Item-level discounts
-    double totalItemDiscounts = 0.0;
-    for (CartItem item : cartItems.values()) {
-        double itemDiscount = item.getDiscountPrice() * item.getQuantity();
-        if (itemDiscount > 0) {
-            System.out.println("  - " + item.getProductName() + ": Rs." + String.format("%.2f", itemDiscount));
-            totalItemDiscounts += itemDiscount;
+        System.out.println("Payment Method: " + paymentcombo.getSelectedItem());
+        System.out.println("Amount Received: " + jTextField2.getText().trim());
+
+        // Item-level discounts
+        double totalItemDiscounts = 0.0;
+        for (CartItem item : cartItems.values()) {
+            double itemDiscount = item.getDiscountPrice() * item.getQuantity();
+            if (itemDiscount > 0) {
+                System.out.println("  - " + item.getProductName() + ": Rs." + String.format("%.2f", itemDiscount));
+                totalItemDiscounts += itemDiscount;
+            }
         }
-    }
-    System.out.println("Total Item-Level Discounts: Rs." + String.format("%.2f", totalItemDiscounts));
-    
-    // Global discount
-    System.out.println("Global Discount: Rs." + String.format("%.2f", appliedDiscountAmount));
-    System.out.println("Discount Type ID: " + (appliedDiscountTypeId > 0 ? appliedDiscountTypeId : "None"));
-    
-    // Exchange credit
-    System.out.println("Exchange Credit: Rs." + String.format("%.2f", exchangeRefundAmount));
-    
-    // Final total
-    System.out.println("Final Total: Rs." + String.format("%.2f", getTotal()));
-    
-    handleCompleteSale();
+        System.out.println("Total Item-Level Discounts: Rs." + String.format("%.2f", totalItemDiscounts));
+
+        // Global discount
+        System.out.println("Global Discount: Rs." + String.format("%.2f", appliedDiscountAmount));
+        System.out.println("Discount Type ID: " + (appliedDiscountTypeId > 0 ? appliedDiscountTypeId : "None"));
+
+        // Exchange credit
+        System.out.println("Exchange Credit: Rs." + String.format("%.2f", exchangeRefundAmount));
+
+        // Final total
+        System.out.println("Final Total: Rs." + String.format("%.2f", getTotal()));
+
+        handleCompleteSale();
     }//GEN-LAST:event_gradientButton1ActionPerformed
 
     private void cplusBtn1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cplusBtn1ActionPerformed
@@ -3801,71 +3841,71 @@ public class PosCartPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_switchBtnActionPerformed
     private void exchangeBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exchangeBtnActionPerformed
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-    ExchangeProductDialog dialog = new ExchangeProductDialog(parentFrame, true);
-    dialog.setLocationRelativeTo(parentFrame);
-    dialog.setVisible(true);
+        ExchangeProductDialog dialog = new ExchangeProductDialog(parentFrame, true);
+        dialog.setLocationRelativeTo(parentFrame);
+        dialog.setVisible(true);
 
-    int returnId = dialog.getGeneratedReturnId();
-    if (returnId > 0) {
-        try {
-            // ✅ Get the refund amount from the exchange dialog
-            double refundAmount = getRefundAmountFromReturn(returnId);
-            double totalRefundAmount = refundAmount;
-            
-            // Try to get total amount from dialog if method exists
+        int returnId = dialog.getGeneratedReturnId();
+        if (returnId > 0) {
             try {
-                java.lang.reflect.Method getTotalAmountMethod = dialog.getClass().getMethod("getTotalAmount");
-                if (getTotalAmountMethod != null) {
-                    Object result = getTotalAmountMethod.invoke(dialog);
-                    if (result instanceof Double) {
-                        totalRefundAmount = (Double) result;
+                // ✅ Get the refund amount from the exchange dialog
+                double refundAmount = getRefundAmountFromReturn(returnId);
+                double totalRefundAmount = refundAmount;
+
+                // Try to get total amount from dialog if method exists
+                try {
+                    java.lang.reflect.Method getTotalAmountMethod = dialog.getClass().getMethod("getTotalAmount");
+                    if (getTotalAmountMethod != null) {
+                        Object result = getTotalAmountMethod.invoke(dialog);
+                        if (result instanceof Double) {
+                            totalRefundAmount = (Double) result;
+                        }
                     }
+                } catch (Exception e) {
+                    System.out.println("getTotalAmount method not available, using refund amount from database");
+                }
+
+                if (totalRefundAmount <= 0 && refundAmount > 0) {
+                    totalRefundAmount = refundAmount;
+                }
+
+                if (totalRefundAmount > 0) {
+                    // ✅ IMPORTANT: Exchange refund is ADDED to total (customer owes you less)
+                    // Example: Customer returns Rs.1580 worth of items, then buys Rs.1530 worth
+                    // Final total = Rs.1530 - Rs.1580 = -Rs.50 (you owe customer Rs.50)
+                    // OR: Customer buys Rs.3110 worth after return
+                    // Final total = Rs.3110 - Rs.1580 = Rs.1530 (customer owes you Rs.1530)
+
+                    this.exchangeRefundAmount = totalRefundAmount;
+                    updateTotals();
+
+                    Notifications.getInstance().show(
+                            Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            String.format("Exchange processed! Refund credit: Rs.%.2f (Return ID: %d)",
+                                    totalRefundAmount, returnId)
+                    );
+                } else {
+                    this.exchangeRefundAmount = 0.0;
+                    updateTotals();
+                    Notifications.getInstance().show(
+                            Notifications.Type.SUCCESS,
+                            Notifications.Location.TOP_RIGHT,
+                            "Exchange processed! Return ID: " + returnId
+                    );
                 }
             } catch (Exception e) {
-                System.out.println("getTotalAmount method not available, using refund amount from database");
-            }
-            
-            if (totalRefundAmount <= 0 && refundAmount > 0) {
-                totalRefundAmount = refundAmount;
-            }
-            
-            if (totalRefundAmount > 0) {
-                // ✅ IMPORTANT: Exchange refund is ADDED to total (customer owes you less)
-                // Example: Customer returns Rs.1580 worth of items, then buys Rs.1530 worth
-                // Final total = Rs.1530 - Rs.1580 = -Rs.50 (you owe customer Rs.50)
-                // OR: Customer buys Rs.3110 worth after return
-                // Final total = Rs.3110 - Rs.1580 = Rs.1530 (customer owes you Rs.1530)
-                
-                this.exchangeRefundAmount = totalRefundAmount;
-                updateTotals();
-                
-                Notifications.getInstance().show(
-                    Notifications.Type.SUCCESS, 
-                    Notifications.Location.TOP_RIGHT, 
-                    String.format("Exchange processed! Refund credit: Rs.%.2f (Return ID: %d)", 
-                        totalRefundAmount, returnId)
-                );
-            } else {
+                System.err.println("Error processing exchange refund: " + e.getMessage());
+                e.printStackTrace();
                 this.exchangeRefundAmount = 0.0;
                 updateTotals();
                 Notifications.getInstance().show(
-                    Notifications.Type.SUCCESS, 
-                    Notifications.Location.TOP_RIGHT, 
-                    "Exchange processed! Return ID: " + returnId
+                        Notifications.Type.ERROR,
+                        Notifications.Location.TOP_RIGHT,
+                        "Exchange processed but error calculating refund. Return ID: " + returnId
                 );
             }
-        } catch (Exception e) {
-            System.err.println("Error processing exchange refund: " + e.getMessage());
-            e.printStackTrace();
-            this.exchangeRefundAmount = 0.0;
-            updateTotals();
-            Notifications.getInstance().show(
-                Notifications.Type.ERROR, 
-                Notifications.Location.TOP_RIGHT, 
-                "Exchange processed but error calculating refund. Return ID: " + returnId
-            );
         }
-    }
     }//GEN-LAST:event_exchangeBtnActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed

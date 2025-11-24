@@ -1,5 +1,6 @@
 package lk.com.pos.dialog;
 
+import lk.com.pos.connection.MySQL;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -7,6 +8,7 @@ import java.awt.Font;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.sql.Connection;
@@ -18,17 +20,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
-import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
+import javax.swing.*;
 import raven.toast.Notifications;
+import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 
 /**
  *
@@ -40,6 +34,7 @@ public class AddCredit extends javax.swing.JDialog {
     private int creditId = -1;
     private Double amount;
     private Map<String, Integer> customerIdMap = new HashMap<>();
+    private Map<Integer, String> customerDisplayMap = new HashMap<>();
     private boolean isSaving = false;
     private int salesId = -1;
     private double paidAmount = 0.0;
@@ -115,24 +110,99 @@ public class AddCredit extends javax.swing.JDialog {
         });
 
         getRootPane().registerKeyboardAction(
-                evt -> openCreditPayDialog(),
+                evt -> {
+                    deleteSalesIfNotSaved();
+                    openCreditPayDialog();
+                },
                 KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         getRootPane().registerKeyboardAction(
-                evt -> openAddNewCustomer(),
+                evt -> {
+                    deleteSalesIfNotSaved();
+                    openAddNewCustomer();
+                },
                 KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         getRootPane().registerKeyboardAction(
-                evt -> dispose(),
+                evt -> {
+                    deleteSalesIfNotSaved();
+                    dispose();
+                },
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         customerCombo.requestFocusInWindow();
+    }
+
+    private void deleteSalesIfNotSaved() {
+        if (salesId != -1 && creditId == -1) {
+            // Only delete if salesId exists and credit was not saved
+            Connection conn = null;
+            PreparedStatement pst = null;
+
+            try {
+                conn = MySQL.getConnection();
+                conn.setAutoCommit(false); // Start transaction
+
+                // First delete related records to maintain referential integrity
+                String[] deleteQueries = {
+                    "DELETE FROM sale_item WHERE sales_id = ?",
+                    "DELETE FROM card_pay WHERE sales_id = ?",
+                    "DELETE FROM cheque WHERE sales_id = ?",
+                    "DELETE FROM return WHERE sales_id = ?",
+                    "DELETE FROM stock_loss WHERE sales_id = ?",
+                    "DELETE FROM sales WHERE sales_id = ?"
+                };
+
+                boolean success = true;
+                for (String query : deleteQueries) {
+                    try {
+                        pst = conn.prepareStatement(query);
+                        pst.setInt(1, salesId);
+                        int affectedRows = pst.executeUpdate();
+                        pst.close();
+                    } catch (Exception e) {
+                        // Log but continue with next query
+                        success = false;
+                        break;
+                    }
+                }
+
+                if (success) {
+                    conn.commit();
+                } else {
+                    conn.rollback();
+                }
+
+            } catch (Exception e) {
+                try {
+                    if (conn != null) {
+                        conn.rollback();
+                    }
+                } catch (Exception rollbackEx) {
+                    rollbackEx.printStackTrace();
+                }
+            
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (pst != null) {
+                        pst.close();
+                    }
+                    if (conn != null) {
+                        conn.setAutoCommit(true);
+                        conn.close();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     private void setupKeyboardNavigation() {
@@ -278,7 +348,8 @@ public class AddCredit extends javax.swing.JDialog {
         cancelBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    deleteSalesIfNotSaved();
                     dispose();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
@@ -668,8 +739,8 @@ public class AddCredit extends javax.swing.JDialog {
     private void loadCustomerCombo() {
         try {
             customerIdMap.clear();
+            customerDisplayMap.clear();
 
-            // Updated SQL query to work with customer-based credit system
             String sql = "SELECT cc.customer_id, cc.customer_name, "
                     + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
                     + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
@@ -678,7 +749,7 @@ public class AddCredit extends javax.swing.JDialog {
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
                     + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
-                    + "WHERE cc.status_id = 1 " // Only customers with due amount
+                    + "WHERE cc.status_id = 1 "
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
@@ -708,16 +779,16 @@ public class AddCredit extends javax.swing.JDialog {
 
                 customers.add(displayText);
                 customerIdMap.put(displayText, customerId);
+                customerDisplayMap.put(customerId, displayText);
                 count++;
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             customerCombo.setModel(dcm);
 
-            System.out.println("Successfully loaded " + count + " customers with credit summary");
 
         } catch (Exception e) {
-            System.err.println("Error loading customers: " + e.getMessage());
+
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
@@ -728,12 +799,10 @@ public class AddCredit extends javax.swing.JDialog {
         Integer customerId = customerIdMap.get(displayText);
 
         if (customerId == null) {
-            System.err.println("Customer ID not found for: " + displayText);
-            System.err.println("Available mappings: " + customerIdMap);
+
             return -1;
         }
 
-        System.out.println("Found Customer ID: " + customerId + " for: " + displayText);
         return customerId;
     }
 
@@ -781,11 +850,9 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void saveCredit() {
         if (isSaving) {
-            System.out.println("Save already in progress, skipping duplicate call...");
+           
             return;
         }
-
-        System.out.println("saveCredit() called at: " + new Date());
 
         if (!validateInputs()) {
             return;
@@ -832,7 +899,6 @@ public class AddCredit extends javax.swing.JDialog {
             conn = MySQL.getConnection();
             conn.setAutoCommit(false);
 
-            // Update customer status to "Due Amount" when adding new credit
             String updateCustomerSql = "UPDATE credit_customer SET status_id = 1 WHERE customer_id = ?";
             PreparedStatement pstUpdateCustomer = conn.prepareStatement(updateCustomerSql);
             pstUpdateCustomer.setInt(1, this.customerId);
@@ -859,7 +925,6 @@ public class AddCredit extends javax.swing.JDialog {
                 generatedKeys = pst.getGeneratedKeys();
                 if (generatedKeys.next()) {
                     this.creditId = generatedKeys.getInt(1);
-                    System.out.println("Generated Credit ID: " + this.creditId);
                 }
 
                 createCreditNotification(selectedDisplayText, amount, conn);
@@ -904,7 +969,6 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void askToOpenCreditPayDialog() {
-        // Create custom option pane with keyboard navigation
         Object[] options = {"Yes", "No"};
         JOptionPane optionPane = new JOptionPane(
                 "Credit added successfully! Do you want to add a payment for this credit?",
@@ -912,12 +976,11 @@ public class AddCredit extends javax.swing.JDialog {
                 JOptionPane.YES_NO_OPTION,
                 null,
                 options,
-                options[0] // Default to Yes
+                options[0]
         );
 
         JDialog dialog = optionPane.createDialog(this, "Open Credit Payment");
-        
-        // Add keyboard navigation to the dialog
+
         dialog.getRootPane().registerKeyboardAction(
                 evt -> {
                     optionPane.setValue(options[0]);
@@ -942,23 +1005,21 @@ public class AddCredit extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        // Show the dialog
         dialog.setVisible(true);
         dialog.dispose();
 
         Object result = optionPane.getValue();
-        
-        if (result == options[0]) { // Yes
+
+        if (result == options[0]) {
             dispose();
             openCreditPayDialogForCustomer();
-        } else { // No or closed
+        } else {
             dispose();
         }
     }
 
     private void openCreditPayDialogForCustomer() {
         try {
-       
             AddCreditPay dialog = new AddCreditPay(null, true, this.customerId);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
@@ -980,7 +1041,6 @@ public class AddCredit extends javax.swing.JDialog {
         PreparedStatement pstNotification = null;
 
         try {
-            // Extract just the customer name from the display text
             String cleanCustomerName = customerName.split("\\|")[0].trim();
             String messageText = "New credit added for " + cleanCustomerName + ": Rs." + String.format("%,.2f", amount);
 
@@ -1016,15 +1076,13 @@ public class AddCredit extends javax.swing.JDialog {
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 11); // Assuming 11 is for credit notifications
+            pstNotification.setInt(2, 11);
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("Credit notification created successfully for customer: " + cleanCustomerName);
 
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Failed to create credit notification: " + e.getMessage());
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1049,7 +1107,6 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void openCreditPayDialog() {
         try {
-    
             AddCreditPay dialog = new AddCreditPay(null, true);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
@@ -1061,13 +1118,24 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void openAddNewCustomer() {
         try {
-
-            AddNewCustomer dialog = new AddNewCustomer(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddNewCustomer dialog = new AddNewCustomer((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
+
             if (dialog.isCustomerSaved()) {
+                int newCustomerId = dialog.getSavedCustomerId();
+                String newCustomerName = dialog.getSavedCustomerName();
+
                 loadCustomerCombo();
+
+                String displayText = customerDisplayMap.get(newCustomerId);
+                if (displayText != null) {
+                    customerCombo.setSelectedItem(displayText);
+                }
+
                 customerCombo.requestFocus();
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "New customer '" + newCustomerName + "' added and selected!");
             }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1082,6 +1150,14 @@ public class AddCredit extends javax.swing.JDialog {
         givenDate.getDateEditor().getUiComponent().setFocusable(true);
         finalDate.getDateEditor().getUiComponent().setFocusable(true);
     }
+
+    // Override dispose to handle sales deletion when dialog is closed
+    @Override
+    public void dispose() {
+        deleteSalesIfNotSaved();
+        super.dispose();
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1314,11 +1390,13 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void creditPayBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_creditPayBtnKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F1) {
+            deleteSalesIfNotSaved();
             openCreditPayDialog();
         }
     }//GEN-LAST:event_creditPayBtnKeyPressed
 
     private void creditPayBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditPayBtnActionPerformed
+        deleteSalesIfNotSaved();
         openCreditPayDialog();
     }//GEN-LAST:event_creditPayBtnActionPerformed
 
@@ -1349,6 +1427,7 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void cancelBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cancelBtnKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            deleteSalesIfNotSaved();
             dispose();
         } else {
             handleArrowNavigation(evt, cancelBtn);
@@ -1356,6 +1435,7 @@ public class AddCredit extends javax.swing.JDialog {
     }//GEN-LAST:event_cancelBtnKeyPressed
 
     private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
+        deleteSalesIfNotSaved();
         dispose();
     }//GEN-LAST:event_cancelBtnActionPerformed
 
@@ -1402,11 +1482,13 @@ public class AddCredit extends javax.swing.JDialog {
     }//GEN-LAST:event_amountFieldActionPerformed
 
     private void addNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCustomerActionPerformed
+        deleteSalesIfNotSaved();
         openAddNewCustomer();
     }//GEN-LAST:event_addNewCustomerActionPerformed
 
     private void addNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCustomerKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
+            deleteSalesIfNotSaved();
             openAddNewCustomer();
         }
     }//GEN-LAST:event_addNewCustomerKeyPressed

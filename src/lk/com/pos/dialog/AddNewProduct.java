@@ -33,12 +33,28 @@ import java.awt.print.Printable;
 
 public class AddNewProduct extends javax.swing.JDialog {
 
+    private String newProductName;
+    private int newProductId;
+
     public AddNewProduct(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
         initializeDialog();
         AutoCompleteDecorator.decorate(categoryCombo);
         AutoCompleteDecorator.decorate(brandCombo);
+    }
+
+    // Getters for the newly added product
+    public String getNewProductName() {
+        return newProductName;
+    }
+
+    public int getNewProductId() {
+        return newProductId;
+    }
+
+    public boolean isProductAdded() {
+        return newProductName != null;
     }
 
     private void setupProductInputLimit() {
@@ -769,8 +785,7 @@ public class AddNewProduct extends javax.swing.JDialog {
         }
 
         barcodeInput.setText(barcode.toString());
-        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                "13-digit barcode generated: " + barcode.toString());
+
     }
 
     private void printBarcode() {
@@ -816,8 +831,7 @@ public class AddNewProduct extends javax.swing.JDialog {
 
             if (printerJob.printDialog()) {
                 printerJob.print();
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Barcode sent to printer successfully");
+
             }
         } catch (PrinterException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -890,8 +904,7 @@ public class AddNewProduct extends javax.swing.JDialog {
             );
 
             if (productCheckRs.next()) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Product '" + productName + "' already exists with this brand!");
+
                 productInput.requestFocus();
                 productInput.selectAll();
                 return;
@@ -922,10 +935,19 @@ public class AddNewProduct extends javax.swing.JDialog {
 
             MySQL.executeIUD(query);
 
+            // Get the newly inserted product ID
+            ResultSet newProductRs = MySQL.executeSearch("SELECT product_id FROM product WHERE product_name = '"
+                    + productName + "' AND brand_id = " + brandId + " AND barcode = '" + barcodeInput.getText().trim() + "'");
+
+            if (newProductRs.next()) {
+                newProductId = newProductRs.getInt("product_id");
+                newProductName = productName;
+            }
+
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                     "Product added successfully!");
 
-            clearForm();
+            dispose();
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -943,11 +965,19 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void openAddNewCategory() {
         try {
-         
-            AddNewCategoryDialog dialog = new AddNewCategoryDialog(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddNewCategoryDialog dialog = new AddNewCategoryDialog((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
+
+            // Refresh the category combo box after the dialog closes
             loadCategoryCombo();
+
+            // If a new category was added and selected in the dialog, select it here too
+            String newCategory = dialog.getNewCategoryName();
+            if (newCategory != null && !newCategory.isEmpty()) {
+                categoryCombo.setSelectedItem(newCategory);
+            }
+
             categoryCombo.requestFocus();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -957,11 +987,19 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void openAddNewBrand() {
         try {
-
-            AddNewBrandDialog dialog = new AddNewBrandDialog(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddNewBrandDialog dialog = new AddNewBrandDialog((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
+
+            // Refresh the brand combo box after the dialog closes
             loadBrandCombo();
+
+            // If a new brand was added and selected in the dialog, select it here too
+            String newBrand = dialog.getNewBrandName();
+            if (newBrand != null && !newBrand.isEmpty()) {
+                brandCombo.setSelectedItem(newBrand);
+            }
+
             brandCombo.requestFocus();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1367,7 +1405,6 @@ public class AddNewProduct extends javax.swing.JDialog {
             default:
                 break;
         }
-
     }//GEN-LAST:event_categoryComboKeyPressed
 
     private void brandComboKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_brandComboKeyPressed
@@ -1418,6 +1455,7 @@ public class AddNewProduct extends javax.swing.JDialog {
             default:
                 break;
         }
+
     }//GEN-LAST:event_brandComboKeyPressed
 
     private void productInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_productInputKeyPressed
@@ -1452,7 +1490,6 @@ public class AddNewProduct extends javax.swing.JDialog {
         } else {
             handleArrowNavigation(evt, cancelBtn);
         }
-
     }//GEN-LAST:event_cancelBtnKeyPressed
 
     private void printBarcodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_printBarcodeActionPerformed

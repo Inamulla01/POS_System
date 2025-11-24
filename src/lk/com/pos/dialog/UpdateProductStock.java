@@ -354,10 +354,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
         generateBatchBtn.setToolTipText("Click to generate new batch number (or press F6)");
         quantityInput.setToolTipText("Enter quantity and press ENTER to move to next field");
         barcodeInput.setToolTipText("<html>Barcode cannot be changed for existing products<br>Press <b>F5</b> to print barcode</html>");
-        addNewProduct.setToolTipText("Click to add new product (or press F1)");
-        addNewCategory.setToolTipText("Click to add new category (or press F2)");
-        addNewBrand.setToolTipText("Click to add new brand (or press F3)");
-        addNewSupplier.setToolTipText("Click to add new supplier (or press F4)");
         printBarcode.setToolTipText("Click to print barcode (or press F5)");
 
         productInput.requestFocus();
@@ -435,7 +431,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
             productInput, purchasePrice, lastPrice, sellingPrice, batchNoInput, quantityInput,
             manufactureDate.getDateEditor().getUiComponent(), expriyDate.getDateEditor().getUiComponent(),
             barcodeInput, updateBtn, clearFormBtn, cancelBtn,
-            addNewProduct, addNewCategory, addNewBrand, addNewSupplier, printBarcode, generateBatchBtn
+            printBarcode, generateBatchBtn
         };
 
         for (java.awt.Component component : components) {
@@ -486,51 +482,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
                     dispose();
                 } else {
                     handleArrowNavigation(evt, cancelBtn);
-                }
-            }
-        });
-
-        // Special handling for action buttons
-        addNewProduct.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    openAddNewProduct();
-                } else {
-                    handleArrowNavigation(evt, addNewProduct);
-                }
-            }
-        });
-
-        addNewCategory.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    openAddNewCategory();
-                } else {
-                    handleArrowNavigation(evt, addNewCategory);
-                }
-            }
-        });
-
-        addNewBrand.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    openAddNewBrand();
-                } else {
-                    handleArrowNavigation(evt, addNewBrand);
-                }
-            }
-        });
-
-        addNewSupplier.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    openAddNewSupplier();
-                } else {
-                    handleArrowNavigation(evt, addNewSupplier);
                 }
             }
         });
@@ -774,18 +725,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
     private void handleRightArrow(java.awt.Component source) {
         if (source == productInput) {
             categoryCombo.requestFocusInWindow();
-        } else if (source == categoryCombo) {
-            addNewCategory.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            brandCombo.requestFocusInWindow();
-        } else if (source == brandCombo) {
-            addNewBrand.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == SupplierCombo) {
-            addNewSupplier.requestFocusInWindow();
-        } else if (source == addNewSupplier) {
-            purchasePrice.requestFocusInWindow();
         } else if (source == purchasePrice) {
             lastPrice.requestFocusInWindow();
         } else if (source == lastPrice) {
@@ -825,18 +764,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             updateBtn.requestFocusInWindow();
         } else if (source == categoryCombo) {
             productInput.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            categoryCombo.requestFocusInWindow();
-        } else if (source == brandCombo) {
-            addNewCategory.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            brandCombo.requestFocusInWindow();
-        } else if (source == SupplierCombo) {
-            addNewBrand.requestFocusInWindow();
-        } else if (source == addNewSupplier) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == purchasePrice) {
-            addNewSupplier.requestFocusInWindow();
         } else if (source == lastPrice) {
             purchasePrice.requestFocusInWindow();
         } else if (source == sellingPrice) {
@@ -874,16 +801,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             categoryCombo.requestFocusInWindow();
         } else if (source == categoryCombo) {
             brandCombo.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            brandCombo.requestFocusInWindow();
-        } else if (source == brandCombo) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            SupplierCombo.requestFocusInWindow();
-        } else if (source == SupplierCombo) {
-            purchasePrice.requestFocusInWindow();
-        } else if (source == addNewSupplier) {
-            purchasePrice.requestFocusInWindow();
         } else if (source == purchasePrice) {
             lastPrice.requestFocusInWindow();
         } else if (source == lastPrice) {
@@ -933,16 +850,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             updateBtn.requestFocusInWindow();
         } else if (source == categoryCombo) {
             productInput.requestFocusInWindow();
-        } else if (source == addNewCategory) {
-            productInput.requestFocusInWindow();
-        } else if (source == brandCombo) {
-            categoryCombo.requestFocusInWindow();
-        } else if (source == addNewBrand) {
-            categoryCombo.requestFocusInWindow();
-        } else if (source == SupplierCombo) {
-            brandCombo.requestFocusInWindow();
-        } else if (source == addNewSupplier) {
-            brandCombo.requestFocusInWindow();
         } else if (source == purchasePrice) {
             SupplierCombo.requestFocusInWindow();
         } else if (source == lastPrice) {
@@ -995,10 +902,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
         enterNavigationMap.put(cancelBtn, clearFormBtn);
         enterNavigationMap.put(clearFormBtn, updateBtn);
         enterNavigationMap.put(updateBtn, productInput);
-        enterNavigationMap.put(addNewProduct, categoryCombo);
-        enterNavigationMap.put(addNewCategory, brandCombo);
-        enterNavigationMap.put(addNewBrand, SupplierCombo);
-        enterNavigationMap.put(addNewSupplier, purchasePrice);
         enterNavigationMap.put(printBarcode, cancelBtn);
         enterNavigationMap.put(generateBatchBtn, quantityInput);
 
@@ -1090,7 +993,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
 
     private void setupButtonStyles() {
         // Setup icon buttons
-        JButton[] iconButtons = {addNewProduct, addNewCategory, addNewBrand, addNewSupplier, printBarcode, generateBatchBtn};
+        JButton[] iconButtons = {printBarcode, generateBatchBtn};
         for (JButton button : iconButtons) {
             button.setBorderPainted(false);
             button.setContentAreaFilled(false);
@@ -1098,23 +1001,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             button.setOpaque(false);
             button.setFocusable(true);
         }
-
-        // Setup icons for add buttons
-        FlatSVGIcon productIcon = new FlatSVGIcon("lk/com/pos/icon/add-product.svg", 25, 25);
-        productIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewProduct.setIcon(productIcon);
-
-        FlatSVGIcon categoryIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
-        categoryIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewCategory.setIcon(categoryIcon);
-
-        FlatSVGIcon brandIcon = new FlatSVGIcon("lk/com/pos/icon/add-brand.svg", 25, 25);
-        brandIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewBrand.setIcon(brandIcon);
-
-        FlatSVGIcon supplierIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-        supplierIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewSupplier.setIcon(supplierIcon);
 
         FlatSVGIcon printerIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 25, 25);
         printerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
@@ -1205,12 +1091,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
                 cancelBtn.repaint();
             }
         });
-
-        // Mouse listeners for icon buttons
-        setupIconButtonMouseListener(addNewProduct, "add-product");
-        setupIconButtonMouseListener(addNewCategory, "category");
-        setupIconButtonMouseListener(addNewBrand, "add-brand");
-        setupIconButtonMouseListener(addNewSupplier, "addCustomer");
         setupIconButtonMouseListener(printBarcode, "printer");
         setupIconButtonMouseListener(generateBatchBtn, "refresh");
     }
@@ -1237,11 +1117,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
         setupGradientButtonFocusListener(clearFormBtn, "cancel");
         setupGradientButtonFocusListener(cancelBtn, "clear");
 
-        // Focus listeners for icon buttons
-        setupIconButtonFocusListener(addNewProduct, "add-product");
-        setupIconButtonFocusListener(addNewCategory, "category");
-        setupIconButtonFocusListener(addNewBrand, "add-brand");
-        setupIconButtonFocusListener(addNewSupplier, "addCustomer");
         setupIconButtonFocusListener(printBarcode, "printer");
         setupIconButtonFocusListener(generateBatchBtn, "refresh");
     }
@@ -1452,289 +1327,311 @@ public class UpdateProductStock extends javax.swing.JDialog {
         return true;
     }
 
-private void saveProductAndStock() {
-    if (!validateForm()) {
-        return;
-    }
-
-    // Database connection and prepared statements
-    java.sql.Connection conn = null;
-    java.sql.PreparedStatement pstUpdateProduct = null;
-    java.sql.PreparedStatement pstUpdateStock = null;
-    java.sql.PreparedStatement pstGetOldData = null;
-    java.sql.PreparedStatement pstCheckMessage = null;
-    java.sql.PreparedStatement pstInsertMessage = null;
-    java.sql.PreparedStatement pstInsertNotification = null;
-    java.sql.ResultSet rs = null;
-
-    try {
-        // Get current data for notification message
-        String productName = productInput.getText().trim();
-
-        // Ensure the product name doesn't exceed 35 characters
-        if (productName.length() > 35) {
-            productName = productName.substring(0, 35);
-        }
-
-        String batchNoValue = batchNoInput.getText().trim();
-        
-        // Get old data for comparison
-        String getOldDataSql = "SELECT p.product_name, p.barcode, s.batch_no, s.purchase_price, s.selling_price, s.qty " +
-                             "FROM product p JOIN stock s ON p.product_id = s.product_id " +
-                             "WHERE p.product_id = ? AND s.stock_id = ?";
-        
-        conn = MySQL.getConnection();
-        conn.setAutoCommit(false); // Start transaction
-        
-        pstGetOldData = conn.prepareStatement(getOldDataSql);
-        pstGetOldData.setInt(1, productId);
-        pstGetOldData.setInt(2, stockId);
-        rs = pstGetOldData.executeQuery();
-
-        String oldProductName = "";
-        String oldBarcode = "";
-        String oldBatchNo = "";
-        double oldPurchasePrice = 0;
-        double oldSellingPrice = 0;
-        int oldQuantity = 0;
-        
-        if (rs.next()) {
-            oldProductName = rs.getString("product_name");
-            oldBarcode = rs.getString("barcode");
-            oldBatchNo = rs.getString("batch_no");
-            oldPurchasePrice = rs.getDouble("purchase_price");
-            oldSellingPrice = rs.getDouble("selling_price");
-            oldQuantity = rs.getInt("qty");
-        }
-        rs.close();
-        pstGetOldData.close();
-
-        // Update product table
-        int brandId = 0;
-        ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
-                + brandCombo.getSelectedItem().toString() + "'");
-        if (brandRs.next()) {
-            brandId = brandRs.getInt("brand_id");
-        }
-
-        // Check if product with same name and brand already exists (excluding current product)
-        ResultSet productCheckRs = MySQL.executeSearch(
-                "SELECT product_id FROM product WHERE product_name = '" + productName
-                + "' AND brand_id = " + brandId
-                + " AND product_id != " + productId
-        );
-
-        if (productCheckRs.next()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Product '" + productName + "' already exists with this brand!");
-            productInput.requestFocus();
-            productInput.selectAll();
+    private void saveProductAndStock() {
+        if (!validateForm()) {
             return;
         }
 
-        int categoryId = 0;
-        ResultSet catRs = MySQL.executeSearch("SELECT category_id FROM category WHERE category_name = '"
-                + categoryCombo.getSelectedItem().toString() + "'");
-        if (catRs.next()) {
-            categoryId = catRs.getInt("category_id");
-        }
+        // Database connection and prepared statements
+        java.sql.Connection conn = null;
+        java.sql.PreparedStatement pstUpdateProduct = null;
+        java.sql.PreparedStatement pstUpdateStock = null;
+        java.sql.PreparedStatement pstGetOldData = null;
+        java.sql.PreparedStatement pstCheckMessage = null;
+        java.sql.PreparedStatement pstInsertMessage = null;
+        java.sql.PreparedStatement pstInsertNotification = null;
+        java.sql.ResultSet rs = null;
 
-        String productUpdateQuery = "UPDATE product SET "
-                + "product_name = ?, "
-                + "brand_id = ?, "
-                + "category_id = ? "
-                + "WHERE product_id = ?";
+        try {
+            // Get current data for notification message
+            String productName = productInput.getText().trim();
 
-        pstUpdateProduct = conn.prepareStatement(productUpdateQuery);
-        pstUpdateProduct.setString(1, productName);
-        pstUpdateProduct.setInt(2, brandId);
-        pstUpdateProduct.setInt(3, categoryId);
-        pstUpdateProduct.setInt(4, productId);
-
-        pstUpdateProduct.executeUpdate();
-
-        // Update stock table
-        int supplierId = 0;
-        if (SupplierCombo.getSelectedIndex() > 0) {
-            ResultSet supplierRs = MySQL.executeSearch("SELECT suppliers_id FROM suppliers WHERE suppliers_name = '"
-                    + SupplierCombo.getSelectedItem().toString() + "'");
-            if (supplierRs.next()) {
-                supplierId = supplierRs.getInt("suppliers_id");
+            // Ensure the product name doesn't exceed 35 characters
+            if (productName.length() > 35) {
+                productName = productName.substring(0, 35);
             }
-        }
 
-        double purchasePriceValue = Double.parseDouble(purchasePrice.getText().trim());
-        double lastPriceValue = lastPrice.getText().trim().isEmpty() ? 0 : Double.parseDouble(lastPrice.getText().trim());
-        double sellingPriceValue = Double.parseDouble(sellingPrice.getText().trim());
-        int quantityValue = Integer.parseInt(quantityInput.getText().trim());
+            String batchNoValue = batchNoInput.getText().trim();
 
-        // Check if batch number already exists (excluding current stock)
-        if (!batchNoValue.equals(originalBatchNo)) {
-            ResultSet batchCheckRs = MySQL.executeSearch(
-                    "SELECT stock_id FROM stock WHERE batch_no = '" + batchNoValue
-                    + "' AND stock_id != " + stockId
+            // Get old data for comparison
+            String getOldDataSql = "SELECT p.product_name, p.barcode, s.batch_no, s.purchase_price, s.selling_price, s.qty "
+                    + "FROM product p JOIN stock s ON p.product_id = s.product_id "
+                    + "WHERE p.product_id = ? AND s.stock_id = ?";
+
+            conn = MySQL.getConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            pstGetOldData = conn.prepareStatement(getOldDataSql);
+            pstGetOldData.setInt(1, productId);
+            pstGetOldData.setInt(2, stockId);
+            rs = pstGetOldData.executeQuery();
+
+            String oldProductName = "";
+            String oldBarcode = "";
+            String oldBatchNo = "";
+            double oldPurchasePrice = 0;
+            double oldSellingPrice = 0;
+            int oldQuantity = 0;
+
+            if (rs.next()) {
+                oldProductName = rs.getString("product_name");
+                oldBarcode = rs.getString("barcode");
+                oldBatchNo = rs.getString("batch_no");
+                oldPurchasePrice = rs.getDouble("purchase_price");
+                oldSellingPrice = rs.getDouble("selling_price");
+                oldQuantity = rs.getInt("qty");
+            }
+            rs.close();
+            pstGetOldData.close();
+
+            // Update product table
+            int brandId = 0;
+            ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
+                    + brandCombo.getSelectedItem().toString() + "'");
+            if (brandRs.next()) {
+                brandId = brandRs.getInt("brand_id");
+            }
+
+            // Check if product with same name and brand already exists (excluding current product)
+            ResultSet productCheckRs = MySQL.executeSearch(
+                    "SELECT product_id FROM product WHERE product_name = '" + productName
+                    + "' AND brand_id = " + brandId
+                    + " AND product_id != " + productId
             );
-            if (batchCheckRs.next()) {
+
+            if (productCheckRs.next()) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Batch number '" + batchNoValue + "' already exists!");
-                batchNoInput.requestFocus();
-                batchNoInput.selectAll();
+                        "Product '" + productName + "' already exists with this brand!");
+                productInput.requestFocus();
+                productInput.selectAll();
                 return;
             }
-        }
 
-        // Format dates for SQL
-        SimpleDateFormat sqlDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String mfgDateStr = manufactureDate.getDate() != null ? "'" + sqlDateFormat.format(manufactureDate.getDate()) + "'" : "NULL";
-        String expDateStr = expriyDate.getDate() != null ? "'" + sqlDateFormat.format(expriyDate.getDate()) + "'" : "NULL";
-
-        String stockUpdateQuery = "UPDATE stock SET "
-                + "batch_no = ?, "
-                + "purchase_price = ?, "
-                + "last_price = ?, "
-                + "selling_price = ?, "
-                + "qty = ?, "
-                + "suppliers_id = ?, "
-                + "manufacture_date = " + mfgDateStr + ", "
-                + "expriy_date = " + expDateStr + " "
-                + "WHERE stock_id = ? AND product_id = ?";
-
-        pstUpdateStock = conn.prepareStatement(stockUpdateQuery);
-        pstUpdateStock.setString(1, batchNoValue);
-        pstUpdateStock.setDouble(2, purchasePriceValue);
-        pstUpdateStock.setDouble(3, lastPriceValue);
-        pstUpdateStock.setDouble(4, sellingPriceValue);
-        pstUpdateStock.setInt(5, quantityValue);
-        pstUpdateStock.setInt(6, supplierId > 0 ? supplierId : 0);
-        pstUpdateStock.setInt(7, stockId);
-        pstUpdateStock.setInt(8, productId);
-
-        int stockRowsAffected = pstUpdateStock.executeUpdate();
-
-        if (stockRowsAffected > 0) {
-            // Create notification message with changes
-            StringBuilder messageBuilder = new StringBuilder();
-            messageBuilder.append("Product/Stock updated: ").append(oldProductName);
-            
-            // Track if any changes were made
-            boolean hasChanges = false;
-            
-            // Check product changes
-            if (!oldProductName.equals(productName)) {
-                messageBuilder.append(" [Product: ").append(oldProductName).append(" → ").append(productName).append("]");
-                hasChanges = true;
+            int categoryId = 0;
+            ResultSet catRs = MySQL.executeSearch("SELECT category_id FROM category WHERE category_name = '"
+                    + categoryCombo.getSelectedItem().toString() + "'");
+            if (catRs.next()) {
+                categoryId = catRs.getInt("category_id");
             }
-            
-            // Check stock changes
-            if (!oldBatchNo.equals(batchNoValue)) {
-                if (hasChanges) messageBuilder.append(", ");
-                messageBuilder.append("[Batch: ").append(oldBatchNo).append(" → ").append(batchNoValue).append("]");
-                hasChanges = true;
-            }
-            
-            if (oldPurchasePrice != purchasePriceValue) {
-                if (hasChanges) messageBuilder.append(", ");
-                messageBuilder.append("[Purchase: ").append(String.format("%.2f", oldPurchasePrice))
-                             .append(" → ").append(String.format("%.2f", purchasePriceValue)).append("]");
-                hasChanges = true;
-            }
-            
-            if (oldSellingPrice != sellingPriceValue) {
-                if (hasChanges) messageBuilder.append(", ");
-                messageBuilder.append("[Selling: ").append(String.format("%.2f", oldSellingPrice))
-                             .append(" → ").append(String.format("%.2f", sellingPriceValue)).append("]");
-                hasChanges = true;
-            }
-            
-            if (oldQuantity != quantityValue) {
-                if (hasChanges) messageBuilder.append(", ");
-                messageBuilder.append("[Qty: ").append(oldQuantity).append(" → ").append(quantityValue).append("]");
-                hasChanges = true;
-            }
-            
-            // If no specific changes detected, show general update message
-            if (!hasChanges) {
-                messageBuilder.append(" - Details updated");
-            }
-            
-            String messageText = messageBuilder.toString();
 
-            // Check if message already exists in massage table
-            String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-            pstCheckMessage = conn.prepareStatement(checkMessageSql);
-            pstCheckMessage.setString(1, messageText);
-            rs = pstCheckMessage.executeQuery();
+            String productUpdateQuery = "UPDATE product SET "
+                    + "product_name = ?, "
+                    + "brand_id = ?, "
+                    + "category_id = ? "
+                    + "WHERE product_id = ?";
 
-            int messageId;
-            
-            if (rs.next()) {
-                // Message already exists, get the existing massage_id
-                messageId = rs.getInt("massage_id");
-            } else {
-                // Message doesn't exist, insert new message
-                String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstInsertMessage = conn.prepareStatement(insertMessageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
-                pstInsertMessage.setString(1, messageText);
-                pstInsertMessage.executeUpdate();
-                
-                // Get the generated message ID
-                java.sql.ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    messageId = generatedKeys.getInt(1);
-                } else {
-                    throw new java.sql.SQLException("Failed to get generated message ID");
+            pstUpdateProduct = conn.prepareStatement(productUpdateQuery);
+            pstUpdateProduct.setString(1, productName);
+            pstUpdateProduct.setInt(2, brandId);
+            pstUpdateProduct.setInt(3, categoryId);
+            pstUpdateProduct.setInt(4, productId);
+
+            pstUpdateProduct.executeUpdate();
+
+            // Update stock table
+            int supplierId = 0;
+            if (SupplierCombo.getSelectedIndex() > 0) {
+                ResultSet supplierRs = MySQL.executeSearch("SELECT suppliers_id FROM suppliers WHERE suppliers_name = '"
+                        + SupplierCombo.getSelectedItem().toString() + "'");
+                if (supplierRs.next()) {
+                    supplierId = supplierRs.getInt("suppliers_id");
                 }
-                generatedKeys.close();
             }
 
-            // Insert notification (msg_type_id 14 for "Edit Product/Stock")
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 14, ?)";
-            pstInsertNotification = conn.prepareStatement(notificationSql);
-            pstInsertNotification.setInt(1, messageId);
-            pstInsertNotification.executeUpdate();
+            double purchasePriceValue = Double.parseDouble(purchasePrice.getText().trim());
+            double lastPriceValue = lastPrice.getText().trim().isEmpty() ? 0 : Double.parseDouble(lastPrice.getText().trim());
+            double sellingPriceValue = Double.parseDouble(sellingPrice.getText().trim());
+            int quantityValue = Integer.parseInt(quantityInput.getText().trim());
 
-            // Commit transaction
-            conn.commit();
+            // Check if batch number already exists (excluding current stock)
+            if (!batchNoValue.equals(originalBatchNo)) {
+                ResultSet batchCheckRs = MySQL.executeSearch(
+                        "SELECT stock_id FROM stock WHERE batch_no = '" + batchNoValue
+                        + "' AND stock_id != " + stockId
+                );
+                if (batchCheckRs.next()) {
+                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                            "Batch number '" + batchNoValue + "' already exists!");
+                    batchNoInput.requestFocus();
+                    batchNoInput.selectAll();
+                    return;
+                }
+            }
 
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Product and stock updated successfully!");
-            this.dispose();
-        } else {
-            conn.rollback();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Failed to update product and stock!");
-        }
+            // Format dates for SQL
+            SimpleDateFormat sqlDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            String mfgDateStr = manufactureDate.getDate() != null ? "'" + sqlDateFormat.format(manufactureDate.getDate()) + "'" : "NULL";
+            String expDateStr = expriyDate.getDate() != null ? "'" + sqlDateFormat.format(expriyDate.getDate()) + "'" : "NULL";
 
-    } catch (Exception e) {
-        try {
-            if (conn != null) {
+            String stockUpdateQuery = "UPDATE stock SET "
+                    + "batch_no = ?, "
+                    + "purchase_price = ?, "
+                    + "last_price = ?, "
+                    + "selling_price = ?, "
+                    + "qty = ?, "
+                    + "suppliers_id = ?, "
+                    + "manufacture_date = " + mfgDateStr + ", "
+                    + "expriy_date = " + expDateStr + " "
+                    + "WHERE stock_id = ? AND product_id = ?";
+
+            pstUpdateStock = conn.prepareStatement(stockUpdateQuery);
+            pstUpdateStock.setString(1, batchNoValue);
+            pstUpdateStock.setDouble(2, purchasePriceValue);
+            pstUpdateStock.setDouble(3, lastPriceValue);
+            pstUpdateStock.setDouble(4, sellingPriceValue);
+            pstUpdateStock.setInt(5, quantityValue);
+            pstUpdateStock.setInt(6, supplierId > 0 ? supplierId : 0);
+            pstUpdateStock.setInt(7, stockId);
+            pstUpdateStock.setInt(8, productId);
+
+            int stockRowsAffected = pstUpdateStock.executeUpdate();
+
+            if (stockRowsAffected > 0) {
+                // Create notification message with changes
+                StringBuilder messageBuilder = new StringBuilder();
+                messageBuilder.append("Product/Stock updated: ").append(oldProductName);
+
+                // Track if any changes were made
+                boolean hasChanges = false;
+
+                // Check product changes
+                if (!oldProductName.equals(productName)) {
+                    messageBuilder.append(" [Product: ").append(oldProductName).append(" → ").append(productName).append("]");
+                    hasChanges = true;
+                }
+
+                // Check stock changes
+                if (!oldBatchNo.equals(batchNoValue)) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[Batch: ").append(oldBatchNo).append(" → ").append(batchNoValue).append("]");
+                    hasChanges = true;
+                }
+
+                if (oldPurchasePrice != purchasePriceValue) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[Purchase: ").append(String.format("%.2f", oldPurchasePrice))
+                            .append(" → ").append(String.format("%.2f", purchasePriceValue)).append("]");
+                    hasChanges = true;
+                }
+
+                if (oldSellingPrice != sellingPriceValue) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[Selling: ").append(String.format("%.2f", oldSellingPrice))
+                            .append(" → ").append(String.format("%.2f", sellingPriceValue)).append("]");
+                    hasChanges = true;
+                }
+
+                if (oldQuantity != quantityValue) {
+                    if (hasChanges) {
+                        messageBuilder.append(", ");
+                    }
+                    messageBuilder.append("[Qty: ").append(oldQuantity).append(" → ").append(quantityValue).append("]");
+                    hasChanges = true;
+                }
+
+                // If no specific changes detected, show general update message
+                if (!hasChanges) {
+                    messageBuilder.append(" - Details updated");
+                }
+
+                String messageText = messageBuilder.toString();
+
+                // Check if message already exists in massage table
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstCheckMessage = conn.prepareStatement(checkMessageSql);
+                pstCheckMessage.setString(1, messageText);
+                rs = pstCheckMessage.executeQuery();
+
+                int messageId;
+
+                if (rs.next()) {
+                    // Message already exists, get the existing massage_id
+                    messageId = rs.getInt("massage_id");
+                } else {
+                    // Message doesn't exist, insert new message
+                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                    pstInsertMessage = conn.prepareStatement(insertMessageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
+                    pstInsertMessage.setString(1, messageText);
+                    pstInsertMessage.executeUpdate();
+
+                    // Get the generated message ID
+                    java.sql.ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        messageId = generatedKeys.getInt(1);
+                    } else {
+                        throw new java.sql.SQLException("Failed to get generated message ID");
+                    }
+                    generatedKeys.close();
+                }
+
+                // Insert notification (msg_type_id 14 for "Edit Product/Stock")
+                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 14, ?)";
+                pstInsertNotification = conn.prepareStatement(notificationSql);
+                pstInsertNotification.setInt(1, messageId);
+                pstInsertNotification.executeUpdate();
+
+                // Commit transaction
+                conn.commit();
+
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Product and stock updated successfully!");
+                this.dispose();
+            } else {
                 conn.rollback();
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to update product and stock!");
             }
-        } catch (java.sql.SQLException ex) {
-            ex.printStackTrace();
-        }
-        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                "Error updating product and stock: " + e.getMessage());
-        e.printStackTrace();
-    } finally {
-        // Close all resources
-        try {
-            if (rs != null) rs.close();
-            if (pstUpdateProduct != null) pstUpdateProduct.close();
-            if (pstUpdateStock != null) pstUpdateStock.close();
-            if (pstGetOldData != null) pstGetOldData.close();
-            if (pstCheckMessage != null) pstCheckMessage.close();
-            if (pstInsertMessage != null) pstInsertMessage.close();
-            if (pstInsertNotification != null) pstInsertNotification.close();
-            if (conn != null) {
-                conn.setAutoCommit(true);
-                conn.close();
+
+        } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (java.sql.SQLException ex) {
+                ex.printStackTrace();
             }
-        } catch (java.sql.SQLException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error updating product and stock: " + e.getMessage());
             e.printStackTrace();
+        } finally {
+            // Close all resources
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstUpdateProduct != null) {
+                    pstUpdateProduct.close();
+                }
+                if (pstUpdateStock != null) {
+                    pstUpdateStock.close();
+                }
+                if (pstGetOldData != null) {
+                    pstGetOldData.close();
+                }
+                if (pstCheckMessage != null) {
+                    pstCheckMessage.close();
+                }
+                if (pstInsertMessage != null) {
+                    pstInsertMessage.close();
+                }
+                if (pstInsertNotification != null) {
+                    pstInsertNotification.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (java.sql.SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
-}
 
     private void clearForm() {
         // Reload original data
@@ -1745,8 +1642,8 @@ private void saveProductAndStock() {
     private void openAddNewProduct() {
         try {
             AddNewProduct addProduct = new AddNewProduct(null, true);
-        addProduct.setLocationRelativeTo(null);
-        addProduct.setVisible(true);
+            addProduct.setLocationRelativeTo(null);
+            addProduct.setVisible(true);
             // Note: Product name is a text field, so no need to reload combo
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1808,15 +1705,11 @@ private void saveProductAndStock() {
         clearFormBtn = new javax.swing.JButton();
         printBarcode = new javax.swing.JButton();
         productInput = new javax.swing.JTextField();
-        addNewCategory = new javax.swing.JButton();
-        addNewBrand = new javax.swing.JButton();
         SupplierCombo = new javax.swing.JComboBox<>();
         purchasePrice = new javax.swing.JTextField();
         lastPrice = new javax.swing.JTextField();
         manufactureDate = new com.toedter.calendar.JDateChooser();
         expriyDate = new com.toedter.calendar.JDateChooser();
-        addNewSupplier = new javax.swing.JButton();
-        addNewProduct = new javax.swing.JButton();
         generateBatchBtn = new javax.swing.JButton();
         batchNoInput = new javax.swing.JTextField();
         sellingPrice = new javax.swing.JTextField();
@@ -1828,7 +1721,7 @@ private void saveProductAndStock() {
 
         jLabel3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel3.setForeground(new java.awt.Color(8, 147, 176));
-        jLabel3.setText("Update Product");
+        jLabel3.setText("Update Stock");
 
         jSeparator3.setForeground(new java.awt.Color(0, 137, 176));
 
@@ -1936,30 +1829,6 @@ private void saveProductAndStock() {
             }
         });
 
-        addNewCategory.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewCategory.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewCategoryActionPerformed(evt);
-            }
-        });
-        addNewCategory.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewCategoryKeyPressed(evt);
-            }
-        });
-
-        addNewBrand.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewBrand.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewBrandActionPerformed(evt);
-            }
-        });
-        addNewBrand.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewBrandKeyPressed(evt);
-            }
-        });
-
         SupplierCombo.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         SupplierCombo.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
         SupplierCombo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Supplier *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
@@ -2007,36 +1876,6 @@ private void saveProductAndStock() {
         expriyDate.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 expriyDateKeyPressed(evt);
-            }
-        });
-
-        addNewSupplier.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewSupplier.setForeground(new java.awt.Color(102, 102, 102));
-        addNewSupplier.setBorder(null);
-        addNewSupplier.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        addNewSupplier.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewSupplierActionPerformed(evt);
-            }
-        });
-        addNewSupplier.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewSupplierKeyPressed(evt);
-            }
-        });
-
-        addNewProduct.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewProduct.setForeground(new java.awt.Color(153, 153, 153));
-        addNewProduct.setBorder(null);
-        addNewProduct.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        addNewProduct.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewProductActionPerformed(evt);
-            }
-        });
-        addNewProduct.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewProductKeyPressed(evt);
             }
         });
 
@@ -2104,28 +1943,19 @@ private void saveProductAndStock() {
                                 .addComponent(jSeparator3)
                                 .addComponent(jLabel3)
                                 .addGroup(jPanel3Layout.createSequentialGroup()
-                                    .addComponent(productInput, javax.swing.GroupLayout.PREFERRED_SIZE, 479, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(addNewProduct, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                                .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 479, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGroup(jPanel3Layout.createSequentialGroup()
                                     .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                     .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(addNewSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel3Layout.createSequentialGroup()
-                                        .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
-                                    .addComponent(categoryCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 211, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGroup(jPanel3Layout.createSequentialGroup()
+                                    .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                    .addComponent(lastPrice, javax.swing.GroupLayout.PREFERRED_SIZE, 250, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(jPanel3Layout.createSequentialGroup()
+                                    .addComponent(categoryCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 243, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(addNewCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 26, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(brandCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(addNewBrand, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                    .addComponent(brandCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                .addComponent(productInput)
+                                .addComponent(SupplierCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                         .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel3Layout.createSequentialGroup()
                             .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 160, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -2142,23 +1972,13 @@ private void saveProductAndStock() {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 4, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(25, 25, 25)
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(addNewProduct, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(productInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(productInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addGap(8, 8, 8)
-                        .addComponent(addNewCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(categoryCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(brandCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(addNewBrand, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(brandCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addGap(11, 11, 11)
-                        .addComponent(addNewSupplier, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(purchasePrice, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2200,30 +2020,6 @@ private void saveProductAndStock() {
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
-
-    private void addNewBrandKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewBrandKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            addNewBrandActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, addNewBrand);
-        }
-    }//GEN-LAST:event_addNewBrandKeyPressed
-
-    private void addNewBrandActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewBrandActionPerformed
-        openAddNewBrand();
-    }//GEN-LAST:event_addNewBrandActionPerformed
-
-    private void addNewCategoryKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCategoryKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            addNewCategoryActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, addNewCategory);
-        }
-    }//GEN-LAST:event_addNewCategoryKeyPressed
-
-    private void addNewCategoryActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCategoryActionPerformed
-        openAddNewCategory();
-    }//GEN-LAST:event_addNewCategoryActionPerformed
 
     private void productInputKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_productInputKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -2410,30 +2206,6 @@ private void saveProductAndStock() {
         handleArrowNavigation(evt, expriyDate.getDateEditor().getUiComponent());
     }//GEN-LAST:event_expriyDateKeyPressed
 
-    private void addNewSupplierActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewSupplierActionPerformed
-        openAddNewSupplier();
-    }//GEN-LAST:event_addNewSupplierActionPerformed
-
-    private void addNewSupplierKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewSupplierKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            addNewSupplierActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, addNewSupplier);
-        }
-    }//GEN-LAST:event_addNewSupplierKeyPressed
-
-    private void addNewProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewProductActionPerformed
-        openAddNewProduct();
-    }//GEN-LAST:event_addNewProductActionPerformed
-
-    private void addNewProductKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewProductKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            addNewProductActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, addNewProduct);
-        }
-    }//GEN-LAST:event_addNewProductKeyPressed
-
     private void generateBatchBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_generateBatchBtnActionPerformed
         generateBatchNumber();
     }//GEN-LAST:event_generateBatchBtnActionPerformed
@@ -2530,10 +2302,6 @@ private void saveProductAndStock() {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JComboBox<String> SupplierCombo;
-    private javax.swing.JButton addNewBrand;
-    private javax.swing.JButton addNewCategory;
-    private javax.swing.JButton addNewProduct;
-    private javax.swing.JButton addNewSupplier;
     private javax.swing.JTextField barcodeInput;
     private javax.swing.JTextField batchNoInput;
     private javax.swing.JComboBox<String> brandCombo;

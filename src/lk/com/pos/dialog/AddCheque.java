@@ -38,12 +38,14 @@ public class AddCheque extends javax.swing.JDialog {
     private int customerId = -1;
     private int salesId = -1;
     private Map<String, Integer> customerIdMap = new HashMap<>();
+    private Map<Integer, String> customerDisplayMap = new HashMap<>();
     private boolean isSaving = false;
     private double dueAmount = 0.0;
     private double totalCredit = 0.0;
     private double totalPaid = 0.0;
     private Date latestDueDate = null;
     private double chequeAmount = 0.0;
+    private boolean isChequeSaved = false;
 
     public AddCheque(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -95,7 +97,7 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     public boolean isChequeSaved() {
-        return customerId != -1;
+        return isChequeSaved;
     }
 
     private void initializeDialog() {
@@ -127,18 +129,93 @@ public class AddCheque extends javax.swing.JDialog {
         });
 
         getRootPane().registerKeyboardAction(
-                evt -> openAddNewCustomer(),
+                evt -> {
+                    deleteSalesIfNotSaved();
+                    openAddNewCustomer();
+                },
                 KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         getRootPane().registerKeyboardAction(
-                evt -> dispose(),
+                evt -> {
+                    deleteSalesIfNotSaved();
+                    dispose();
+                },
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
         comboCustomer.requestFocusInWindow();
+    }
+
+    private void deleteSalesIfNotSaved() {
+        if (salesId != -1 && !isChequeSaved) {
+            // Only delete if salesId exists and cheque was not saved
+            Connection conn = null;
+            PreparedStatement pst = null;
+
+            try {
+                conn = MySQL.getConnection();
+                conn.setAutoCommit(false); // Start transaction
+
+                // First delete related records to maintain referential integrity
+                String[] deleteQueries = {
+                    "DELETE FROM sale_item WHERE sales_id = ?",
+                    "DELETE FROM card_pay WHERE sales_id = ?",
+                    "DELETE FROM cheque WHERE sales_id = ?",
+                    "DELETE FROM return WHERE sales_id = ?",
+                    "DELETE FROM stock_loss WHERE sales_id = ?",
+                    "DELETE FROM sales WHERE sales_id = ?"
+                };
+
+                boolean success = true;
+                for (String query : deleteQueries) {
+                    try {
+                        pst = conn.prepareStatement(query);
+                        pst.setInt(1, salesId);
+                        int affectedRows = pst.executeUpdate();
+                        pst.close();
+                       
+                    } catch (Exception e) {
+                        
+                        success = false;
+                        break;
+                    }
+                }
+
+                if (success) {
+                    conn.commit();
+                    
+                } else {
+                    conn.rollback();
+   
+                }
+
+            } catch (Exception e) {
+                try {
+                    if (conn != null) {
+                        conn.rollback();
+                    }
+                } catch (Exception rollbackEx) {
+                    rollbackEx.printStackTrace();
+                }
+               
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (pst != null) {
+                        pst.close();
+                    }
+                    if (conn != null) {
+                        conn.setAutoCommit(true);
+                        conn.close();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     private void setupKeyboardNavigation() {
@@ -279,6 +356,7 @@ public class AddCheque extends javax.swing.JDialog {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     evt.consume();
+                    saveCheque();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     txtBranch.requestFocus();
                     evt.consume();
@@ -324,7 +402,8 @@ public class AddCheque extends javax.swing.JDialog {
         btnCancel.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    deleteSalesIfNotSaved();
                     dispose();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
@@ -693,6 +772,7 @@ public class AddCheque extends javax.swing.JDialog {
     private void loadCustomerCombo() {
         try {
             customerIdMap.clear();
+            customerDisplayMap.clear();
 
             String sql = "SELECT cc.customer_id, cc.customer_name, "
                     + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
@@ -702,7 +782,7 @@ public class AddCheque extends javax.swing.JDialog {
                     + "COUNT(ch.cheque_id) as active_cheques "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id " // FIXED: Changed to credit_customer_id
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
                     + "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() "
                     + "WHERE cc.status_id = 1 "
                     + "GROUP BY cc.customer_id, cc.customer_name "
@@ -746,16 +826,16 @@ public class AddCheque extends javax.swing.JDialog {
 
                 customers.add(displayText);
                 customerIdMap.put(displayText, customerId);
+                customerDisplayMap.put(customerId, displayText);
                 count++;
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             comboCustomer.setModel(dcm);
 
-            System.out.println("Successfully loaded " + count + " customers");
+        
 
         } catch (Exception e) {
-            System.err.println("Error loading customers: " + e.getMessage());
             e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
@@ -772,7 +852,7 @@ public class AddCheque extends javax.swing.JDialog {
                     + "COUNT(ch.cheque_id) as active_cheques "
                     + "FROM credit_customer cc "
                     + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id " // FIXED: Changed to credit_customer_id
+                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
                     + "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() "
                     + "WHERE cc.customer_id = ? "
                     + "GROUP BY cc.customer_id";
@@ -787,14 +867,9 @@ public class AddCheque extends javax.swing.JDialog {
                 this.dueAmount = rs.getDouble("remaining_amount");
                 this.latestDueDate = rs.getDate("latest_due_date");
                 int activeCheques = rs.getInt("active_cheques");
-
-                System.out.println("Customer credit details - Total: " + totalCredit
-                        + ", Paid: " + totalPaid + ", Due: " + dueAmount
-                        + ", Active Cheques: " + activeCheques);
             }
 
         } catch (Exception e) {
-            System.err.println("Error loading customer credit details: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -803,12 +878,11 @@ public class AddCheque extends javax.swing.JDialog {
         Integer customerId = customerIdMap.get(displayText);
 
         if (customerId == null) {
-            System.err.println("Customer ID not found for: " + displayText);
-            System.err.println("Available mappings: " + customerIdMap);
+
             return -1;
         }
 
-        System.out.println("Found Customer ID: " + customerId + " for: " + displayText);
+       
         return customerId;
     }
 
@@ -880,11 +954,10 @@ public class AddCheque extends javax.swing.JDialog {
 
     private void saveCheque() {
         if (isSaving) {
-            System.out.println("Save already in progress, skipping duplicate call...");
             return;
         }
 
-        System.out.println("saveCheque() called at: " + new Date());
+       
 
         if (!validateInputs()) {
             return;
@@ -943,29 +1016,28 @@ public class AddCheque extends javax.swing.JDialog {
             if (rowsAffected > 0) {
                 // If salesId is NOT provided, also add to credit_pay table
                 if (salesId == -1) {
-                    String creditPayQuery = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) " // FIXED: Changed to credit_customer_id
+                    String creditPayQuery = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) "
                             + "VALUES (NOW(), ?, ?)";
-                    
+
                     pstCreditPay = conn.prepareStatement(creditPayQuery);
                     pstCreditPay.setDouble(1, amount);
                     pstCreditPay.setInt(2, this.customerId);
-                    
+
                     int creditPayRows = pstCreditPay.executeUpdate();
-                    if (creditPayRows > 0) {
-                        System.out.println("Credit payment record added successfully");
-                    }
+
                 }
 
                 createChequeNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
                 conn.commit();
 
-                String successMessage = "Cheque added successfully!"; 
+                String successMessage = "Cheque added successfully!";
                 if (salesId == -1) {
                     successMessage += " Credit payment of Rs " + amount + " also recorded!";
                 }
-                
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
 
+                isChequeSaved = true; // Mark as saved
                 dispose();
 
             } else {
@@ -1017,7 +1089,6 @@ public class AddCheque extends javax.swing.JDialog {
         }
         return false;
     }
-
 
     private void createChequeNotification(String customerName, String chequeNo, double amount, Date chequeDate, String bankName, String branch, Connection conn) {
         PreparedStatement pstMassage = null;
@@ -1072,11 +1143,10 @@ public class AddCheque extends javax.swing.JDialog {
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("Cheque notification created successfully for customer: " + customerName);
 
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Failed to create cheque notification: " + e.getMessage());
+         
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1103,14 +1173,27 @@ public class AddCheque extends javax.swing.JDialog {
 
     private void openAddNewCustomer() {
         try {
-       
-            AddNewCustomer dialog = new AddNewCustomer(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddNewCustomer dialog = new AddNewCustomer((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
-            
+
             if (dialog.isCustomerSaved()) {
+                // Get the newly added customer details
+                int newCustomerId = dialog.getSavedCustomerId();
+                String newCustomerName = dialog.getSavedCustomerName();
+
+                // Reload the customer combo
                 loadCustomerCombo();
+
+                // Automatically select the newly added customer
+                String displayText = customerDisplayMap.get(newCustomerId);
+                if (displayText != null) {
+                    comboCustomer.setSelectedItem(displayText);
+                }
+
                 comboCustomer.requestFocus();
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "New customer '" + newCustomerName + "' added and selected!");
             }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -1122,11 +1205,14 @@ public class AddCheque extends javax.swing.JDialog {
         btnAddNewCustomer.setFocusable(false);
         dateChequeDate.getDateEditor().getUiComponent().setFocusable(true);
     }
-    /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
-     */
+
+    // Override dispose to handle sales deletion when dialog is closed
+    @Override
+    public void dispose() {
+        deleteSalesIfNotSaved();
+        super.dispose();
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1149,16 +1235,16 @@ public class AddCheque extends javax.swing.JDialog {
 
         jPanel2.setBackground(new java.awt.Color(255, 255, 255));
 
+        jLabel3.setText("Add Cheque Payment");
         jLabel3.setFont(new java.awt.Font("Nunito ExtraBold", 1, 24)); // NOI18N
         jLabel3.setForeground(new java.awt.Color(8, 147, 176));
-        jLabel3.setText("Add Cheque Payment");
 
         jSeparator3.setForeground(new java.awt.Color(0, 137, 176));
 
-        btnCancel.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        btnCancel.setForeground(new java.awt.Color(8, 147, 176));
         btnCancel.setText("Cancel");
         btnCancel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        btnCancel.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        btnCancel.setForeground(new java.awt.Color(8, 147, 176));
         btnCancel.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnCancelActionPerformed(evt);
@@ -1170,10 +1256,10 @@ public class AddCheque extends javax.swing.JDialog {
             }
         });
 
-        btnClear.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        btnClear.setForeground(new java.awt.Color(8, 147, 176));
         btnClear.setText("Clear Form");
         btnClear.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        btnClear.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        btnClear.setForeground(new java.awt.Color(8, 147, 176));
         btnClear.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnClearActionPerformed(evt);
@@ -1185,10 +1271,10 @@ public class AddCheque extends javax.swing.JDialog {
             }
         });
 
-        btnSave.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        btnSave.setForeground(new java.awt.Color(8, 147, 176));
         btnSave.setText("Save");
         btnSave.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
+        btnSave.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
+        btnSave.setForeground(new java.awt.Color(8, 147, 176));
         btnSave.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnSaveActionPerformed(evt);
@@ -1211,7 +1297,6 @@ public class AddCheque extends javax.swing.JDialog {
         });
 
         txtChequeNo.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        txtChequeNo.setText("0");
         txtChequeNo.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Cheque No  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
         txtChequeNo.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -1219,9 +1304,9 @@ public class AddCheque extends javax.swing.JDialog {
             }
         });
 
-        comboCustomer.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         comboCustomer.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
         comboCustomer.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Customer *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        comboCustomer.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         comboCustomer.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 comboCustomerActionPerformed(evt);
@@ -1255,7 +1340,6 @@ public class AddCheque extends javax.swing.JDialog {
         txtBranch.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Branch *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
 
         txtAmount.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        txtAmount.setText("0");
         txtAmount.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
         txtAmount.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -1342,11 +1426,13 @@ public class AddCheque extends javax.swing.JDialog {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnCancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCancelActionPerformed
+        deleteSalesIfNotSaved();
         dispose();
     }//GEN-LAST:event_btnCancelActionPerformed
 
     private void btnCancelKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnCancelKeyPressed
-          if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            deleteSalesIfNotSaved();
             dispose();
         } else {
             handleArrowNavigation(evt, btnCancel);
@@ -1379,7 +1465,7 @@ public class AddCheque extends javax.swing.JDialog {
     }//GEN-LAST:event_btnSaveKeyPressed
 
     private void dateChequeDateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_dateChequeDateKeyPressed
-  handleArrowNavigation(evt, dateChequeDate.getDateEditor().getUiComponent());
+        handleArrowNavigation(evt, dateChequeDate.getDateEditor().getUiComponent());
     }//GEN-LAST:event_dateChequeDateKeyPressed
 
     private void txtChequeNoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtChequeNoActionPerformed
@@ -1427,11 +1513,13 @@ public class AddCheque extends javax.swing.JDialog {
     }//GEN-LAST:event_comboCustomerKeyPressed
 
     private void btnAddNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddNewCustomerActionPerformed
+        deleteSalesIfNotSaved();
         openAddNewCustomer();
     }//GEN-LAST:event_btnAddNewCustomerActionPerformed
 
     private void btnAddNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnAddNewCustomerKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
+            deleteSalesIfNotSaved();
             openAddNewCustomer();
         }
     }//GEN-LAST:event_btnAddNewCustomerKeyPressed

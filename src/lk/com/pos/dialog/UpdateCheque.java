@@ -88,12 +88,6 @@ public class UpdateCheque extends javax.swing.JDialog {
         });
 
         getRootPane().registerKeyboardAction(
-                evt -> openAddNewCustomer(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
-        getRootPane().registerKeyboardAction(
                 evt -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
@@ -505,17 +499,6 @@ public class UpdateCheque extends javax.swing.JDialog {
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         btnCancel.setIcon(cancelIcon);
 
-        btnAddNewCustomer.setBorderPainted(false);
-        btnAddNewCustomer.setContentAreaFilled(false);
-        btnAddNewCustomer.setFocusPainted(false);
-        btnAddNewCustomer.setOpaque(false);
-        btnAddNewCustomer.setFocusable(false);
-        btnAddNewCustomer.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        FlatSVGIcon customerIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-        customerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        btnAddNewCustomer.setIcon(customerIcon);
-
         setupButtonMouseListeners();
         setupButtonFocusListeners();
     }
@@ -616,19 +599,6 @@ public class UpdateCheque extends javax.swing.JDialog {
             }
         });
 
-        btnAddNewCustomer.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                btnAddNewCustomer.setIcon(hoverIcon);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                btnAddNewCustomer.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupButtonFocusListeners() {
@@ -686,19 +656,6 @@ public class UpdateCheque extends javax.swing.JDialog {
             }
         });
 
-        btnAddNewCustomer.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                btnAddNewCustomer.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                btnAddNewCustomer.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupTooltips() {
@@ -708,7 +665,6 @@ public class UpdateCheque extends javax.swing.JDialog {
         dateChequeDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
         txtBankName.setToolTipText("Enter bank name and press ENTER to move to next field");
         txtBranch.setToolTipText("Enter branch name and press ENTER to move to next field");
-        btnAddNewCustomer.setToolTipText("Click to add new customer (or press F2)");
         btnUpdate.setToolTipText("Click to update cheque (or press ENTER when focused)");
         btnClear.setToolTipText("Click to reset form (or press ENTER when focused)");
         btnCancel.setToolTipText("Click to cancel (or press ESC)");
@@ -1085,25 +1041,9 @@ public class UpdateCheque extends javax.swing.JDialog {
         comboCustomer.requestFocus();
     }
 
-    private void openAddNewCustomer() {
-        try {
-   
-            AddNewCustomer dialog = new AddNewCustomer(null, true);
-            dialog.setLocationRelativeTo(null);
-            dialog.setVisible(true);
-
-            if (dialog.isCustomerSaved()) {
-                loadCustomerCombo();
-                comboCustomer.requestFocus();
-            }
-        } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening customer dialog: " + e.getMessage());
-        }
-    }
+ 
 
     private void setupFocusTraversal() {
-        btnAddNewCustomer.setFocusable(false);
         dateChequeDate.getDateEditor().getUiComponent().setFocusable(true);
     }
 
@@ -1123,7 +1063,6 @@ public class UpdateCheque extends javax.swing.JDialog {
         btnClear = new javax.swing.JButton();
         btnUpdate = new javax.swing.JButton();
         comboCustomer = new javax.swing.JComboBox<>();
-        btnAddNewCustomer = new javax.swing.JButton();
         txtAmount = new javax.swing.JTextField();
         txtChequeNo = new javax.swing.JTextField();
         dateChequeDate = new com.toedter.calendar.JDateChooser();
@@ -1199,21 +1138,6 @@ public class UpdateCheque extends javax.swing.JDialog {
             }
         });
 
-        btnAddNewCustomer.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        btnAddNewCustomer.setForeground(new java.awt.Color(102, 102, 102));
-        btnAddNewCustomer.setBorder(null);
-        btnAddNewCustomer.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        btnAddNewCustomer.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnAddNewCustomerActionPerformed(evt);
-            }
-        });
-        btnAddNewCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                btnAddNewCustomerKeyPressed(evt);
-            }
-        });
-
         txtAmount.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
         txtAmount.setText("0");
         txtAmount.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
@@ -1257,20 +1181,18 @@ public class UpdateCheque extends javax.swing.JDialog {
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jLabel3)
-                                .addGap(0, 0, Short.MAX_VALUE))
                             .addComponent(jSeparator3)
                             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                                 .addComponent(btnCancel, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btnClear, javax.swing.GroupLayout.DEFAULT_SIZE, 184, Short.MAX_VALUE)
+                                .addComponent(btnClear, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(btnUpdate, javax.swing.GroupLayout.PREFERRED_SIZE, 163, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(comboCustomer, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btnAddNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel3)
+                                    .addComponent(comboCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 501, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(0, 0, Short.MAX_VALUE)))
                         .addGap(21, 21, 21))
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
@@ -1294,11 +1216,7 @@ public class UpdateCheque extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(comboCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(11, 11, 11)
-                        .addComponent(btnAddNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addComponent(comboCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtChequeNo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1411,17 +1329,6 @@ public class UpdateCheque extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_comboCustomerKeyPressed
 
-    private void btnAddNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddNewCustomerActionPerformed
-        openAddNewCustomer();
-
-    }//GEN-LAST:event_btnAddNewCustomerActionPerformed
-
-    private void btnAddNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnAddNewCustomerKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
-            openAddNewCustomer();
-        }
-    }//GEN-LAST:event_btnAddNewCustomerKeyPressed
-
     private void txtAmountActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtAmountActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_txtAmountActionPerformed
@@ -1477,7 +1384,6 @@ public class UpdateCheque extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btnAddNewCustomer;
     private javax.swing.JButton btnCancel;
     private javax.swing.JButton btnClear;
     private javax.swing.JButton btnUpdate;

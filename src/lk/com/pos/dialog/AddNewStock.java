@@ -9,8 +9,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
-import lk.com.pos.connection.MySQL;
-
 import java.awt.event.KeyEvent;
 import java.sql.ResultSet;
 import java.text.SimpleDateFormat;
@@ -24,6 +22,7 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import lk.com.pos.connection.MySQL;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -147,6 +146,51 @@ public class AddNewStock extends javax.swing.JDialog {
 
         // Set focus to product combo box when dialog opens
         productNameCombo.requestFocusInWindow();
+    }
+
+    // Add these methods for product and supplier selection
+    private void selectProductInComboBox(int productId, String productName) {
+        try {
+            // Reload the product combo box to include the new product
+            loadProductCombo();
+
+            // Select the newly added product
+            for (int i = 0; i < productNameCombo.getItemCount(); i++) {
+                if (productNameCombo.getItemAt(i).equals(productName)) {
+                    productNameCombo.setSelectedIndex(i);
+                    break;
+                }
+            }
+
+            // Move focus to supplier combo
+            SupplierCombo.requestFocusInWindow();
+
+        } catch (Exception e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error selecting product: " + e.getMessage());
+        }
+    }
+
+    private void selectSupplierInComboBox(int supplierId, String supplierName) {
+        try {
+            // Reload the supplier combo box to include the new supplier
+            loadSupplierCombo();
+
+            // Select the newly added supplier
+            for (int i = 0; i < SupplierCombo.getItemCount(); i++) {
+                if (SupplierCombo.getItemAt(i).equals(supplierName)) {
+                    SupplierCombo.setSelectedIndex(i);
+                    break;
+                }
+            }
+
+            // Move focus to purchase price
+            purchasePrice.requestFocusInWindow();
+
+        } catch (Exception e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error selecting supplier: " + e.getMessage());
+        }
     }
 
     private boolean allFieldsFilled() {
@@ -986,12 +1030,15 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void openAddNewProduct() {
         try {
- 
-            AddNewProduct dialog = new AddNewProduct(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddNewProduct dialog = new AddNewProduct((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
-            loadProductCombo();
-            productNameCombo.requestFocus();
+
+            // Check if a new product was added
+            if (dialog.isProductAdded()) {
+                selectProductInComboBox(dialog.getNewProductId(), dialog.getNewProductName());
+            }
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening product dialog: " + e.getMessage());
@@ -1000,12 +1047,15 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void openAddNewSupplier() {
         try {
-     
-            AddSupplier dialog = new AddSupplier(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddSupplier dialog = new AddSupplier((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
-            loadSupplierCombo();
-            SupplierCombo.requestFocus();
+
+            // Check if a new supplier was added
+            if (dialog.isSupplierAdded()) {
+                selectSupplierInComboBox(dialog.getNewSupplierId(), dialog.getNewSupplierName());
+            }
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening supplier dialog: " + e.getMessage());
@@ -1776,6 +1826,7 @@ public class AddNewStock extends javax.swing.JDialog {
         } else {
             handleArrowNavigation(evt, generateBatchBtn);
         }
+
     }//GEN-LAST:event_generateBatchBtnKeyPressed
 
     /**

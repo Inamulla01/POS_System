@@ -84,12 +84,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             }
         });
 
-        // Add F1 and F2 shortcuts
-        getRootPane().registerKeyboardAction(
-                evt -> openAddNewCredit(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
 
         getRootPane().registerKeyboardAction(
                 evt -> refreshCredits(),
@@ -371,18 +365,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(cancelIcon);
 
-        // Setup add new credit button with the same style as add buttons
-        addNewCredit.setBorderPainted(false);
-        addNewCredit.setContentAreaFilled(false);
-        addNewCredit.setFocusPainted(false);
-        addNewCredit.setOpaque(false);
-        addNewCredit.setFocusable(false);
-        addNewCredit.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        FlatSVGIcon creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 25, 25);
-        creditIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewCredit.setIcon(creditIcon);
-
         // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
         setupButtonFocusListeners();
@@ -513,20 +495,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for addNewCredit
-        addNewCredit.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCredit.setIcon(hoverIcon);
-            }
 
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCredit.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupButtonFocusListeners() {
@@ -587,27 +556,13 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for addNewCredit
-        addNewCredit.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCredit.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/credit-card.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCredit.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupTooltips() {
         creditCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to refresh credit list</html>");
         givenDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
         address.setToolTipText("Type payment amount and press ENTER to move to next field");
-        addNewCredit.setToolTipText("Click to add new credit (or press F1)");
+     
         updateBtn.setToolTipText("Click to update credit payment (or press ENTER when focused)");
         clearFormBtn.setToolTipText("Click to reload original data (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
@@ -1017,15 +972,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             return false;
         }
 
-        // Enhanced debug information with discount
-        System.out.println("=== VALIDATION DEBUG ===");
-        System.out.println("Payment Amount: " + amount);
-        System.out.println("Remaining Amount: " + remainingAmount);
-        System.out.println("Original Remaining Amount: " + originalRemainingAmount);
-        System.out.println("Has Discount: " + hasDiscount);
-        System.out.println("Discount Amount: " + discountAmount);
-        System.out.println("Discount Percentage: " + discountPercentage);
-        System.out.println("========================");
 
         // Check if payment amount exceeds remaining amount
         if (amount > remainingAmount) {
@@ -1219,19 +1165,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form reset to original values!");
     }
 
-    private void openAddNewCredit() {
-        try {
-            AddCredit dialog = new AddCredit(null, true);
-            dialog.setLocationRelativeTo(null);
-            dialog.setVisible(true);
-            loadCreditCombo();
-            creditCombo.requestFocus();
-        } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening credit dialog: " + e.getMessage());
-        }
-    }
-
     private void refreshCredits() {
         loadCreditCombo();
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Credit list refreshed!");
@@ -1241,8 +1174,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
     // ---------------- FOCUS TRAVERSAL SETUP ----------------
     private void setupFocusTraversal() {
         try {
-            // Remove add button from keyboard navigation
-            addNewCredit.setFocusable(false);
+    
 
             // Make date editor focusable
             if (givenDate.getDateEditor() != null && givenDate.getDateEditor().getUiComponent() != null) {
@@ -1265,7 +1197,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         creditCombo = new javax.swing.JComboBox<>();
         givenDate = new com.toedter.calendar.JDateChooser();
         address = new javax.swing.JTextField();
-        addNewCredit = new javax.swing.JButton();
         remainingAmountLabel = new javax.swing.JLabel();
         discountAmountLabel = new javax.swing.JLabel();
 
@@ -1358,21 +1289,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             }
         });
 
-        addNewCredit.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewCredit.setForeground(new java.awt.Color(102, 102, 102));
-        addNewCredit.setBorder(null);
-        addNewCredit.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        addNewCredit.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewCreditActionPerformed(evt);
-            }
-        });
-        addNewCredit.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewCreditKeyPressed(evt);
-            }
-        });
-
         remainingAmountLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 18)); // NOI18N
 
         discountAmountLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 18)); // NOI18N
@@ -1391,14 +1307,12 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                             .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                             .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(creditCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 345, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(addNewCredit, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(givenDate, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 383, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addComponent(discountAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(creditCombo, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(discountAmountLabel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 384, Short.MAX_VALUE)))
                     .addComponent(remainingAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel2Layout.createSequentialGroup()
@@ -1418,9 +1332,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(discountAmountLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 31, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(creditCombo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(addNewCredit, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(creditCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(givenDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(13, 13, 13)
@@ -1537,16 +1449,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_addressActionPerformed
 
-    private void addNewCreditKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCreditKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F1) {
-            openAddNewCredit();
-        }
-    }//GEN-LAST:event_addNewCreditKeyPressed
-
-    private void addNewCreditActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCreditActionPerformed
-        openAddNewCredit();
-    }//GEN-LAST:event_addNewCreditActionPerformed
-
     /**
      * @param args the command line arguments
      */
@@ -1590,7 +1492,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton addNewCredit;
     private javax.swing.JTextField address;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;

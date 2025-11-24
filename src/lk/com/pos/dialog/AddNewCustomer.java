@@ -26,6 +26,8 @@ public class AddNewCustomer extends javax.swing.JDialog {
 
     private boolean isSaving = false; // Flag to prevent multiple saves
     private boolean customerSaved = false; // Flag to track if customer was saved
+    private int savedCustomerId = -1; // Store the ID of the newly saved customer
+    private String savedCustomerName = ""; // Store the name of the newly saved customer
 
     /**
      * Creates new form AddNewCustomer
@@ -37,10 +39,25 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }
 
     /**
-     * Returns true if a customer was successfully saved during this dialog session
+     * Returns true if a customer was successfully saved during this dialog
+     * session
      */
     public boolean isCustomerSaved() {
         return customerSaved;
+    }
+
+    /**
+     * Returns the ID of the newly saved customer
+     */
+    public int getSavedCustomerId() {
+        return savedCustomerId;
+    }
+
+    /**
+     * Returns the name of the newly saved customer
+     */
+    public String getSavedCustomerName() {
+        return savedCustomerName;
     }
 
     private void initializeDialog() {
@@ -92,8 +109,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
                 nic,
                 cancelBtn,
                 clearFormBtn,
-                saveBtn,
-                creditBtn
+                saveBtn
         );
 
         setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
@@ -132,12 +148,18 @@ public class AddNewCustomer extends javax.swing.JDialog {
             }
         });
 
-        // Save button - ONLY handle navigation keys, NOT ENTER key
+        // Save button - FIXED: Allow ENTER key to trigger the action
         saveBtn.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
-                // Only handle navigation keys, let actionPerformed handle ENTER
-                if (evt.getKeyCode() != KeyEvent.VK_ENTER) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    // Trigger the save action when ENTER is pressed
+                    if (!isSaving) {
+                        saveCustomer();
+                    }
+                    evt.consume();
+                } else {
+                    // Only handle navigation keys for non-ENTER keys
                     handleArrowNavigation(evt, saveBtn);
                 }
             }
@@ -148,6 +170,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     clearForm();
+                    evt.consume();
                 } else {
                     handleArrowNavigation(evt, clearFormBtn);
                 }
@@ -159,19 +182,9 @@ public class AddNewCustomer extends javax.swing.JDialog {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     dispose();
+                    evt.consume();
                 } else {
                     handleArrowNavigation(evt, cancelBtn);
-                }
-            }
-        });
-
-        creditBtn.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    creditBtnActionPerformed(null);
-                } else {
-                    handleArrowNavigation(evt, creditBtn);
                 }
             }
         });
@@ -212,15 +225,13 @@ public class AddNewCustomer extends javax.swing.JDialog {
         } else if (source == clearFormBtn) {
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            creditBtn.requestFocusInWindow();
-        } else if (source == creditBtn) {
             name.requestFocusInWindow();
         }
     }
 
     private void handleLeftArrow(java.awt.Component source) {
         if (source == name) {
-            creditBtn.requestFocusInWindow();
+            saveBtn.requestFocusInWindow();
         } else if (source == phoneNo) {
             name.requestFocusInWindow();
         } else if (source == address) {
@@ -233,8 +244,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
             clearFormBtn.requestFocusInWindow();
-        } else if (source == creditBtn) {
-            saveBtn.requestFocusInWindow();
         }
     }
 
@@ -252,15 +261,13 @@ public class AddNewCustomer extends javax.swing.JDialog {
         } else if (source == clearFormBtn) {
             saveBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
-            creditBtn.requestFocusInWindow();
-        } else if (source == creditBtn) {
             name.requestFocusInWindow();
         }
     }
 
     private void handleUpArrow(java.awt.Component source) {
         if (source == name) {
-            creditBtn.requestFocusInWindow();
+            saveBtn.requestFocusInWindow();
         } else if (source == phoneNo) {
             name.requestFocusInWindow();
         } else if (source == address) {
@@ -273,8 +280,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
             clearFormBtn.requestFocusInWindow();
-        } else if (source == creditBtn) {
-            saveBtn.requestFocusInWindow();
         }
     }
 
@@ -319,9 +324,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
                 }
             }
         });
-
-        // For buttons, let the default button behavior handle ENTER key
-        // Don't add any ENTER key listeners to buttons
     }
 
     private void setupKeyboardShortcuts() {
@@ -329,13 +331,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
         getRootPane().registerKeyboardAction(
                 evt -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
-        // Set up F1 for credit button functionality
-        getRootPane().registerKeyboardAction(
-                evt -> creditBtnActionPerformed(null),
-                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
     }
@@ -389,13 +384,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }
 
     private void setupButtonStyles() {
-        // Setup credit button as icon button
-        creditBtn.setBorderPainted(false);
-        creditBtn.setContentAreaFilled(false);
-        creditBtn.setFocusPainted(false);
-        creditBtn.setOpaque(false);
-        creditBtn.setFocusable(true);
-
         // Setup gradient buttons
         setupGradientButton(saveBtn);
         setupGradientButton(clearFormBtn);
@@ -413,11 +401,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
         FlatSVGIcon cancelIcon = new FlatSVGIcon("lk/com/pos/icon/clear.svg", 25, 25);
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(cancelIcon);
-
-        // Setup credit button icon
-        FlatSVGIcon creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-        creditIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        creditBtn.setIcon(creditIcon);
 
         // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
@@ -481,21 +464,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
                 cancelBtn.repaint();
             }
         });
-
-        // Mouse listeners for creditBtn
-        creditBtn.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                creditBtn.setIcon(hoverIcon);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                creditBtn.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupButtonFocusListeners() {
@@ -555,21 +523,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
                 cancelBtn.repaint();
             }
         });
-
-        // Focus listeners for creditBtn
-        creditBtn.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                creditBtn.setIcon(focusedIcon);
-            }
-
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                creditBtn.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupTooltips() {
@@ -580,7 +533,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
         saveBtn.setToolTipText("Click to save customer (or press ENTER when focused)");
         clearFormBtn.setToolTipText("Click to clear form (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
-        creditBtn.setToolTipText("Credit customer functions (or press F1)");
     }
 
     // ---------------- VALIDATION AND BUSINESS LOGIC ----------------
@@ -590,6 +542,8 @@ public class AddNewCustomer extends javax.swing.JDialog {
         address.setText("");
         nic.setText("");
         customerSaved = false; // Reset the saved flag when clearing
+        savedCustomerId = -1;
+        savedCustomerName = "";
     }
 
     private boolean validateForm() {
@@ -741,6 +695,8 @@ public class AddNewCustomer extends javax.swing.JDialog {
         }
         isSaving = true;
         customerSaved = false; // Reset flag at start
+        savedCustomerId = -1;
+        savedCustomerName = "";
 
         try {
             if (!validateForm()) {
@@ -761,7 +717,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
             try {
                 // Insert customer
                 String sql = "INSERT INTO credit_customer (customer_name, customer_phone_no, customer_address, nic, date_time, status_id) VALUES (?, ?, ?, ?, NOW(), ?)";
-                PreparedStatement pst = conn.prepareStatement(sql);
+                PreparedStatement pst = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
                 pst.setString(1, customerName);
                 pst.setString(2, mobile);
                 pst.setString(3, customerAddress);
@@ -769,6 +725,14 @@ public class AddNewCustomer extends javax.swing.JDialog {
                 pst.setInt(5, 1); // status_id = 1 (Active)
 
                 int rowsAffected = pst.executeUpdate();
+
+                // Get the generated customer ID
+                ResultSet generatedKeys = pst.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    savedCustomerId = generatedKeys.getInt(1);
+                    savedCustomerName = customerName;
+                }
+
                 pst.close();
 
                 if (rowsAffected > 0) {
@@ -780,12 +744,12 @@ public class AddNewCustomer extends javax.swing.JDialog {
 
                     Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                             "Customer added successfully!");
-                    
+
                     // Set the flag to indicate customer was saved
                     customerSaved = true;
-                    
-                    clearFields();
-                    this.dispose(); // Close the dialog after successful save
+
+                    // Close the dialog after successful save
+                    dispose();
                 } else {
                     conn.rollback();
                     Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -883,7 +847,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
         Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form cleared!");
     }
 
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -898,7 +861,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
         cancelBtn = new javax.swing.JButton();
         clearFormBtn = new javax.swing.JButton();
         saveBtn = new javax.swing.JButton();
-        creditBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Add New Customer");
@@ -994,20 +956,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             }
         });
 
-        creditBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        creditBtn.setForeground(new java.awt.Color(8, 147, 176));
-        creditBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
-        creditBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                creditBtnActionPerformed(evt);
-            }
-        });
-        creditBtn.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                creditBtnKeyPressed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -1017,8 +965,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jLabel2)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE))
                     .addComponent(jSeparator2)
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(name, javax.swing.GroupLayout.DEFAULT_SIZE, 218, Short.MAX_VALUE)
@@ -1038,9 +985,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(24, 24, 24)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(jLabel2)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator2, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -1110,7 +1055,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
         } else {
             handleArrowNavigation(evt, clearFormBtn);
         }
-
     }//GEN-LAST:event_clearFormBtnKeyPressed
 
     private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed
@@ -1122,21 +1066,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             handleArrowNavigation(evt, saveBtn);
         }
     }//GEN-LAST:event_saveBtnKeyPressed
-
-    private void creditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditBtnActionPerformed
-      
-        AddCredit dialog = new AddCredit(null, true);
-        dialog.setLocationRelativeTo(null);
-        dialog.setVisible(true);
-    }//GEN-LAST:event_creditBtnActionPerformed
-
-    private void creditBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_creditBtnKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            creditBtnActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, creditBtn);
-        }
-    }//GEN-LAST:event_creditBtnKeyPressed
 
     private void nicKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_nicKeyPressed
         // TODO add your handling code here:
@@ -1188,7 +1117,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
     private javax.swing.JTextField address;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
-    private javax.swing.JButton creditBtn;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator2;

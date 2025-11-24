@@ -123,6 +123,13 @@ public class HomeScreen extends JFrame {
         AppIconUtil.applyIcon(this);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
+        // Get user role from session
+        Session session = Session.getInstance();
+        if (session.getUserId() != 0) {
+            userId = session.getUserId();
+            roleName = session.getRoleName();
+        }
+
         try {
             ResultSet rs = MySQL.executeSearch("SELECT name FROM user WHERE user_id = " + userId);
             if (rs.next()) {
@@ -178,7 +185,6 @@ public class HomeScreen extends JFrame {
         buttonHoverStates.put(returnBtn, false);
         buttonHoverStates.put(productBtn, false);
         buttonHoverStates.put(chequeBtn, false);
-        buttonHoverStates.put(expenseBtn, false);
         buttonHoverStates.put(notificasionBtn1, false); // Stock Loss
         buttonHoverStates.put(notificasionBtn2, false); // Chart Panel
 
@@ -192,7 +198,6 @@ public class HomeScreen extends JFrame {
         setupHoverButton(returnBtn, returnIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(productBtn, productIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(chequeBtn, chequeIcon, normalTextColor, hoverTop, hoverBottom);
-        setupHoverButton(expenseBtn, expenseIcon, normalTextColor, hoverTop, hoverBottom);
         setupHoverButton(notificasionBtn1, stockLossIcon, normalTextColor, hoverTop, hoverBottom); // Stock Loss
         setupHoverButton(notificasionBtn2, chartPanelIcon, normalTextColor, hoverTop, hoverBottom); // Chart Panel
         setupHoverButton(signOutBtn, signOutIcon, Color.RED, signOutHoverTop, signOutHoverBottom);
@@ -211,7 +216,6 @@ public class HomeScreen extends JFrame {
         returnBtn.setBorder(BorderFactory.createEmptyBorder(0, 26, 0, 0));
         productBtn.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0));
         chequeBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
-        expenseBtn.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0));
         notificasionBtn1.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0)); // Stock Loss
         notificasionBtn2.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0)); // Chart Panel
         signOutBtn.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
@@ -226,8 +230,17 @@ public class HomeScreen extends JFrame {
         timeFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
         startClockTimer();
 
-        setActiveButton(dashboardBtn);
-        showDashboardPanel();
+        // Apply role-based access control
+        applyRoleBasedAccessControl();
+
+        // Set initial panel based on role
+        if (roleName.equalsIgnoreCase("Cashier")) {
+            setActiveButton(posBtn);
+            showPOSPanel();
+        } else {
+            setActiveButton(dashboardBtn);
+            showDashboardPanel();
+        }
 
         keyBtn.setVisible(true);
 
@@ -241,6 +254,60 @@ public class HomeScreen extends JFrame {
             }
         }).start();
 
+    }
+
+    /**
+     * Apply role-based access control to hide buttons for cashier
+     */
+    private void applyRoleBasedAccessControl() {
+        if (roleName.equalsIgnoreCase("Cashier")) {
+            // Hide all panels except POS for cashier
+            dashboardBtn.setVisible(false);
+            supplierBtn.setVisible(false);
+            salesBtn.setVisible(false);
+            creditBtn.setVisible(false);
+            stockBtn.setVisible(false);
+            notificasionBtn.setVisible(false);
+            returnBtn.setVisible(false);
+            productBtn.setVisible(false);
+            chequeBtn.setVisible(false);
+            notificasionBtn1.setVisible(false); // Stock Loss
+            notificasionBtn2.setVisible(false); // Chart Panel
+            
+            // Show only POS, calculator, shortcuts, and sign out
+            posBtn.setVisible(true);
+            calBtn.setVisible(true);
+            keyBtn.setVisible(true);
+            signOutBtn.setVisible(true);
+            bellBtn.setVisible(true);
+            menuBtn.setVisible(true);
+            profileBtn.setVisible(true);
+            
+        } else {
+            // Admin - show all buttons
+            dashboardBtn.setVisible(true);
+            posBtn.setVisible(true);
+            supplierBtn.setVisible(true);
+            salesBtn.setVisible(true);
+            creditBtn.setVisible(true);
+            stockBtn.setVisible(true);
+            notificasionBtn.setVisible(true);
+            returnBtn.setVisible(true);
+            productBtn.setVisible(true);
+            chequeBtn.setVisible(true);
+            notificasionBtn1.setVisible(true);
+            notificasionBtn2.setVisible(true);
+            calBtn.setVisible(true);
+            keyBtn.setVisible(true);
+            signOutBtn.setVisible(true);
+            bellBtn.setVisible(true);
+            menuBtn.setVisible(true);
+            profileBtn.setVisible(true);
+        }
+        
+        // Revalidate the sidebar to update layout
+        sidePenal.revalidate();
+        sidePenal.repaint();
     }
 
     private void startNotificationScheduler() {
@@ -430,7 +497,7 @@ public class HomeScreen extends JFrame {
             case "StockLoss":
                 addStockLossShortcuts();
                 break;
-            case "ChartPanel":
+            case "Charts":
                 addChartPanelShortcuts();
                 break;
             default:
@@ -1313,20 +1380,20 @@ public class HomeScreen extends JFrame {
     }
 
     private void resetAllButtonsToNormal() {
-        resetButtonToNormal(dashboardBtn);
-        resetButtonToNormal(posBtn);
-        resetButtonToNormal(supplierBtn);
-        resetButtonToNormal(salesBtn);
-        resetButtonToNormal(creditBtn);
-        resetButtonToNormal(stockBtn);
-        resetButtonToNormal(notificasionBtn);
-        resetButtonToNormal(returnBtn);
-        resetButtonToNormal(productBtn);
-        resetButtonToNormal(chequeBtn);
-        resetButtonToNormal(expenseBtn);
-        resetButtonToNormal(notificasionBtn1); // Stock Loss
-        resetButtonToNormal(notificasionBtn2); // Chart Panel
-        resetButtonToNormal(calBtn);
+        // Only reset buttons that are visible
+        if (dashboardBtn.isVisible()) resetButtonToNormal(dashboardBtn);
+        if (posBtn.isVisible()) resetButtonToNormal(posBtn);
+        if (supplierBtn.isVisible()) resetButtonToNormal(supplierBtn);
+        if (salesBtn.isVisible()) resetButtonToNormal(salesBtn);
+        if (creditBtn.isVisible()) resetButtonToNormal(creditBtn);
+        if (stockBtn.isVisible()) resetButtonToNormal(stockBtn);
+        if (notificasionBtn.isVisible()) resetButtonToNormal(notificasionBtn);
+        if (returnBtn.isVisible()) resetButtonToNormal(returnBtn);
+        if (productBtn.isVisible()) resetButtonToNormal(productBtn);
+        if (chequeBtn.isVisible()) resetButtonToNormal(chequeBtn);
+        if (notificasionBtn1.isVisible()) resetButtonToNormal(notificasionBtn1);
+        if (notificasionBtn2.isVisible()) resetButtonToNormal(notificasionBtn2);
+        if (calBtn.isVisible()) resetButtonToNormal(calBtn);
         resetButtonToNormal(signOutBtn);
     }
 
@@ -1406,9 +1473,6 @@ public class HomeScreen extends JFrame {
         if (button == chequeBtn) {
             return chequeIcon;
         }
-        if (button == expenseBtn) {
-            return expenseIcon;
-        }
         if (button == notificasionBtn1) {
             return stockLossIcon;
         }
@@ -1423,9 +1487,13 @@ public class HomeScreen extends JFrame {
     }
 
     private void showDashboardPanel() {
-        contentPanelLayout.show(cardPanel, "dashboard_panel");
-        setActiveButton(dashboardBtn);
-        currentPanelName = "Dashboard";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "dashboard_panel");
+            setActiveButton(dashboardBtn);
+            currentPanelName = "Dashboard";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Dashboard is for Admin only.");
+        }
     }
 
     private void showPOSPanel() {
@@ -1435,69 +1503,112 @@ public class HomeScreen extends JFrame {
     }
 
     private void showNotificationPanel() {
-        contentPanelLayout.show(cardPanel, "notification_Panel");
-        setActiveButton(notificasionBtn);
-        currentPanelName = "Notification";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "notification_Panel");
+            setActiveButton(notificasionBtn);
+            currentPanelName = "Notification";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Notifications panel is for Admin only.");
+        }
     }
 
     private void showSupplierPanel() {
-        contentPanelLayout.show(cardPanel, "supplier_panel");
-        setActiveButton(supplierBtn);
-        currentPanelName = "Supplier";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "supplier_panel");
+            setActiveButton(supplierBtn);
+            currentPanelName = "Supplier";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Supplier panel is for Admin only.");
+        }
     }
 
     private void showSalesPanel() {
-        contentPanelLayout.show(cardPanel, "sales_panel");
-        setActiveButton(salesBtn);
-        currentPanelName = "Sales";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "sales_panel");
+            setActiveButton(salesBtn);
+            currentPanelName = "Sales";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Sales panel is for Admin only.");
+        }
     }
 
     private void showCustomerManagementPanel() {
-        contentPanelLayout.show(cardPanel, "customer_management_panel");
-        setActiveButton(creditBtn);
-        currentPanelName = "Customer";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "customer_management_panel");
+            setActiveButton(creditBtn);
+            currentPanelName = "Customer";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Customer panel is for Admin only.");
+        }
     }
 
     private void showStockPanel() {
-        contentPanelLayout.show(cardPanel, "stock_panel");
-        setActiveButton(stockBtn);
-        currentPanelName = "Stock";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "stock_panel");
+            setActiveButton(stockBtn);
+            currentPanelName = "Stock";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Stock panel is for Admin only.");
+        }
     }
 
     private void showProductPanel() {
-        contentPanelLayout.show(cardPanel, "product_Panel");
-        setActiveButton(productBtn);
-        currentPanelName = "Product";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "product_Panel");
+            setActiveButton(productBtn);
+            currentPanelName = "Product";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Product panel is for Admin only.");
+        }
     }
 
     private void showReturnPanel() {
-        contentPanelLayout.show(cardPanel, "retuen_Panel");
-        setActiveButton(returnBtn);
-        currentPanelName = "Return";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "retuen_Panel");
+            setActiveButton(returnBtn);
+            currentPanelName = "Return";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Return panel is for Admin only.");
+        }
     }
 
     private void showChequePanel() {
-        contentPanelLayout.show(cardPanel, "cheque_Panel");
-        setActiveButton(chequeBtn);
-        currentPanelName = "Cheque";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "cheque_Panel");
+            setActiveButton(chequeBtn);
+            currentPanelName = "Cheque";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Cheque panel is for Admin only.");
+        }
     }
 
     private void showExpensePanel() {
-        contentPanelLayout.show(cardPanel, "Expense_Panel");
-        setActiveButton(expenseBtn);
-        currentPanelName = "Expense";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "Expense_Panel");
+            currentPanelName = "Expense";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Expense panel is for Admin only.");
+        }
     }
 
     private void showStockLossPanel() {
-        contentPanelLayout.show(cardPanel, "StockLoss_Panel");
-        setActiveButton(notificasionBtn1);
-        currentPanelName = "StockLoss";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "StockLoss_Panel");
+            setActiveButton(notificasionBtn1);
+            currentPanelName = "StockLoss";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Stock Loss panel is for Admin only.");
+        }
     }
 
     private void showsChartPanel() {
-        contentPanelLayout.show(cardPanel, "Chart_Panel");
-        setActiveButton(notificasionBtn2);
-        currentPanelName = "ChartPanel";
+        if (!roleName.equalsIgnoreCase("Cashier")) {
+            contentPanelLayout.show(cardPanel, "Chart_Panel");
+            setActiveButton(notificasionBtn2);
+            currentPanelName = "Charts";
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Charts panel is for Admin only.");
+        }
     }
 
     private void setupHoverButton(JButton button, FlatSVGIcon icon, Color normalTextColor, Color hoverTopColor, Color hoverBottomColor) {
@@ -1608,19 +1719,19 @@ public class HomeScreen extends JFrame {
     }
 
     private void setButtonTextVisible(boolean visible) {
-        dashboardBtn.setText(visible ? " Dashboard" : "");
-        posBtn.setText(visible ? " POS" : "");
-        supplierBtn.setText(visible ? " Supplier" : "");
-        salesBtn.setText(visible ? " Sales" : "");
-        creditBtn.setText(visible ? " Credit Customers" : "");
-        stockBtn.setText(visible ? " Stocks" : "");
-        notificasionBtn.setText(visible ? " Notification" : "");
-        returnBtn.setText(visible ? " Return" : "");
-        productBtn.setText(visible ? " Product" : "");
-        chequeBtn.setText(visible ? " Cheque" : "");
-        expenseBtn.setText(visible ? " Expense" : "");
-        notificasionBtn1.setText(visible ? " Stock Loss" : ""); // Stock Loss
-        notificasionBtn2.setText(visible ? " Chart Panel" : ""); // Chart Panel
+        // Only set text for visible buttons
+        if (dashboardBtn.isVisible()) dashboardBtn.setText(visible ? " Dashboard" : "");
+        if (posBtn.isVisible()) posBtn.setText(visible ? " POS" : "");
+        if (supplierBtn.isVisible()) supplierBtn.setText(visible ? " Supplier" : "");
+        if (salesBtn.isVisible()) salesBtn.setText(visible ? " Sales" : "");
+        if (creditBtn.isVisible()) creditBtn.setText(visible ? " Credit Customers" : "");
+        if (stockBtn.isVisible()) stockBtn.setText(visible ? " Stocks" : "");
+        if (notificasionBtn.isVisible()) notificasionBtn.setText(visible ? " Notification" : "");
+        if (returnBtn.isVisible()) returnBtn.setText(visible ? " Return" : "");
+        if (productBtn.isVisible()) productBtn.setText(visible ? " Product" : "");
+        if (chequeBtn.isVisible()) chequeBtn.setText(visible ? " Cheque" : "");
+        if (notificasionBtn1.isVisible()) notificasionBtn1.setText(visible ? " Stock Loss" : "");
+        if (notificasionBtn2.isVisible()) notificasionBtn2.setText(visible ? " Charts" : "");
         signOutBtn.setText(visible ? " Sign Out" : "");
     }
 
@@ -1691,6 +1802,11 @@ public class HomeScreen extends JFrame {
 
         profilePopup.add(addUserItem);
         profilePopup.add(editProfileItem);
+
+        // Apply role-based access to profile menu
+        if (roleName.equalsIgnoreCase("Cashier")) {
+            addUserItem.setVisible(false);
+        }
 
         profilePopup.addPopupMenuListener(new PopupMenuListener() {
             @Override
@@ -1872,6 +1988,11 @@ public class HomeScreen extends JFrame {
     }
 
     private void addNewUser() {
+        if (roleName.equalsIgnoreCase("Cashier")) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Adding new users is for Admin only.");
+            return;
+        }
+        
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         AddNewUser dialog = new AddNewUser(parentFrame, true);
         dialog.setLocationRelativeTo(parentFrame);
@@ -1890,7 +2011,6 @@ public class HomeScreen extends JFrame {
             profilePopup.setVisible(false);
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1916,7 +2036,6 @@ public class HomeScreen extends JFrame {
         notificasionBtn = new javax.swing.JButton();
         returnBtn = new javax.swing.JButton();
         productBtn = new javax.swing.JButton();
-        expenseBtn = new javax.swing.JButton();
         chequeBtn = new javax.swing.JButton();
         notificasionBtn1 = new javax.swing.JButton();
         notificasionBtn2 = new javax.swing.JButton();
@@ -2194,20 +2313,6 @@ public class HomeScreen extends JFrame {
             }
         });
 
-        expenseBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        expenseBtn.setText(" Expense");
-        expenseBtn.setBorder(null);
-        expenseBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        expenseBtn.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
-        expenseBtn.setIconTextGap(3);
-        expenseBtn.setMargin(new java.awt.Insets(2, 14, 10, 14));
-        expenseBtn.setPreferredSize(new java.awt.Dimension(75, 40));
-        expenseBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                expenseBtnActionPerformed(evt);
-            }
-        });
-
         chequeBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         chequeBtn.setText(" Cheque");
         chequeBtn.setBorder(null);
@@ -2237,7 +2342,7 @@ public class HomeScreen extends JFrame {
         });
 
         notificasionBtn2.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
-        notificasionBtn2.setText(" ChartPanel");
+        notificasionBtn2.setText(" Charts");
         notificasionBtn2.setBorder(null);
         notificasionBtn2.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         notificasionBtn2.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
@@ -2265,7 +2370,6 @@ public class HomeScreen extends JFrame {
             .addComponent(returnBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(notificasionBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(chequeBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addComponent(expenseBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(sidePenalLayout.createSequentialGroup()
                 .addComponent(logo, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(24, Short.MAX_VALUE))
@@ -2297,12 +2401,10 @@ public class HomeScreen extends JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(returnBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(expenseBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(notificasionBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(notificasionBtn1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 26, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 78, Short.MAX_VALUE)
                 .addComponent(signOutBtn, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(17, 17, 17))
         );
@@ -2631,10 +2733,6 @@ public class HomeScreen extends JFrame {
         showProductPanel();
     }//GEN-LAST:event_productBtnActionPerformed
 
-    private void expenseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_expenseBtnActionPerformed
-        showExpensePanel();
-    }//GEN-LAST:event_expenseBtnActionPerformed
-
     private void chequeBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chequeBtnActionPerformed
         showChequePanel();
     }//GEN-LAST:event_chequeBtnActionPerformed
@@ -2677,7 +2775,6 @@ public class HomeScreen extends JFrame {
     private javax.swing.JButton chequeBtn;
     private javax.swing.JButton creditBtn;
     private javax.swing.JButton dashboardBtn;
-    private javax.swing.JButton expenseBtn;
     private javax.swing.JLabel helloLabel;
     private javax.swing.JButton keyBtn;
     private javax.swing.JLabel logo;

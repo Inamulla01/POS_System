@@ -83,11 +83,6 @@ public class UpdateCredit extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-        getRootPane().registerKeyboardAction(
-                evt -> openAddNewCustomer(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
 
         getRootPane().registerKeyboardAction(
                 evt -> dispose(),
@@ -415,18 +410,6 @@ public class UpdateCredit extends javax.swing.JDialog {
         creditIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
         creditPayBtn.setIcon(creditIcon);
 
-        // Setup add new customer button with the same style as add buttons
-        addNewCustomer.setBorderPainted(false);
-        addNewCustomer.setContentAreaFilled(false);
-        addNewCustomer.setFocusPainted(false);
-        addNewCustomer.setOpaque(false);
-        addNewCustomer.setFocusable(false);
-        addNewCustomer.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        FlatSVGIcon customerIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-        customerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewCustomer.setIcon(customerIcon);
-
         // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
         setupButtonFocusListeners();
@@ -552,20 +535,6 @@ public class UpdateCredit extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for addNewCustomer
-        addNewCustomer.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCustomer.setIcon(hoverIcon);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCustomer.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupButtonFocusListeners() {
@@ -641,20 +610,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for addNewCustomer
-        addNewCustomer.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCustomer.setIcon(focusedIcon);
-            }
 
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/addCustomer.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCustomer.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupTooltips() {
@@ -663,7 +619,7 @@ public class UpdateCredit extends javax.swing.JDialog {
         expriyDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 31122024 for 31/12/2024</html>");
         address.setToolTipText("Type credit amount and press ENTER to move to next field");
         creditPayBtn.setToolTipText("Click to open credit payment dialog (or press F1)");
-        addNewCustomer.setToolTipText("Click to add new customer (or press F2)");
+      
         updateBtn.setToolTipText("Click to update credit (or press ENTER when focused)");
         clearFormBtn.setToolTipText("Click to reload original data (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
@@ -1068,25 +1024,12 @@ public class UpdateCredit extends javax.swing.JDialog {
         }
     }
 
-    private void openAddNewCustomer() {
-        try {
-            
-            AddNewCustomer dialog = new AddNewCustomer(null, true);
-            dialog.setLocationRelativeTo(null);
-            dialog.setVisible(true);
-
-        } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening customer dialog: " + e.getMessage());
-        }
-    }
-
     // ---------------- FOCUS TRAVERSAL SETUP ----------------
     private void setupFocusTraversal() {
         try {
             // Remove add buttons from keyboard navigation
             creditPayBtn.setFocusable(false);
-            addNewCustomer.setFocusable(false);
+        
 
             // Make date editors focusable
             if (manufactureDate.getDateEditor() != null && manufactureDate.getDateEditor().getUiComponent() != null) {
@@ -1115,7 +1058,6 @@ public class UpdateCredit extends javax.swing.JDialog {
         manufactureDate = new com.toedter.calendar.JDateChooser();
         expriyDate = new com.toedter.calendar.JDateChooser();
         SupplierCombo = new javax.swing.JComboBox<>();
-        addNewCustomer = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Credit");
@@ -1230,21 +1172,6 @@ public class UpdateCredit extends javax.swing.JDialog {
             }
         });
 
-        addNewCustomer.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewCustomer.setForeground(new java.awt.Color(102, 102, 102));
-        addNewCustomer.setBorder(null);
-        addNewCustomer.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        addNewCustomer.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewCustomerActionPerformed(evt);
-            }
-        });
-        addNewCustomer.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewCustomerKeyPressed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -1253,25 +1180,25 @@ public class UpdateCredit extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 443, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
                         .addComponent(jLabel3)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(creditPayBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jSeparator3)
-                    .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 482, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 177, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                                .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(expriyDate, javax.swing.GroupLayout.PREFERRED_SIZE, 235, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 482, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 177, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(updateBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                    .addComponent(SupplierCombo, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(21, 21, 21))
         );
         jPanel2Layout.setVerticalGroup(
@@ -1284,11 +1211,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(11, 11, 11)
-                        .addComponent(addNewCustomer, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addComponent(SupplierCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(manufactureDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1409,16 +1332,6 @@ public class UpdateCredit extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_SupplierComboKeyPressed
 
-    private void addNewCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCustomerActionPerformed
-        openAddNewCustomer();
-    }//GEN-LAST:event_addNewCustomerActionPerformed
-
-    private void addNewCustomerKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCustomerKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F2) {
-            openAddNewCustomer();
-        }
-    }//GEN-LAST:event_addNewCustomerKeyPressed
-
     /**
      * @param args the command line arguments
      */
@@ -1463,7 +1376,6 @@ public class UpdateCredit extends javax.swing.JDialog {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JComboBox<String> SupplierCombo;
-    private javax.swing.JButton addNewCustomer;
     private javax.swing.JTextField address;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;

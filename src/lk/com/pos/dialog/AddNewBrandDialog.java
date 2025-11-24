@@ -23,6 +23,8 @@ import raven.toast.Notifications;
  */
 public class AddNewBrandDialog extends javax.swing.JDialog {
 
+    private String newBrandName;
+
     /**
      * Creates new form AddNewBrandDialog
      */
@@ -30,6 +32,10 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
         super(parent, modal);
         initComponents();
         initializeDialog();
+    }
+
+    public String getNewBrandName() {
+        return newBrandName;
     }
 
     private void initializeDialog() {
@@ -374,6 +380,7 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
     // ---------------- VALIDATION AND BUSINESS LOGIC ----------------
     private void clearFields() {
         brand.setText("");
+        newBrandName = null;
     }
 
     private boolean isBrandNameExists(String brandName) {
@@ -399,118 +406,132 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
         }
         return false;
     }
-private void saveBrand() {
-    String brandName = brand.getText().trim();
 
-    // Basic validation
-    if (brandName.isEmpty()) {
-        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                "Please enter brand name!");
-        brand.requestFocus();
-        return;
-    }
+    private void saveBrand() {
+        String brandName = brand.getText().trim();
 
-    // Check if brand name already exists
-    if (isBrandNameExists(brandName)) {
-        brand.requestFocus();
-        return;
-    }
+        // Basic validation
+        if (brandName.isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please enter brand name!");
+            brand.requestFocus();
+            return;
+        }
 
-    Connection conn = null;
-    PreparedStatement pstBrand = null;
-    PreparedStatement pstCheckMessage = null;
-    PreparedStatement pstInsertMessage = null;
-    PreparedStatement pstInsertNotification = null;
-    ResultSet rs = null;
+        // Check if brand name already exists
+        if (isBrandNameExists(brandName)) {
+            brand.requestFocus();
+            return;
+        }
 
-    try {
-        conn = MySQL.getConnection();
-        conn.setAutoCommit(false); // Start transaction
+        Connection conn = null;
+        PreparedStatement pstBrand = null;
+        PreparedStatement pstCheckMessage = null;
+        PreparedStatement pstInsertMessage = null;
+        PreparedStatement pstInsertNotification = null;
+        ResultSet rs = null;
 
-        // 1. Insert the new brand
-        String brandSql = "INSERT INTO brand (brand_name) VALUES (?)";
-        pstBrand = conn.prepareStatement(brandSql, PreparedStatement.RETURN_GENERATED_KEYS);
-        pstBrand.setString(1, brandName);
+        try {
+            conn = MySQL.getConnection();
+            conn.setAutoCommit(false); // Start transaction
 
-        int rowsAffected = pstBrand.executeUpdate();
+            // 1. Insert the new brand
+            String brandSql = "INSERT INTO brand (brand_name) VALUES (?)";
+            pstBrand = conn.prepareStatement(brandSql, PreparedStatement.RETURN_GENERATED_KEYS);
+            pstBrand.setString(1, brandName);
 
-        if (rowsAffected > 0) {
-            // 2. Check if message already exists in massage table
-            String messageText = "New brand added: " + brandName;
-            String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-            pstCheckMessage = conn.prepareStatement(checkMessageSql);
-            pstCheckMessage.setString(1, messageText);
-            rs = pstCheckMessage.executeQuery();
+            int rowsAffected = pstBrand.executeUpdate();
 
-            int messageId;
-            
-            if (rs.next()) {
-                // Message already exists, get the existing massage_id
-                messageId = rs.getInt("massage_id");
-            } else {
-                // Message doesn't exist, insert new message
-                String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstInsertMessage.setString(1, messageText);
-                pstInsertMessage.executeUpdate();
-                
-                // Get the generated message ID
-                ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    messageId = generatedKeys.getInt(1);
+            if (rowsAffected > 0) {
+                // 2. Check if message already exists in massage table
+                String messageText = "New brand added: " + brandName;
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstCheckMessage = conn.prepareStatement(checkMessageSql);
+                pstCheckMessage.setString(1, messageText);
+                rs = pstCheckMessage.executeQuery();
+
+                int messageId;
+
+                if (rs.next()) {
+                    // Message already exists, get the existing massage_id
+                    messageId = rs.getInt("massage_id");
                 } else {
-                    throw new Exception("Failed to get generated message ID");
+                    // Message doesn't exist, insert new message
+                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                    pstInsertMessage.setString(1, messageText);
+                    pstInsertMessage.executeUpdate();
+
+                    // Get the generated message ID
+                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        messageId = generatedKeys.getInt(1);
+                    } else {
+                        throw new Exception("Failed to get generated message ID");
+                    }
+                    generatedKeys.close();
                 }
-                generatedKeys.close();
-            }
 
-            // 3. Insert notification (msg_type_id 24 for "Add New Brand")
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 24, ?)";
-            pstInsertNotification = conn.prepareStatement(notificationSql);
-            pstInsertNotification.setInt(1, messageId);
-            pstInsertNotification.executeUpdate();
+                // 3. Insert notification (msg_type_id 24 for "Add New Brand")
+                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 24, ?)";
+                pstInsertNotification = conn.prepareStatement(notificationSql);
+                pstInsertNotification.setInt(1, messageId);
+                pstInsertNotification.executeUpdate();
 
-            // Commit transaction
-            conn.commit();
+                // Commit transaction
+                conn.commit();
 
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Brand added successfully!");
-            clearFields();
-            this.dispose(); // Close the dialog after successful save
-        } else {
-            conn.rollback();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Failed to add brand!");
-        }
+                // Store the new brand name for the parent dialog
+                newBrandName = brandName;
 
-    } catch (Exception e) {
-        try {
-            if (conn != null) {
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Brand added successfully!");
+                dispose(); // Close the dialog after successful save
+            } else {
                 conn.rollback();
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to add brand!");
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        e.printStackTrace();
-        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                "Database error: " + e.getMessage());
-    } finally {
-        // Close all resources
-        try {
-            if (rs != null) rs.close();
-            if (pstBrand != null) pstBrand.close();
-            if (pstCheckMessage != null) pstCheckMessage.close();
-            if (pstInsertMessage != null) pstInsertMessage.close();
-            if (pstInsertNotification != null) pstInsertNotification.close();
-            if (conn != null) {
-                conn.setAutoCommit(true);
-                conn.close();
-            }
+
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
             e.printStackTrace();
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Database error: " + e.getMessage());
+        } finally {
+            // Close all resources
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (pstBrand != null) {
+                    pstBrand.close();
+                }
+                if (pstCheckMessage != null) {
+                    pstCheckMessage.close();
+                }
+                if (pstInsertMessage != null) {
+                    pstInsertMessage.close();
+                }
+                if (pstInsertNotification != null) {
+                    pstInsertNotification.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
-}
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -564,7 +585,6 @@ private void saveBrand() {
         });
 
         brand.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
-        brand.setText("Colombo 8");
         brand.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Brand Name  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
         brand.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {

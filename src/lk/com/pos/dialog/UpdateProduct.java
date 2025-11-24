@@ -254,27 +254,6 @@ public class UpdateProduct extends javax.swing.JDialog {
             }
         });
 
-        // Add F1 and F2 shortcuts for adding category and brand
-        getRootPane().registerKeyboardAction(
-                new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                openAddNewCategory();
-            }
-        },
-                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
-        getRootPane().registerKeyboardAction(
-                new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                openAddNewBrand();
-            }
-        },
-                KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0),
-                JComponent.WHEN_IN_FOCUSED_WINDOW
-        );
-
         // Add F3 and F4 shortcuts for barcode operations
         getRootPane().registerKeyboardAction(
                 new java.awt.event.ActionListener() {
@@ -311,8 +290,6 @@ public class UpdateProduct extends javax.swing.JDialog {
         categoryCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to brand<br>Press <b>F1</b> to add new category</html>");
         brandCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to barcode<br>Press <b>F2</b> to add new brand</html>");
         barcodeInput.setToolTipText("<html>Type barcode and press ENTER to move to buttons<br>Press <b>F3</b> to generate barcode<br>Press <b>F4</b> to print barcode</html>");
-        addNewCategory.setToolTipText("Click to add new category (or press F1)");
-        addNewBrand.setToolTipText("Click to add new brand (or press F2)");
         genarateBarecode.setToolTipText("Click to generate barcode (or press F3)");
         printBarcode.setToolTipText("Click to print barcode (or press F4)");
 
@@ -385,17 +362,6 @@ public class UpdateProduct extends javax.swing.JDialog {
     }
 
     private void setupButtonStyles() {
-        addNewCategory.setBorderPainted(false);
-        addNewCategory.setContentAreaFilled(false);
-        addNewCategory.setFocusPainted(false);
-        addNewCategory.setOpaque(false);
-        addNewCategory.setFocusable(false);
-
-        addNewBrand.setBorderPainted(false);
-        addNewBrand.setContentAreaFilled(false);
-        addNewBrand.setFocusPainted(false);
-        addNewBrand.setOpaque(false);
-        addNewBrand.setFocusable(false);
 
         genarateBarecode.setBorderPainted(false);
         genarateBarecode.setContentAreaFilled(false);
@@ -408,14 +374,6 @@ public class UpdateProduct extends javax.swing.JDialog {
         printBarcode.setFocusPainted(false);
         printBarcode.setOpaque(false);
         printBarcode.setFocusable(false);
-
-        FlatSVGIcon categoryIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
-        categoryIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewCategory.setIcon(categoryIcon);
-
-        FlatSVGIcon brandIcon = new FlatSVGIcon("lk/com/pos/icon/add-brand.svg", 25, 25);
-        brandIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        addNewBrand.setIcon(brandIcon);
 
         FlatSVGIcon barcodeIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 25, 25);
         barcodeIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
@@ -497,34 +455,6 @@ public class UpdateProduct extends javax.swing.JDialog {
                 normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
                 cancelBtn.setIcon(normalIcon);
                 cancelBtn.repaint();
-            }
-        });
-
-        addNewCategory.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewCategory.setIcon(hoverIcon);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/category.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewCategory.setIcon(normalIcon);
-            }
-        });
-
-        addNewBrand.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add-brand.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                addNewBrand.setIcon(hoverIcon);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add-brand.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                addNewBrand.setIcon(normalIcon);
             }
         });
 
@@ -1041,42 +971,6 @@ public class UpdateProduct extends javax.swing.JDialog {
         });
     }
 
-    private void openAddNewCategory() {
-        try {
-
-            AddNewCategoryDialog dialog = new AddNewCategoryDialog(null, true);
-            dialog.setLocationRelativeTo(null);
-            dialog.setVisible(true);
-            loadCategoryCombo();
-
-            // Set focus back to category combo after adding new category
-            SwingUtilities.invokeLater(() -> {
-                categoryCombo.requestFocusInWindow();
-            });
-        } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening category dialog: " + e.getMessage());
-        }
-    }
-
-    private void openAddNewBrand() {
-        try {
-           
-            AddNewBrandDialog dialog = new AddNewBrandDialog(null, true);
-            dialog.setLocationRelativeTo(null);
-            dialog.setVisible(true);
-            loadBrandCombo();
-
-            // Set focus back to brand combo after adding new brand
-            SwingUtilities.invokeLater(() -> {
-                brandCombo.requestFocusInWindow();
-            });
-        } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening brand dialog: " + e.getMessage());
-        }
-    }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1093,8 +987,6 @@ public class UpdateProduct extends javax.swing.JDialog {
         printBarcode = new javax.swing.JButton();
         genarateBarecode = new javax.swing.JButton();
         productInput = new javax.swing.JTextField();
-        addNewCategory = new javax.swing.JButton();
-        addNewBrand = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
 
@@ -1225,30 +1117,6 @@ public class UpdateProduct extends javax.swing.JDialog {
             }
         });
 
-        addNewCategory.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewCategory.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewCategoryActionPerformed(evt);
-            }
-        });
-        addNewCategory.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewCategoryKeyPressed(evt);
-            }
-        });
-
-        addNewBrand.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
-        addNewBrand.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                addNewBrandActionPerformed(evt);
-            }
-        });
-        addNewBrand.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                addNewBrandKeyPressed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
@@ -1268,13 +1136,9 @@ public class UpdateProduct extends javax.swing.JDialog {
                         .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                 .addGroup(jPanel3Layout.createSequentialGroup()
-                                    .addComponent(categoryCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 211, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(categoryCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 243, javax.swing.GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(addNewCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 26, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(brandCombo, 0, 230, Short.MAX_VALUE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(addNewBrand, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(brandCombo, 0, 263, Short.MAX_VALUE))
                                 .addComponent(jSeparator3)
                                 .addComponent(jLabel3)
                                 .addComponent(productInput))
@@ -1297,12 +1161,8 @@ public class UpdateProduct extends javax.swing.JDialog {
                 .addComponent(productInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addGap(8, 8, 8)
-                        .addComponent(addNewCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(categoryCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(brandCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(addNewBrand, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(brandCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(barcodeInput, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -1537,30 +1397,6 @@ public class UpdateProduct extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_productInputKeyPressed
 
-    private void addNewCategoryActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCategoryActionPerformed
-        openAddNewCategory();
-    }//GEN-LAST:event_addNewCategoryActionPerformed
-
-    private void addNewCategoryKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewCategoryKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            addNewCategoryActionPerformed(null);
-        } else {
-            handleArrowNavigation(evt, addNewCategory);
-        }
-    }//GEN-LAST:event_addNewCategoryKeyPressed
-
-    private void addNewBrandActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewBrandActionPerformed
-        openAddNewBrand();
-    }//GEN-LAST:event_addNewBrandActionPerformed
-
-    private void addNewBrandKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_addNewBrandKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            addNewBrandActionPerformed(null); // FIXED: was calling addNewCategoryActionPerformed
-        } else {
-            handleArrowNavigation(evt, addNewBrand); // FIXED: was calling addNewCategory
-        }
-    }//GEN-LAST:event_addNewBrandKeyPressed
-
     /**
      * @param args the command line arguments
      */
@@ -1604,8 +1440,6 @@ public class UpdateProduct extends javax.swing.JDialog {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton addNewBrand;
-    private javax.swing.JButton addNewCategory;
     private javax.swing.JTextField barcodeInput;
     private javax.swing.JComboBox<String> brandCombo;
     private javax.swing.JButton cancelBtn;

@@ -86,17 +86,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(cancelIcon);
 
-        // Setup credit button with the same style as add buttons
-        creditBtn.setBorderPainted(false);
-        creditBtn.setContentAreaFilled(false);
-        creditBtn.setFocusPainted(false);
-        creditBtn.setOpaque(false);
-        creditBtn.setFocusable(true);
-        creditBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        FlatSVGIcon creditIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-        creditIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-        creditBtn.setIcon(creditIcon);
 
         // Setup mouse listeners for all buttons
         setupButtonMouseListeners();
@@ -208,20 +197,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
             }
         });
 
-        // Mouse listeners for creditBtn (same as add buttons style)
-        creditBtn.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                creditBtn.setIcon(hoverIcon);
-            }
-
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                creditBtn.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupButtonFocusListeners() {
@@ -282,20 +257,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
             }
         });
 
-        // Focus listeners for creditBtn (same as add buttons style)
-        creditBtn.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                creditBtn.setIcon(focusedIcon);
-            }
 
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/credit-add.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
-                creditBtn.setIcon(normalIcon);
-            }
-        });
     }
 
     private void setupTooltips() {
@@ -306,7 +268,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
         saveBtn.setToolTipText("Click to update customer (or press ENTER when focused)");
         clearFormBtn.setToolTipText("Click to clear form (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
-        creditBtn.setToolTipText("Credit payment functions (or press F1)");
+
     }
 
     // ---------------- VALIDATION AND BUSINESS LOGIC ----------------
@@ -533,28 +495,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
             }
         });
 
-        // Credit button keyboard navigation
-        creditBtn.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-                    openCreditPayment();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    nic.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-                    name.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    saveBtn.requestFocus();
-                    evt.consume();
-                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    name.requestFocus();
-                    evt.consume();
-                }
-            }
-        });
+        
 
         // Set up Escape key to close dialog
         getRootPane().registerKeyboardAction(
@@ -825,7 +766,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
         cancelBtn = new javax.swing.JButton();
         clearFormBtn = new javax.swing.JButton();
         saveBtn = new javax.swing.JButton();
-        creditBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Edit Customer");
@@ -914,20 +854,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
             }
         });
 
-        creditBtn.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
-        creditBtn.setForeground(new java.awt.Color(8, 147, 176));
-        creditBtn.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
-        creditBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                creditBtnActionPerformed(evt);
-            }
-        });
-        creditBtn.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                creditBtnKeyPressed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -935,16 +861,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(21, 21, 21)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jLabel)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(creditBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jSeparator)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(name, javax.swing.GroupLayout.PREFERRED_SIZE, 227, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(phoneNo, javax.swing.GroupLayout.PREFERRED_SIZE, 228, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE))
                     .addComponent(address, javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                         .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -952,16 +869,22 @@ public class UpdateCustomer extends javax.swing.JDialog {
                         .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 153, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(saveBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addComponent(nic))
+                    .addComponent(nic)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel)
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(name, javax.swing.GroupLayout.PREFERRED_SIZE, 227, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(phoneNo, javax.swing.GroupLayout.PREFERRED_SIZE, 228, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addGap(21, 21, 21))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(24, 24, 24)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(creditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(jLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jSeparator, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -1040,16 +963,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_saveBtnKeyPressed
 
-    private void creditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_creditBtnActionPerformed
-        openCreditPayment();
-    }//GEN-LAST:event_creditBtnActionPerformed
-
-    private void creditBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_creditBtnKeyPressed
-        if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_F1) {
-            openCreditPayment();
-        }
-    }//GEN-LAST:event_creditBtnKeyPressed
-
     /**
      * @param args the command line arguments
      */
@@ -1096,7 +1009,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
     private javax.swing.JTextField address;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
-    private javax.swing.JButton creditBtn;
     private javax.swing.JLabel jLabel;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JSeparator jSeparator;

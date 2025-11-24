@@ -12,6 +12,8 @@ import java.awt.RenderingHints;
 import lk.com.pos.connection.MySQL;
 
 import java.awt.event.KeyEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -28,6 +30,7 @@ public class CardPayDialog extends javax.swing.JDialog {
 
     private Integer generatedCardPaymentId = null;
     private Integer salesId = null; // Add this field to store sales ID
+    private boolean isCardPaymentSaved = false;
 
     /**
      * Creates new form CardPayDialog
@@ -41,6 +44,7 @@ public class CardPayDialog extends javax.swing.JDialog {
 
     /**
      * Get the generated card payment ID after saving
+     *
      * @return the card_payment_id or null if not saved
      */
     public Integer getGeneratedCardPaymentId() {
@@ -58,6 +62,7 @@ public class CardPayDialog extends javax.swing.JDialog {
         getRootPane().registerKeyboardAction(
                 new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
+                deleteSalesIfNotSaved();
                 dispose();
             }
         },
@@ -70,10 +75,80 @@ public class CardPayDialog extends javax.swing.JDialog {
 
         // Set focus to code input when dialog opens
         codeInput.requestFocusInWindow();
-        
+
         // Update title to show sales ID if available
         if (salesId != null) {
             setTitle("Add Card Payment - Sales #" + salesId);
+        }
+    }
+
+    private void deleteSalesIfNotSaved() {
+        if (salesId != null && salesId != -1 && !isCardPaymentSaved) {
+            // Only delete if salesId exists and card payment was not saved
+            Connection conn = null;
+            PreparedStatement pst = null;
+
+            try {
+                conn = MySQL.getConnection();
+                conn.setAutoCommit(false); // Start transaction
+
+                // First delete related records to maintain referential integrity
+                String[] deleteQueries = {
+                    "DELETE FROM sale_item WHERE sales_id = ?",
+                    "DELETE FROM card_pay WHERE sales_id = ?",
+                    "DELETE FROM cheque WHERE sales_id = ?",
+                    "DELETE FROM return WHERE sales_id = ?",
+                    "DELETE FROM stock_loss WHERE sales_id = ?",
+                    "DELETE FROM sales WHERE sales_id = ?"
+                };
+
+                boolean success = true;
+                for (String query : deleteQueries) {
+                    try {
+                        pst = conn.prepareStatement(query);
+                        pst.setInt(1, salesId);
+                        int affectedRows = pst.executeUpdate();
+                        pst.close();
+                        System.out.println("Query executed: " + query + " - Affected rows: " + affectedRows);
+                    } catch (Exception e) {
+                        // Log but continue with next query
+                        System.err.println("Error executing query: " + query + " - " + e.getMessage());
+                        success = false;
+                        break;
+                    }
+                }
+
+                if (success) {
+                    conn.commit();
+                    System.out.println("Sales record and related data deleted for sales_id: " + salesId);
+                } else {
+                    conn.rollback();
+                    System.err.println("Failed to delete sales record, transaction rolled back");
+                }
+
+            } catch (Exception e) {
+                try {
+                    if (conn != null) {
+                        conn.rollback();
+                    }
+                } catch (Exception rollbackEx) {
+                    rollbackEx.printStackTrace();
+                }
+                System.err.println("Error deleting sales record: " + e.getMessage());
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (pst != null) {
+                        pst.close();
+                    }
+                    if (conn != null) {
+                        conn.setAutoCommit(true);
+                        conn.close();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -465,18 +540,19 @@ public class CardPayDialog extends javax.swing.JDialog {
             ResultSet rs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as card_pay_id");
             if (rs.next()) {
                 generatedCardPaymentId = rs.getInt("card_pay_id");
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, 
+                isCardPaymentSaved = true; // Mark as saved
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                         "Card payment saved successfully! ID: " + generatedCardPaymentId);
-                
+
                 // Close the dialog after successful save
                 this.dispose();
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, 
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Error retrieving generated card payment ID");
             }
 
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, 
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving card payment: " + e.getMessage());
             e.printStackTrace();
         }
@@ -486,6 +562,13 @@ public class CardPayDialog extends javax.swing.JDialog {
         codeInput.setText("");
         generatedCardPaymentId = null;
         codeInput.requestFocus();
+    }
+
+    // Override dispose to handle sales deletion when dialog is closed
+    @Override
+    public void dispose() {
+        deleteSalesIfNotSaved();
+        super.dispose();
     }
 
     @SuppressWarnings("unchecked")
@@ -646,13 +729,16 @@ public class CardPayDialog extends javax.swing.JDialog {
     }//GEN-LAST:event_clearFormBtnKeyPressed
 
     private void cancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelBtnActionPerformed
+        deleteSalesIfNotSaved();
         this.dispose();
     }//GEN-LAST:event_cancelBtnActionPerformed
 
     private void cancelBtnKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cancelBtnKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            deleteSalesIfNotSaved();
             this.dispose();
         } else if (evt.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            deleteSalesIfNotSaved();
             this.dispose();
         } else {
             handleArrowNavigation(evt, cancelBtn);
@@ -660,7 +746,7 @@ public class CardPayDialog extends javax.swing.JDialog {
     }//GEN-LAST:event_cancelBtnKeyPressed
 
     private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed
-            saveCardPayment();
+        saveCardPayment();
 
     }//GEN-LAST:event_saveBtnActionPerformed
 
@@ -702,7 +788,7 @@ public class CardPayDialog extends javax.swing.JDialog {
         /* Create and display the dialog */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                CardPayDialog dialog = new CardPayDialog(new javax.swing.JFrame(), true,1);
+                CardPayDialog dialog = new CardPayDialog(new javax.swing.JFrame(), true, 1);
                 dialog.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosing(java.awt.event.WindowEvent e) {

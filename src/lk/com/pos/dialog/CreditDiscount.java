@@ -20,7 +20,7 @@ import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JOptionPane;
+import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import lk.com.pos.connection.MySQL;
@@ -41,6 +41,7 @@ public class CreditDiscount extends javax.swing.JDialog {
     private double totalPaid = 0.0;
     private double dueAmount = 0.0;
     private Date latestDueDate = null;
+    private int newlyAddedCustomerId = -1; // Track newly added customer
 
     // Default constructor
     public CreditDiscount(java.awt.Frame parent, boolean modal) {
@@ -640,7 +641,7 @@ public class CreditDiscount extends javax.swing.JDialog {
 
             int count = 0;
             int preSelectedIndex = -1;
-            
+
             while (rs.next()) {
                 int customerId = rs.getInt("customer_id");
                 String customerName = rs.getString("customer_name");
@@ -675,12 +676,12 @@ public class CreditDiscount extends javax.swing.JDialog {
                 customers.add(displayText);
                 customerIdMap.put(displayText, customerId);
                 customerDisplayMap.put(customerId, displayText);
-                
+
                 // Check if this is the customer we need to pre-select
                 if (this.customerId != -1 && customerId == this.customerId) {
                     preSelectedIndex = count + 1; // +1 because of "Select Customer" at index 0
                 }
-                
+
                 count++;
             }
 
@@ -691,9 +692,25 @@ public class CreditDiscount extends javax.swing.JDialog {
             if (preSelectedIndex != -1) {
                 comboCustomer3.setSelectedIndex(preSelectedIndex);
                 System.out.println("Pre-selected customer with ID: " + this.customerId);
-                
+
                 // Load credit details for pre-selected customer
                 loadCustomerCreditDetails(this.customerId);
+            }
+
+            // Auto-select newly added customer if available
+            if (newlyAddedCustomerId != -1 && customerDisplayMap.containsKey(newlyAddedCustomerId)) {
+                String displayText = customerDisplayMap.get(newlyAddedCustomerId);
+                for (int i = 0; i < comboCustomer3.getItemCount(); i++) {
+                    if (displayText.equals(comboCustomer3.getItemAt(i))) {
+                        comboCustomer3.setSelectedIndex(i);
+                        loadCustomerCreditDetails(newlyAddedCustomerId);
+                        System.out.println("Auto-selected newly added customer: " + displayText);
+
+                        // Reset the flag
+                        newlyAddedCustomerId = -1;
+                        break;
+                    }
+                }
             }
 
             System.out.println("Successfully loaded " + count + " customers");
@@ -979,7 +996,7 @@ public class CreditDiscount extends javax.swing.JDialog {
 
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
             pstNotification.setInt(2, 11); // Credit discount message type
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
@@ -1012,17 +1029,23 @@ public class CreditDiscount extends javax.swing.JDialog {
 
     private void openAddNewCustomer() {
         try {
-            AddNewCustomer dialog = new AddNewCustomer(null, true);
-            dialog.setLocationRelativeTo(null);
+            AddNewCustomer dialog = new AddNewCustomer((JFrame) getParent(), true);
+            dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
 
             if (dialog.isCustomerSaved()) {
+                // Store the new customer ID
+                newlyAddedCustomerId = dialog.getSavedCustomerId();
+
+                // Refresh the customer combo box
                 loadCustomerCombo();
+
                 comboCustomer3.requestFocus();
             }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening customer dialog: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -1039,6 +1062,7 @@ public class CreditDiscount extends javax.swing.JDialog {
             loadCustomerCreditDetails(customerId);
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1137,7 +1161,7 @@ public class CreditDiscount extends javax.swing.JDialog {
 
         btnUpdate.setFont(new java.awt.Font("Nunito SemiBold", 1, 16)); // NOI18N
         btnUpdate.setForeground(new java.awt.Color(8, 147, 176));
-        btnUpdate.setText("Update");
+        btnUpdate.setText("Save");
         btnUpdate.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(8, 147, 176), 2));
         btnUpdate.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -1277,11 +1301,11 @@ public class CreditDiscount extends javax.swing.JDialog {
 
     private void comboCustomer3KeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_comboCustomer3KeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (comboCustomer.isPopupVisible()) {
-                comboCustomer.setPopupVisible(false);
+            if (comboCustomer3.isPopupVisible()) {
+                comboCustomer3.setPopupVisible(false);
             }
-            if (comboCustomer.getSelectedIndex() > 0) {
-                String selectedDisplayText = (String) comboCustomer.getSelectedItem();
+            if (comboCustomer3.getSelectedIndex() > 0) {
+                String selectedDisplayText = (String) comboCustomer3.getSelectedItem();
                 int selectedCustomerId = getCustomerId(selectedDisplayText);
                 if (selectedCustomerId != -1) {
                     loadCustomerCreditDetails(selectedCustomerId);
@@ -1290,17 +1314,17 @@ public class CreditDiscount extends javax.swing.JDialog {
             }
             evt.consume();
         } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
-            if (!comboCustomer.isPopupVisible()) {
-                comboCustomer.showPopup();
+            if (!comboCustomer3.isPopupVisible()) {
+                comboCustomer3.showPopup();
                 evt.consume();
             }
         } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-            if (!comboCustomer.isPopupVisible()) {
+            if (!comboCustomer3.isPopupVisible()) {
                 btnUpdate.requestFocusInWindow();
                 evt.consume();
             }
         } else {
-            handleArrowNavigation(evt, comboCustomer);
+            handleArrowNavigation(evt, comboCustomer3);
         }
     }//GEN-LAST:event_comboCustomer3KeyPressed
 
@@ -1409,10 +1433,6 @@ public class CreditDiscount extends javax.swing.JDialog {
     private javax.swing.JButton btnCancel;
     private javax.swing.JButton btnClear;
     private javax.swing.JButton btnUpdate;
-    private javax.swing.JButton cancelBtn;
-    private javax.swing.JComboBox<String> comboCustomer;
-    private javax.swing.JComboBox<String> comboCustomer1;
-    private javax.swing.JComboBox<String> comboCustomer2;
     private javax.swing.JComboBox<String> comboCustomer3;
     private javax.swing.JComboBox<String> diTypeCombo;
     private javax.swing.JTextField discountInput;

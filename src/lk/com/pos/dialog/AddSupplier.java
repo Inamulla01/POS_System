@@ -23,6 +23,9 @@ import raven.toast.Notifications;
  */
 public class AddSupplier extends javax.swing.JDialog {
 
+    private String newSupplierName;
+    private int newSupplierId;
+
     /**
      * Creates new form AddSupplier
      */
@@ -30,6 +33,19 @@ public class AddSupplier extends javax.swing.JDialog {
         super(parent, modal);
         initComponents();
         initializeDialog();
+    }
+
+    // Getters for the newly added supplier
+    public String getNewSupplierName() {
+        return newSupplierName;
+    }
+
+    public int getNewSupplierId() {
+        return newSupplierId;
+    }
+
+    public boolean isSupplierAdded() {
+        return newSupplierName != null;
     }
 
     private void initializeDialog() {
@@ -630,6 +646,15 @@ public class AddSupplier extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
+                // Get the newly inserted supplier ID
+                ResultSet newSupplierRs = MySQL.executeSearch("SELECT suppliers_id FROM suppliers WHERE suppliers_name = '"
+                        + supplierName + "' AND suppliers_reg_no = '" + regNo + "'");
+
+                if (newSupplierRs.next()) {
+                    newSupplierId = newSupplierRs.getInt("suppliers_id");
+                    newSupplierName = supplierName;
+                }
+
                 // Add notification for new supplier
                 addSupplierNotification(supplierName, mobile);
 
@@ -711,6 +736,7 @@ public class AddSupplier extends javax.swing.JDialog {
         }
         return 0;
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

@@ -573,7 +573,7 @@ public class AddSupplier extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent exception handling
         }
         return false;
     }
@@ -595,7 +595,7 @@ public class AddSupplier extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent exception handling
         }
         return false;
     }
@@ -670,7 +670,6 @@ public class AddSupplier extends javax.swing.JDialog {
             pst.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error: " + e.getMessage());
         }
@@ -719,8 +718,7 @@ public class AddSupplier extends javax.swing.JDialog {
             MySQL.executeIUD(insertNotificationQuery);
 
         } catch (Exception e) {
-            System.err.println("Error creating supplier notification: " + e.getMessage());
-            e.printStackTrace();
+            // Silent exception handling for notification
         }
     }
 
@@ -732,11 +730,10 @@ public class AddSupplier extends javax.swing.JDialog {
                 return rs.getInt("max_id");
             }
         } catch (Exception e) {
-            System.err.println("Error getting max message ID: " + e.getMessage());
+            // Silent exception handling for max ID retrieval
         }
         return 0;
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

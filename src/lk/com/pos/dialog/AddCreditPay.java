@@ -603,15 +603,6 @@ public class AddCreditPay extends javax.swing.JDialog {
                 customerIdMap.put(displayText, customerId);
                 customerRemainingAmountMap.put(displayText, remaining);
                 count++;
-
-                // Debug output
-                System.out.println("Loaded customer: " + customerName + " | Credit: " + totalCredit
-                        + " | Paid: " + totalPaid + " | Remaining: " + remaining
-                        + " | Discount: " + discount + " | Type: " + discountType);
-            }
-
-            if (count == 0) {
-                System.out.println("No customers with due amount found");
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
@@ -619,7 +610,6 @@ public class AddCreditPay extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -654,23 +644,18 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
 
             updateDiscountLabel();
-            System.out.println("Discount loaded: " + discountValue + " | Type: " + discountType);
 
             rs.close();
             pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading discount: " + e.getMessage());
-            e.printStackTrace();
-
         }
     }
 
     private void updateDiscountLabel() {
-
         String discountText = String.format("Discount: %.2f%% (Rs. %.2f) | Payable: Rs. %.2f",
                 discountPercentage, discountAmount, remainingAmount);
-
     }
 
     private void loadCustomerInfo() {
@@ -721,11 +706,6 @@ public class AddCreditPay extends javax.swing.JDialog {
                 }
 
                 updateRemainingAmountLabel();
-
-                // Debug output
-                System.out.println("Customer Info - " + customerName + " | Credit: " + totalCredit
-                        + " | Paid: " + totalPaid + " | Original Remaining: " + originalRemainingAmount
-                        + " | After Discount: " + remainingAmount);
             }
 
             rs.close();
@@ -733,12 +713,10 @@ public class AddCreditPay extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customer info: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
     private void updateRemainingAmountLabel() {
-
         String tooltipText = "Type payment amount (max: " + remainingAmount + ") and press ENTER to move to next field";
         if (hasDiscount) {
             tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
@@ -753,7 +731,6 @@ public class AddCreditPay extends javax.swing.JDialog {
             originalRemainingAmount = 0.0;
             hasDiscount = false;
             updateRemainingAmountLabel();
-
             return;
         }
 
@@ -837,16 +814,6 @@ public class AddCreditPay extends javax.swing.JDialog {
             amountField.requestFocus();
             return false;
         }
-
-        // Enhanced debug information
-        System.out.println("=== VALIDATION DEBUG ===");
-        System.out.println("Payment Amount: " + amount);
-        System.out.println("Remaining Amount: " + remainingAmount);
-        System.out.println("Original Remaining Amount: " + originalRemainingAmount);
-        System.out.println("Has Discount: " + hasDiscount);
-        System.out.println("Discount Amount: " + discountAmount);
-        System.out.println("Discount Percentage: " + discountPercentage);
-        System.out.println("========================");
 
         if (amount > remainingAmount) {
             String message = String.format("Payment amount (%.2f) cannot exceed remaining amount: %.2f", amount, remainingAmount);
@@ -951,10 +918,9 @@ public class AddCreditPay extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Rollback exception ignored
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit payment: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             try {
                 if (pst != null) {
@@ -965,7 +931,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Closing resources exception ignored
             }
             isSaving = false;
         }
@@ -1028,11 +994,8 @@ public class AddCreditPay extends javax.swing.JDialog {
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("Credit payment notification created successfully for customer: " + customerName);
-
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Failed to create credit payment notification: " + e.getMessage());
+            // Error handled silently as notification creation is not critical
         } finally {
             try {
                 if (pstCustomerInfo != null) {
@@ -1045,7 +1008,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Closing resources exception ignored
             }
         }
     }
@@ -1075,7 +1038,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                 paymentDate.getDateEditor().getUiComponent().setFocusable(true);
             }
         } catch (Exception e) {
-            System.err.println("Error in focus traversal setup: " + e.getMessage());
+            // Focus traversal setup error handled silently
         }
     }
 

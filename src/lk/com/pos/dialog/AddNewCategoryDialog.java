@@ -15,7 +15,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import javax.swing.*;
-import raven.toast.Notifications;
+// import raven.toast.Notifications; // Removed import
 
 /**
  *
@@ -392,17 +392,13 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
             ResultSet rs = pst.executeQuery();
 
             if (rs.next() && rs.getInt(1) > 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Category name already exists!");
                 return true;
             }
 
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Database error: " + e.getMessage());
+            // Exception handling without printing
         }
         return false;
     }
@@ -412,8 +408,6 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
 
         // Basic validation
         if (categoryName.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter category name!");
             category.requestFocus();
             return;
         }
@@ -484,13 +478,9 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
                 // Store the new category name for the parent dialog
                 newCategoryName = categoryName;
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Category added successfully!");
                 dispose(); // Close the dialog after successful save
             } else {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to add category!");
             }
 
         } catch (Exception e) {
@@ -499,11 +489,9 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception ex) {
-                ex.printStackTrace();
+                // Exception handling without printing
             }
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Database error: " + e.getMessage());
+            // Exception handling without printing
         } finally {
             // Close all resources
             try {
@@ -517,7 +505,7 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Exception handling without printing
             }
         }
     }

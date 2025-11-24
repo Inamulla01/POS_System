@@ -564,7 +564,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
             newForwardKeys.add(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0));
             cancelBtn.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, newForwardKeys);
         } catch (Exception e) {
-            System.err.println("Error in focus traversal setup: " + e.getMessage());
+            // Silent exception handling for focus traversal
         }
     }
 
@@ -620,9 +620,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            // Don't throw exception here - we don't want notification failure to affect stock loss recording
-            System.err.println("Failed to create stock loss notification: " + e.getMessage());
+            // Silent exception handling for notification
         } finally {
             // Close resources
             try {
@@ -633,7 +631,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent exception handling for resource cleanup
             }
         }
     }
@@ -824,7 +822,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                         conn.rollback();
                     }
                 } catch (SQLException rollbackEx) {
-                    rollbackEx.printStackTrace();
+                    // Silent exception handling for rollback
                 }
 
                 // Check if it's a foreign key constraint violation
@@ -840,7 +838,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                         conn.setAutoCommit(true);
                     }
                 } catch (SQLException autoCommitEx) {
-                    autoCommitEx.printStackTrace();
+                    // Silent exception handling for auto-commit
                 }
             }
 
@@ -850,11 +848,9 @@ public class AddNewLossStock extends javax.swing.JDialog {
         } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error adding stock loss: " + e.getMessage());
-            e.printStackTrace();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             // Close connection if it was opened
             try {
@@ -862,7 +858,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                // Silent exception handling for connection close
             }
         }
     }
@@ -874,7 +870,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
             ResultSet rs = MySQL.executeSearch(query);
             return rs.next(); // Returns true if user exists
         } catch (SQLException e) {
-            e.printStackTrace();
             return false;
         }
     }
@@ -919,7 +914,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
         qty.setText("");
         loadStocks(); // Reload stocks to reflect updated quantities
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

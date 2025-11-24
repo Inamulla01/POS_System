@@ -42,6 +42,8 @@ public class CreditDiscount extends javax.swing.JDialog {
     private double dueAmount = 0.0;
     private Date latestDueDate = null;
     private int newlyAddedCustomerId = -1; // Track newly added customer
+    private int currentDiscountId = -1; // Track current discount ID for updates
+    private boolean isUpdateMode = false; // Track if we're in update mode
 
     // Default constructor
     public CreditDiscount(java.awt.Frame parent, boolean modal) {
@@ -126,9 +128,177 @@ public class CreditDiscount extends javax.swing.JDialog {
             int selectedCustomerId = getCustomerId(selectedDisplayText);
             if (selectedCustomerId != -1) {
                 loadCustomerCreditDetails(selectedCustomerId);
-                System.out.println("Customer selected via mouse: " + selectedDisplayText + " (ID: " + selectedCustomerId + ")");
+                checkExistingDiscount(selectedCustomerId);
             }
         }
+    }
+
+    // Add this method to check for existing discount
+    private void checkExistingDiscount(int customerId) {
+        try {
+            String sql = "SELECT cd.credit_discount_id, d.discount_id, d.discount, dt.discount_type "
+                    + "FROM credit_discount cd "
+                    + "JOIN discount d ON cd.discount_id = d.discount_id "
+                    + "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
+                    + "WHERE cd.credit_id = ? "
+                    + "ORDER BY cd.credit_discount_id DESC LIMIT 1";
+
+            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
+            pst.setInt(1, customerId);
+            ResultSet rs = pst.executeQuery();
+
+            if (rs.next()) {
+                // Customer has existing discount
+                currentDiscountId = rs.getInt("discount_id");
+                double discountValue = rs.getDouble("discount");
+                String discountType = rs.getString("discount_type");
+
+                // Load existing discount into form
+                diTypeCombo.setSelectedItem(discountType);
+                discountInput.setText(String.valueOf(discountValue));
+
+                // Change button text and icon to indicate update mode
+                btnUpdate.setText("Update Discount");
+                isUpdateMode = true;
+
+                // Change icon to update.svg
+                FlatSVGIcon updateIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                updateIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                btnUpdate.setIcon(updateIcon);
+
+                // Update hover and focus icons for update mode
+                updateButtonIconsForUpdateMode();
+
+                // Show info message
+                Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT,
+                        "Existing discount loaded. You can update it.");
+            } else {
+                // No existing discount
+                currentDiscountId = -1;
+                isUpdateMode = false;
+                btnUpdate.setText("Save");
+
+                // Reset to add icon
+                FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                btnUpdate.setIcon(addIcon);
+
+                // Update hover and focus icons for add mode
+                updateButtonIconsForAddMode();
+
+                // Clear form if no discount exists
+                diTypeCombo.setSelectedIndex(0);
+                discountInput.setText("");
+            }
+
+        } catch (Exception e) {
+            // Silent error handling
+            currentDiscountId = -1;
+            isUpdateMode = false;
+            btnUpdate.setText("Save");
+
+            // Reset to add icon on error
+            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+            btnUpdate.setIcon(addIcon);
+            updateButtonIconsForAddMode();
+        }
+    }
+
+    private void updateButtonIconsForUpdateMode() {
+        // Update mouse listeners for update mode
+        for (java.awt.event.MouseListener ml : btnUpdate.getMouseListeners()) {
+            btnUpdate.removeMouseListener(ml);
+        }
+
+        btnUpdate.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btnUpdate.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                btnUpdate.setIcon(hoverIcon);
+                btnUpdate.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btnUpdate.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                btnUpdate.setIcon(normalIcon);
+                btnUpdate.repaint();
+            }
+        });
+
+        // Update focus listeners for update mode
+        for (java.awt.event.FocusListener fl : btnUpdate.getFocusListeners()) {
+            btnUpdate.removeFocusListener(fl);
+        }
+
+        btnUpdate.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                btnUpdate.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                btnUpdate.setIcon(focusedIcon);
+                btnUpdate.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                btnUpdate.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                btnUpdate.setIcon(normalIcon);
+                btnUpdate.repaint();
+            }
+        });
+    }
+
+    private void updateButtonIconsForAddMode() {
+        // Update mouse listeners for add mode
+        for (java.awt.event.MouseListener ml : btnUpdate.getMouseListeners()) {
+            btnUpdate.removeMouseListener(ml);
+        }
+
+        btnUpdate.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btnUpdate.setForeground(Color.WHITE);
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                btnUpdate.setIcon(hoverIcon);
+                btnUpdate.repaint();
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btnUpdate.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                btnUpdate.setIcon(normalIcon);
+                btnUpdate.repaint();
+            }
+        });
+
+        // Update focus listeners for add mode
+        for (java.awt.event.FocusListener fl : btnUpdate.getFocusListeners()) {
+            btnUpdate.removeFocusListener(fl);
+        }
+
+        btnUpdate.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                btnUpdate.setForeground(Color.WHITE);
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                btnUpdate.setIcon(focusedIcon);
+                btnUpdate.repaint();
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                btnUpdate.setForeground(Color.decode("#0893B0"));
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                btnUpdate.setIcon(normalIcon);
+                btnUpdate.repaint();
+            }
+        });
     }
 
     private void setupKeyboardNavigation() {
@@ -144,6 +314,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                         int selectedCustomerId = getCustomerId(selectedDisplayText);
                         if (selectedCustomerId != -1) {
                             loadCustomerCreditDetails(selectedCustomerId);
+                            checkExistingDiscount(selectedCustomerId);
                         }
                         diTypeCombo.requestFocusInWindow();
                     }
@@ -234,7 +405,7 @@ public class CreditDiscount extends javax.swing.JDialog {
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     evt.consume();
-                    updateDiscount();
+                    btnUpdate.doClick(); // Trigger the button click to save
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
                     discountInput.requestFocusInWindow();
                     evt.consume();
@@ -398,7 +569,8 @@ public class CreditDiscount extends javax.swing.JDialog {
         setupGradientButton(btnClear);
         setupGradientButton(btnCancel);
 
-        FlatSVGIcon updateIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+        // Start with add icon for save button
+        FlatSVGIcon updateIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
         updateIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         btnUpdate.setIcon(updateIcon);
 
@@ -470,17 +642,29 @@ public class CreditDiscount extends javax.swing.JDialog {
         btnUpdate.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 btnUpdate.setForeground(Color.WHITE);
-                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
-                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                btnUpdate.setIcon(hoverIcon);
+                if (isUpdateMode) {
+                    FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                    hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                    btnUpdate.setIcon(hoverIcon);
+                } else {
+                    FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                    hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                    btnUpdate.setIcon(hoverIcon);
+                }
                 btnUpdate.repaint();
             }
 
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 btnUpdate.setForeground(Color.decode("#0893B0"));
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                btnUpdate.setIcon(normalIcon);
+                if (isUpdateMode) {
+                    FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                    normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                    btnUpdate.setIcon(normalIcon);
+                } else {
+                    FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                    normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                    btnUpdate.setIcon(normalIcon);
+                }
                 btnUpdate.repaint();
             }
         });
@@ -540,17 +724,29 @@ public class CreditDiscount extends javax.swing.JDialog {
         btnUpdate.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent evt) {
                 btnUpdate.setForeground(Color.WHITE);
-                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
-                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                btnUpdate.setIcon(focusedIcon);
+                if (isUpdateMode) {
+                    FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                    focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                    btnUpdate.setIcon(focusedIcon);
+                } else {
+                    FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                    focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                    btnUpdate.setIcon(focusedIcon);
+                }
                 btnUpdate.repaint();
             }
 
             public void focusLost(java.awt.event.FocusEvent evt) {
                 btnUpdate.setForeground(Color.decode("#0893B0"));
-                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
-                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
-                btnUpdate.setIcon(normalIcon);
+                if (isUpdateMode) {
+                    FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/update.svg", 25, 25);
+                    normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                    btnUpdate.setIcon(normalIcon);
+                } else {
+                    FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+                    normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                    btnUpdate.setIcon(normalIcon);
+                }
                 btnUpdate.repaint();
             }
         });
@@ -611,7 +807,7 @@ public class CreditDiscount extends javax.swing.JDialog {
         diTypeCombo.setToolTipText("Select discount type and press ENTER to move to next field");
         discountInput.setToolTipText("Enter discount amount/percentage and press ENTER to move to next field");
         btnAddNewCustomer.setToolTipText("Click to add new customer (or press F2)");
-        btnUpdate.setToolTipText("Click to update discount (or press ENTER when focused)");
+        btnUpdate.setToolTipText("Click to save/update discount (or press ENTER when focused)");
         btnClear.setToolTipText("Click to clear form (or press ENTER when focused)");
         btnCancel.setToolTipText("Click to cancel (or press ESC)");
     }
@@ -691,10 +887,10 @@ public class CreditDiscount extends javax.swing.JDialog {
             // Pre-select the customer if provided
             if (preSelectedIndex != -1) {
                 comboCustomer3.setSelectedIndex(preSelectedIndex);
-                System.out.println("Pre-selected customer with ID: " + this.customerId);
 
                 // Load credit details for pre-selected customer
                 loadCustomerCreditDetails(this.customerId);
+                checkExistingDiscount(this.customerId);
             }
 
             // Auto-select newly added customer if available
@@ -704,7 +900,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                     if (displayText.equals(comboCustomer3.getItemAt(i))) {
                         comboCustomer3.setSelectedIndex(i);
                         loadCustomerCreditDetails(newlyAddedCustomerId);
-                        System.out.println("Auto-selected newly added customer: " + displayText);
+                        checkExistingDiscount(newlyAddedCustomerId);
 
                         // Reset the flag
                         newlyAddedCustomerId = -1;
@@ -713,11 +909,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                 }
             }
 
-            System.out.println("Successfully loaded " + count + " customers");
-
         } catch (Exception e) {
-            System.err.println("Error loading customers: " + e.getMessage());
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
         }
@@ -740,8 +932,7 @@ public class CreditDiscount extends javax.swing.JDialog {
             diTypeCombo.setModel(dcm);
 
         } catch (Exception e) {
-            System.err.println("Error loading discount types: " + e.getMessage());
-            e.printStackTrace();
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error loading discount types");
         }
     }
 
@@ -769,16 +960,10 @@ public class CreditDiscount extends javax.swing.JDialog {
                 this.totalPaid = rs.getDouble("total_paid");
                 this.dueAmount = rs.getDouble("remaining_amount");
                 this.latestDueDate = rs.getDate("latest_due_date");
-                int activeCheques = rs.getInt("active_cheques");
-
-                System.out.println("Customer credit details - Total: " + totalCredit
-                        + ", Paid: " + totalPaid + ", Due: " + dueAmount
-                        + ", Active Cheques: " + activeCheques);
             }
 
         } catch (Exception e) {
-            System.err.println("Error loading customer credit details: " + e.getMessage());
-            e.printStackTrace();
+            // Silent error handling for credit details loading
         }
     }
 
@@ -786,12 +971,9 @@ public class CreditDiscount extends javax.swing.JDialog {
         Integer customerId = customerIdMap.get(displayText);
 
         if (customerId == null) {
-            System.err.println("Customer ID not found for: " + displayText);
-            System.err.println("Available mappings: " + customerIdMap);
             return -1;
         }
 
-        System.out.println("Found Customer ID: " + customerId + " for: " + displayText);
         return customerId;
     }
 
@@ -832,11 +1014,8 @@ public class CreditDiscount extends javax.swing.JDialog {
 
     private void updateDiscount() {
         if (isSaving) {
-            System.out.println("Save already in progress, skipping duplicate call...");
             return;
         }
-
-        System.out.println("updateDiscount() called at: " + new Date());
 
         if (!validateInputs()) {
             return;
@@ -871,45 +1050,82 @@ public class CreditDiscount extends javax.swing.JDialog {
             conn = MySQL.getConnection();
             conn.setAutoCommit(false);
 
-            // Insert into discount table
-            String discountQuery = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
-            pstDiscount = conn.prepareStatement(discountQuery, PreparedStatement.RETURN_GENERATED_KEYS);
-            pstDiscount.setDouble(1, discountValue);
-            pstDiscount.setInt(2, discountTypeId);
+            if (isUpdateMode && currentDiscountId != -1) {
+                // UPDATE EXISTING DISCOUNT
+                String updateQuery = "UPDATE discount SET discount = ?, discount_type_id = ? WHERE discount_id = ?";
+                pstDiscount = conn.prepareStatement(updateQuery);
+                pstDiscount.setDouble(1, discountValue);
+                pstDiscount.setInt(2, discountTypeId);
+                pstDiscount.setInt(3, currentDiscountId);
 
-            int discountRows = pstDiscount.executeUpdate();
-            if (discountRows > 0) {
-                ResultSet generatedKeys = pstDiscount.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    int discountId = generatedKeys.getInt(1);
+                int updatedRows = pstDiscount.executeUpdate();
+                if (updatedRows > 0) {
+                    createDiscountNotification(selectedDisplayText, discountValue, discountType, conn, true);
+                    conn.commit();
 
-                    // Insert into credit_discount table
-                    String creditDiscountQuery = "INSERT INTO credit_discount (credit_id, discount_id) VALUES (?, ?)";
-                    pstCreditDiscount = conn.prepareStatement(creditDiscountQuery);
-                    pstCreditDiscount.setInt(1, this.customerId);
-                    pstCreditDiscount.setInt(2, discountId);
+                    String successMessage = String.format("Discount updated to %.2f %s successfully!",
+                            discountValue, discountType.equals("percentage") ? "%" : "");
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
 
-                    int creditDiscountRows = pstCreditDiscount.executeUpdate();
-                    if (creditDiscountRows > 0) {
-                        createDiscountNotification(selectedDisplayText, discountValue, discountType, conn);
-                        conn.commit();
+                    dispose();
+                } else {
+                    conn.rollback();
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update discount!");
+                }
+            } else {
+                // INSERT NEW DISCOUNT (only if no existing discount)
+                // First check if customer already has a discount (double-check)
+                String checkSql = "SELECT COUNT(*) FROM credit_discount WHERE credit_id = ?";
+                PreparedStatement checkPst = conn.prepareStatement(checkSql);
+                checkPst.setInt(1, this.customerId);
+                ResultSet checkRs = checkPst.executeQuery();
 
-                        String successMessage = String.format("Discount of %.2f %s applied successfully to customer!",
-                                discountValue, discountType.equals("percentage") ? "%" : "");
-                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+                if (checkRs.next() && checkRs.getInt(1) > 0) {
+                    conn.rollback();
+                    isSaving = false;
+                    return;
+                }
 
-                        dispose();
+                // Insert into discount table
+                String discountQuery = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
+                pstDiscount = conn.prepareStatement(discountQuery, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstDiscount.setDouble(1, discountValue);
+                pstDiscount.setInt(2, discountTypeId);
+
+                int discountRows = pstDiscount.executeUpdate();
+                if (discountRows > 0) {
+                    ResultSet generatedKeys = pstDiscount.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        int discountId = generatedKeys.getInt(1);
+
+                        // Insert into credit_discount table
+                        String creditDiscountQuery = "INSERT INTO credit_discount (credit_id, discount_id) VALUES (?, ?)";
+                        pstCreditDiscount = conn.prepareStatement(creditDiscountQuery);
+                        pstCreditDiscount.setInt(1, this.customerId);
+                        pstCreditDiscount.setInt(2, discountId);
+
+                        int creditDiscountRows = pstCreditDiscount.executeUpdate();
+                        if (creditDiscountRows > 0) {
+                            createDiscountNotification(selectedDisplayText, discountValue, discountType, conn, false);
+                            conn.commit();
+
+                            String successMessage = String.format("Discount of %.2f %s applied successfully to customer!",
+                                    discountValue, discountType.equals("percentage") ? "%" : "");
+                            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+
+                            dispose();
+                        } else {
+                            conn.rollback();
+                            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to apply discount to customer!");
+                        }
                     } else {
                         conn.rollback();
-                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to apply discount to customer!");
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to get discount ID!");
                     }
                 } else {
                     conn.rollback();
-                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to get discount ID!");
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to create discount!");
                 }
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to create discount!");
             }
 
         } catch (Exception e) {
@@ -918,10 +1134,9 @@ public class CreditDiscount extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Silent rollback exception handling
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error applying discount: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             try {
                 if (pstDiscount != null) {
@@ -935,7 +1150,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing exception
             }
             isSaving = false;
         }
@@ -952,18 +1167,19 @@ public class CreditDiscount extends javax.swing.JDialog {
                 return rs.getInt("discount_type_id");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent exception handling
         }
         return -1;
     }
 
-    private void createDiscountNotification(String customerName, double discountValue, String discountType, Connection conn) {
+    private void createDiscountNotification(String customerName, double discountValue, String discountType, Connection conn, boolean isUpdate) {
         PreparedStatement pstMassage = null;
         PreparedStatement pstNotification = null;
 
         try {
-            String messageText = String.format("Discount applied to %s: %.2f %s",
-                    customerName, discountValue, discountType.equals("percentage") ? "%" : "LKR");
+            String action = isUpdate ? "updated for" : "applied to";
+            String messageText = String.format("Discount %s %s: %.2f %s",
+                    action, customerName, discountValue, discountType.equals("percentage") ? "%" : "LKR");
 
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
@@ -990,22 +1206,19 @@ public class CreditDiscount extends javax.swing.JDialog {
                 if (rs.next()) {
                     massageId = rs.getInt(1);
                 } else {
-                    throw new Exception("Failed to get generated massage ID");
+                    return;
                 }
             }
 
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1); // is_read = 1 (unread)
-            pstNotification.setInt(2, 11); // Credit discount message type
+            pstNotification.setInt(2, 26); // Credit discount message type
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("Discount notification created successfully for customer: " + customerName);
-
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Failed to create discount notification: " + e.getMessage());
+            // Silent exception handling for notification
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1015,7 +1228,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing exception
             }
         }
     }
@@ -1024,6 +1237,16 @@ public class CreditDiscount extends javax.swing.JDialog {
         comboCustomer3.setSelectedIndex(0);
         diTypeCombo.setSelectedIndex(0);
         discountInput.setText("");
+        currentDiscountId = -1;
+        isUpdateMode = false;
+        btnUpdate.setText("Save");
+
+        // Reset to add icon
+        FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 25, 25);
+        addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+        btnUpdate.setIcon(addIcon);
+        updateButtonIconsForAddMode();
+
         comboCustomer3.requestFocus();
     }
 
@@ -1045,7 +1268,6 @@ public class CreditDiscount extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening customer dialog: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -1060,6 +1282,7 @@ public class CreditDiscount extends javax.swing.JDialog {
             String displayText = customerDisplayMap.get(customerId);
             comboCustomer3.setSelectedItem(displayText);
             loadCustomerCreditDetails(customerId);
+            checkExistingDiscount(customerId);
         }
     }
 
@@ -1265,14 +1488,17 @@ public class CreditDiscount extends javax.swing.JDialog {
     private void btnUpdateKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnUpdateKeyPressed
         if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
             evt.consume();
-            updateDiscount();
+            // Don't call updateDiscount here - let ActionListener handle it
         } else {
             handleArrowNavigation(evt, btnUpdate);
         }
     }//GEN-LAST:event_btnUpdateKeyPressed
 
     private void btnUpdateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnUpdateActionPerformed
-        updateDiscount();
+        if (!isSaving) {
+            updateDiscount();
+        }
+
     }//GEN-LAST:event_btnUpdateActionPerformed
 
     private void btnClearKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_btnClearKeyPressed
@@ -1309,6 +1535,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                 int selectedCustomerId = getCustomerId(selectedDisplayText);
                 if (selectedCustomerId != -1) {
                     loadCustomerCreditDetails(selectedCustomerId);
+                    checkExistingDiscount(selectedCustomerId);
                 }
                 diTypeCombo.requestFocusInWindow();
             }
@@ -1334,6 +1561,7 @@ public class CreditDiscount extends javax.swing.JDialog {
             int selectedCustomerId = getCustomerId(selectedDisplayText);
             if (selectedCustomerId != -1) {
                 loadCustomerCreditDetails(selectedCustomerId);
+                checkExistingDiscount(selectedCustomerId);
             }
             diTypeCombo.requestFocusInWindow();
         }

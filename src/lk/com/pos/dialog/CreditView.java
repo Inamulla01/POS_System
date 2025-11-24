@@ -265,7 +265,6 @@ public class CreditView extends javax.swing.JDialog {
                         verticalBar.setValue(scrollY);
                     }
                 } catch (Exception e) {
-                    System.out.println("Error scrolling to selected item: " + e.getMessage());
                     // Fallback: try simple scrolling
                     try {
                         Rectangle bounds = selectedPanel.panel.getBounds();
@@ -282,7 +281,7 @@ public class CreditView extends javax.swing.JDialog {
                             jScrollPane1.getViewport().scrollRectToVisible(targetRect);
                         }
                     } catch (Exception ex) {
-                        System.out.println("Fallback scrolling also failed: " + ex.getMessage());
+                        // Fallback scrolling failed
                     }
                 }
             });
@@ -486,7 +485,6 @@ public class CreditView extends javax.swing.JDialog {
             updateDropButtonIcon();
 
         } catch (Exception e) {
-            System.out.println("Icons not available, using text buttons: " + e.getMessage());
             addBtn.setText("A");
             dropBtn.setText("▼");
         }
@@ -545,7 +543,6 @@ public class CreditView extends javax.swing.JDialog {
     }
 
     private void loadCustomerData() {
-        System.out.println("Loading data for customer ID: " + customerId);
         selectablePanels.clear();
         currentSelectionIndex = -1;
         loadCustomerDiscount();
@@ -603,7 +600,6 @@ public class CreditView extends javax.swing.JDialog {
         }
 
         updateSelectionVisual();
-        System.out.println("Rebuilt selectable panels: " + selectablePanels.size() + " items");
     }
 
     private void loadCustomerDiscount() {
@@ -645,14 +641,12 @@ public class CreditView extends javax.swing.JDialog {
             pstmt.close();
 
         } catch (SQLException e) {
-            e.printStackTrace();
             discountLabel.setText("Rs 0.00");
             try {
                 netCreditLabel.setText("Rs " + String.format("%,.2f", getTotalCreditAmount()));
             } catch (Exception ex) {
                 netCreditLabel.setText("Rs 0.00");
             }
-            System.out.println("Error loading customer discount: " + e.getMessage());
         }
     }
 
@@ -671,7 +665,7 @@ public class CreditView extends javax.swing.JDialog {
             rs.close();
             pstmt.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            // Error getting total credit amount
         }
         return 0.0;
     }
@@ -685,8 +679,6 @@ public class CreditView extends javax.swing.JDialog {
                 + "LEFT JOIN sales s ON c.sales_id = s.sales_id "
                 + "WHERE c.credit_customer_id = ? "
                 + "ORDER BY c.credit_given_date DESC";
-
-        System.out.println("Executing credit query for customer: " + customerId);
 
         try {
             java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
@@ -702,8 +694,6 @@ public class CreditView extends javax.swing.JDialog {
                 java.sql.Date finalDate = rs.getDate("credit_final_date");
                 double amount = rs.getDouble("credit_amout");
                 String invoiceNo = rs.getString("invoice_no");
-
-                System.out.println("Found credit: ID=" + creditId + ", Amount=" + amount + ", Invoice=" + invoiceNo);
 
                 double discountAmount = 0;
                 double netAmount = amount;
@@ -733,7 +723,6 @@ public class CreditView extends javax.swing.JDialog {
             pstmt.close();
 
         } catch (SQLException e) {
-            e.printStackTrace();
             showError("Error loading credits: " + e.getMessage());
 
             JLabel errorLabel = new JLabel("Error loading credits");
@@ -934,7 +923,6 @@ public class CreditView extends javax.swing.JDialog {
             rs.close();
             pstmt.close();
         } catch (SQLException e) {
-            e.printStackTrace();
             totalPayed.setText("Total Payed : Rs 0.00");
             showError("Error loading total payments: " + e.getMessage());
         }
@@ -948,8 +936,6 @@ public class CreditView extends javax.swing.JDialog {
                 + "WHERE credit_customer_id = ? "
                 + "ORDER BY credit_pay_date DESC";
 
-        System.out.println("Executing payment query for customer: " + customerId);
-
         try {
             java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
             pstmt.setInt(1, customerId);
@@ -962,8 +948,6 @@ public class CreditView extends javax.swing.JDialog {
                 int payId = rs.getInt("credit_pay_id");
                 java.sql.Timestamp payDate = rs.getTimestamp("credit_pay_date");
                 double amount = rs.getDouble("credit_pay_amount");
-
-                System.out.println("Found payment: ID=" + payId + ", Amount=" + amount + ", Date=" + payDate);
 
                 JPanel paymentCard = createPaymentCard(payId, payDate, amount);
                 paymentsContainer.add(paymentCard);
@@ -983,7 +967,6 @@ public class CreditView extends javax.swing.JDialog {
             pstmt.close();
 
         } catch (SQLException e) {
-            e.printStackTrace();
             showError("Error loading payments: " + e.getMessage());
 
             JLabel errorLabel = new JLabel("Error loading payments");
@@ -1112,7 +1095,6 @@ public class CreditView extends javax.swing.JDialog {
         } catch (Exception e) {
             navigationEnabled = true;
             showError("Error opening update payment dialog: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 

@@ -594,8 +594,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     + "HAVING remaining_amount > 0 "
                     + "ORDER BY cc.customer_name";
 
-            System.out.println("Loading credit customers combo with discount information...");
-
             ResultSet rs = MySQL.executeSearch(sql);
             Vector<String> creditCustomers = new Vector<>();
             creditCustomers.add("Select Credit Customer");
@@ -638,21 +636,12 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 creditCustomerIdMap.put(displayText, customerId);
                 customerRemainingAmountMap.put(displayText, remaining);
                 count++;
-
-                // Debug output
-                System.out.println("Loaded customer: " + customerName + " | Credit: " + totalCredit
-                        + " | Paid: " + totalPaid + " | Remaining: " + remaining
-                        + " | Discount: " + discount + " | Type: " + discountType);
             }
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(creditCustomers);
             creditCombo.setModel(dcm);
 
-            System.out.println("Successfully loaded " + count + " credit customers into combo box");
-
         } catch (Exception e) {
-            System.err.println("Error loading credit customers: " + e.getMessage());
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading credit customers: " + e.getMessage());
         }
@@ -690,7 +679,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 }
 
                 updateDiscountLabel();
-                System.out.println("Discount loaded: " + discountValue + " | Type: " + discountType);
             } else {
                 discountAmountLabel.setText("No Discount Available");
                 discountAmountLabel.setForeground(Color.GRAY);
@@ -701,7 +689,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading discount: " + e.getMessage());
-            e.printStackTrace();
             discountAmountLabel.setText("Error loading discount");
             discountAmountLabel.setForeground(Color.RED);
         }
@@ -795,8 +782,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     + "WHERE cp.credit_pay_id = ? "
                     + "GROUP BY cp.credit_pay_id, cc.customer_id, cc.customer_name, cp.credit_pay_amount";
 
-            System.out.println("Loading credit payment data for ID: " + creditPayId);
-
             PreparedStatement pst = conn.prepareStatement(sql);
             pst.setInt(1, creditPayId);
             ResultSet rs = pst.executeQuery();
@@ -809,17 +794,10 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 double totalPaid = rs.getDouble("total_paid");
                 double currentPayment = rs.getDouble("current_payment");
 
-                System.out.println("Found record - Customer ID: " + creditCustomerId
-                        + ", Customer: " + customerName
-                        + ", Total Credit: " + totalCredit
-                        + ", Total Paid: " + totalPaid
-                        + ", Current Payment: " + currentPayment);
-
                 // Calculate remaining amount
                 // Remaining = Total credit - Total paid + Current payment (since we're editing current payment)
                 originalRemainingAmount = (totalCredit - totalPaid) + currentPayment;
                 remainingAmount = originalRemainingAmount;
-                System.out.println("Calculated remaining amount: " + remainingAmount);
 
                 // Load discount for customer
                 loadCustomerDiscount(creditCustomerId);
@@ -849,8 +827,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                             customerName, totalCredit, totalPaid - currentPayment, remainingAmount);
                 }
 
-                System.out.println("Looking for customer: " + displayText);
-
                 // Find and select this customer in the combo box
                 boolean found = false;
                 for (int i = 0; i < creditCombo.getItemCount(); i++) {
@@ -858,13 +834,11 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     if (item.equals(displayText)) {
                         creditCombo.setSelectedIndex(i);
                         found = true;
-                        System.out.println("Found exact match at index: " + i);
                         break;
                     }
                 }
 
                 if (!found) {
-                    System.out.println("No exact match found, searching by customer ID...");
                     // If not found by exact text, find by customer ID
                     for (int i = 0; i < creditCombo.getItemCount(); i++) {
                         String item = creditCombo.getItemAt(i);
@@ -872,14 +846,12 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                         if (itemCustomerId != null && itemCustomerId == creditCustomerId) {
                             creditCombo.setSelectedIndex(i);
                             found = true;
-                            System.out.println("Found by customer ID at index: " + i);
                             break;
                         }
                     }
                 }
 
                 if (!found) {
-                    System.out.println("Customer not found in combo, selecting first available customer");
                     // If still not found, just select the first customer (if available)
                     if (creditCombo.getItemCount() > 1) {
                         creditCombo.setSelectedIndex(1);
@@ -889,11 +861,9 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 // Set payment date
                 Date paymentDate = rs.getTimestamp("credit_pay_date");
                 givenDate.setDate(paymentDate);
-                System.out.println("Set payment date: " + paymentDate);
 
                 // Set amount
                 address.setText(String.format("%.2f", currentPayment));
-                System.out.println("Set payment amount: " + currentPayment);
 
                 // Update remaining amount label and tooltip
                 updateRemainingAmountLabel();
@@ -905,10 +875,7 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                 }
                 address.setToolTipText(tooltipText);
 
-                System.out.println("All data loaded successfully!");
-
             } else {
-                System.err.println("No credit payment record found with ID: " + creditPayId);
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Credit payment record not found!");
             }
@@ -916,8 +883,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            System.err.println("Error loading credit payment data: " + e.getMessage());
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading credit payment data: " + e.getMessage());
         }
@@ -1121,11 +1086,9 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception ex) {
-                ex.printStackTrace();
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error updating credit payment: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             // Close all resources
             try {
@@ -1152,7 +1115,6 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
             }
             // Always reset the flag
             isUpdating = false;
@@ -1174,14 +1136,11 @@ public class UpdateCreditPay extends javax.swing.JDialog {
     // ---------------- FOCUS TRAVERSAL SETUP ----------------
     private void setupFocusTraversal() {
         try {
-    
-
             // Make date editor focusable
             if (givenDate.getDateEditor() != null && givenDate.getDateEditor().getUiComponent() != null) {
                 givenDate.getDateEditor().getUiComponent().setFocusable(true);
             }
         } catch (Exception e) {
-            System.err.println("Error in focus traversal setup: " + e.getMessage());
         }
     }
     @SuppressWarnings("unchecked")

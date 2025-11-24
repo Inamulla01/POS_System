@@ -470,11 +470,7 @@ public class DiscountDialog extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(discountTypes);
             diTypeCombo.setModel(dcm);
 
-            System.out.println("Successfully loaded " + count + " discount types");
-
         } catch (Exception e) {
-            System.err.println("Error loading discount types: " + e.getMessage());
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading discount types: " + e.getMessage());
         }
@@ -484,38 +480,29 @@ public class DiscountDialog extends javax.swing.JDialog {
         Integer typeId = discountTypeIdMap.get(displayText);
 
         if (typeId == null) {
-            System.err.println("Discount type ID not found for: " + displayText);
             return -1;
         }
 
-        System.out.println("Found Discount Type ID: " + typeId + " for: " + displayText);
         return typeId;
     }
 
     private void calculateDiscount() {
     if (originalTotal == null || originalTotal <= 0) {
-        System.out.println("No original total set");
         return;
     }
 
     if (diTypeCombo.getSelectedIndex() <= 0) {
-        System.out.println("No discount type selected");
         return;
     }
 
     try {
         String discountValueStr = discountInput.getText().trim();
         if (discountValueStr.isEmpty()) {
-            System.out.println("Discount value is empty");
             return;
         }
 
         double discountValue = Double.parseDouble(discountValueStr);
         String selectedType = (String) diTypeCombo.getSelectedItem();
-        
-        System.out.println("Selected discount type: " + selectedType);
-        System.out.println("Discount value entered: " + discountValue);
-        System.out.println("Original total: " + originalTotal);
 
         // Check if it's percentage discount (PERC)
         if (selectedType != null && selectedType.toUpperCase().contains("PERC")) {
@@ -536,8 +523,6 @@ public class DiscountDialog extends javax.swing.JDialog {
             // Calculate discount amount from percentage
             discountAmount = (originalTotal * discountValue) / 100.0;
             
-            System.out.println("Calculated percentage discount: " + discountAmount);
-            
         } else if (selectedType != null && selectedType.toUpperCase().contains("FIXD")) {
             // Fixed amount discount
             if (discountValue > originalTotal) {
@@ -556,8 +541,6 @@ public class DiscountDialog extends javax.swing.JDialog {
             // Use the value directly as discount amount
             discountAmount = discountValue;
             
-            System.out.println("Calculated fixed discount: " + discountAmount);
-            
         } else {
             // Default to fixed amount if type is unclear
             if (discountValue > originalTotal) {
@@ -567,16 +550,9 @@ public class DiscountDialog extends javax.swing.JDialog {
                 discountValue = 0;
             }
             discountAmount = discountValue;
-            
-            System.out.println("Default (fixed) discount: " + discountAmount);
         }
-        
-        // Show preview of final amount
-        double finalAmount = originalTotal - discountAmount;
-        System.out.println("Final amount after discount: " + finalAmount);
 
     } catch (NumberFormatException e) {
-        System.err.println("Invalid discount value: " + discountInput.getText());
         discountAmount = 0.0;
     }
 }
@@ -641,11 +617,8 @@ public class DiscountDialog extends javax.swing.JDialog {
     private void applyDiscount() {
         // Prevent multiple simultaneous saves
         if (isSaving) {
-            System.out.println("Save already in progress, skipping duplicate call...");
             return;
         }
-
-        System.out.println("applyDiscount() called");
 
         if (!validateInputs()) {
             return;
@@ -691,7 +664,6 @@ public class DiscountDialog extends javax.swing.JDialog {
             pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error applying discount: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             isSaving = false;
         }
@@ -711,7 +683,6 @@ public class DiscountDialog extends javax.swing.JDialog {
         saveBtn.setFocusable(true);
         cancelBtn.setFocusable(true);
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

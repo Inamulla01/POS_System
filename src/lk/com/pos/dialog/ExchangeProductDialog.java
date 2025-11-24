@@ -729,8 +729,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading invoices: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, "Error loading invoices",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -751,8 +750,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 reasonCombo.addItem(reason);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading return reasons: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, "Error loading return reasons",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -851,8 +849,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             productsPanel.repaint();
 
         } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading invoice details: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, "Error loading invoice details",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -870,8 +867,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 currentCreditAmount = 0.0;
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading credit amount: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, "Error loading credit amount",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -889,7 +885,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 return rs.getDouble("total_paid");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            // Silent error handling
         }
         return 0.0;
     }
@@ -1178,8 +1174,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             productsPanel.add(productsContainer);
 
         } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading products: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, "Error loading products",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -1280,7 +1275,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                     try {
                                         itemPrice = Double.parseDouble(priceText.replace("Rs.", "").trim());
                                     } catch (NumberFormatException e) {
-                                        e.printStackTrace();
+                                        // Silent error handling
                                     }
 
                                     int originalQty = productOriginalQtys.getOrDefault(productIndex, 1);
@@ -1288,7 +1283,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                     refundAmount += proportionalAmount;
                                 }
                             } catch (NumberFormatException e) {
-                                e.printStackTrace();
+                                // Silent error handling
                             }
                         }
                         productIndex++;
@@ -1311,7 +1306,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                             try {
                                 itemPrice = Double.parseDouble(priceText.replace("Rs.", "").trim());
                             } catch (NumberFormatException e) {
-                                e.printStackTrace();
+                                // Silent error handling
                             }
 
                             int originalQty = productOriginalQtys.getOrDefault(productIndex, 1);
@@ -1319,7 +1314,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                             refundAmount += proportionalAmount;
                         }
                     } catch (NumberFormatException e) {
-                        e.printStackTrace();
+                        // Silent error handling
                     }
                 }
                 productIndex++;
@@ -1513,7 +1508,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                         }
                                     }
                                 } catch (NumberFormatException e) {
-                                    e.printStackTrace();
+                                    // Silent error handling
                                 }
                             }
                             productIndex++;
@@ -1580,7 +1575,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                 }
                             }
                         } catch (NumberFormatException e) {
-                            e.printStackTrace();
+                            // Silent error handling
                         }
                     }
                     productIndex++;
@@ -1601,24 +1596,22 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             return true;
 
         } catch (SQLException e) {
-            e.printStackTrace();
             if (conn != null) {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    // Silent rollback exception
                 }
             }
-            JOptionPane.showMessageDialog(this, "Error processing exchange: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, "Error processing exchange",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
             return false;
         } catch (NumberFormatException e) {
-            e.printStackTrace();
             if (conn != null) {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    // Silent rollback exception
                 }
             }
             JOptionPane.showMessageDialog(this, "Error parsing price data",
@@ -1629,7 +1622,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 try {
                     conn.setAutoCommit(true);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    // Silent exception
                 }
             }
         }
@@ -1712,7 +1705,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                                     totalDiscount += proportionalDiscount;
                                 }
                             } catch (NumberFormatException e) {
-                                e.printStackTrace();
+                                // Silent error handling
                             }
                         }
                         productIndex++;
@@ -1734,7 +1727,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                             totalDiscount += proportionalDiscount;
                         }
                     } catch (NumberFormatException e) {
-                        e.printStackTrace();
+                        // Silent error handling
                     }
                 }
                 productIndex++;
@@ -1743,8 +1736,6 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
         return totalDiscount;
     }
-
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

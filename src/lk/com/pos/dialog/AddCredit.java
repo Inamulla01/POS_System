@@ -144,12 +144,40 @@ public class AddCredit extends javax.swing.JDialog {
             // Only delete if salesId exists and credit was not saved
             Connection conn = null;
             PreparedStatement pst = null;
+            ResultSet rs = null;
 
             try {
                 conn = MySQL.getConnection();
                 conn.setAutoCommit(false); // Start transaction
 
-                // First delete related records to maintain referential integrity
+                // First, get all sale items for this sales_id to return them to stock
+                String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
+                pst = conn.prepareStatement(getSaleItemsSql);
+                pst.setInt(1, salesId);
+                rs = pst.executeQuery();
+
+                // Store the items to return to stock
+                java.util.List<java.util.Map<String, Integer>> itemsToReturn = new java.util.ArrayList<>();
+                while (rs.next()) {
+                    java.util.Map<String, Integer> item = new java.util.HashMap<>();
+                    item.put("stock_id", rs.getInt("stock_id"));
+                    item.put("qty", rs.getInt("qty"));
+                    itemsToReturn.add(item);
+                }
+                rs.close();
+                pst.close();
+
+                // Return each item to stock
+                String updateStockSql = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
+                for (java.util.Map<String, Integer> item : itemsToReturn) {
+                    pst = conn.prepareStatement(updateStockSql);
+                    pst.setInt(1, item.get("qty"));
+                    pst.setInt(2, item.get("stock_id"));
+                    pst.executeUpdate();
+                    pst.close();
+                }
+
+                // Now delete related records to maintain referential integrity
                 String[] deleteQueries = {
                     "DELETE FROM sale_item WHERE sales_id = ?",
                     "DELETE FROM card_pay WHERE sales_id = ?",
@@ -167,7 +195,6 @@ public class AddCredit extends javax.swing.JDialog {
                         int affectedRows = pst.executeUpdate();
                         pst.close();
                     } catch (Exception e) {
-                        // Log but continue with next query
                         success = false;
                         break;
                     }
@@ -185,12 +212,17 @@ public class AddCredit extends javax.swing.JDialog {
                         conn.rollback();
                     }
                 } catch (Exception rollbackEx) {
-                    rollbackEx.printStackTrace();
+                    // Rollback exception ignored
                 }
-            
-                e.printStackTrace();
+                
+                // Show error notification to user
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Error deleting sale: " + e.getMessage());
             } finally {
                 try {
+                    if (rs != null) {
+                        rs.close();
+                    }
                     if (pst != null) {
                         pst.close();
                     }
@@ -199,7 +231,7 @@ public class AddCredit extends javax.swing.JDialog {
                         conn.close();
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    // Closing resources exception ignored
                 }
             }
         }
@@ -786,10 +818,7 @@ public class AddCredit extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             customerCombo.setModel(dcm);
 
-
         } catch (Exception e) {
-
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
         }
@@ -799,7 +828,6 @@ public class AddCredit extends javax.swing.JDialog {
         Integer customerId = customerIdMap.get(displayText);
 
         if (customerId == null) {
-
             return -1;
         }
 
@@ -850,7 +878,6 @@ public class AddCredit extends javax.swing.JDialog {
 
     private void saveCredit() {
         if (isSaving) {
-           
             return;
         }
 
@@ -945,10 +972,9 @@ public class AddCredit extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Rollback exception ignored
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             try {
                 if (generatedKeys != null) {
@@ -962,7 +988,7 @@ public class AddCredit extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Closing resources exception ignored
             }
             isSaving = false;
         }
@@ -1080,9 +1106,8 @@ public class AddCredit extends javax.swing.JDialog {
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-
         } catch (Exception e) {
-            e.printStackTrace();
+            // Error handled silently as notification creation is not critical
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1092,7 +1117,7 @@ public class AddCredit extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Closing resources exception ignored
             }
         }
     }

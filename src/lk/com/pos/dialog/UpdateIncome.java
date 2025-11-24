@@ -659,10 +659,7 @@ public class UpdateIncome extends javax.swing.JDialog {
             comboIncomeType.setModel(new javax.swing.DefaultComboBoxModel<>(incomeTypes));
 
         } catch (Exception e) {
-            System.err.println("Error loading income types: " + e.getMessage());
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading income types: " + e.getMessage());
+            // Exception handling without print statements
         } finally {
             // Close resources
             try {
@@ -673,14 +670,13 @@ public class UpdateIncome extends javax.swing.JDialog {
                     pst.close();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                // Exception handling without print statements
             }
         }
     }
 
     private void loadIncomeData() {
         if (incomeId <= 0) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid income ID");
             dispose();
             return;
         }
@@ -740,15 +736,11 @@ public class UpdateIncome extends javax.swing.JDialog {
                 }
 
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Income record not found");
                 dispose();
             }
 
         } catch (Exception e) {
-            System.err.println("Error loading income data: " + e.getMessage());
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading income data: " + e.getMessage());
+            // Exception handling without print statements
             dispose();
         } finally {
             // Close resources
@@ -760,20 +752,18 @@ public class UpdateIncome extends javax.swing.JDialog {
                     pst.close();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                // Exception handling without print statements
             }
         }
     }
 
     private boolean validateInputs() {
         if (comboIncomeType.getSelectedIndex() == 0) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select an income type");
             comboIncomeType.requestFocus();
             return false;
         }
 
         if (txtAmount.getText().trim().isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter amount");
             txtAmount.requestFocus();
             return false;
         }
@@ -781,24 +771,20 @@ public class UpdateIncome extends javax.swing.JDialog {
         try {
             double amount = Double.parseDouble(txtAmount.getText().trim());
             if (amount <= 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Amount must be greater than 0");
                 txtAmount.requestFocus();
                 return false;
             }
         } catch (NumberFormatException e) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter a valid amount");
             txtAmount.requestFocus();
             return false;
         }
 
         if (paymentDate.getDate() == null) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a date");
             paymentDate.requestFocus();
             return false;
         }
 
         if (timePicker1.getTime() == null) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a time");
             timePicker1.requestFocus();
             return false;
         }
@@ -847,22 +833,18 @@ public class UpdateIncome extends javax.swing.JDialog {
 
             if (rowsAffected > 0) {
                 createIncomeNotification(selectedIncomeType, amount);
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Income updated successfully!");
                 dispose();
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update income!");
             }
 
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating income: " + e.getMessage());
-            e.printStackTrace();
+            // Exception handling without print statements
         } finally {
             try {
                 if (pst != null) {
                     pst.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Exception handling without print statements
             }
             isSaving = false;
         }
@@ -917,7 +899,7 @@ public class UpdateIncome extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            // Exception handling without print statements
         } finally {
             try {
                 if (rs != null) {
@@ -930,7 +912,7 @@ public class UpdateIncome extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Exception handling without print statements
             }
         }
     }

@@ -594,7 +594,7 @@ public class AddNewStock extends javax.swing.JDialog {
                     dateField.setText(formattedDate);
                 }
             } catch (Exception e) {
-                // Ignore parsing errors
+                // Silent exception handling for date parsing
             }
         }
     }
@@ -629,7 +629,7 @@ public class AddNewStock extends javax.swing.JDialog {
                 return String.format("%02d/%02d/%04d", day, month, year);
             }
         } catch (NumberFormatException e) {
-            // Invalid number format
+            // Silent exception handling for number format
         }
 
         return null;
@@ -1179,7 +1179,7 @@ public class AddNewStock extends javax.swing.JDialog {
                 return rs.getInt("product_id");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent exception handling for product ID retrieval
         }
         return -1;
     }
@@ -1191,7 +1191,7 @@ public class AddNewStock extends javax.swing.JDialog {
                 return rs.getInt("suppliers_id");
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent exception handling for supplier ID retrieval
         }
         return -1;
     }
@@ -1238,7 +1238,6 @@ public class AddNewStock extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving stock: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -1268,8 +1267,7 @@ public class AddNewStock extends javax.swing.JDialog {
             MySQL.executeIUD(insertNotificationQuery);
 
         } catch (Exception e) {
-            System.err.println("Error creating stock notification: " + e.getMessage());
-            e.printStackTrace();
+            // Silent exception handling for notification creation
         }
     }
 
@@ -1285,7 +1283,6 @@ public class AddNewStock extends javax.swing.JDialog {
         expriyDate.setDate(null);
         productNameCombo.requestFocus();
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

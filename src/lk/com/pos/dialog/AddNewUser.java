@@ -56,7 +56,7 @@ public class AddNewUser extends javax.swing.JDialog {
             confirmPasswordEyeButton.setIcon(eyeClosedIcon);
 
         } catch (Exception e) {
-            System.out.println("SVG eye icons not found: " + e.getMessage());
+            // SVG icons not found, continue without them
         }
 
         // Remove button borders and background
@@ -346,7 +346,7 @@ public class AddNewUser extends javax.swing.JDialog {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error applying hover effect: " + e.getMessage());
+            // Error applying hover effect, continue without it
         }
     }
 
@@ -958,11 +958,10 @@ public class AddNewUser extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Rollback failed, continue
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving user: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             // Close resources
             try {
@@ -974,7 +973,7 @@ public class AddNewUser extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Error closing resources, continue
             }
         }
     }
@@ -1028,12 +1027,8 @@ public class AddNewUser extends javax.swing.JDialog {
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("User notification created successfully for: " + username);
-
         } catch (Exception e) {
-            e.printStackTrace();
             // Don't throw exception here - we don't want notification failure to affect user creation
-            System.err.println("Failed to create user notification: " + e.getMessage());
         } finally {
             // Close resources
             try {
@@ -1044,7 +1039,7 @@ public class AddNewUser extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Error closing resources, continue
             }
         }
     }

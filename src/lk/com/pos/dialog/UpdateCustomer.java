@@ -275,7 +275,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
     private void clearForm() {
         loadCustomerData(); // Reload original data
         name.requestFocus();
-        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form reset to original values!");
     }
 
     private void loadCustomerData() {
@@ -301,9 +300,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading customer data: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
@@ -313,8 +310,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
         // Use your exact regex pattern for Sri Lankan mobile validation
         if (!cleanedMobile.matches("^(0{1})(7{1})([0|1|2|4|5|6|7|8]{1})([0-9]{7})$")) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter a valid Sri Lankan mobile number (10 digits starting with 07)");
             return false;
         }
         return true;
@@ -330,15 +325,13 @@ public class UpdateCustomer extends javax.swing.JDialog {
             ResultSet rs = pst.executeQuery();
 
             if (rs.next() && rs.getInt(1) > 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Customer name already exists!");
                 return true;
             }
 
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Exception handling without print statements
         }
         return false;
     }
@@ -556,8 +549,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
             // Basic validation
             if (customerName.isEmpty() || mobile.isEmpty() || customerAddress.isEmpty() || nicNumber.isEmpty()) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Please fill all required fields!");
                 isUpdating = false;
                 return;
             }
@@ -687,13 +678,9 @@ public class UpdateCustomer extends javax.swing.JDialog {
                 // Commit transaction
                 conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Customer updated successfully!");
                 this.dispose(); // Close the dialog after successful update
             } else {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to update customer!");
             }
 
         } catch (Exception e) {
@@ -702,11 +689,9 @@ public class UpdateCustomer extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception ex) {
-                ex.printStackTrace();
+                // Exception handling without print statements
             }
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Database error: " + e.getMessage());
+            // Exception handling without print statements
         } finally {
             // Close all resources
             try {
@@ -733,7 +718,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Exception handling without print statements
             }
             // Always reset the flag
             isUpdating = false;
@@ -747,8 +732,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening credit payment dialog: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 

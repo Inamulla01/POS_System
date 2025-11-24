@@ -657,7 +657,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error while checking customer name!");
         }
@@ -681,7 +680,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error while checking NIC!");
         }
@@ -764,7 +762,6 @@ public class AddNewCustomer extends javax.swing.JDialog {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error: " + e.getMessage());
         } finally {
@@ -823,9 +820,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            // Don't throw exception here - we don't want notification failure to affect customer creation
-            System.err.println("Failed to create notification: " + e.getMessage());
+            // Silent exception handling for notification failure
         } finally {
             // Close resources
             try {
@@ -836,7 +831,7 @@ public class AddNewCustomer extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent exception handling for resource cleanup
             }
         }
     }

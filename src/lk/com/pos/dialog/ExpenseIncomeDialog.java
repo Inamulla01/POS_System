@@ -177,7 +177,6 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
 
     private void showTabSwitchNotification(String tabName) {
         // Optional: You can add a small status message here if needed
-        System.out.println("Switched to: " + tabName);
     }
 
     private void setupKeyboardNavigation() {
@@ -1045,8 +1044,6 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             comboExpensesType.setModel(new javax.swing.DefaultComboBoxModel<>(expenseTypes));
 
         } catch (Exception e) {
-            System.err.println("Error loading expense types: " + e.getMessage());
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading expense types: " + e.getMessage());
         }
@@ -1073,8 +1070,6 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             comboIncomeType.setModel(new javax.swing.DefaultComboBoxModel<>(incomeTypes));
 
         } catch (Exception e) {
-            System.err.println("Error loading income types: " + e.getMessage());
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading income types: " + e.getMessage());
         }
@@ -1219,10 +1214,9 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Silent rollback failure
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving expense: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             try {
                 if (pst != null) {
@@ -1233,7 +1227,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing failure
             }
             isExpenseSaving = false;
         }
@@ -1296,10 +1290,9 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Silent rollback failure
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving income: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             try {
                 if (pst != null) {
@@ -1310,7 +1303,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing failure
             }
             isIncomeSaving = false;
         }
@@ -1455,7 +1448,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent notification creation failure
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1465,7 +1458,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing failure
             }
         }
     }
@@ -1514,7 +1507,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent notification creation failure
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1524,7 +1517,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing failure
             }
         }
     }
@@ -1589,7 +1582,6 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             }
         });
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

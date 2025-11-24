@@ -77,11 +77,6 @@ public class AddNewProduct extends javax.swing.JDialog {
                     if (availableChars > 0) {
                         super.insertString(offset, str.substring(0, availableChars), attr);
                     }
-                    // Show warning notification
-                    SwingUtilities.invokeLater(() -> {
-                        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                                "Product name limited to 35 characters");
-                    });
                 }
             }
         });
@@ -121,13 +116,10 @@ public class AddNewProduct extends javax.swing.JDialog {
     }
 
     private boolean allFieldsFilled() {
-        boolean filled = !productInput.getText().trim().isEmpty()
+        return !productInput.getText().trim().isEmpty()
                 && categoryCombo.getSelectedIndex() > 0
                 && brandCombo.getSelectedIndex() > 0
                 && !barcodeInput.getText().trim().isEmpty();
-
-        System.out.println("All fields filled: " + filled); // Debug line
-        return filled;
     }
 
     private void handleEnterWithAllFieldsFilled(java.awt.event.KeyEvent evt, java.awt.Component source) {
@@ -602,11 +594,9 @@ public class AddNewProduct extends javax.swing.JDialog {
                     // Check if all fields are filled
                     if (allFieldsFilled()) {
                         // All fields filled - go directly to Save button
-                        System.out.println("All fields filled - going to Save button");
                         saveBtn.requestFocusInWindow();
                     } else {
                         // Not all fields filled - go to cancel button
-                        System.out.println("Not all fields filled - going to Cancel button");
                         cancelBtn.requestFocusInWindow();
                     }
                     evt.consume();
@@ -1050,7 +1040,6 @@ public class AddNewProduct extends javax.swing.JDialog {
             this.dispose();
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

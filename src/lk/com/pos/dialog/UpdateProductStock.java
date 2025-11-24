@@ -106,8 +106,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
                 barcodeInput.setBackground(new Color(240, 240, 240));
                 barcodeInput.setToolTipText("Barcode cannot be changed for existing products");
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Product not found!");
                 this.dispose();
                 return;
             }
@@ -167,15 +165,10 @@ public class UpdateProductStock extends javax.swing.JDialog {
                 expriyDate.repaint();
 
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Stock entry not found!");
                 this.dispose();
             }
 
         } catch (Exception e) {
-            e.printStackTrace(); // Add this to see the full error
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading product data: " + e.getMessage());
             this.dispose();
         }
     }
@@ -200,11 +193,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
                     if (availableChars > 0) {
                         super.insertString(offset, str.substring(0, availableChars), attr);
                     }
-                    // Show warning notification
-                    SwingUtilities.invokeLater(() -> {
-                        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                                "Product name limited to 35 characters");
-                    });
                 }
             }
         });
@@ -1169,8 +1157,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
             categoryCombo.setModel(dcm);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading categories: " + e.getMessage());
         }
     }
 
@@ -1185,8 +1171,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
             brandCombo.setModel(dcm);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading brands: " + e.getMessage());
         }
     }
 
@@ -1201,8 +1185,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(suppliers);
             SupplierCombo.setModel(dcm);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading suppliers: " + e.getMessage());
         }
     }
 
@@ -1210,8 +1192,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
         String barcodeText = barcodeInput.getText().trim();
 
         if (barcodeText.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "No barcode available to print");
             return;
         }
 
@@ -1248,69 +1228,49 @@ public class UpdateProductStock extends javax.swing.JDialog {
 
             if (printerJob.printDialog()) {
                 printerJob.print();
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Barcode sent to printer successfully");
             }
         } catch (PrinterException e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Printing error: " + e.getMessage());
         }
     }
 
     private boolean validateForm() {
         if (productInput.getText().trim().isEmpty()) {
             productInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter product name");
             return false;
         }
 
         if (productInput.getText().trim().length() > 35) {
             productInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Product name cannot exceed 35 characters");
             return false;
         }
 
         if (categoryCombo.getSelectedIndex() <= 0) {
             categoryCombo.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please select a category");
             return false;
         }
 
         if (brandCombo.getSelectedIndex() <= 0) {
             brandCombo.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please select a brand");
             return false;
         }
 
         if (purchasePrice.getText().trim().isEmpty()) {
             purchasePrice.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter purchase price");
             return false;
         }
 
         if (sellingPrice.getText().trim().isEmpty()) {
             sellingPrice.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter selling price");
             return false;
         }
 
         if (batchNoInput.getText().trim().isEmpty()) {
             batchNoInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter or generate batch number");
             return false;
         }
 
         if (quantityInput.getText().trim().isEmpty()) {
             quantityInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter quantity");
             return false;
         }
 
@@ -1319,8 +1279,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             Double.parseDouble(sellingPrice.getText().trim());
             Integer.parseInt(quantityInput.getText().trim());
         } catch (NumberFormatException e) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter valid numbers for price and quantity fields");
             return false;
         }
 
@@ -1400,8 +1358,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             );
 
             if (productCheckRs.next()) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Product '" + productName + "' already exists with this brand!");
                 productInput.requestFocus();
                 productInput.selectAll();
                 return;
@@ -1450,8 +1406,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
                         + "' AND stock_id != " + stockId
                 );
                 if (batchCheckRs.next()) {
-                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                            "Batch number '" + batchNoValue + "' already exists!");
                     batchNoInput.requestFocus();
                     batchNoInput.selectAll();
                     return;
@@ -1579,13 +1533,9 @@ public class UpdateProductStock extends javax.swing.JDialog {
                 // Commit transaction
                 conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Product and stock updated successfully!");
                 this.dispose();
             } else {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to update product and stock!");
             }
 
         } catch (Exception e) {
@@ -1594,11 +1544,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (java.sql.SQLException ex) {
-                ex.printStackTrace();
             }
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error updating product and stock: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             // Close all resources
             try {
@@ -1628,7 +1574,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (java.sql.SQLException e) {
-                e.printStackTrace();
             }
         }
     }
@@ -1646,8 +1591,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             addProduct.setVisible(true);
             // Note: Product name is a text field, so no need to reload combo
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening product dialog: " + e.getMessage());
         }
     }
 
@@ -1659,8 +1602,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             loadCategoryCombo();
             categoryCombo.requestFocus();
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening category dialog: " + e.getMessage());
         }
     }
 
@@ -1672,8 +1613,6 @@ public class UpdateProductStock extends javax.swing.JDialog {
             loadBrandCombo();
             brandCombo.requestFocus();
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening brand dialog: " + e.getMessage());
         }
     }
 
@@ -1685,11 +1624,8 @@ public class UpdateProductStock extends javax.swing.JDialog {
             loadSupplierCombo();
             SupplierCombo.requestFocus();
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error opening supplier dialog: " + e.getMessage());
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

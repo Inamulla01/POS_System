@@ -96,17 +96,10 @@ public class UpdateProduct extends javax.swing.JDialog {
                 // Load barcode
                 originalBarcode = rs.getString("barcode");
                 barcodeInput.setText(originalBarcode);
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Product data loaded successfully");
             } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Product not found!");
                 this.dispose();
             }
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading product data: " + e.getMessage());
             this.dispose();
         }
     }
@@ -131,11 +124,6 @@ public class UpdateProduct extends javax.swing.JDialog {
                     if (availableChars > 0) {
                         super.insertString(offset, str.substring(0, availableChars), attr);
                     }
-                    // Show warning notification
-                    SwingUtilities.invokeLater(() -> {
-                        Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                                "Product name limited to 35 characters");
-                    });
                 }
             }
         });
@@ -180,7 +168,6 @@ public class UpdateProduct extends javax.swing.JDialog {
                 && brandCombo.getSelectedIndex() > 0
                 && !barcodeInput.getText().trim().isEmpty();
 
-        System.out.println("All fields filled: " + filled); // Debug line
         return filled;
     }
 
@@ -604,11 +591,9 @@ public class UpdateProduct extends javax.swing.JDialog {
                     // Check if all fields are filled
                     if (allFieldsFilled()) {
                         // All fields filled - go directly to Update button
-                        System.out.println("All fields filled - going to Update button");
                         updateBtn.requestFocusInWindow();
                     } else {
                         // Not all fields filled - go to cancel button
-                        System.out.println("Not all fields filled - going to Cancel button");
                         cancelBtn.requestFocusInWindow();
                     }
                     evt.consume();
@@ -757,8 +742,7 @@ public class UpdateProduct extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
             categoryCombo.setModel(dcm);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading categories: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
@@ -773,8 +757,7 @@ public class UpdateProduct extends javax.swing.JDialog {
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
             brandCombo.setModel(dcm);
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading brands: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
@@ -789,16 +772,12 @@ public class UpdateProduct extends javax.swing.JDialog {
         }
 
         barcodeInput.setText(barcode.toString());
-        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                "13-digit barcode generated: " + barcode.toString());
     }
 
     private void printBarcode() {
         String barcodeText = barcodeInput.getText().trim();
 
         if (barcodeText.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please generate or enter a barcode first");
             barcodeInput.requestFocus();
             return;
         }
@@ -836,48 +815,35 @@ public class UpdateProduct extends javax.swing.JDialog {
 
             if (printerJob.printDialog()) {
                 printerJob.print();
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Barcode sent to printer successfully");
             }
         } catch (PrinterException e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Printing error: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
     private boolean validateForm() {
         if (productInput.getText().trim().isEmpty()) {
             productInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter product name");
             return false;
         }
 
         if (productInput.getText().trim().length() > 35) {
             productInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Product name cannot exceed 35 characters");
             return false;
         }
 
         if (categoryCombo.getSelectedIndex() <= 0) {
             categoryCombo.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please select a category");
             return false;
         }
 
         if (brandCombo.getSelectedIndex() <= 0) {
             brandCombo.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please select a brand");
             return false;
         }
 
         if (barcodeInput.getText().trim().isEmpty()) {
             barcodeInput.requestFocus();
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter barcode");
             return false;
         }
 
@@ -912,8 +878,6 @@ public class UpdateProduct extends javax.swing.JDialog {
             );
 
             if (productCheckRs.next()) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Product '" + productName + "' already exists with this brand!");
                 productInput.requestFocus();
                 productInput.selectAll();
                 return;
@@ -925,8 +889,6 @@ public class UpdateProduct extends javax.swing.JDialog {
                 ResultSet barcodeCheckRs = MySQL.executeSearch("SELECT product_id FROM product WHERE barcode = '"
                         + currentBarcode + "' AND product_id != " + productId);
                 if (barcodeCheckRs.next()) {
-                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                            "Barcode already exists for another product!");
                     barcodeInput.requestFocus();
                     barcodeInput.selectAll();
                     return;
@@ -949,14 +911,10 @@ public class UpdateProduct extends javax.swing.JDialog {
 
             MySQL.executeIUD(query);
 
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Product updated successfully!");
-
             this.dispose();
 
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error updating product: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
@@ -970,7 +928,6 @@ public class UpdateProduct extends javax.swing.JDialog {
             productInput.selectAll();
         });
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

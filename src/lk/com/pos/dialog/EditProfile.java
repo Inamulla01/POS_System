@@ -61,7 +61,7 @@ public class EditProfile extends javax.swing.JDialog {
             confirmPasswordEyeButton.setIcon(eyeClosedIcon);
 
         } catch (Exception e) {
-            System.out.println("SVG eye icons not found: " + e.getMessage());
+            // SVG eye icons not found - silent failure
         }
 
         // Remove button borders and background
@@ -408,7 +408,7 @@ public class EditProfile extends javax.swing.JDialog {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error applying hover effect: " + e.getMessage());
+            // Error applying hover effect - silent failure
         }
     }
 
@@ -1070,11 +1070,10 @@ private void updateUser() {
                 conn.rollback();
             }
         } catch (Exception rollbackEx) {
-            rollbackEx.printStackTrace();
+            // Silent rollback failure
         }
         Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                 "Error updating profile: " + e.getMessage());
-        e.printStackTrace();
     } finally {
         // Close resources
         try {
@@ -1084,7 +1083,7 @@ private void updateUser() {
                 conn.close();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent resource closing failure
         }
     }
 }
@@ -1159,19 +1158,15 @@ private void createProfileUpdateNotification(boolean passwordChanged, String new
         pstNotification.setInt(3, massageId);
         pstNotification.executeUpdate();
         
-        System.out.println("Profile update notification created successfully for: " + currentUsername);
-        
     } catch (Exception e) {
-        e.printStackTrace();
-        // Don't throw exception here - we don't want notification failure to affect profile update
-        System.err.println("Failed to create profile update notification: " + e.getMessage());
+        // Silent notification creation failure
     } finally {
         // Close resources
         try {
             if (pstMassage != null) pstMassage.close();
             if (pstNotification != null) pstNotification.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Silent resource closing failure
         }
     }
 }

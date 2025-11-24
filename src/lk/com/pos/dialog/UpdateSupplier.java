@@ -270,7 +270,6 @@ public class UpdateSupplier extends javax.swing.JDialog {
     private void clearForm() {
         loadSupplierData(); // Reload original data
         jTextField1.requestFocus();
-        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Form reset to original values!");
     }
 
     private void loadSupplierData() {
@@ -292,9 +291,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading supplier data: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
@@ -304,8 +301,6 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
         // Use your exact regex pattern for Sri Lankan mobile validation
         if (!cleanedMobile.matches("^(0{1})(7{1})([0|1|2|4|5|6|7|8]{1})([0-9]{7})$")) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please enter a valid Sri Lankan mobile number (10 digits starting with 07)");
             return false;
         }
         return true;
@@ -321,15 +316,13 @@ public class UpdateSupplier extends javax.swing.JDialog {
             ResultSet rs = pst.executeQuery();
 
             if (rs.next() && rs.getInt(1) > 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Supplier name already exists!");
                 return true;
             }
 
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Exception handling without print statements
         }
         return false;
     }
@@ -344,15 +337,13 @@ public class UpdateSupplier extends javax.swing.JDialog {
             ResultSet rs = pst.executeQuery();
 
             if (rs.next() && rs.getInt(1) > 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Registration number already exists!");
                 return true;
             }
 
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Exception handling without print statements
         }
         return false;
     }
@@ -536,8 +527,6 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
         // Basic validation
         if (name.isEmpty() || mobile.isEmpty() || address.isEmpty() || company.isEmpty() || regNo.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                    "Please fill all required fields!");
             return;
         }
 
@@ -577,20 +566,13 @@ public class UpdateSupplier extends javax.swing.JDialog {
                 // Add notification for supplier update
                 addSupplierUpdateNotification(name);
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Supplier updated successfully!");
                 this.dispose(); // Close the dialog after successful update
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to update supplier!");
             }
 
             pst.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Database error: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 
@@ -639,9 +621,7 @@ public class UpdateSupplier extends javax.swing.JDialog {
             notificationStmt.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            // Don't show error to user for notification failure, just log it
-            System.err.println("Failed to add notification: " + e.getMessage());
+            // Exception handling without print statements
         }
     }
 

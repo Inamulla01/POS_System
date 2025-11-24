@@ -82,9 +82,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
                 // Select the reason in combo box
                 selectReasonInComboBox(originalReasonId);
 
-                System.out.println("Loaded stock loss data: StockID=" + originalStockId
-                        + ", Qty=" + originalQty + ", ReasonID=" + originalReasonId);
-
             } else {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Stock loss record not found!");
@@ -94,7 +91,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading stock loss data: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -119,7 +115,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
                     String item = stockCombo.getItemAt(i);
                     if (item.equals(stockDisplay)) {
                         stockCombo.setSelectedIndex(i);
-                        System.out.println("Found and selected stock: " + stockDisplay);
                         return;
                     }
                 }
@@ -129,16 +124,11 @@ public class UpdateLossStock extends javax.swing.JDialog {
                     String item = stockCombo.getItemAt(i);
                     if (item.contains(batchNo) && item.contains(productName)) {
                         stockCombo.setSelectedIndex(i);
-                        System.out.println("Found and selected stock (partial match): " + item);
                         return;
                     }
                 }
-
-                System.out.println("Stock not found in combo box: " + stockDisplay);
             }
         } catch (Exception e) {
-            System.err.println("Error selecting stock in combo box: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -156,16 +146,11 @@ public class UpdateLossStock extends javax.swing.JDialog {
                     String item = reasonCombo.getItemAt(i);
                     if (item.equals(reasonText)) {
                         reasonCombo.setSelectedIndex(i);
-                        System.out.println("Found and selected reason: " + reasonText);
                         return;
                     }
                 }
-
-                System.out.println("Reason not found in combo box: " + reasonText);
             }
         } catch (Exception e) {
-            System.err.println("Error selecting reason in combo box: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -664,7 +649,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
             newForwardKeys.add(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0));
             cancelBtn.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, newForwardKeys);
         } catch (Exception e) {
-            System.err.println("Error in focus traversal setup: " + e.getMessage());
         }
     }
 
@@ -714,8 +698,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Failed to create stock loss notification: " + e.getMessage());
         } finally {
             try {
                 if (pstMassage != null) {
@@ -725,7 +707,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
             }
         }
     }
@@ -940,7 +921,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
                         conn.rollback();
                     }
                 } catch (SQLException rollbackEx) {
-                    rollbackEx.printStackTrace();
                 }
 
                 if (ex.getMessage().contains("foreign key constraint") && ex.getMessage().contains("user_id")) {
@@ -955,7 +935,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
                         conn.setAutoCommit(true);
                     }
                 } catch (SQLException autoCommitEx) {
-                    autoCommitEx.printStackTrace();
                 }
             }
 
@@ -965,18 +944,15 @@ public class UpdateLossStock extends javax.swing.JDialog {
         } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error updating stock loss: " + e.getMessage());
-            e.printStackTrace();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             try {
                 if (conn != null) {
                     conn.close();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
             }
         }
     }
@@ -987,7 +963,6 @@ public class UpdateLossStock extends javax.swing.JDialog {
             ResultSet rs = MySQL.executeSearch(query);
             return rs.next();
         } catch (SQLException e) {
-            e.printStackTrace();
             return false;
         }
     }
@@ -1032,6 +1007,7 @@ public class UpdateLossStock extends javax.swing.JDialog {
 
         return -1;
     }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents

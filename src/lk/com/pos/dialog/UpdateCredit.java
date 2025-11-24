@@ -667,7 +667,6 @@ public class UpdateCredit extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
-            e.printStackTrace(); // Add this for debugging
         }
     }
 
@@ -731,7 +730,6 @@ public class UpdateCredit extends javax.swing.JDialog {
             rs.close();
             pst.close();
         } catch (Exception e) {
-            e.printStackTrace();
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading credit data: " + e.getMessage());
         }
@@ -884,10 +882,9 @@ public class UpdateCredit extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
+                // Silent rollback failure
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating credit: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             // Close resources
             try {
@@ -899,7 +896,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing failure
             }
             // Always reset the flag
             isUpdating = false;
@@ -985,12 +982,8 @@ public class UpdateCredit extends javax.swing.JDialog {
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-            System.out.println("Credit update notification created successfully for: " + newCustomerName);
-
         } catch (Exception e) {
-            e.printStackTrace();
-            // Don't throw exception here - we don't want notification failure to affect credit update
-            System.err.println("Failed to create credit update notification: " + e.getMessage());
+            // Silent notification creation failure
         } finally {
             // Close resources
             try {
@@ -1001,7 +994,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                // Silent resource closing failure
             }
         }
     }
@@ -1014,7 +1007,6 @@ public class UpdateCredit extends javax.swing.JDialog {
 
     private void openCreditPayDialog() {
         try {
-         
             AddCreditPay dialog = new AddCreditPay(null, true);
             dialog.setLocationRelativeTo(null);
             dialog.setVisible(true);
@@ -1029,7 +1021,6 @@ public class UpdateCredit extends javax.swing.JDialog {
         try {
             // Remove add buttons from keyboard navigation
             creditPayBtn.setFocusable(false);
-        
 
             // Make date editors focusable
             if (manufactureDate.getDateEditor() != null && manufactureDate.getDateEditor().getUiComponent() != null) {
@@ -1039,10 +1030,9 @@ public class UpdateCredit extends javax.swing.JDialog {
                 expriyDate.getDateEditor().getUiComponent().setFocusable(true);
             }
         } catch (Exception e) {
-            System.err.println("Error in focus traversal setup: " + e.getMessage());
+            // Silent focus traversal setup failure
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

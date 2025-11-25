@@ -1331,6 +1331,78 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 || reason.toLowerCase().contains("misplaced");
     }
 
+    private void createExchangeNotification(int returnId, String invoiceNo, double refundAmount, String reason, boolean isStockLoss, Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
+
+        try {
+            // Create the message text
+            String messageText = "Product exchange processed for invoice #" + invoiceNo + 
+                    ": Return ID " + returnId + 
+                    ", Refund Amount Rs." + String.format("%.2f", refundAmount) + 
+                    ", Reason: " + reason + 
+                    ", Stock Handling: " + (isStockLoss ? "Stock Loss" : "Returned to Inventory");
+
+            // Check if message already exists
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            ResultSet rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                // Get the generated message ID
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new SQLException("Failed to get generated massage ID");
+                }
+            }
+
+            // Insert notification
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // 1 = unread
+            pstNotification.setInt(2, 27); // 27 = Return Product message type
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+        } catch (SQLException e) {
+            // Silent error handling - don't disrupt the main exchange process
+            System.err.println("Error creating exchange notification: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            try {
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (SQLException e) {
+                // Silent exception handling
+            }
+        }
+    }
+
     private boolean processExchange() {
         Connection conn = null;
         try {
@@ -1590,6 +1662,9 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             // Commit transaction
             conn.commit();
 
+            // CREATE NOTIFICATION AFTER SUCCESSFUL EXCHANGE
+            createExchangeNotification(returnId, invoiceNo.getText().trim(), totalRefundAmount, selectedReason, isStockLoss, conn);
+
             String message = buildSuccessMessage(totalRefundAmount, selectedReason, isStockLoss);
             JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
 
@@ -1736,6 +1811,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
         return totalDiscount;
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

@@ -29,7 +29,6 @@ import lk.com.pos.panel.ChartPanel;
 import lk.com.pos.panel.ChequePanel;
 import lk.com.pos.panel.CustomerPanel;
 import lk.com.pos.panel.DashboardPanel;
-import lk.com.pos.panel.ExpensePanel;
 import lk.com.pos.panel.NotificationPanel;
 import lk.com.pos.panel.PosPanelDone;
 import lk.com.pos.panel.ProductPanel;
@@ -54,7 +53,7 @@ public class HomeScreen extends JFrame {
     private static NotificationScheduler notificationScheduler;
 
     private FlatSVGIcon dashboardIcon, posIcon, supplierIcon, salesIcon, creditIcon, stockIcon, menuIcon, signOutIcon;
-    private FlatSVGIcon notificationIcon, returnIcon, productIcon, chequeIcon, expenseIcon;
+    private FlatSVGIcon notificationIcon, returnIcon, productIcon, chequeIcon;
     private FlatSVGIcon navMenuIcon, navBellIcon, navProfileIcon, navKeyIcon, calculatorIcon;
     private FlatSVGIcon stockLossIcon, chartPanelIcon;
 
@@ -81,7 +80,6 @@ public class HomeScreen extends JFrame {
     private ReturnPanel retuenPanel;
     private ProductPanel productPanel;
     private ChequePanel chequePanel;
-    private ExpensePanel expensePanel;
     private StockLossPanel stockLossPanel;
     private ChartPanel chartPanel;
 
@@ -157,7 +155,6 @@ public class HomeScreen extends JFrame {
         returnIcon = new FlatSVGIcon("lk/com/pos/icon/return.svg", 17, 17);
         productIcon = new FlatSVGIcon("lk/com/pos/icon/box.svg", 22, 22);
         chequeIcon = new FlatSVGIcon("lk/com/pos/icon/cheque.svg", 21, 21);
-        expenseIcon = new FlatSVGIcon("lk/com/pos/icon/wallet-down.svg", 23, 23);
 
         navMenuIcon = new FlatSVGIcon("lk/com/pos/icon/menu.svg", 20, 20);
         navBellIcon = new FlatSVGIcon("lk/com/pos/icon/bell.svg", 20, 20);
@@ -273,7 +270,7 @@ public class HomeScreen extends JFrame {
             chequeBtn.setVisible(false);
             notificasionBtn1.setVisible(false); // Stock Loss
             notificasionBtn2.setVisible(false); // Chart Panel
-            
+
             // Show only POS, calculator, shortcuts, and sign out
             posBtn.setVisible(true);
             calBtn.setVisible(true);
@@ -282,7 +279,7 @@ public class HomeScreen extends JFrame {
             bellBtn.setVisible(true);
             menuBtn.setVisible(true);
             profileBtn.setVisible(true);
-            
+
         } else {
             // Admin - show all buttons
             dashboardBtn.setVisible(true);
@@ -304,7 +301,7 @@ public class HomeScreen extends JFrame {
             menuBtn.setVisible(true);
             profileBtn.setVisible(true);
         }
-        
+
         // Revalidate the sidebar to update layout
         sidePenal.revalidate();
         sidePenal.repaint();
@@ -1347,7 +1344,6 @@ public class HomeScreen extends JFrame {
         this.productPanel = new ProductPanel();
         this.retuenPanel = new ReturnPanel();
         this.chequePanel = new ChequePanel();
-        this.expensePanel = new ExpensePanel();
         this.stockLossPanel = new StockLossPanel();
         this.chartPanel = new ChartPanel();
 
@@ -1355,13 +1351,11 @@ public class HomeScreen extends JFrame {
         this.cardPanel.add(posPanel, "pos_panel");
         this.cardPanel.add(supplierPanel, "supplier_panel");
         this.cardPanel.add(salesPanel, "sales_panel");
-        this.cardPanel.add(customerManagementPanel, "customer_management_panel");
         this.cardPanel.add(stockPanel, "stock_panel");
         this.cardPanel.add(notificationPanel, "notification_Panel");
         this.cardPanel.add(retuenPanel, "retuen_Panel");
         this.cardPanel.add(productPanel, "product_Panel");
         this.cardPanel.add(chequePanel, "cheque_Panel");
-        this.cardPanel.add(expensePanel, "Expense_Panel");
         this.cardPanel.add(stockLossPanel, "StockLoss_Panel");
         this.cardPanel.add(chartPanel, "Chart_Panel");
 
@@ -1381,19 +1375,45 @@ public class HomeScreen extends JFrame {
 
     private void resetAllButtonsToNormal() {
         // Only reset buttons that are visible
-        if (dashboardBtn.isVisible()) resetButtonToNormal(dashboardBtn);
-        if (posBtn.isVisible()) resetButtonToNormal(posBtn);
-        if (supplierBtn.isVisible()) resetButtonToNormal(supplierBtn);
-        if (salesBtn.isVisible()) resetButtonToNormal(salesBtn);
-        if (creditBtn.isVisible()) resetButtonToNormal(creditBtn);
-        if (stockBtn.isVisible()) resetButtonToNormal(stockBtn);
-        if (notificasionBtn.isVisible()) resetButtonToNormal(notificasionBtn);
-        if (returnBtn.isVisible()) resetButtonToNormal(returnBtn);
-        if (productBtn.isVisible()) resetButtonToNormal(productBtn);
-        if (chequeBtn.isVisible()) resetButtonToNormal(chequeBtn);
-        if (notificasionBtn1.isVisible()) resetButtonToNormal(notificasionBtn1);
-        if (notificasionBtn2.isVisible()) resetButtonToNormal(notificasionBtn2);
-        if (calBtn.isVisible()) resetButtonToNormal(calBtn);
+        if (dashboardBtn.isVisible()) {
+            resetButtonToNormal(dashboardBtn);
+        }
+        if (posBtn.isVisible()) {
+            resetButtonToNormal(posBtn);
+        }
+        if (supplierBtn.isVisible()) {
+            resetButtonToNormal(supplierBtn);
+        }
+        if (salesBtn.isVisible()) {
+            resetButtonToNormal(salesBtn);
+        }
+        if (creditBtn.isVisible()) {
+            resetButtonToNormal(creditBtn);
+        }
+        if (stockBtn.isVisible()) {
+            resetButtonToNormal(stockBtn);
+        }
+        if (notificasionBtn.isVisible()) {
+            resetButtonToNormal(notificasionBtn);
+        }
+        if (returnBtn.isVisible()) {
+            resetButtonToNormal(returnBtn);
+        }
+        if (productBtn.isVisible()) {
+            resetButtonToNormal(productBtn);
+        }
+        if (chequeBtn.isVisible()) {
+            resetButtonToNormal(chequeBtn);
+        }
+        if (notificasionBtn1.isVisible()) {
+            resetButtonToNormal(notificasionBtn1);
+        }
+        if (notificasionBtn2.isVisible()) {
+            resetButtonToNormal(notificasionBtn2);
+        }
+        if (calBtn.isVisible()) {
+            resetButtonToNormal(calBtn);
+        }
         resetButtonToNormal(signOutBtn);
     }
 
@@ -1720,18 +1740,42 @@ public class HomeScreen extends JFrame {
 
     private void setButtonTextVisible(boolean visible) {
         // Only set text for visible buttons
-        if (dashboardBtn.isVisible()) dashboardBtn.setText(visible ? " Dashboard" : "");
-        if (posBtn.isVisible()) posBtn.setText(visible ? " POS" : "");
-        if (supplierBtn.isVisible()) supplierBtn.setText(visible ? " Supplier" : "");
-        if (salesBtn.isVisible()) salesBtn.setText(visible ? " Sales" : "");
-        if (creditBtn.isVisible()) creditBtn.setText(visible ? " Credit Customers" : "");
-        if (stockBtn.isVisible()) stockBtn.setText(visible ? " Stocks" : "");
-        if (notificasionBtn.isVisible()) notificasionBtn.setText(visible ? " Notification" : "");
-        if (returnBtn.isVisible()) returnBtn.setText(visible ? " Return" : "");
-        if (productBtn.isVisible()) productBtn.setText(visible ? " Product" : "");
-        if (chequeBtn.isVisible()) chequeBtn.setText(visible ? " Cheque" : "");
-        if (notificasionBtn1.isVisible()) notificasionBtn1.setText(visible ? " Stock Loss" : "");
-        if (notificasionBtn2.isVisible()) notificasionBtn2.setText(visible ? " Charts" : "");
+        if (dashboardBtn.isVisible()) {
+            dashboardBtn.setText(visible ? " Dashboard" : "");
+        }
+        if (posBtn.isVisible()) {
+            posBtn.setText(visible ? " POS" : "");
+        }
+        if (supplierBtn.isVisible()) {
+            supplierBtn.setText(visible ? " Supplier" : "");
+        }
+        if (salesBtn.isVisible()) {
+            salesBtn.setText(visible ? " Sales" : "");
+        }
+        if (creditBtn.isVisible()) {
+            creditBtn.setText(visible ? " Credit Customers" : "");
+        }
+        if (stockBtn.isVisible()) {
+            stockBtn.setText(visible ? " Stocks" : "");
+        }
+        if (notificasionBtn.isVisible()) {
+            notificasionBtn.setText(visible ? " Notification" : "");
+        }
+        if (returnBtn.isVisible()) {
+            returnBtn.setText(visible ? " Return" : "");
+        }
+        if (productBtn.isVisible()) {
+            productBtn.setText(visible ? " Product" : "");
+        }
+        if (chequeBtn.isVisible()) {
+            chequeBtn.setText(visible ? " Cheque" : "");
+        }
+        if (notificasionBtn1.isVisible()) {
+            notificasionBtn1.setText(visible ? " Stock Loss" : "");
+        }
+        if (notificasionBtn2.isVisible()) {
+            notificasionBtn2.setText(visible ? " Charts" : "");
+        }
         signOutBtn.setText(visible ? " Sign Out" : "");
     }
 
@@ -1992,7 +2036,7 @@ public class HomeScreen extends JFrame {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Access denied! Adding new users is for Admin only.");
             return;
         }
-        
+
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         AddNewUser dialog = new AddNewUser(parentFrame, true);
         dialog.setLocationRelativeTo(parentFrame);
@@ -2011,6 +2055,7 @@ public class HomeScreen extends JFrame {
             profilePopup.setVisible(false);
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

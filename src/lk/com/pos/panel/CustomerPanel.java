@@ -47,19 +47,20 @@ import lk.com.pos.dialog.UpdateCustomer;
 /**
  * CustomerPanel - Displays and manages customer information with credit details
  * Features: Search, filters, keyboard navigation, credit tracking
- * 
+ *
  * @author Your Name
  * @version 2.0
  */
 public class CustomerPanel extends javax.swing.JPanel {
-   
+
     // Date & Number Formatting
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
-    
+
     // UI Constants - Colors
     private static final class Colors {
+
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
         static final Color TEAL_HOVER = new Color(60, 200, 206);
         static final Color BORDER_DEFAULT = new Color(230, 230, 230);
@@ -68,7 +69,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final Color TEXT_PRIMARY = Color.decode("#1E293B");
         static final Color TEXT_SECONDARY = Color.decode("#6B7280");
         static final Color TEXT_MUTED = Color.decode("#94A3B8");
-        
+
         // Badge Colors
         static final Color BADGE_MISSED_BG = Color.decode("#FED7AA");
         static final Color BADGE_MISSED_FG = Color.decode("#7C2D12");
@@ -76,7 +77,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final Color BADGE_HIGH_RISK_BG = Color.decode("#DC2626");
         static final Color BADGE_HIGH_RISK_FG = Color.WHITE;
         static final Color BADGE_HIGH_RISK_BORDER = Color.decode("#FECACA");
-        
+
         // Payment Panel Colors
         static final Color PAYMENT_DUE_BG = Color.decode("#DBEAFE");
         static final Color PAYMENT_DUE_FG = Color.decode("#1E40AF");
@@ -84,14 +85,14 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final Color PAYMENT_PAID_FG = Color.decode("#059669");
         static final Color PAYMENT_OUTSTANDING_BG = Color.decode("#FEF3C7");
         static final Color PAYMENT_OUTSTANDING_FG = Color.decode("#92400E");
-        
+
         // Detail Colors
         static final Color DETAIL_PHONE = Color.decode("#8B5CF6");
         static final Color DETAIL_NIC = Color.decode("#EC4899");
         static final Color DETAIL_DUE_DATE = Color.decode("#10B981");
         static final Color DETAIL_REG_DATE = Color.decode("#06B6D4");
         static final Color DETAIL_STATUS = Color.decode("#6366F1");
-        
+
         // Button Colors
         static final Color BTN_EDIT_BG = Color.decode("#EFF6FF");
         static final Color BTN_EDIT_BORDER = Color.decode("#BFDBFE");
@@ -99,9 +100,10 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final Color BTN_VIEW_BG_HOVER = Color.decode("#7C3AED");
         static final Color BTN_VIEW_BORDER = Color.decode("#7C3AED");
     }
-    
+
     // UI Constants - Dimensions
     private static final class Dimensions {
+
         static final Dimension CARD_SIZE = new Dimension(420, 470);
         static final Dimension CARD_MAX_SIZE = new Dimension(420, 470);
         static final Dimension CARD_MIN_SIZE = new Dimension(380, 470);
@@ -110,9 +112,10 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final int GRID_GAP = 25;
         static final int CARD_PADDING = 16;
     }
-    
+
     // UI Constants - Fonts
     private static final class Fonts {
+
         static final java.awt.Font HEADER = new java.awt.Font("Nunito ExtraBold", 1, 20);
         static final java.awt.Font SECTION_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 11);
         static final java.awt.Font BADGE = new java.awt.Font("Nunito ExtraBold", 1, 11);
@@ -129,9 +132,10 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final java.awt.Font LOADING = new java.awt.Font("Nunito ExtraBold", 1, 20);
         static final java.awt.Font POSITION = new java.awt.Font("Nunito ExtraBold", 1, 14);
     }
-    
+
     // UI Constants - Strings
     private static final class Strings {
+
         static final String SEARCH_PLACEHOLDER = "Search By Customer Name or NIC";
         static final String NO_CUSTOMERS = "No customers found";
         static final String LOADING_MESSAGE = "Loading customers...";
@@ -145,9 +149,10 @@ public class CustomerPanel extends javax.swing.JPanel {
         static final String NO_ADDRESS = "No Address";
         static final String NO_VALUE = "N/A";
     }
-    
+
     // Business Constants
     private static final class Business {
+
         static final double HIGH_RISK_THRESHOLD = 50000.0;
         static final long REFRESH_COOLDOWN_MS = 1000; // 1 second
     }
@@ -157,7 +162,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     private List<lk.com.pos.privateclasses.RoundedPanel> customerCardsList = new ArrayList<>();
     private int currentCardIndex = -1;
     private int currentColumns = 3;
-    
+
     // UI Components
     private JPanel positionIndicator;
     private JLabel positionLabel;
@@ -166,7 +171,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     private boolean hintsVisible = false;
     private JPanel loadingPanel;
     private JLabel loadingLabel;
-    
+
     // State
     private long lastRefreshTime = 0;
 
@@ -178,7 +183,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         createLoadingPanel();
         setupKeyboardShortcuts();
         loadCustomers();
-        
+
         SwingUtilities.invokeLater(() -> {
             this.requestFocusInWindow();
             showKeyboardHints();
@@ -193,11 +198,12 @@ public class CustomerPanel extends javax.swing.JPanel {
         setupIcons();
         setupSearchField();
         setupRadioButtons();
+
         setupButtons();
         setupEventListeners();
         setupPanel();
     }
-    
+
     /**
      * Configures scroll pane styling
      */
@@ -206,11 +212,11 @@ public class CustomerPanel extends javax.swing.JPanel {
         jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
-        
+
         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
                 "track: #F5F5F5; thumb: #1CB5BB; width: 8");
     }
-    
+
     /**
      * Sets up button icons
      */
@@ -221,27 +227,27 @@ public class CustomerPanel extends javax.swing.JPanel {
         } catch (Exception e) {
             System.err.println("Error loading edit icon: " + e.getMessage());
         }
-        
+
         // Hide delete button as requested
         if (deleteBtn != null) {
             deleteBtn.setVisible(false);
         }
     }
-    
+
     /**
      * Configures search field
      */
     private void setupSearchField() {
         jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, Strings.SEARCH_PLACEHOLDER);
         try {
-            jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, 
-                new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
+            jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
+                    new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         } catch (Exception e) {
             System.err.println("Error loading search icon: " + e.getMessage());
         }
-        
+
         jTextField1.setToolTipText("Search customers (Ctrl+F or /) - Press ? for help");
-        
+
         jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
@@ -249,15 +255,19 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
     }
-    
+
     /**
      * Configures buttons
      */
     private void setupButtons() {
-        customerReportBtn.setToolTipText("Generate Customer Report (Ctrl+R or Ctrl+P)");
-        addNewCoustomerBtn.setToolTipText("Add New Customer (Ctrl+N or Alt+A)");
+        setupAddNewCustomerButton();
+        setupExportButton();
+
+        // Remove text from buttons
+        addNewCoustomerBtn.setText("");
+        customerReportBtn.setText("");
     }
-    
+
     /**
      * Configures radio buttons
      */
@@ -265,25 +275,25 @@ public class CustomerPanel extends javax.swing.JPanel {
         jRadioButton1.putClientProperty(FlatClientProperties.STYLE, "foreground:#EF4444;");
         jRadioButton2.putClientProperty(FlatClientProperties.STYLE, "foreground:#6366F1;");
         jRadioButton4.putClientProperty(FlatClientProperties.STYLE, "foreground:#F97316;");
-        
+
         jRadioButton4.setToolTipText("Filter due amount customers (Alt+1)");
         jRadioButton1.setToolTipText("Filter missed due date customers (Alt+2)");
         jRadioButton2.setToolTipText("Filter no due customers (Alt+3)");
-        
+
         // Set "Due Amount" as default
         jRadioButton4.setSelected(true);
-        
+
         // Add action listeners
         jRadioButton1.addActionListener(evt -> onFilterChanged());
         jRadioButton2.addActionListener(evt -> onFilterChanged());
         jRadioButton4.addActionListener(evt -> onFilterChanged());
-        
+
         // Toggle on click if already selected
         setupRadioButtonToggle(jRadioButton1);
         setupRadioButtonToggle(jRadioButton2);
         setupRadioButtonToggle(jRadioButton4);
     }
-    
+
     /**
      * Sets up toggle behavior for radio button
      */
@@ -299,14 +309,14 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
     }
-    
+
     /**
      * Sets up main panel
      */
     private void setupPanel() {
         jPanel2.setBackground(Colors.BACKGROUND);
     }
-    
+
     /**
      * Sets up event listeners
      */
@@ -318,7 +328,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
     }
-    
+
     /**
      * Called when filter changes
      */
@@ -334,33 +344,33 @@ public class CustomerPanel extends javax.swing.JPanel {
         loadingPanel = new JPanel(new BorderLayout());
         loadingPanel.setBackground(new Color(248, 250, 252, 230));
         loadingPanel.setVisible(false);
-        
+
         JPanel centerPanel = new JPanel();
         centerPanel.setOpaque(false);
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
-        
+
         loadingLabel = new JLabel(Strings.LOADING_MESSAGE);
         loadingLabel.setFont(Fonts.LOADING);
         loadingLabel.setForeground(Colors.TEAL_PRIMARY);
         loadingLabel.setHorizontalAlignment(SwingConstants.CENTER);
         loadingLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        
+
         JLabel subLabel = new JLabel(Strings.LOADING_SUBMESSAGE);
         subLabel.setFont(Fonts.HINT_DESC);
         subLabel.setForeground(Colors.TEXT_SECONDARY);
         subLabel.setHorizontalAlignment(SwingConstants.CENTER);
         subLabel.setAlignmentX(JLabel.CENTER_ALIGNMENT);
-        
+
         centerPanel.add(Box.createVerticalGlue());
         centerPanel.add(loadingLabel);
         centerPanel.add(Box.createVerticalStrut(10));
         centerPanel.add(subLabel);
         centerPanel.add(Box.createVerticalGlue());
-        
+
         loadingPanel.add(centerPanel, BorderLayout.CENTER);
         add(loadingPanel, Integer.valueOf(2000));
     }
-    
+
     /**
      * Shows or hides loading panel
      */
@@ -382,17 +392,17 @@ public class CustomerPanel extends javax.swing.JPanel {
         positionIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         positionIndicator.setBackground(new Color(31, 41, 55, 230));
         positionIndicator.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
-            BorderFactory.createEmptyBorder(8, 15, 8, 15)
+                BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
         ));
         positionIndicator.setVisible(false);
-        
+
         positionLabel = new JLabel();
         positionLabel.setFont(Fonts.POSITION);
         positionLabel.setForeground(Color.WHITE);
-        
+
         positionIndicator.add(positionLabel);
-        
+
         setLayout(new javax.swing.OverlayLayout(this) {
             @Override
             public void layoutContainer(java.awt.Container target) {
@@ -400,10 +410,10 @@ public class CustomerPanel extends javax.swing.JPanel {
                 layoutOverlays();
             }
         });
-        
+
         add(positionIndicator, Integer.valueOf(1000));
     }
-    
+
     /**
      * Layouts overlay panels
      */
@@ -414,34 +424,36 @@ public class CustomerPanel extends javax.swing.JPanel {
             int y = 80;
             positionIndicator.setBounds(x, y, size.width, size.height);
         }
-        
+
         if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
             Dimension size = keyboardHintsPanel.getPreferredSize();
             int x = getWidth() - size.width - 20;
             int y = getHeight() - size.height - 20;
             keyboardHintsPanel.setBounds(x, y, size.width, size.height);
         }
-        
+
         if (loadingPanel != null && loadingPanel.isVisible()) {
             loadingPanel.setBounds(0, 0, getWidth(), getHeight());
         }
     }
-    
+
     /**
      * Shows position indicator with text
      */
     private void showPositionIndicator(String text) {
-        if (text == null || text.isEmpty()) return;
-        
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
         positionLabel.setText(text);
         positionIndicator.setVisible(true);
         revalidate();
         repaint();
-        
+
         if (positionTimer != null && positionTimer.isRunning()) {
             positionTimer.stop();
         }
-        
+
         positionTimer = new Timer(2000, e -> {
             positionIndicator.setVisible(false);
             revalidate();
@@ -459,18 +471,18 @@ public class CustomerPanel extends javax.swing.JPanel {
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
         keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
         keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
-            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+                BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
         keyboardHintsPanel.setVisible(false);
-        
+
         JLabel title = new JLabel(Strings.HELP_TITLE);
         title.setFont(Fonts.HINT_TITLE);
         title.setForeground(Colors.TEAL_PRIMARY);
         title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(title);
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-        
+
         addHintRow("← → ↑ ↓", "Navigate cards", "#FFFFFF");
         addHintRow("V", "View Credit Details", "#FCD34D");
         addHintRow("E", "Edit Customer", "#1CB5BB");
@@ -484,18 +496,18 @@ public class CustomerPanel extends javax.swing.JPanel {
         addHintRow("Alt+3", "No Due", "#6366F1");
         addHintRow("Esc", "Clear/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
-        
+
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-        
+
         JLabel closeHint = new JLabel(Strings.HELP_CLOSE_HINT);
         closeHint.setFont(new java.awt.Font("Nunito SemiBold", 2, 10));
         closeHint.setForeground(Color.decode("#9CA3AF"));
         closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
         keyboardHintsPanel.add(closeHint);
-        
+
         add(keyboardHintsPanel, Integer.valueOf(1001));
     }
-    
+
     /**
      * Adds hint row to keyboard hints panel
      */
@@ -504,21 +516,21 @@ public class CustomerPanel extends javax.swing.JPanel {
         row.setOpaque(false);
         row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(300, 25));
-        
+
         JLabel keyLabel = new JLabel(key);
         keyLabel.setFont(Fonts.HINT_KEY);
         keyLabel.setForeground(Color.decode(keyColor));
         keyLabel.setPreferredSize(new Dimension(90, 20));
-        
+
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(Fonts.HINT_DESC);
         descLabel.setForeground(Color.decode("#D1D5DB"));
-        
+
         row.add(keyLabel);
         row.add(descLabel);
         keyboardHintsPanel.add(row);
     }
-    
+
     /**
      * Shows or hides keyboard hints
      */
@@ -528,7 +540,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             hintsVisible = true;
             revalidate();
             repaint();
-            
+
             Timer hideTimer = new Timer(5000, e -> {
                 keyboardHintsPanel.setVisible(false);
                 hintsVisible = false;
@@ -550,68 +562,68 @@ public class CustomerPanel extends javax.swing.JPanel {
      */
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
-        
+
         int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
         int arrowCondition = JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT;
-        
+
         // Arrow navigation
         registerKeyAction("LEFT", KeyEvent.VK_LEFT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_LEFT));
         registerKeyAction("RIGHT", KeyEvent.VK_RIGHT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_RIGHT));
         registerKeyAction("UP", KeyEvent.VK_UP, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_UP));
         registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_DOWN));
-        
+
         // Actions
         registerKeyAction("V", KeyEvent.VK_V, 0, condition, this::viewCreditForSelectedCard);
         registerKeyAction("E", KeyEvent.VK_E, 0, condition, this::editSelectedCard);
-        
+
         // Enter to start navigation
         registerKeyAction("ENTER", KeyEvent.VK_ENTER, 0, condition, this::handleEnterKey);
-        
+
         // Search
         registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, this::focusSearch);
         registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, this::handleSlashKey);
-        
+
         // Escape
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
-        
+
         // Refresh
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshCustomers);
-        
+
         // Customer Report
         registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openCustomerReport);
         registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openCustomerReport);
-        
+
         // Add New Customer shortcuts
         registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddCustomerDialog);
         registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddCustomerDialog);
-        
+
         // Quick filters
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton1));
         registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton2));
         registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, this::clearFilters);
-        
+
         // Help
         registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, this::showKeyboardHints);
-        
+
         setupSearchFieldShortcuts();
     }
-    
+
     /**
      * Sets up search field specific shortcuts
      */
     private void setupSearchFieldShortcuts() {
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
         jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 clearSearchAndFilters();
             }
         });
-        
+
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
+                KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
         jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -619,7 +631,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
     }
-    
+
     /**
      * Registers a keyboard action
      */
@@ -636,18 +648,18 @@ public class CustomerPanel extends javax.swing.JPanel {
             }
         });
     }
-    
+
     /**
      * Determines if key action should be ignored
      */
     private boolean shouldIgnoreKeyAction(int keyCode, int modifiers) {
-        return jTextField1.hasFocus() && 
-               keyCode != KeyEvent.VK_ESCAPE && 
-               keyCode != KeyEvent.VK_ENTER &&
-               modifiers == 0 &&
-               keyCode != KeyEvent.VK_SLASH;
+        return jTextField1.hasFocus()
+                && keyCode != KeyEvent.VK_ESCAPE
+                && keyCode != KeyEvent.VK_ENTER
+                && modifiers == 0
+                && keyCode != KeyEvent.VK_SLASH;
     }
-    
+
     /**
      * Handles Enter key
      */
@@ -656,7 +668,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             navigateCards(KeyEvent.VK_RIGHT);
         }
     }
-    
+
     /**
      * Handles slash key
      */
@@ -665,7 +677,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             focusSearch();
         }
     }
-    
+
     /**
      * Clears search and filters
      */
@@ -675,7 +687,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         performSearch();
         CustomerPanel.this.requestFocusInWindow();
     }
-    
+
     /**
      * Starts navigation from search field
      */
@@ -691,7 +703,6 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
     }
 
-   
     /**
      * Navigates between cards using arrow keys
      */
@@ -700,7 +711,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             showPositionIndicator("No customers available");
             return;
         }
-        
+
         if (currentCardIndex < 0) {
             currentCardIndex = 0;
             selectCurrentCard();
@@ -708,10 +719,10 @@ public class CustomerPanel extends javax.swing.JPanel {
             updatePositionIndicator();
             return;
         }
-        
+
         int oldIndex = currentCardIndex;
         int newIndex = calculateNewIndex(direction, currentCardIndex, customerCardsList.size());
-        
+
         if (newIndex != oldIndex) {
             deselectCard(oldIndex);
             currentCardIndex = newIndex;
@@ -722,7 +733,7 @@ public class CustomerPanel extends javax.swing.JPanel {
             showBoundaryMessage(direction);
         }
     }
-    
+
     /**
      * Shows message when at navigation boundary
      */
@@ -746,7 +757,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
         showPositionIndicator(message);
     }
-    
+
     /**
      * Calculates new card index based on direction
      */
@@ -754,25 +765,25 @@ public class CustomerPanel extends javax.swing.JPanel {
         int currentRow = currentIndex / currentColumns;
         int currentCol = currentIndex % currentColumns;
         int totalRows = (int) Math.ceil((double) totalCards / currentColumns);
-        
+
         switch (direction) {
             case KeyEvent.VK_LEFT:
                 return calculateLeftIndex(currentIndex, currentRow, currentCol);
-                
+
             case KeyEvent.VK_RIGHT:
                 return calculateRightIndex(currentIndex, currentRow, totalCards);
-                
+
             case KeyEvent.VK_UP:
                 return calculateUpIndex(currentIndex, currentRow);
-                
+
             case KeyEvent.VK_DOWN:
                 return calculateDownIndex(currentIndex, currentRow, currentCol, totalCards, totalRows);
-                
+
             default:
                 return currentIndex;
         }
     }
-    
+
     private int calculateLeftIndex(int currentIndex, int currentRow, int currentCol) {
         if (currentCol > 0) {
             return currentIndex - 1;
@@ -781,7 +792,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
         return currentIndex;
     }
-    
+
     private int calculateRightIndex(int currentIndex, int currentRow, int totalCards) {
         if (currentIndex < totalCards - 1) {
             int nextIndex = currentIndex + 1;
@@ -790,14 +801,14 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
         return currentIndex;
     }
-    
+
     private int calculateUpIndex(int currentIndex, int currentRow) {
         if (currentRow > 0) {
             return Math.max(0, currentIndex - currentColumns);
         }
         return currentIndex;
     }
-    
+
     private int calculateDownIndex(int currentIndex, int currentRow, int currentCol, int totalCards, int totalRows) {
         int targetIndex = currentIndex + currentColumns;
         if (targetIndex < totalCards) {
@@ -805,14 +816,14 @@ public class CustomerPanel extends javax.swing.JPanel {
         } else {
             int lastRowFirstIndex = (totalRows - 1) * currentColumns;
             int potentialIndex = lastRowFirstIndex + currentCol;
-            
+
             if (potentialIndex < totalCards && potentialIndex > currentIndex) {
                 return potentialIndex;
             }
         }
         return currentIndex;
     }
-    
+
     /**
      * Updates position indicator with current position
      */
@@ -820,22 +831,22 @@ public class CustomerPanel extends javax.swing.JPanel {
         if (currentCardIndex < 0 || currentCardIndex >= customerCardsList.size()) {
             return;
         }
-        
+
         int row = (currentCardIndex / currentColumns) + 1;
         int col = (currentCardIndex % currentColumns) + 1;
         int totalRows = (int) Math.ceil((double) customerCardsList.size() / currentColumns);
-        
-        String text = String.format("Card %d/%d (Row %d/%d, Col %d) | V: View Credits | E: Edit", 
-            currentCardIndex + 1, 
-            customerCardsList.size(),
-            row,
-            totalRows,
-            col
+
+        String text = String.format("Card %d/%d (Row %d/%d, Col %d) | V: View Credits | E: Edit",
+                currentCardIndex + 1,
+                customerCardsList.size(),
+                row,
+                totalRows,
+                col
         );
-        
+
         showPositionIndicator(text);
     }
-    
+
     /**
      * Selects current card visually
      */
@@ -843,18 +854,18 @@ public class CustomerPanel extends javax.swing.JPanel {
         if (currentCardIndex < 0 || currentCardIndex >= customerCardsList.size()) {
             return;
         }
-        
+
         lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(currentCardIndex);
-        
+
         card.setBorder(BorderFactory.createCompoundBorder(
-            new RoundedBorder(Colors.TEAL_PRIMARY, 4, 15),
-            BorderFactory.createEmptyBorder(14, 14, 14, 14)
+                new RoundedBorder(Colors.TEAL_PRIMARY, 4, 15),
+                BorderFactory.createEmptyBorder(14, 14, 14, 14)
         ));
-        
+
         card.setBackground(card.getBackground().brighter());
         currentFocusedCard = card;
     }
-    
+
     /**
      * Deselects card at index
      */
@@ -862,17 +873,17 @@ public class CustomerPanel extends javax.swing.JPanel {
         if (index < 0 || index >= customerCardsList.size()) {
             return;
         }
-        
+
         lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(index);
-        
+
         card.setBorder(BorderFactory.createCompoundBorder(
-            new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
-            BorderFactory.createEmptyBorder(16, 16, 16, 16)
+                new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
+                BorderFactory.createEmptyBorder(16, 16, 16, 16)
         ));
-        
+
         card.setBackground(Colors.CARD_WHITE);
     }
-    
+
     /**
      * Deselects current card
      */
@@ -883,7 +894,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
         currentCardIndex = -1;
     }
-    
+
     /**
      * Scrolls to card smoothly
      */
@@ -891,38 +902,38 @@ public class CustomerPanel extends javax.swing.JPanel {
         if (index < 0 || index >= customerCardsList.size()) {
             return;
         }
-        
+
         SwingUtilities.invokeLater(() -> {
             try {
                 lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(index);
-                
+
                 Point cardLocation = card.getLocation();
                 Dimension cardSize = card.getSize();
                 Rectangle viewRect = jScrollPane1.getViewport().getViewRect();
-                
+
                 int cardTop = cardLocation.y;
                 int cardBottom = cardLocation.y + cardSize.height;
                 int viewTop = viewRect.y;
                 int viewBottom = viewRect.y + viewRect.height;
-                
+
                 int targetY = calculateScrollTarget(cardTop, cardBottom, viewTop, viewBottom, viewRect.height);
-                
+
                 if (targetY != viewRect.y) {
                     animateScroll(viewRect.x, viewRect.y, targetY);
                 }
-                
+
             } catch (Exception e) {
                 System.err.println("Error scrolling to card: " + e.getMessage());
             }
         });
     }
-    
+
     /**
      * Calculates scroll target Y position
      */
     private int calculateScrollTarget(int cardTop, int cardBottom, int viewTop, int viewBottom, int viewHeight) {
         int targetY = viewTop;
-        
+
         if (cardTop < viewTop) {
             targetY = Math.max(0, cardTop - 50);
         } else if (cardBottom > viewBottom) {
@@ -934,35 +945,36 @@ public class CustomerPanel extends javax.swing.JPanel {
         } else {
             return viewTop; // No scroll needed
         }
-        
+
         return targetY;
     }
-    
+
     /**
      * Animates scroll to position
      */
     private void animateScroll(int x, int startY, int endY) {
         final int steps = 10;
         final int delay = 15;
-        
+
         Timer scrollTimer = new Timer(delay, null);
         final int[] step = {0};
-        
+
         scrollTimer.addActionListener(e -> {
             step[0]++;
             if (step[0] <= steps) {
                 double progress = (double) step[0] / steps;
                 double easeProgress = 1 - Math.pow(1 - progress, 3);
-                
+
                 int newY = (int) (startY + (endY - startY) * easeProgress);
                 jScrollPane1.getViewport().setViewPosition(new Point(x, newY));
             } else {
                 scrollTimer.stop();
             }
         });
-        
+
         scrollTimer.start();
     }
+
     /**
      * Views credit details for selected card
      */
@@ -971,16 +983,16 @@ public class CustomerPanel extends javax.swing.JPanel {
             showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
-        
+
         lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(currentCardIndex);
         Integer customerId = (Integer) card.getClientProperty("customerId");
-        
+
         if (customerId != null) {
             showPaymentDetails(customerId);
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
-    
+
     /**
      * Edits selected card
      */
@@ -989,16 +1001,16 @@ public class CustomerPanel extends javax.swing.JPanel {
             showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
-        
+
         lk.com.pos.privateclasses.RoundedPanel card = customerCardsList.get(currentCardIndex);
         Integer customerId = (Integer) card.getClientProperty("customerId");
-        
+
         if (customerId != null) {
             editCustomer(customerId);
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
-    
+
     /**
      * Focuses search field
      */
@@ -1007,7 +1019,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         jTextField1.selectAll();
         showPositionIndicator("🔍 Search mode - Type to filter customers (Press ↓ to navigate results)");
     }
-    
+
     /**
      * Handles Escape key
      */
@@ -1023,7 +1035,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
         this.requestFocusInWindow();
     }
-    
+
     /**
      * Refreshes customer list
      */
@@ -1033,13 +1045,13 @@ public class CustomerPanel extends javax.swing.JPanel {
             showPositionIndicator("Please wait before refreshing again");
             return;
         }
-        
+
         lastRefreshTime = currentTime;
         performSearch();
         showPositionIndicator("✅ Customers refreshed");
         this.requestFocusInWindow();
     }
-    
+
     /**
      * Opens customer report
      */
@@ -1047,7 +1059,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         customerReportBtn.doClick();
         showPositionIndicator("📊 Opening Customer Report");
     }
-    
+
     /**
      * Opens Add Customer dialog
      */
@@ -1055,7 +1067,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         addNewCoustomerBtn.doClick();
         showPositionIndicator("➕ Opening Add New Customer dialog");
     }
-    
+
     /**
      * Clears all filters
      */
@@ -1065,7 +1077,7 @@ public class CustomerPanel extends javax.swing.JPanel {
         showPositionIndicator("All filters cleared");
         this.requestFocusInWindow();
     }
-    
+
     /**
      * Toggles radio button state
      */
@@ -1085,12 +1097,13 @@ public class CustomerPanel extends javax.swing.JPanel {
      * Data class to hold customer information
      */
     private static class CustomerCardData {
+
         int customerId;
         String customerName, phone, address, nic, registrationDate;
         String status, finalDate;
         double totalCreditAmount, totalPaid;
     }
-    
+
     /**
      * Loads customers with default filters
      */
@@ -1099,10 +1112,10 @@ public class CustomerPanel extends javax.swing.JPanel {
         boolean missedDueDateOnly = jRadioButton1.isSelected();
         boolean noDueOnly = jRadioButton2.isSelected();
         boolean dueAmountOnly = jRadioButton4.isSelected();
-        
+
         loadCustomersAsync(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
     }
-    
+
     /**
      * Gets search text from field
      */
@@ -1110,27 +1123,27 @@ public class CustomerPanel extends javax.swing.JPanel {
         String text = jTextField1.getText().trim();
         return text.equals(Strings.SEARCH_PLACEHOLDER) ? "" : text;
     }
-    
+
     /**
      * Performs search based on current filters
      */
     private void performSearch() {
         loadCustomers();
     }
-    
+
     /**
      * Loads customers asynchronously
      */
-    private void loadCustomersAsync(String searchText, boolean missedDueDateOnly, 
-                                    boolean noDueOnly, boolean dueAmountOnly) {
+    private void loadCustomersAsync(String searchText, boolean missedDueDateOnly,
+            boolean noDueOnly, boolean dueAmountOnly) {
         showLoading(true);
-        
+
         SwingWorker<List<CustomerCardData>, Void> worker = new SwingWorker<>() {
             @Override
             protected List<CustomerCardData> doInBackground() throws Exception {
                 return fetchCustomersFromDatabase(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
             }
-            
+
             @Override
             protected void done() {
                 try {
@@ -1143,18 +1156,18 @@ public class CustomerPanel extends javax.swing.JPanel {
                 }
             }
         };
-        
+
         worker.execute();
     }
-    
+
     /**
      * Fetches customers from database
      */
-    private List<CustomerCardData> fetchCustomersFromDatabase(String searchText, boolean missedDueDateOnly, 
-                                                              boolean noDueOnly, boolean dueAmountOnly) throws Exception {
+    private List<CustomerCardData> fetchCustomersFromDatabase(String searchText, boolean missedDueDateOnly,
+            boolean noDueOnly, boolean dueAmountOnly) throws Exception {
         List<CustomerCardData> customers = new ArrayList<>();
         ResultSet rs = null;
-        
+
         try {
             String query = buildCustomerQuery(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
             rs = MySQL.executeSearch(query);
@@ -1163,22 +1176,22 @@ public class CustomerPanel extends javax.swing.JPanel {
                 CustomerCardData data = createCustomerDataFromResultSet(rs);
                 customers.add(data);
             }
-            
+
         } catch (SQLException e) {
             throw new Exception("Database error while fetching customers: " + e.getMessage(), e);
         } finally {
             // Resource cleanup handled by MySQL class
         }
-        
+
         return customers;
     }
-    
+
     /**
      * Creates CustomerCardData from ResultSet
      */
     private CustomerCardData createCustomerDataFromResultSet(ResultSet rs) throws SQLException {
         CustomerCardData data = new CustomerCardData();
-        
+
         data.customerId = rs.getInt("customer_id");
         data.customerName = rs.getString("customer_name");
         data.phone = rs.getString("customer_phone_no");
@@ -1189,84 +1202,86 @@ public class CustomerPanel extends javax.swing.JPanel {
         data.finalDate = rs.getString("latest_due_date");
         data.totalCreditAmount = rs.getDouble("total_credit_amount");
         data.totalPaid = rs.getDouble("total_paid");
-        
+
         return data;
     }
-    
+
     /**
      * Builds SQL query for customers
      */
-    private String buildCustomerQuery(String searchText, boolean missedDueDateOnly, 
-                                     boolean noDueOnly, boolean dueAmountOnly) {
+    private String buildCustomerQuery(String searchText, boolean missedDueDateOnly,
+            boolean noDueOnly, boolean dueAmountOnly) {
         StringBuilder query = new StringBuilder();
-        
+
         query.append("SELECT * FROM (");
         query.append(buildCustomerSubquery());
-        
+
         // Add search filter with SQL injection protection
         if (isValidSearchText(searchText)) {
             String escapedSearch = escapeSQL(searchText);
             query.append("WHERE (cc.customer_name LIKE '%").append(escapedSearch).append("%' ");
             query.append("OR cc.nic LIKE '%").append(escapedSearch).append("%') ");
         }
-        
+
         query.append("GROUP BY cc.customer_id, cc.customer_name, cc.customer_phone_no, ");
         query.append("cc.customer_address, cc.nic, cc.date_time, s.status_name ");
         query.append(") AS customer_data WHERE 1=1 ");
-        
+
         // Apply status filters
         query.append(buildStatusFilter(missedDueDateOnly, noDueOnly, dueAmountOnly));
         query.append("ORDER BY customer_id DESC");
-        
+
         return query.toString();
     }
-    
+
     /**
      * Builds customer subquery
      */
     /**
- * Builds customer subquery
- */
-private String buildCustomerSubquery() {
-    return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, " +
-           "cc.customer_address, cc.nic, cc.date_time, s.status_name, " +
-           "MAX(c.credit_final_date) as latest_due_date, " +
-           "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, " +
-           "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid " +
-           "FROM credit_customer cc " +
-           "JOIN status s ON s.status_id = cc.status_id " +
-           "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id " +
-           "LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id ";  // FIXED: Join via credit_customer_id
-}
-    
+     * Builds customer subquery
+     */
+    private String buildCustomerSubquery() {
+        return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, "
+                + "cc.customer_address, cc.nic, cc.date_time, s.status_name, "
+                + "MAX(c.credit_final_date) as latest_due_date, "
+                + "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, "
+                + "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid "
+                + "FROM credit_customer cc "
+                + "JOIN status s ON s.status_id = cc.status_id "
+                + "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id "
+                + "LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id ";  // FIXED: Join via credit_customer_id
+    }
+
     /**
      * Checks if search text is valid
      */
     private boolean isValidSearchText(String searchText) {
-        return searchText != null && 
-               !searchText.isEmpty() && 
-               !searchText.equals(Strings.SEARCH_PLACEHOLDER);
+        return searchText != null
+                && !searchText.isEmpty()
+                && !searchText.equals(Strings.SEARCH_PLACEHOLDER);
     }
-    
+
     /**
      * Escapes SQL special characters
      */
     private String escapeSQL(String input) {
-        if (input == null) return "";
-        
+        if (input == null) {
+            return "";
+        }
+
         return input.replace("\\", "\\\\")
-                   .replace("'", "''")
-                   .replace("%", "\\%")
-                   .replace("_", "\\_");
+                .replace("'", "''")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     }
-    
+
     /**
      * Builds status filter clause
      */
     private String buildStatusFilter(boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
         if (missedDueDateOnly) {
-            return "AND latest_due_date < CURDATE() " +
-                   "AND total_credit_amount > total_paid ";
+            return "AND latest_due_date < CURDATE() "
+                    + "AND total_credit_amount > total_paid ";
         } else if (noDueOnly) {
             return "AND total_credit_amount <= total_paid ";
         } else if (dueAmountOnly) {
@@ -1274,14 +1289,14 @@ private String buildCustomerSubquery() {
         }
         return "";
     }
-    
+
     /**
      * Handles load error
      */
     private void handleLoadError(Exception e) {
         System.err.println("Error loading customers: " + e.getMessage());
         e.printStackTrace();
-        
+
         SwingUtilities.invokeLater(() -> {
             JOptionPane.showMessageDialog(this,
                     "Failed to load customers. Please try again.\n" + e.getMessage(),
@@ -1295,7 +1310,7 @@ private String buildCustomerSubquery() {
      */
     private void displayCustomers(List<CustomerCardData> customers) {
         clearCustomerCards();
-        
+
         currentCardIndex = -1;
         currentFocusedCard = null;
 
@@ -1306,7 +1321,7 @@ private String buildCustomerSubquery() {
 
         currentColumns = calculateColumns(jPanel2.getWidth());
         final JPanel gridPanel = createGridPanel();
-        
+
         for (CustomerCardData data : customers) {
             lk.com.pos.privateclasses.RoundedPanel card = createCustomerCard(data);
             gridPanel.add(card);
@@ -1315,11 +1330,11 @@ private String buildCustomerSubquery() {
 
         layoutCardsInPanel(gridPanel);
         setupGridResizeListener(gridPanel);
-        
+
         jPanel2.revalidate();
         jPanel2.repaint();
     }
-    
+
     /**
      * Clears all customer cards
      */
@@ -1327,11 +1342,11 @@ private String buildCustomerSubquery() {
         for (lk.com.pos.privateclasses.RoundedPanel card : customerCardsList) {
             removeAllListeners(card);
         }
-        
+
         customerCardsList.clear();
         jPanel2.removeAll();
     }
-    
+
     /**
      * Removes all listeners from component and children
      */
@@ -1339,7 +1354,7 @@ private String buildCustomerSubquery() {
         for (java.awt.event.MouseListener ml : component.getMouseListeners()) {
             component.removeMouseListener(ml);
         }
-        
+
         for (Component child : getAllComponents(component)) {
             if (child instanceof JButton) {
                 JButton btn = (JButton) child;
@@ -1349,7 +1364,7 @@ private String buildCustomerSubquery() {
             }
         }
     }
-    
+
     /**
      * Gets all components recursively
      */
@@ -1365,7 +1380,7 @@ private String buildCustomerSubquery() {
         }
         return list;
     }
-    
+
     /**
      * Shows empty state message
      */
@@ -1374,18 +1389,18 @@ private String buildCustomerSubquery() {
         JPanel messagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         messagePanel.setBackground(Colors.BACKGROUND);
         messagePanel.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
-        
+
         JLabel noCustomers = new JLabel(Strings.NO_CUSTOMERS);
         noCustomers.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
         noCustomers.setForeground(Colors.TEXT_SECONDARY);
         noCustomers.setHorizontalAlignment(SwingConstants.CENTER);
-        
+
         messagePanel.add(noCustomers);
         jPanel2.add(messagePanel, BorderLayout.CENTER);
         jPanel2.revalidate();
         jPanel2.repaint();
     }
-    
+
     /**
      * Creates grid panel for cards
      */
@@ -1395,26 +1410,26 @@ private String buildCustomerSubquery() {
         gridPanel.setBackground(Colors.BACKGROUND);
         return gridPanel;
     }
-    
+
     /**
      * Layouts cards in panel
      */
     private void layoutCardsInPanel(JPanel gridPanel) {
         jPanel2.setLayout(new BorderLayout());
-        
+
         JPanel mainContainer = new JPanel();
         mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
         mainContainer.setBackground(Colors.BACKGROUND);
-        
+
         JPanel paddingPanel = new JPanel(new BorderLayout());
         paddingPanel.setBackground(Colors.BACKGROUND);
         paddingPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
         paddingPanel.add(gridPanel, BorderLayout.NORTH);
-        
+
         mainContainer.add(paddingPanel);
         jPanel2.add(mainContainer, BorderLayout.NORTH);
     }
-    
+
     /**
      * Sets up grid resize listener
      */
@@ -1434,7 +1449,7 @@ private String buildCustomerSubquery() {
             }
         });
     }
-    
+
     /**
      * Calculates number of columns based on width
      */
@@ -1450,11 +1465,11 @@ private String buildCustomerSubquery() {
         }
     }
 
-    
     /**
      * Custom Rounded Border Class
      */
     class RoundedBorder extends javax.swing.border.AbstractBorder {
+
         private final Color color;
         private final int thickness;
         private final int arc;
@@ -1468,14 +1483,14 @@ private String buildCustomerSubquery() {
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2d = (Graphics2D) g.create();
-            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
-                                java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setColor(color);
             g2d.setStroke(new BasicStroke(thickness));
-            
+
             int offset = thickness / 2;
-            g2d.drawRoundRect(x + offset, y + offset, 
-                             width - thickness, height - thickness, arc, arc);
+            g2d.drawRoundRect(x + offset, y + offset,
+                    width - thickness, height - thickness, arc, arc);
             g2d.dispose();
         }
 
@@ -1492,7 +1507,7 @@ private String buildCustomerSubquery() {
             return insets;
         }
     }
-    
+
     /**
      * Creates customer card from data
      */
@@ -1505,14 +1520,14 @@ private String buildCustomerSubquery() {
 
         // Create card
         lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.customerId, data.customerName);
-        
+
         // Create content
         JPanel contentPanel = createCardContent(data, outstanding, missedDueDate, displayDueDate, regDate);
-        
+
         card.add(contentPanel, BorderLayout.CENTER);
         return card;
     }
-    
+
     /**
      * Checks if due date is missed
      */
@@ -1520,7 +1535,7 @@ private String buildCustomerSubquery() {
         if (finalDate == null || outstanding <= 0) {
             return false;
         }
-        
+
         try {
             Date dueDate = DATE_FORMAT.parse(finalDate);
             Date today = new Date();
@@ -1530,7 +1545,7 @@ private String buildCustomerSubquery() {
             return false;
         }
     }
-    
+
     /**
      * Formats due date for display
      */
@@ -1538,7 +1553,7 @@ private String buildCustomerSubquery() {
         if (finalDate == null) {
             return Strings.NO_CREDIT;
         }
-        
+
         try {
             Date dueDate = DATE_FORMAT.parse(finalDate);
             return DISPLAY_DATE_FORMAT.format(dueDate);
@@ -1547,7 +1562,7 @@ private String buildCustomerSubquery() {
             return Strings.NO_VALUE;
         }
     }
-    
+
     /**
      * Formats registration date for display
      */
@@ -1555,7 +1570,7 @@ private String buildCustomerSubquery() {
         if (registrationDate == null) {
             return Strings.NO_VALUE;
         }
-        
+
         try {
             Date reg = DATE_FORMAT.parse(registrationDate);
             return DISPLAY_DATE_FORMAT.format(reg);
@@ -1564,7 +1579,7 @@ private String buildCustomerSubquery() {
             return Strings.NO_VALUE;
         }
     }
-    
+
     /**
      * Creates base card panel
      */
@@ -1577,21 +1592,21 @@ private String buildCustomerSubquery() {
         card.setBackground(Colors.CARD_WHITE);
         card.setBorderThickness(0);
         card.setBorder(BorderFactory.createCompoundBorder(
-            new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
-            BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING, 
-                                          Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
+                new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
+                BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
+                        Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
         ));
-        
+
         // Store properties
         card.putClientProperty("customerId", customerId);
         card.putClientProperty("customerName", customerName);
-        
+
         // Add mouse listeners
         addCardMouseListeners(card);
-        
+
         return card;
     }
-    
+
     /**
      * Adds mouse listeners to card
      */
@@ -1601,33 +1616,33 @@ private String buildCustomerSubquery() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 if (card != currentFocusedCard) {
                     card.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundedBorder(Colors.TEAL_HOVER, 2, 15),
-                        BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
-                                                      Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
+                            new RoundedBorder(Colors.TEAL_HOVER, 2, 15),
+                            BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
+                                    Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
                     ));
                 }
                 card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
-            
+
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 if (card != currentFocusedCard) {
                     card.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
-                        BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
-                                                      Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
+                            new RoundedBorder(Colors.BORDER_DEFAULT, 2, 15),
+                            BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, Dimensions.CARD_PADDING,
+                                    Dimensions.CARD_PADDING, Dimensions.CARD_PADDING)
                     ));
                 }
                 card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             }
-            
+
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 handleCardClick(card);
             }
         });
     }
-    
+
     /**
      * Handles card click
      */
@@ -1635,18 +1650,18 @@ private String buildCustomerSubquery() {
         if (currentFocusedCard != null && currentFocusedCard != card) {
             deselectCurrentCard();
         }
-        
+
         currentCardIndex = customerCardsList.indexOf(card);
         selectCurrentCard();
         updatePositionIndicator();
         CustomerPanel.this.requestFocusInWindow();
     }
-    
+
     /**
      * Creates card content panel
      */
-    private JPanel createCardContent(CustomerCardData data, double outstanding, 
-                                    boolean missedDueDate, String displayDueDate, String regDate) {
+    private JPanel createCardContent(CustomerCardData data, double outstanding,
+            boolean missedDueDate, String displayDueDate, String regDate) {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Colors.CARD_WHITE);
@@ -1661,19 +1676,19 @@ private String buildCustomerSubquery() {
         contentPanel.add(Box.createVerticalStrut(15));
         contentPanel.add(createDetailsGrid(data.phone, data.nic, displayDueDate, regDate));
         contentPanel.add(Box.createVerticalStrut(20));
-        
+
         if (hasAddress(data.address)) {
             contentPanel.add(createAddressSection(data.address));
             contentPanel.add(Box.createVerticalStrut(15));
         }
-        
+
         contentPanel.add(createPaymentSectionHeader(data.customerId));
         contentPanel.add(Box.createVerticalStrut(12));
         contentPanel.add(createPaymentPanels(data.totalCreditAmount, data.totalPaid, outstanding));
 
         return contentPanel;
     }
-    
+
     /**
      * Creates header section
      */
@@ -1692,7 +1707,7 @@ private String buildCustomerSubquery() {
 
         return headerPanel;
     }
-    
+
     /**
      * Creates action buttons panel
      */
@@ -1705,7 +1720,7 @@ private String buildCustomerSubquery() {
 
         return actionPanel;
     }
-    
+
     /**
      * Creates edit button
      */
@@ -1716,7 +1731,7 @@ private String buildCustomerSubquery() {
         editButton.setMaximumSize(Dimensions.ACTION_BUTTON_SIZE);
         editButton.setBackground(Colors.BTN_EDIT_BG);
         editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
+
         try {
             FlatSVGIcon editIcon = new FlatSVGIcon("lk/com/pos/icon/blueEdit.svg", 16, 16);
             editButton.setIcon(editIcon);
@@ -1725,7 +1740,7 @@ private String buildCustomerSubquery() {
             editButton.setForeground(Color.decode("#3B82F6"));
             editButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
         }
-        
+
         editButton.setBorder(BorderFactory.createLineBorder(Colors.BTN_EDIT_BORDER, 1));
         editButton.setFocusable(false);
         editButton.setToolTipText("Edit Customer (E)");
@@ -1736,7 +1751,7 @@ private String buildCustomerSubquery() {
 
         return editButton;
     }
-    
+
     /**
      * Creates status and badge section
      */
@@ -1756,7 +1771,7 @@ private String buildCustomerSubquery() {
 
         return statusBadgePanel;
     }
-    
+
     /**
      * Creates badges panel
      */
@@ -1774,7 +1789,7 @@ private String buildCustomerSubquery() {
 
         return badgePanel;
     }
-    
+
     /**
      * Creates missed due date badge
      */
@@ -1791,7 +1806,7 @@ private String buildCustomerSubquery() {
         ));
         return badge;
     }
-    
+
     /**
      * Creates high risk badge
      */
@@ -1808,7 +1823,7 @@ private String buildCustomerSubquery() {
         ));
         return badge;
     }
-    
+
     /**
      * Creates details section header
      */
@@ -1824,7 +1839,7 @@ private String buildCustomerSubquery() {
 
         return detailsHeaderPanel;
     }
-    
+
     /**
      * Creates details grid
      */
@@ -1840,7 +1855,7 @@ private String buildCustomerSubquery() {
 
         return detailsGrid;
     }
-    
+
     /**
      * Creates detail panel
      */
@@ -1871,14 +1886,14 @@ private String buildCustomerSubquery() {
 
         return panel;
     }
-    
+
     /**
      * Checks if address is valid
      */
     private boolean hasAddress(String address) {
         return address != null && !address.trim().isEmpty();
     }
-    
+
     /**
      * Creates address section
      */
@@ -1886,25 +1901,25 @@ private String buildCustomerSubquery() {
         JPanel addressPanel = new JPanel(new BorderLayout());
         addressPanel.setOpaque(false);
         addressPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-        
+
         JLabel addressTitle = new JLabel(Strings.ADDRESS_PREFIX);
         addressTitle.setFont(Fonts.ADDRESS_TITLE);
         addressTitle.setForeground(Colors.DETAIL_STATUS);
         addressTitle.setToolTipText("Customer Address");
-        
+
         JLabel addressLabel = new JLabel("<html><div style='width:360px;'>" + address + "</div></html>");
         addressLabel.setFont(Fonts.DETAIL_VALUE);
         addressLabel.setForeground(Colors.TEXT_PRIMARY);
         addressLabel.setToolTipText(address);
         addressLabel.setVerticalAlignment(SwingConstants.TOP);
-        
+
         addressPanel.add(addressTitle, BorderLayout.NORTH);
         addressPanel.add(Box.createVerticalStrut(5), BorderLayout.CENTER);
         addressPanel.add(addressLabel, BorderLayout.CENTER);
-        
+
         return addressPanel;
     }
-    
+
     /**
      * Creates payment section header
      */
@@ -1917,13 +1932,13 @@ private String buildCustomerSubquery() {
         paymentHeader.setFont(Fonts.SECTION_TITLE);
         paymentHeader.setForeground(Colors.TEXT_MUTED);
         paymentHeaderPanel.add(paymentHeader, BorderLayout.WEST);
-        
+
         JButton paymentDetailsBtn = createViewDetailsButton(customerId);
         paymentHeaderPanel.add(paymentDetailsBtn, BorderLayout.EAST);
 
         return paymentHeaderPanel;
     }
-    
+
     /**
      * Creates view details button
      */
@@ -1933,8 +1948,8 @@ private String buildCustomerSubquery() {
         btn.setForeground(Color.WHITE);
         btn.setBackground(Colors.BTN_VIEW_BG);
         btn.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(Colors.BTN_VIEW_BORDER, 1),
-            BorderFactory.createEmptyBorder(4, 10, 4, 10)
+                BorderFactory.createLineBorder(Colors.BTN_VIEW_BORDER, 1),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)
         ));
         btn.setFocusable(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -1943,21 +1958,208 @@ private String buildCustomerSubquery() {
             showPaymentDetails(customerId);
             CustomerPanel.this.requestFocusInWindow();
         });
-        
+
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 btn.setBackground(Colors.BTN_VIEW_BG_HOVER);
             }
+
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 btn.setBackground(Colors.BTN_VIEW_BG);
             }
         });
-        
+
         return btn;
     }
-    
+
+    private void setupAddNewCustomerButton() {
+        addNewCoustomerBtn.setPreferredSize(new Dimension(47, 47));
+        addNewCoustomerBtn.setMinimumSize(new Dimension(47, 47));
+        addNewCoustomerBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        addNewCoustomerBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        addNewCoustomerBtn.setForeground(Colors.TEAL_PRIMARY);
+
+        // Remove text
+        addNewCoustomerBtn.setText("");
+
+        // Set border with teal color
+        addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        addNewCoustomerBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        addNewCoustomerBtn.setFocusPainted(false);
+
+        // Set icon with teal color
+        try {
+            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+            // Apply teal color filter to the icon
+            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
+            addNewCoustomerBtn.setIcon(addIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading add icon: " + e.getMessage());
+        }
+
+        // Set tooltip
+        addNewCoustomerBtn.setToolTipText("Add New Customer");
+
+        // Add hover effects
+        addNewCoustomerBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY);
+                addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Colors.TEAL_HOVER, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    addNewCoustomerBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show it's clickable
+                addNewCoustomerBtn.setToolTipText("Add New Customer (Ctrl+N or Alt+A)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to teal
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
+                    addNewCoustomerBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Reset tooltip
+                addNewCoustomerBtn.setToolTipText("Add New Customer");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY.darker());
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY);
+            }
+        });
+    }
+
+    private void setupExportButton() {
+        customerReportBtn.setPreferredSize(new Dimension(47, 47));
+        customerReportBtn.setMinimumSize(new Dimension(47, 47));
+        customerReportBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        customerReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        customerReportBtn.setForeground(Color.decode("#10B981"));
+
+        // Remove text
+        customerReportBtn.setText("");
+
+        // Set border with green color
+        customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        customerReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        customerReportBtn.setFocusPainted(false);
+
+        // Set icon with green color
+        try {
+            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+            // Apply green color filter to the icon
+            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+            customerReportBtn.setIcon(printIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading print icon: " + e.getMessage());
+        }
+
+        // Set tooltip
+        customerReportBtn.setToolTipText("Export Customer Report");
+
+        // Add hover effects
+        customerReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(Color.decode("#10B981"));
+                customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    customerReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show it's clickable
+                customerReportBtn.setToolTipText("Export Customer Report (Ctrl+R or Ctrl+P)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to green
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+                    customerReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Reset tooltip
+                customerReportBtn.setToolTipText("Export Customer Report");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(Color.decode("#059669"));
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(Color.decode("#10B981"));
+            }
+        });
+    }
+
     /**
      * Creates payment panels
      */
@@ -1995,12 +2197,12 @@ private String buildCustomerSubquery() {
 
         return paymentPanel;
     }
-    
+
     /**
      * Creates payment panel
      */
-    private lk.com.pos.privateclasses.RoundedPanel createPaymentPanel(String title, double amount, 
-                                                                      Color bgColor, Color textColor) {
+    private lk.com.pos.privateclasses.RoundedPanel createPaymentPanel(String title, double amount,
+            Color bgColor, Color textColor) {
         lk.com.pos.privateclasses.RoundedPanel panel = new lk.com.pos.privateclasses.RoundedPanel();
         panel.setBackgroundColor(bgColor);
         panel.setBorderThickness(0);
@@ -2040,14 +2242,14 @@ private String buildCustomerSubquery() {
         if (phone == null || phone.trim().isEmpty()) {
             return Strings.NO_VALUE;
         }
-        
+
         String cleaned = phone.replaceAll("[^0-9]", "");
         if (cleaned.length() == 10) {
             return cleaned.replaceFirst("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
         }
         return phone;
     }
-    
+
     /**
      * Formats price with smart display
      */
@@ -2071,14 +2273,14 @@ private String buildCustomerSubquery() {
             System.err.println("Invalid customer ID: " + customerId);
             return;
         }
-        
+
         UpdateCustomer updateCustomer = new UpdateCustomer(null, true, customerId);
         updateCustomer.setLocationRelativeTo(null);
         updateCustomer.setVisible(true);
         performSearch();
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
-    
+
     /**
      * Opens payment details dialog
      */
@@ -2087,24 +2289,25 @@ private String buildCustomerSubquery() {
             System.err.println("Invalid customer ID: " + customerId);
             return;
         }
-        
+
         CreditView creditView = new CreditView(null, true, customerId);
         creditView.setLocationRelativeTo(null);
         creditView.setVisible(true);
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
-    
-     private void generateCustomerReport() {
+
+    private void generateCustomerReport() {
         // TODO: Implement your actual report generation logic here.
         // This could involve fetching data and using a library like JasperReports.
         System.out.println("Customer Report generation triggered.");
-        JOptionPane.showMessageDialog(this, 
+        JOptionPane.showMessageDialog(this,
                 "Customer Report generation is not yet implemented.\n"
-                + "You can add your report logic in the 'generateCustomerReport()' method.", 
-                "Feature Under Development", 
+                + "You can add your report logic in the 'generateCustomerReport()' method.",
+                "Feature Under Development",
                 JOptionPane.INFORMATION_MESSAGE);
         this.requestFocusInWindow();
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2561,10 +2764,10 @@ private String buildCustomerSubquery() {
                         .addComponent(jRadioButton1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jRadioButton2)
-                        .addGap(79, 79, 79)
-                        .addComponent(customerReportBtn)
+                        .addGap(301, 301, 301)
+                        .addComponent(customerReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(addNewCoustomerBtn)))
+                        .addComponent(addNewCoustomerBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18))
         );
         jPanel1Layout.setVerticalGroup(
@@ -2612,7 +2815,7 @@ private String buildCustomerSubquery() {
         addNewCustomer.setLocationRelativeTo(null);
         addNewCustomer.setVisible(true);
         performSearch();
-        
+
     }//GEN-LAST:event_addNewCoustomerBtnActionPerformed
 
     private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed

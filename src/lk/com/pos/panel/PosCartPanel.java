@@ -15,6 +15,7 @@ import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.InputStream;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -59,6 +60,12 @@ import lk.com.pos.session.Session;
 import raven.toast.Notifications;
 
 import lk.com.pos.privateclasses.StockTracker;
+import net.sf.jasperreports.engine.JREmptyDataSource;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperPrintManager;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 
 public class PosCartPanel extends javax.swing.JPanel {
 
@@ -85,6 +92,17 @@ public class PosCartPanel extends javax.swing.JPanel {
     private double exchangeRefundAmount = 0.0;
     private int lastGeneratedSalesId = -1;
     private Connection currentConnection = null;
+
+    // ===== CLASS LEVEL VARIABLES =====
+    private String businessName = "Avinam Global PharmaX (PVT) LTD";
+    private String bAddressPhone = "356/1, Main Street, Matale | 066 433 5422 , 072 444 4320";
+    private double subtotal = 0.0;
+    private double totalItemDiscounts = 0.0;
+    private double globalDiscount = 0.0;
+    private double exchangeCredit = 0.0;
+    private double finalTotal = 0.0;
+    private double amountReceived = 0.0;
+    private double balanceAmount = 0.0;
 
     public interface InvoiceSelectionListener {
 
@@ -1911,18 +1929,18 @@ public class PosCartPanel extends javax.swing.JPanel {
             paymentcombo.requestFocus();
             return;
         }
-
-        if (selectedPayment.toLowerCase().contains("cash")) {
-            handleCashPayment();
-            return;
-        }
-
         int salesId = saveSale(1);
         if (salesId == -1) {
             JOptionPane.showMessageDialog(this,
                     "Failed to save sale. Please try again.",
                     "Save Error",
                     JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        if (selectedPayment.toLowerCase().contains("cash")) {
+            handleCashPayment();
+            printReceipt(salesId);
             return;
         }
 
@@ -1937,12 +1955,92 @@ public class PosCartPanel extends javax.swing.JPanel {
                     Notifications.Type.SUCCESS,
                     Notifications.Location.TOP_RIGHT,
                     "Sale completed successfully! Sale ID: " + salesId);
-
+            printReceipt(salesId);
             // ✅ Properly reset and notify
             resetCart();
             if (cartListener != null) {
                 cartListener.onCheckoutComplete();
             }
+        }
+    }
+
+    private void printReceipt(int salesId) {
+        System.out.println("Print receipt called");
+
+        try {
+            // Debug: Check if report file exists
+            String reportPath = "/lk/com/pos/reports/pos_bill72mm.jasper";
+            InputStream reportStream = getClass().getResourceAsStream(reportPath);
+
+            if (reportStream == null) {
+                System.err.println("ERROR: Report file not found at: " + reportPath);
+                JOptionPane.showMessageDialog(this,
+                        "Receipt template not found!",
+                        "Print Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            } else {
+                System.out.println("Report file loaded successfully");
+            }
+
+            Map<String, Object> params = new HashMap<>();
+            // ---------- HEADER ----------
+            params.put("BUSINESS_NAME", businessName);
+            params.put("BADDRESS_PHONE", bAddressPhone);
+            params.put("STAFF", "Inaamul Hasan");
+
+            // ---------- INVOICE ----------
+            params.put("INVOICE_NO", salesId);
+            params.put("CUSTOMER", "Guest Customer");
+
+            params.put("PAYMENT_METHOD", paymentcombo.getSelectedItem().toString());
+
+            // ---------- TOTALS ----------
+            params.put("SUB_TOTAL", subtotal);
+            params.put("TOTAL_ITEMS", "[ 1 ITEM ]");
+            params.put("TOTAL_ITEM_DISCOUNTS", totalItemDiscounts);
+            params.put("TOTAL_SAVINGS", globalDiscount);
+
+            params.put("TOTAL_AMOUNT", finalTotal);
+            params.put("AMOUNT_REC", amountReceived);
+            params.put("BALANCE_PAID", balanceAmount);
+
+            // ---------- ITEMS DATASOURCE ----------
+            JRBeanCollectionDataSource itemsDS
+                    = new JRBeanCollectionDataSource(new ArrayList<>(cartItems.values()));
+
+            params.put("ITEMS_DATASOURCE", itemsDS);
+
+            // ---------- FILL REPORT ----------
+            JasperPrint jp = JasperFillManager.fillReport(
+                    reportStream, // Use the verified stream
+                    params,
+                    new JREmptyDataSource()
+            );
+
+            System.out.println("Report filled successfully");
+
+            // ---------- PRINT ----------
+            JasperPrintManager.printReport(jp, true);
+
+            System.out.println("Print receipt try end");
+
+        } catch (JRException e) {
+            System.err.println("JasperReports Error: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error generating receipt: " + e.getMessage(),
+                    "Print Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error printing receipt: " + e.getMessage(),
+                    "Print Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
 
@@ -3777,26 +3875,63 @@ public class PosCartPanel extends javax.swing.JPanel {
         System.out.println("Payment Method: " + paymentcombo.getSelectedItem());
         System.out.println("Amount Received: " + jTextField2.getText().trim());
 
-        // Item-level discounts
-        double totalItemDiscounts = 0.0;
+        // ======= ASSIGN ITEM NUMBERS =========
+        int counter = 1;
         for (CartItem item : cartItems.values()) {
-            double itemDiscount = item.getDiscountPrice() * item.getQuantity();
-            if (itemDiscount > 0) {
-                System.out.println("  - " + item.getProductName() + ": Rs." + String.format("%.2f", itemDiscount));
-                totalItemDiscounts += itemDiscount;
-            }
+            item.setItemNo(counter++);
         }
-        System.out.println("Total Item-Level Discounts: Rs." + String.format("%.2f", totalItemDiscounts));
 
-        // Global discount
-        System.out.println("Global Discount: Rs." + String.format("%.2f", appliedDiscountAmount));
-        System.out.println("Discount Type ID: " + (appliedDiscountTypeId > 0 ? appliedDiscountTypeId : "None"));
+        // ======= AMOUNT RECEIVED =========
+        String amountText = jTextField2.getText().trim();
+        amountReceived = amountText.isEmpty() ? 0.0 : Double.parseDouble(amountText);
 
-        // Exchange credit
-        System.out.println("Exchange Credit: Rs." + String.format("%.2f", exchangeRefundAmount));
+        // ======= SUBTOTAL =========
+        subtotal = 0.0;
+        for (CartItem item : cartItems.values()) {
+            subtotal += item.getUnitPrice() * item.getQuantity();
+        }
 
-        // Final total
-        System.out.println("Final Total: Rs." + String.format("%.2f", getTotal()));
+        // ======= ITEM-LEVEL DISCOUNTS =========
+        totalItemDiscounts = 0.0;
+        for (CartItem item : cartItems.values()) {
+            totalItemDiscounts += item.getDiscountPrice() * item.getQuantity();
+        }
+
+        // ======= GLOBAL DISCOUNT =========
+        globalDiscount = appliedDiscountAmount;
+
+        // ======= EXCHANGE CREDIT =========
+        exchangeCredit = exchangeRefundAmount;
+
+        // ======= FINAL TOTAL =========
+        finalTotal = getTotal();
+
+        // ======= BALANCE (CHANGE) =========
+        balanceAmount = amountReceived - finalTotal;
+
+        // ======= DEBUG OUTPUT =========
+        System.out.println("\n===== RECEIPT DEBUG INFO =====");
+        System.out.println("Subtotal: " + subtotal);
+        System.out.println("Total Item Discounts: " + totalItemDiscounts);
+        System.out.println("Global Discount: " + globalDiscount);
+        System.out.println("Exchange Credit: " + exchangeCredit);
+        System.out.println("Final Total: " + finalTotal);
+        System.out.println("Amount Received: " + amountReceived);
+        System.out.println("Balance Amount: " + balanceAmount);
+        System.out.println("Payment Method: " + paymentcombo.getSelectedItem());
+        System.out.println("-------------------------------------");
+
+        for (CartItem item : cartItems.values()) {
+            System.out.println(
+                    "ITEM_NO: " + item.getItemNo()
+                    + " | Product: " + item.getProductName()
+                    + " | Qty: " + item.getQuantity()
+                    + " | Price: " + item.getUnitPrice()
+                    + " | Discount: " + item.getDiscountPrice()
+            );
+        }
+
+        System.out.println("=====================================\n");
 
         handleCompleteSale();
     }//GEN-LAST:event_gradientButton1ActionPerformed

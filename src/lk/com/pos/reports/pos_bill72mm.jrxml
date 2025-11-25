@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.21.5.final using JasperReports Library version 6.21.5-74d586df47b25dbd05bd0957999819196e59934a  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="pos_bill" pageWidth="204" pageHeight="368" columnWidth="164" leftMargin="20" rightMargin="20" topMargin="10" bottomMargin="10" isIgnorePagination="true" uuid="a35b8496-f559-4ab6-a0aa-f105d48719df">
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+	<parameter name="BUSINESS_NAME" class="java.lang.String"/>
+	<parameter name="BADDRESS_PHONE" class="java.lang.String"/>
+	<parameter name="INVOICE_NO" class="java.lang.String"/>
+	<parameter name="STAFF" class="java.lang.String"/>
+	<parameter name="CUSTOMER" class="java.lang.String"/>
+	<parameter name="ITEM_NO" class="java.lang.Integer"/>
+	<parameter name="PROD_NAME" class="java.lang.String"/>
+	<parameter name="BATCH_NO" class="java.lang.String"/>
+	<parameter name="QTY" class="java.lang.Integer"/>
+	<parameter name="UNIT_PRICE" class="java.lang.Double"/>
+	<parameter name="DISCOUNT" class="java.lang.Double"/>
+	<parameter name="AMOUNT" class="java.lang.Double"/>
+	<parameter name="TOTAL_AMOUNT" class="java.lang.Double"/>
+	<parameter name="TOTAL_ITEMS" class="java.lang.String"/>
+	<parameter name="TOTAL_SAVINGS" class="java.lang.Double"/>
+	<parameter name="PAYMENT_METHOD" class="java.lang.String"/>
+	<parameter name="AMOUNT_REC" class="java.lang.Double"/>
+	<parameter name="BALANCE_PAID" class="java.lang.Double"/>
+	<parameter name="SUB_TOTAL" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="itemNo" class="java.lang.Integer"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="98" splitType="Stretch">
+			<line>
+				<reportElement x="-19" y="33" width="203" height="1" uuid="651bfbad-5613-4a67-8ca5-2d8928ac133b"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="5" y="34" width="155" height="15" uuid="c0aa80d1-fc12-4bdd-af05-1d3d40453f5b">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" isBold="true"/>
+				</textElement>
+				<text><![CDATA[INVOICE]]></text>
+			</staticText>
+			<line>
+				<reportElement x="-19" y="77" width="203" height="1" uuid="b388c6b3-1356-462a-aaff-7338dd1717eb"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<componentElement>
+				<reportElement x="32" y="47" width="100" height="30" uuid="2030afeb-44d5-4d2b-be75-f0a72fd70f85"/>
+				<jr:Code39 xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">
+					<jr:codeExpression><![CDATA[$P{INVOICE_NO}]]></jr:codeExpression>
+				</jr:Code39>
+			</componentElement>
+			<textField>
+				<reportElement x="-7" y="-5" width="181" height="20" uuid="acca87d5-1f2a-4d9d-84f0-45f653166d01"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{BUSINESS_NAME}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="-12" y="13" width="189" height="20" uuid="a3872f31-4171-4422-ae9c-5a47f0af8a9e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{BADDRESS_PHONE}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="132" y="85" width="47" height="13" uuid="8bf12b57-62d9-473d-9d0e-5b5861218f9a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{INVOICE_NO}]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="42" splitType="Stretch">
+			<staticText>
+				<reportElement x="-10" y="-14" width="30" height="15" uuid="5a507f29-6385-488f-8e73-8b144b6def88">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Date   :]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-10" y="-2" width="30" height="15" uuid="bb53af04-7ad4-496c-8516-4e38a8e9ba00">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Time  :]]></text>
+			</staticText>
+			<textField pattern="MMMMM dd, yyyy">
+				<reportElement x="20" y="-14" width="70" height="15" uuid="d58057e7-2c78-41c4-9cf6-182011d545bf">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<textField pattern="hh:mm:ss:a">
+				<reportElement x="20" y="-2" width="70" height="15" uuid="7cc2116d-eb74-4722-87cd-60d2c564cd81">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="97" y="-14" width="40" height="15" uuid="72a8ff99-c4a9-4013-a97d-0abe1c5d3f7b">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Invoice  #:]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="98" y="-2" width="32" height="15" uuid="873358a0-33b3-4d49-acd2-a2a360e2a178">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Staff   :]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-10" y="10" width="40" height="15" uuid="a84d77f2-ca57-4a07-bb91-4579d39bdd5e">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Customer : ]]></text>
+			</staticText>
+			<line>
+				<reportElement x="-19" y="25" width="203" height="1" uuid="fe0cf40b-9afd-422e-a6b4-1b45d412b136"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="-10" y="26" width="20" height="15" uuid="1e448b9f-7bca-409c-a292-c07473602e70">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[Item]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="35" y="26" width="20" height="15" uuid="a64fb127-a7fb-4e62-9c35-9a28fe517a86">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[QTY]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="56" y="26" width="41" height="15" uuid="a5ae36a4-b016-4b98-9372-75ab448f5ac1">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[UNIT PRICE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="140" y="26" width="40" height="15" uuid="deb8bdb7-52f0-4eed-8156-bb09880463fb">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[AMOUNT]]></text>
+			</staticText>
+			<line>
+				<reportElement x="-20" y="41" width="203" height="1" uuid="f97c7673-4310-485d-a174-23e302d1aca5"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="100" y="26" width="40" height="15" uuid="f25c02f6-e71f-46e4-acfe-65d422ada7ee">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+				</textElement>
+				<text><![CDATA[DISCOUNT]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="122" y="-1" width="57" height="13" uuid="c701033a-8073-42ea-91d3-dc798f67fa2f"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{STAFF}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="29" y="11" width="150" height="13" uuid="19035f3d-b15c-407c-b082-a23cf4516b76"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{CUSTOMER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band height="30" splitType="Stretch">
+			<frame>
+				<reportElement x="-20" y="0" width="202" height="30" uuid="9d1a5afb-2eee-49cc-a92a-708a6666c462"/>
+				<textField>
+					<reportElement x="16" y="2" width="184" height="13" uuid="775accf8-7baf-4f73-ba8e-9699f7943ed2"/>
+					<textElement textAlignment="Left" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8" isBold="false"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{PROD_NAME}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="0" y="2" width="14" height="13" uuid="031fb467-9a71-42ca-8895-fbcefe4bdfcb"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{itemNo}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="7" y="16" width="51" height="13" uuid="b3d343d4-ce10-43c4-9a55-540af393fb42"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{BATCH_NO}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="52" y="16" width="19" height="13" uuid="3ee824ad-3905-420e-9343-d2a6eb210e1d"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{QTY}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="69" y="16" width="48" height="13" uuid="f5fafd27-2e1c-4a16-a863-3dad2f194e5f"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{UNIT_PRICE}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="113" y="16" width="48" height="13" uuid="b354c484-a659-4a23-97fd-54dd056b542f"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{DISCOUNT}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement x="151" y="16" width="48" height="13" uuid="7d81474f-68ed-4902-b14b-ad19c6c562ec"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="Cambria Math" size="8"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$P{AMOUNT}]]></textFieldExpression>
+				</textField>
+			</frame>
+		</band>
+	</detail>
+	<columnFooter>
+		<band splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band splitType="Stretch"/>
+	</pageFooter>
+	<summary>
+		<band height="159" splitType="Stretch">
+			<line>
+				<reportElement x="-20" y="1" width="203" height="1" uuid="02a7d340-fc7d-4823-a7a6-fd6690126525"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="-10" y="28" width="71" height="12" uuid="ceb44de1-a858-478c-8a7d-0905ae5a6210">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="true"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[TOTAL AMOUNT]]></text>
+			</staticText>
+			<line>
+				<reportElement x="130" y="28" width="47" height="1" uuid="b87978ba-9a6a-46a8-9a44-caa6e3e5eead"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Solid"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="130" y="41" width="47" height="1" uuid="8bab3c27-e9a4-46b5-a7f5-16605d162cf1"/>
+				<graphicElement>
+					<pen lineWidth="1.5" lineStyle="Double"/>
+				</graphicElement>
+			</line>
+			<line>
+				<reportElement x="-19" y="79" width="203" height="1" uuid="99f8fb65-d105-4977-8478-7357e4c04d78"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="46" y="80" width="71" height="16" uuid="8aa0856b-3612-480b-9487-653d2724b173">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[THANK YOU !]]></text>
+			</staticText>
+			<line>
+				<reportElement x="-20" y="96" width="203" height="1" uuid="435ea37d-4c04-4f05-9227-7e6b59c65f5a"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="-12" y="97" width="185" height="16" uuid="0f63495b-2840-4d02-990f-b30720ffa24f">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[OPEN DAILY 8.00 AM  TO  11.00 PM]]></text>
+			</staticText>
+			<line>
+				<reportElement x="-20" y="113" width="204" height="1" uuid="c35c573c-2a11-4de5-895d-f4d023860a42"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="-10" y="113" width="185" height="16" uuid="3113eb74-fc95-4460-94da-13db5be48568">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="true"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[EXCHANGE OF DRUGS POSSIBLE WITHIN 7 DAYS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-11" y="126" width="185" height="16" uuid="6bb8f447-0604-4c5c-b863-f232d6c37a6e">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[- Receipt required for all returns  ]]></text>
+			</staticText>
+			<line>
+				<reportElement x="-21" y="142" width="204" height="1" uuid="5d3ac2de-9eac-4386-944a-5aafa08253a5"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="-11" y="143" width="185" height="16" uuid="a6096bde-7f10-4f8a-87be-827946cdd080">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[© Software By Avinam Global [077 936 3766]]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-10" y="43" width="127" height="12" uuid="3151a922-db87-4bbc-9814-0b6f7fe3ae60">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="true"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Payment Method]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-10" y="55" width="71" height="12" uuid="89357174-278c-4e48-b7ba-3bc83f281d3a">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Amount Received]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-10" y="66" width="71" height="12" uuid="1f9e5588-51b3-4f17-934f-2f822a85aa98">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="true"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[Balance Paid]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="-10" y="16" width="71" height="12" uuid="f9602def-419b-4256-aea8-758f074bcb68">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[TOTAL DISCOUNT]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="120" y="29" width="59" height="13" uuid="841d3574-a9a8-4f08-a1ea-c3d5ad2e7ac7"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Castellar" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{TOTAL_AMOUNT}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="32" y="3" width="41" height="13" uuid="fe8755ce-6f95-4820-be90-6f6f60642816"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="6" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{TOTAL_ITEMS}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="121" y="15" width="58" height="13" uuid="8d023691-5e68-44fe-9ae0-2ce9a81acd5f"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{TOTAL_SAVINGS}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="118" y="43" width="61" height="13" uuid="2ef7b0f3-56af-4309-b23f-b7265e53ef97"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{PAYMENT_METHOD}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="120" y="55" width="59" height="13" uuid="3d6f9d54-bdc7-4cc3-a964-559e601700ee"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{AMOUNT_REC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="120" y="65" width="59" height="13" uuid="a753d164-33f9-4d0a-8095-74887b1ecbcb"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{BALANCE_PAID}]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="-21" y="42" width="203" height="1" uuid="fb02f8fd-73cd-4748-9620-b14942e3286c"/>
+				<graphicElement>
+					<pen lineWidth="0.5" lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="-10" y="3" width="71" height="12" uuid="30389684-3983-4176-9802-dcad4e85ef80">
+					<property name="com.jaspersoft.studio.unit.height" value="px"/>
+				</reportElement>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8" isBold="false"/>
+					<paragraph lineSpacing="Single"/>
+				</textElement>
+				<text><![CDATA[SUB TOTAL]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="118" y="3" width="61" height="13" uuid="07c92831-6401-44d8-a775-638854b6a05a"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="Cambria Math" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{SUB_TOTAL}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

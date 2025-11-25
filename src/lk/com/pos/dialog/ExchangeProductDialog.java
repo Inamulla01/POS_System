@@ -1811,7 +1811,6 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
 
         return totalDiscount;
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

@@ -48,113 +48,112 @@ public class NotificationPanel extends javax.swing.JPanel {
         filterNotifications("ALL"); // Set ALL as default active filter
     }
 
-    private void initializeMessageTypeMappings() {
-        messageTypeColors = new HashMap<>();
+private void initializeMessageTypeMappings() {
+    messageTypeColors = new HashMap<>();
+    
+    // Soft, eye-friendly color palette
+    messageTypeColors.put(1, new Color(255, 183, 77));   // Soft Orange - Expired Soon
+    messageTypeColors.put(2, new Color(239, 83, 80));    // Soft Red - Low Stock
+    messageTypeColors.put(3, new Color(102, 187, 106));  // Soft Green - Logged In
+    messageTypeColors.put(4, new Color(121, 134, 203));  // Soft Purple - Log Out
+    messageTypeColors.put(5, new Color(229, 115, 115));  // Light Red - Expired
+    messageTypeColors.put(7, new Color(255, 138, 101));  // Soft Coral - Missed Due Date
+    messageTypeColors.put(8, new Color(77, 182, 172));   // Teal - Add New Product
+    messageTypeColors.put(9, new Color(129, 199, 132));  // Light Green - Add New Stock
+    messageTypeColors.put(10, new Color(149, 117, 205)); // Soft Purple - Add New Supplier
+    messageTypeColors.put(11, new Color(100, 181, 246)); // Soft Blue - Add New Credit
+    messageTypeColors.put(12, new Color(77, 208, 225));  // Cyan - Credit Payed
+    messageTypeColors.put(13, new Color(72, 201, 176));  // Mint Green - Complete Sale
+    messageTypeColors.put(14, new Color(171, 71, 188));  // Soft Magenta - Edit Product/Stock
+    messageTypeColors.put(16, new Color(255, 167, 38));  // Amber - Edit Supplier
+    messageTypeColors.put(17, new Color(41, 182, 246));  // Sky Blue - Edit Credit
+    messageTypeColors.put(18, new Color(126, 87, 194));  // Medium Purple - Edit Credit Pay
+    messageTypeColors.put(19, new Color(87, 188, 95));   // Fresh Green - Add New Customer
+    messageTypeColors.put(20, new Color(245, 124, 0));   // Orange - Edit Customer
+    messageTypeColors.put(21, new Color(57, 204, 204));  // Turquoise - Add New User
+    messageTypeColors.put(22, new Color(156, 204, 101)); // Light Green - Edit Profile
+    messageTypeColors.put(23, new Color(179, 157, 219)); // Lavender - Add New Category
+    messageTypeColors.put(24, new Color(255, 158, 128)); // Peach - Add New Brand
+    messageTypeColors.put(25, new Color(229, 57, 53));   // Red - Stock Loss
+    messageTypeColors.put(26, new Color(158, 158, 158)); // Gray - Return Product
+    
+    // Updated message types from your database
+    messageTypeColors.put(27, new Color(76, 175, 80));   // Green - Add Credit Discount
+    messageTypeColors.put(28, new Color(38, 198, 218));  // Light Blue - Add Expenses
+    messageTypeColors.put(29, new Color(57, 73, 171));   // Indigo - Edit Expenses
+    messageTypeColors.put(30, new Color(0, 150, 136));   // Teal - Add Cheque Payment
+    messageTypeColors.put(31, new Color(104, 159, 56));  // Light Green - Edit Cheque Payment
 
-        // Soft, eye-friendly color palette
-        messageTypeColors.put(1, new Color(255, 183, 77));   // Soft Orange - Expired Soon
-        messageTypeColors.put(2, new Color(239, 83, 80));    // Soft Red - Low Stock
-        messageTypeColors.put(3, new Color(102, 187, 106));  // Soft Green - Logged In
-        messageTypeColors.put(4, new Color(121, 134, 203));  // Soft Purple - Log Out
-        messageTypeColors.put(5, new Color(229, 115, 115));  // Light Red - Expired
-        messageTypeColors.put(7, new Color(255, 138, 101));  // Soft Coral - Missed Due Date
-        messageTypeColors.put(8, new Color(77, 182, 172));   // Teal - Add New Product
-        messageTypeColors.put(9, new Color(129, 199, 132));  // Light Green - Add New Stock
-        messageTypeColors.put(10, new Color(149, 117, 205)); // Soft Purple - Add New Supplier
-        messageTypeColors.put(11, new Color(100, 181, 246)); // Soft Blue - Add New Credit
-        messageTypeColors.put(12, new Color(77, 208, 225));  // Cyan - Credit Payed
-        messageTypeColors.put(13, new Color(72, 201, 176));  // Mint Green - Complete Sale
-        messageTypeColors.put(14, new Color(171, 71, 188));  // Soft Magenta - Edit Product/Stock
-        messageTypeColors.put(16, new Color(255, 167, 38));  // Amber - Edit Supplier
-        messageTypeColors.put(17, new Color(41, 182, 246));  // Sky Blue - Edit Credit
-        messageTypeColors.put(18, new Color(126, 87, 194));  // Medium Purple - Edit Credit Pay
-        messageTypeColors.put(19, new Color(87, 188, 95));   // Fresh Green - Add New Customer
-        messageTypeColors.put(20, new Color(245, 124, 0));   // Orange - Edit Customer
-        messageTypeColors.put(21, new Color(57, 204, 204));  // Turquoise - Add New User
-        messageTypeColors.put(22, new Color(156, 204, 101)); // Light Green - Edit Profile
-        messageTypeColors.put(23, new Color(179, 157, 219)); // Lavender - Add New Category
-        messageTypeColors.put(24, new Color(255, 158, 128)); // Peach - Add New Brand
-        messageTypeColors.put(25, new Color(229, 57, 53));   // Red - Stock Loss
-        messageTypeColors.put(26, new Color(158, 158, 158)); // Gray - Return Product
+    // Message type to icon filename mapping
+    messageTypeIcons = new HashMap<>();
+    messageTypeIcons.put(1, "expire-solid");      // Expired Soon
+    messageTypeIcons.put(2, "graph-down");        // Low Stock
+    messageTypeIcons.put(3, "user-in");           // Logged In
+    messageTypeIcons.put(4, "user-out");          // Log Out
+    messageTypeIcons.put(5, "clock-conflict");    // Expired
+    messageTypeIcons.put(7, "calendar-cross");    // Missed Due Date
+    messageTypeIcons.put(8, "box-add");           // Add New Product
+    messageTypeIcons.put(9, "box-add");           // Add New Stock
+    messageTypeIcons.put(10, "user-plus");        // Add New Supplier
+    messageTypeIcons.put(11, "credit-card-check");// Add New Credit
+    messageTypeIcons.put(12, "money-add");        // Credit Payed
+    messageTypeIcons.put(13, "cart-check");       // Complete Sale
+    messageTypeIcons.put(14, "package-shipping"); // Edit Product/Stock
+    messageTypeIcons.put(16, "user-pen");         // Edit Supplier
+    messageTypeIcons.put(17, "credit-edit");      // Edit Credit
+    messageTypeIcons.put(18, "creditpayment-add");// Edit Credit Pay
+    messageTypeIcons.put(19, "user-plus");        // Add New Customer
+    messageTypeIcons.put(20, "user-pen");         // Edit Customer
+    messageTypeIcons.put(21, "user-plus");        // Add New User
+    messageTypeIcons.put(22, "user-pen");         // Edit Profile
+    messageTypeIcons.put(23, "category");         // Add New Category
+    messageTypeIcons.put(24, "add-brand");        // Add New Brand
+    messageTypeIcons.put(25, "graph-down");       // Stock Loss
+    messageTypeIcons.put(26, "rotate-circle");    // Return Product
+    
+    // Updated message type icons
+    messageTypeIcons.put(27, "discount");         // Add Credit Discount
+    messageTypeIcons.put(28, "money-remove");     // Add Expenses
+    messageTypeIcons.put(29, "money-edit");       // Edit Expenses
+    messageTypeIcons.put(30, "cheque");           // Add Cheque Payment
+    messageTypeIcons.put(31, "cheque-edit");      // Edit Cheque Payment
 
-        // Updated message types from your database
-        messageTypeColors.put(27, new Color(76, 175, 80));   // Green - Add Credit Discount
-        messageTypeColors.put(28, new Color(38, 198, 218));  // Light Blue - Add Expenses
-        messageTypeColors.put(29, new Color(57, 73, 171));   // Indigo - Edit Expenses
-        messageTypeColors.put(30, new Color(0, 150, 136));   // Teal - Add Cheque Payment
-        messageTypeColors.put(31, new Color(104, 159, 56));  // Light Green - Edit Cheque Payment
+    // Individual icon sizes for different message types
+    iconSizes = new HashMap<>();
+    iconSizes.put(1, 30);   // Expired Soon
+    iconSizes.put(2, 26);   // Low Stock
+    iconSizes.put(3, 26);   // Logged In
+    iconSizes.put(4, 26);   // Log Out
+    iconSizes.put(5, 28);   // Expired
+    iconSizes.put(7, 28);   // Missed Due Date
+    iconSizes.put(8, 30);   // Add New Product
+    iconSizes.put(9, 28);   // Add New Stock
+    iconSizes.put(10, 26);  // Add New Supplier
+    iconSizes.put(11, 28);  // Add New Credit
+    iconSizes.put(12, 30);  // Credit Payed
+    iconSizes.put(13, 32);  // Complete Sale
+    iconSizes.put(14, 26);  // Edit Product/Stock
+    iconSizes.put(16, 26);  // Edit Supplier
+    iconSizes.put(17, 28);  // Edit Credit
+    iconSizes.put(18, 30);  // Edit Credit Pay
+    iconSizes.put(19, 26);  // Add New Customer
+    iconSizes.put(20, 26);  // Edit Customer
+    iconSizes.put(21, 28);  // Add New User
+    iconSizes.put(22, 26);  // Edit Profile
+    iconSizes.put(23, 28);  // Add New Category
+    iconSizes.put(24, 30);  // Add New Brand
+    iconSizes.put(25, 32);  // Stock Loss
+    iconSizes.put(26, 30);  // Return Product
+    
+    // Updated message type icon sizes
+    iconSizes.put(27, 30);  // Add Credit Discount
+    iconSizes.put(28, 28);  // Add Expenses
+    iconSizes.put(29, 28);  // Edit Expenses
+    iconSizes.put(30, 30);  // Add Cheque Payment
+    iconSizes.put(31, 30);  // Edit Cheque Payment
 
-        // Message type to icon filename mapping
-        messageTypeIcons = new HashMap<>();
-        messageTypeIcons.put(1, "expire-solid");      // Expired Soon
-        messageTypeIcons.put(2, "graph-down");        // Low Stock
-        messageTypeIcons.put(3, "user-in");           // Logged In
-        messageTypeIcons.put(4, "user-out");          // Log Out
-        messageTypeIcons.put(5, "clock-conflict");    // Expired
-        messageTypeIcons.put(7, "calendar-cross");    // Missed Due Date
-        messageTypeIcons.put(8, "box-add");           // Add New Product
-        messageTypeIcons.put(9, "box-add");           // Add New Stock
-        messageTypeIcons.put(10, "user-plus");        // Add New Supplier
-        messageTypeIcons.put(11, "credit-card-check");// Add New Credit
-        messageTypeIcons.put(12, "money-add");        // Credit Payed
-        messageTypeIcons.put(13, "cart-check");       // Complete Sale
-        messageTypeIcons.put(14, "package-shipping"); // Edit Product/Stock
-        messageTypeIcons.put(16, "user-pen");         // Edit Supplier
-        messageTypeIcons.put(17, "credit-edit");      // Edit Credit
-        messageTypeIcons.put(18, "creditpayment-add");// Edit Credit Pay
-        messageTypeIcons.put(19, "user-plus");        // Add New Customer
-        messageTypeIcons.put(20, "user-pen");         // Edit Customer
-        messageTypeIcons.put(21, "user-plus");        // Add New User
-        messageTypeIcons.put(22, "user-pen");         // Edit Profile
-        messageTypeIcons.put(23, "category");         // Add New Category
-        messageTypeIcons.put(24, "add-brand");        // Add New Brand
-        messageTypeIcons.put(25, "graph-down");       // Stock Loss
-        messageTypeIcons.put(26, "rotate-circle");    // Return Product
-
-        // Updated message type icons
-        messageTypeIcons.put(27, "discount");         // Add Credit Discount
-        messageTypeIcons.put(28, "money-remove");     // Add Expenses
-        messageTypeIcons.put(29, "money-edit");       // Edit Expenses
-        messageTypeIcons.put(30, "cheque");           // Add Cheque Payment
-        messageTypeIcons.put(31, "cheque-edit");      // Edit Cheque Payment
-
-        // Individual icon sizes for different message types
-        iconSizes = new HashMap<>();
-        iconSizes.put(1, 30);   // Expired Soon
-        iconSizes.put(2, 26);   // Low Stock
-        iconSizes.put(3, 26);   // Logged In
-        iconSizes.put(4, 26);   // Log Out
-        iconSizes.put(5, 28);   // Expired
-        iconSizes.put(7, 28);   // Missed Due Date
-        iconSizes.put(8, 30);   // Add New Product
-        iconSizes.put(9, 28);   // Add New Stock
-        iconSizes.put(10, 26);  // Add New Supplier
-        iconSizes.put(11, 28);  // Add New Credit
-        iconSizes.put(12, 30);  // Credit Payed
-        iconSizes.put(13, 32);  // Complete Sale
-        iconSizes.put(14, 26);  // Edit Product/Stock
-        iconSizes.put(16, 26);  // Edit Supplier
-        iconSizes.put(17, 28);  // Edit Credit
-        iconSizes.put(18, 30);  // Edit Credit Pay
-        iconSizes.put(19, 26);  // Add New Customer
-        iconSizes.put(20, 26);  // Edit Customer
-        iconSizes.put(21, 28);  // Add New User
-        iconSizes.put(22, 26);  // Edit Profile
-        iconSizes.put(23, 28);  // Add New Category
-        iconSizes.put(24, 30);  // Add New Brand
-        iconSizes.put(25, 32);  // Stock Loss
-        iconSizes.put(26, 30);  // Return Product
-
-        // Updated message type icon sizes
-        iconSizes.put(27, 30);  // Add Credit Discount
-        iconSizes.put(28, 28);  // Add Expenses
-        iconSizes.put(29, 28);  // Edit Expenses
-        iconSizes.put(30, 30);  // Add Cheque Payment
-        iconSizes.put(31, 30);  // Edit Cheque Payment
-
-        iconColors = new HashMap<>(messageTypeColors);
-    }
-
+    iconColors = new HashMap<>(messageTypeColors);
+}
     private Border createRoundedLineBorder(Color color, int thickness, int radius) {
         return new Border() {
             @Override

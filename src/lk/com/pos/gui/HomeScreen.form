@@ -330,7 +330,7 @@
                       <Component id="chequeBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="returnBtn" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="notificasionBtn" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Component id="notificasionBtn1" min="-2" max="-2" attributes="0"/>
@@ -658,7 +658,7 @@
                 <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
                   <Font name="Nunito SemiBold" size="14" style="1"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value=" Charts"/>
+                <Property name="text" type="java.lang.String" value=" ChartPanel"/>
                 <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
                   <Border info="null"/>
                 </Property>

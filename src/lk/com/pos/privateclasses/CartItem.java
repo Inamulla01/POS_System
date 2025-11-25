@@ -11,7 +11,6 @@ public class CartItem {
     private int quantity;
     private double discountPrice; // ✅ This stores PER-UNIT discount
     private double lastPrice; // ✅ ADD THIS: last_price from database
-        private int itemNo;
 
     public CartItem(int productId, String productName, String brandName,
                     String batchNo, int availableQty, double unitPrice, String barcode, double lastPrice) { // ✅ UPDATE CONSTRUCTOR
@@ -94,15 +93,4 @@ public class CartItem {
     public void setLastPrice(double lastPrice) {
         this.lastPrice = lastPrice;
     }
-    
-
-
-public int getItemNo() {
-    return itemNo;
-}
-
-public void setItemNo(int itemNo) {
-    this.itemNo = itemNo;
-}
-
 }

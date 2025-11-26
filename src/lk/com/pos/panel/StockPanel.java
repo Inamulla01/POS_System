@@ -129,14 +129,206 @@ public class StockPanel extends javax.swing.JPanel {
         productSearchBar.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         
+        setupActionButtons();
+        
         addStockBtn.setToolTipText("Add Stock (Ctrl+N or Alt+A)");
-        // ADDED: Tooltip for the report button
         stockReportBtn.setToolTipText("Generate Stock Report (Ctrl+R or Ctrl+P)");
         productSearchBar.setToolTipText("Search products (Ctrl+F or /) - Press ? for help");
         expiringRadioBtn.setToolTipText("Filter expiring products (Alt+1)");
         lowStockRadioBtn.setToolTipText("Filter low stock products (Alt+2)");
         expiredRadioBtn.setToolTipText("Filter expired products (Alt+3)");
         inactiveRadioBtn.setToolTipText("Filter inactive products (Alt+4)");
+    }
+
+    private void setupActionButtons() {
+        setupAddStockButton();
+        setupStockReportButton();
+    }
+
+    private void setupAddStockButton() {
+        addStockBtn.setPreferredSize(new Dimension(47, 47));
+        addStockBtn.setMinimumSize(new Dimension(47, 47));
+        addStockBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        addStockBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        addStockBtn.setForeground(TEAL_BORDER_SELECTED);
+
+        // Remove text
+        addStockBtn.setText("");
+
+        // Set border with teal color
+        addStockBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(TEAL_BORDER_SELECTED, 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        addStockBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        addStockBtn.setFocusPainted(false);
+
+        // Set icon with teal color
+        try {
+            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+            // Apply teal color filter to the icon
+            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> TEAL_BORDER_SELECTED));
+            addStockBtn.setIcon(addIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading add icon: " + e.getMessage());
+        }
+
+        // Set initial tooltip with button name
+        addStockBtn.setToolTipText("Add Stock");
+
+        // Add hover effects
+        addStockBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addStockBtn.setBackground(TEAL_BORDER_SELECTED);
+                addStockBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(TEAL_BORDER_HOVER, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    addStockBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show button name and shortcut
+                addStockBtn.setToolTipText("Add Stock (Ctrl+N or Alt+A)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addStockBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                addStockBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(TEAL_BORDER_SELECTED, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to teal
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> TEAL_BORDER_SELECTED));
+                    addStockBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Reset tooltip to just button name
+                addStockBtn.setToolTipText("Add Stock");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                addStockBtn.setBackground(TEAL_BORDER_SELECTED.darker());
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                addStockBtn.setBackground(TEAL_BORDER_SELECTED);
+            }
+        });
+    }
+
+    private void setupStockReportButton() {
+        stockReportBtn.setPreferredSize(new Dimension(47, 47));
+        stockReportBtn.setMinimumSize(new Dimension(47, 47));
+        stockReportBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        stockReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        stockReportBtn.setForeground(Color.decode("#10B981"));
+
+        // Remove text
+        stockReportBtn.setText("");
+
+        // Set border with green color
+        stockReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        stockReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        stockReportBtn.setFocusPainted(false);
+
+        // Set icon with green color
+        try {
+            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+            // Apply green color filter to the icon
+            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+            stockReportBtn.setIcon(printIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading print icon: " + e.getMessage());
+        }
+
+        // Set initial tooltip with button name
+        stockReportBtn.setToolTipText("Generate Stock Report");
+
+        // Add hover effects
+        stockReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                stockReportBtn.setBackground(Color.decode("#10B981"));
+                stockReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    stockReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show button name and shortcut
+                stockReportBtn.setToolTipText("Generate Stock Report (Ctrl+R or Ctrl+P)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                stockReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                stockReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to green
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+                    stockReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Reset tooltip to just button name
+                stockReportBtn.setToolTipText("Generate Stock Report");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                stockReportBtn.setBackground(Color.decode("#059669"));
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                stockReportBtn.setBackground(Color.decode("#10B981"));
+            }
+        });
     }
 
     // Custom Rounded Border Class
@@ -1970,7 +2162,7 @@ public class StockPanel extends javax.swing.JPanel {
         });
     } 
     
-      private void generateStockReport() {
+    private void generateStockReport() {
         // TODO: Implement your actual report generation logic here.
         // This could involve fetching data and using a library like JasperReports.
         System.out.println("Stock Report generation triggered.");
@@ -1981,6 +2173,7 @@ public class StockPanel extends javax.swing.JPanel {
                 JOptionPane.INFORMATION_MESSAGE);
         this.requestFocusInWindow();
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

@@ -227,8 +227,194 @@ public class SupplierPanel extends javax.swing.JPanel {
     }
     
     private void setupButtons() {
-        supplierReportBtn.setToolTipText("Generate Supplier Report (Ctrl+R or Ctrl+P)");
-        addSupplierBtn.setToolTipText("Add new supplier (Ctrl+N or Alt+A)");
+        setupSupplierReportButton();
+        setupAddSupplierButton();
+    }
+    
+    private void setupSupplierReportButton() {
+        supplierReportBtn.setPreferredSize(new Dimension(47, 47));
+        supplierReportBtn.setMinimumSize(new Dimension(47, 47));
+        supplierReportBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        supplierReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        supplierReportBtn.setForeground(Color.decode("#10B981"));
+
+        // Remove text
+        supplierReportBtn.setText("");
+
+        // Set border with green color
+        supplierReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        supplierReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        supplierReportBtn.setFocusPainted(false);
+
+        // Set icon with green color
+        try {
+            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+            // Apply green color filter to the icon
+            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+            supplierReportBtn.setIcon(printIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading print icon: " + e.getMessage());
+        }
+
+        // Set initial tooltip with button name
+        supplierReportBtn.setToolTipText("Export Supplier Report");
+
+        // Add hover effects
+        supplierReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                supplierReportBtn.setBackground(Color.decode("#10B981"));
+                supplierReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    supplierReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show button name and shortcut
+                supplierReportBtn.setToolTipText("Export Supplier Report (Ctrl+R)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                supplierReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                supplierReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to green
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+                    supplierReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Reset tooltip to just button name
+                supplierReportBtn.setToolTipText("Export Supplier Report");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                supplierReportBtn.setBackground(Color.decode("#059669"));
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                supplierReportBtn.setBackground(Color.decode("#10B981"));
+            }
+        });
+    }
+    
+    private void setupAddSupplierButton() {
+        addSupplierBtn.setPreferredSize(new Dimension(47, 47));
+        addSupplierBtn.setMinimumSize(new Dimension(47, 47));
+        addSupplierBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        addSupplierBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        addSupplierBtn.setForeground(Colors.TEAL_PRIMARY);
+
+        // Remove text
+        addSupplierBtn.setText("");
+
+        // Set border with teal color
+        addSupplierBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        addSupplierBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        addSupplierBtn.setFocusPainted(false);
+
+        // Set icon with teal color
+        try {
+            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+            // Apply teal color filter to the icon
+            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
+            addSupplierBtn.setIcon(addIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading add icon: " + e.getMessage());
+        }
+
+        // Set initial tooltip with button name
+        addSupplierBtn.setToolTipText("Add New Supplier");
+
+        // Add hover effects
+        addSupplierBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addSupplierBtn.setBackground(Colors.TEAL_PRIMARY);
+                addSupplierBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Colors.TEAL_HOVER, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    addSupplierBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show button name and shortcut
+                addSupplierBtn.setToolTipText("Add New Supplier (Ctrl+N or Alt+A)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addSupplierBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                addSupplierBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to teal
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
+                    addSupplierBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Reset tooltip to just button name
+                addSupplierBtn.setToolTipText("Add New Supplier");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                addSupplierBtn.setBackground(Colors.TEAL_PRIMARY.darker());
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                addSupplierBtn.setBackground(Colors.TEAL_PRIMARY);
+            }
+        });
     }
     
     private void setupRadioButtons() {
@@ -1860,7 +2046,6 @@ public class SupplierPanel extends javax.swing.JPanel {
                 JOptionPane.INFORMATION_MESSAGE);
         this.requestFocusInWindow();
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

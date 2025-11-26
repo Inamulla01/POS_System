@@ -2400,12 +2400,17 @@ private void findAndFixButtons(Container container, JDialog dialog) {
 
     private int saveSale(int statusId) {
     try (Connection conn = MySQL.getConnection()) {
+        
+        
         if (conn == null || conn.isClosed()) {
             JOptionPane.showMessageDialog(this, 
-                "Database connection failed. Please check connection.", 
+                "Database connection failed", 
                 "Connection Error", JOptionPane.ERROR_MESSAGE);
             return -1;
         }
+
+        conn.setAutoCommit(false);
+
 
         int userId = Session.getInstance().getUserId();
         if (userId <= 0) {
@@ -4843,13 +4848,14 @@ private void handleViewAction(Invoice invoice) {
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
                         .addGap(4, 4, 4)
-                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(holdBtn)
-                            .addComponent(clearCartBtn)
-                            .addComponent(switchBtn)
-                            .addComponent(discountBtn)
-                            .addComponent(creditPay)
-                            .addComponent(exchangeBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                        .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(exchangeBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(holdBtn)
+                                .addComponent(clearCartBtn)
+                                .addComponent(switchBtn)
+                                .addComponent(discountBtn)
+                                .addComponent(creditPay))))
                     .addGroup(jPanel3Layout.createSequentialGroup()
                         .addComponent(cartCount)
                         .addGap(1, 1, 1)))

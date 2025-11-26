@@ -16,8 +16,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
 import lk.com.pos.dialog.ExchangeProductDialog;
-import java.sql.SQLException;
-import java.sql.Connection;
 
 public class ReturnPanel extends javax.swing.JPanel {
 
@@ -25,72 +23,72 @@ public class ReturnPanel extends javax.swing.JPanel {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy, HH:mm:ss");
     private int currentWidth = 0;
     private Timer searchTimer;
-
+    
     // Keyboard navigation
     private List<JPanel> returnCardsList = new ArrayList<>();
     private int currentCardIndex = -1;
     private JPanel currentFocusedCard = null;
-
+    
     private JPanel positionIndicator;
     private JLabel positionLabel;
     private Timer positionTimer;
-
+    
     private JPanel keyboardHintsPanel;
     private boolean hintsVisible = false;
-
+    
     // Refresh cooldown
     private long lastRefreshTime = 0;
     private static final long REFRESH_COOLDOWN = 1000; // 1 second
-
+    
     // Colors
     private static final Color RED_BORDER_SELECTED = new Color(239, 68, 68);
     private static final Color RED_BORDER_HOVER = new Color(248, 113, 113);
     private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
-
+    
     public ReturnPanel() {
         initComponents();
         setupPanel();
-        customizeComponents(); // This now calls setupButtons()
+        customizeComponents();
         createPositionIndicator();
         createKeyboardHintsPanel();
         setupKeyboardShortcuts();
         loadReturnData("", "All Time", "All Reasons");
         setupEventListeners();
-
+        
         SwingUtilities.invokeLater(() -> {
             this.requestFocusInWindow();
             showKeyboardHints();
         });
     }
-
+    
     private void createPositionIndicator() {
         positionIndicator = new JPanel();
         positionIndicator.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 8));
         positionIndicator.setBackground(new Color(31, 41, 55, 230));
         positionIndicator.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
-                BorderFactory.createEmptyBorder(8, 15, 8, 15)
+            BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
+            BorderFactory.createEmptyBorder(8, 15, 8, 15)
         ));
         positionIndicator.setVisible(false);
-
+        
         positionLabel = new JLabel();
         positionLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
         positionLabel.setForeground(Color.WHITE);
-
+        
         positionIndicator.add(positionLabel);
-
+        
         setLayout(new OverlayLayout(this) {
             @Override
             public void layoutContainer(Container target) {
                 super.layoutContainer(target);
-
+                
                 if (positionIndicator.isVisible()) {
                     Dimension size = positionIndicator.getPreferredSize();
                     int x = (getWidth() - size.width) / 2;
                     int y = 80;
                     positionIndicator.setBounds(x, y, size.width, size.height);
                 }
-
+                
                 if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
                     Dimension size = keyboardHintsPanel.getPreferredSize();
                     int x = getWidth() - size.width - 20;
@@ -99,7 +97,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         });
-
+        
         add(positionIndicator, Integer.valueOf(1000));
     }
 
@@ -108,19 +106,19 @@ public class ReturnPanel extends javax.swing.JPanel {
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
         keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
         keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
-                BorderFactory.createEmptyBorder(15, 20, 15, 20)
+            BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
+            BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
         keyboardHintsPanel.setVisible(false);
-
+        
         JLabel title = new JLabel("⌨️ KEYBOARD SHORTCUTS");
         title.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
         title.setForeground(RED_BORDER_SELECTED);
         title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(title);
-
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-
+        
         addHintRow("↑ ↓", "Navigate returns", "#FFFFFF");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
         addHintRow("F5", "Refresh", "#34D399");
@@ -128,7 +126,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Ctrl+N", "Return Product", "#EF4444");
         addHintRow("Ctrl+P", "Return Report", "#10B981");
         addHintRow("Ctrl+R", "Return Report", "#10B981");
-
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         JLabel periodTitle = new JLabel("PERIOD FILTERS");
         periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
@@ -136,7 +134,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(periodTitle);
         keyboardHintsPanel.add(Box.createVerticalStrut(4));
-
+        
         addHintRow("Alt+1", "All Time", "#FB923C");
         addHintRow("Alt+2", "Today", "#FCD34D");
         addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
@@ -146,7 +144,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Alt+7", "2 Years", "#60A5FA");
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
-
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
         reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
@@ -154,7 +152,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(reasonTitle);
         keyboardHintsPanel.add(Box.createVerticalStrut(4));
-
+        
         addHintRow("Shift+1", "All Reasons", "#9CA3AF");
         addHintRow("Shift+2", "Damaged", "#EF4444");
         addHintRow("Shift+3", "Wrong Item", "#F59E0B");
@@ -166,19 +164,19 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Shift+9", "Defective", "#EF4444");
         addHintRow("Shift+0", "Late Delivery", "#60A5FA");
         addHintRow("Shift+-", "Other", "#F472B6");
-
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         addHintRow("Esc", "Clear All Filters", "#EF4444");
         addHintRow("?", "Toggle Help", "#EF4444");
-
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-
+        
         JLabel closeHint = new JLabel("Press ? to hide");
         closeHint.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
         closeHint.setForeground(Color.decode("#9CA3AF"));
         closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
         keyboardHintsPanel.add(closeHint);
-
+        
         add(keyboardHintsPanel, Integer.valueOf(1001));
     }
 
@@ -187,16 +185,16 @@ public class ReturnPanel extends javax.swing.JPanel {
         row.setOpaque(false);
         row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(300, 25));
-
+        
         JLabel keyLabel = new JLabel(key);
         keyLabel.setFont(new Font("Consolas", Font.BOLD, 11));
         keyLabel.setForeground(Color.decode(keyColor));
         keyLabel.setPreferredSize(new Dimension(90, 20));
-
+        
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
         descLabel.setForeground(Color.decode("#D1D5DB"));
-
+        
         row.add(keyLabel);
         row.add(descLabel);
         keyboardHintsPanel.add(row);
@@ -208,7 +206,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             hintsVisible = true;
             revalidate();
             repaint();
-
+            
             Timer hideTimer = new Timer(5000, e -> {
                 keyboardHintsPanel.setVisible(false);
                 hintsVisible = false;
@@ -230,11 +228,11 @@ public class ReturnPanel extends javax.swing.JPanel {
         positionIndicator.setVisible(true);
         revalidate();
         repaint();
-
+        
         if (positionTimer != null && positionTimer.isRunning()) {
             positionTimer.stop();
         }
-
+        
         positionTimer = new Timer(2000, e -> {
             positionIndicator.setVisible(false);
             revalidate();
@@ -246,15 +244,15 @@ public class ReturnPanel extends javax.swing.JPanel {
 
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
-
+        
         int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
-
+        
         // Navigation
         registerKeyAction("UP", KeyEvent.VK_UP, 0, condition, () -> navigateCards(-1));
         registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, condition, () -> navigateCards(1));
         registerKeyAction("HOME", KeyEvent.VK_HOME, 0, condition, () -> navigateToFirst());
         registerKeyAction("END", KeyEvent.VK_END, 0, condition, () -> navigateToLast());
-
+        
         // Search
         registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, () -> focusSearch());
         registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, () -> {
@@ -262,18 +260,18 @@ public class ReturnPanel extends javax.swing.JPanel {
                 focusSearch();
             }
         });
-
+        
         // Refresh
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshReturns());
-
-// Return Product - ALT+A and CTRL+N
+        
+        // Return Product - ALT+A and CTRL+N
         registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openReturnProductDialog);
         registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnProductDialog);
-
-// Return Report - CTRL+P and CTRL+R
+        
+        // Return Report - CTRL+P and CTRL+R
         registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
         registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
-
+        
         // Period filters - ALT+1 to ALT+9 (All Time, Today, 7D, 30D, 90D, 1Y, 2Y, 5Y, 10Y)
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
@@ -284,7 +282,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         registerKeyAction("ALT_7", KeyEvent.VK_7, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(6));
         registerKeyAction("ALT_8", KeyEvent.VK_8, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(7));
         registerKeyAction("ALT_9", KeyEvent.VK_9, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(8));
-
+        
         // Reason filters - ALL 11 REASONS
         registerKeyAction("SHIFT_1", KeyEvent.VK_1, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(0));
         registerKeyAction("SHIFT_2", KeyEvent.VK_2, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(1));
@@ -297,25 +295,25 @@ public class ReturnPanel extends javax.swing.JPanel {
         registerKeyAction("SHIFT_9", KeyEvent.VK_9, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(8));
         registerKeyAction("SHIFT_0", KeyEvent.VK_0, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(9));
         registerKeyAction("SHIFT_MINUS", KeyEvent.VK_MINUS, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(10));
-
+        
         // Escape - Clear all filters
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
-
+        
         // Help
         registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, () -> showKeyboardHints());
-
+        
         // Search field
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
+            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
         jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 clearAllFilters();
             }
         });
-
+        
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
+            KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
         jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -329,7 +327,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         });
-
+        
         this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentShown(ComponentEvent e) {
@@ -344,10 +342,10 @@ public class ReturnPanel extends javax.swing.JPanel {
         this.getActionMap().put(actionName, new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (jTextField1.hasFocus()
-                        && keyCode != KeyEvent.VK_ESCAPE
-                        && modifiers == 0
-                        && keyCode != KeyEvent.VK_SLASH) {
+                if (jTextField1.hasFocus() && 
+                    keyCode != KeyEvent.VK_ESCAPE && 
+                    modifiers == 0 &&
+                    keyCode != KeyEvent.VK_SLASH) {
                     return;
                 }
                 action.run();
@@ -360,26 +358,26 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("No returns available");
             return;
         }
-
+        
         if (currentCardIndex < 0) {
             currentCardIndex = 0;
             selectCurrentCard();
             scrollToCard(currentCardIndex);
             return;
         }
-
+        
         int newIndex = currentCardIndex + direction;
-
+        
         if (newIndex < 0) {
             showPositionIndicator("Already at the first return");
             return;
         }
-
+        
         if (newIndex >= returnCardsList.size()) {
             showPositionIndicator("Already at the last return");
             return;
         }
-
+        
         deselectCard(currentCardIndex);
         currentCardIndex = newIndex;
         selectCurrentCard();
@@ -391,7 +389,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("No returns available");
             return;
         }
-
+        
         if (currentCardIndex >= 0) {
             deselectCard(currentCardIndex);
         }
@@ -406,7 +404,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("No returns available");
             return;
         }
-
+        
         if (currentCardIndex >= 0) {
             deselectCard(currentCardIndex);
         }
@@ -420,14 +418,14 @@ public class ReturnPanel extends javax.swing.JPanel {
         if (currentCardIndex >= 0 && currentCardIndex < returnCardsList.size()) {
             JPanel card = returnCardsList.get(currentCardIndex);
             card.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundBorder(RED_BORDER_SELECTED, 3, 20),
-                    BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                new RoundBorder(RED_BORDER_SELECTED, 3, 20),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
             ));
             currentFocusedCard = card;
-
+            
             String invoiceNo = (String) card.getClientProperty("invoiceNo");
-            showPositionIndicator(String.format("Return %d/%d: %s",
-                    currentCardIndex + 1, returnCardsList.size(), invoiceNo));
+            showPositionIndicator(String.format("Return %d/%d: %s", 
+                currentCardIndex + 1, returnCardsList.size(), invoiceNo));
         }
     }
 
@@ -435,25 +433,23 @@ public class ReturnPanel extends javax.swing.JPanel {
         if (index >= 0 && index < returnCardsList.size()) {
             JPanel card = returnCardsList.get(index);
             card.setBorder(BorderFactory.createCompoundBorder(
-                    new ShadowBorder(),
-                    BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                new ShadowBorder(),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
             ));
         }
     }
 
     private void scrollToCard(int index) {
-        if (index < 0 || index >= returnCardsList.size()) {
-            return;
-        }
-
+        if (index < 0 || index >= returnCardsList.size()) return;
+        
         SwingUtilities.invokeLater(() -> {
             try {
                 JPanel card = returnCardsList.get(index);
                 Rectangle bounds = card.getBounds();
                 Rectangle visible = jScrollPane1.getViewport().getViewRect();
-
+                
                 int targetY = bounds.y - 20;
-
+                
                 jScrollPane1.getViewport().setViewPosition(new Point(0, Math.max(0, targetY)));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -473,28 +469,28 @@ public class ReturnPanel extends javax.swing.JPanel {
             currentFocusedCard = null;
             currentCardIndex = -1;
             showPositionIndicator("Card deselected");
-        } else if (!jTextField1.getText().isEmpty()
-                || sortByDays.getSelectedIndex() != 0
-                || sortByReason.getSelectedIndex() != 0) {
+        } else if (!jTextField1.getText().isEmpty() || 
+                   sortByDays.getSelectedIndex() != 0 || 
+                   sortByReason.getSelectedIndex() != 0) {
             clearAllFilters();
         }
         this.requestFocusInWindow();
     }
 
     private void clearAllFilters() {
-        boolean wasFiltered = !jTextField1.getText().isEmpty()
-                || sortByDays.getSelectedIndex() != 0
-                || sortByReason.getSelectedIndex() != 0;
-
+        boolean wasFiltered = !jTextField1.getText().isEmpty() || 
+                             sortByDays.getSelectedIndex() != 0 || 
+                             sortByReason.getSelectedIndex() != 0;
+        
         jTextField1.setText("");
         sortByDays.setSelectedIndex(0);
         sortByReason.setSelectedIndex(0);
-
+        
         if (wasFiltered) {
             handleFilter();
             showPositionIndicator("All filters cleared - Showing all returns");
         }
-
+        
         ReturnPanel.this.requestFocusInWindow();
     }
 
@@ -504,7 +500,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("Please wait before refreshing again");
             return;
         }
-
+        
         lastRefreshTime = currentTime;
         handleFilter();
         showPositionIndicator("Return data refreshed");
@@ -513,13 +509,13 @@ public class ReturnPanel extends javax.swing.JPanel {
 
     private void openReturnProductDialog() {
         addProductDialog.doClick();
-        showPositionIndicator("➕ Opening Return Product Dialog");
+        showPositionIndicator("Opening Return Product Dialog");
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
 
     private void openReturnReport() {
         returnReportDialogBtn.doClick();
-        showPositionIndicator("📊 Opening Return Report");
+        showPositionIndicator("Opening Return Report");
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
 
@@ -540,7 +536,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             this.requestFocusInWindow();
         }
     }
-
+    
     private void setupEventListeners() {
         this.addComponentListener(new ComponentAdapter() {
             @Override
@@ -552,10 +548,10 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         });
-
+        
         searchTimer = new Timer(300, e -> handleSearch());
         searchTimer.setRepeats(false);
-
+        
         jTextField1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) {
                 searchTimer.restart();
@@ -569,37 +565,37 @@ public class ReturnPanel extends javax.swing.JPanel {
                 searchTimer.restart();
             }
         });
-
+        
         sortByDays.addActionListener(e -> {
             handleFilter();
             this.requestFocusInWindow();
         });
-
+        
         sortByReason.addActionListener(e -> {
             handleFilter();
             this.requestFocusInWindow();
         });
     }
-
+    
     private void handleSearch() {
         String searchText = jTextField1.getText().trim();
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         String selectedReason = sortByReason.getSelectedItem().toString();
         loadReturnData(searchText, selectedPeriod, selectedReason);
     }
-
+    
     private void handleFilter() {
         String searchText = jTextField1.getText().trim();
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         String selectedReason = sortByReason.getSelectedItem().toString();
         loadReturnData(searchText, selectedPeriod, selectedReason);
     }
-
+    
     private void setupPanel() {
         jPanel2.setLayout(new BorderLayout());
         jPanel2.setBackground(new Color(248, 250, 252));
     }
-
+    
     private void adjustLayoutForWidth(int width) {
         if (width < 900) {
             jTextField1.setPreferredSize(new Dimension(width - 40, 50));
@@ -614,232 +610,38 @@ public class ReturnPanel extends javax.swing.JPanel {
         revalidate();
         repaint();
     }
-
-    private void setupButtons() {
-        setupAddReturnButton();
-        setupReturnReportButton();
-
-        // Remove text from buttons
-        addProductDialog.setText("");
-        returnReportDialogBtn.setText("");
-    }
-
-    private void setupAddReturnButton() {
-        addProductDialog.setPreferredSize(new Dimension(47, 47));
-        addProductDialog.setMinimumSize(new Dimension(47, 47));
-        addProductDialog.setMaximumSize(new Dimension(47, 47));
-
-        // Set initial state - transparent background with border
-        addProductDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent
-        addProductDialog.setForeground(RED_BORDER_SELECTED);
-
-        // Remove text
-        addProductDialog.setText("");
-
-        // Set border with red color (matching ReturnPanel theme)
-        addProductDialog.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        // Set cursor
-        addProductDialog.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Remove focus painting
-        addProductDialog.setFocusPainted(false);
-
-        // Set icon with red color
-        try {
-            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-            // Apply red color filter to the icon to match ReturnPanel theme
-            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> RED_BORDER_SELECTED));
-            addProductDialog.setIcon(addIcon);
-        } catch (Exception e) {
-            System.err.println("Error loading add icon: " + e.getMessage());
-        }
-
-        // Set tooltip
-        addProductDialog.setToolTipText("Add Return Product");
-
-        // Add hover effects
-        addProductDialog.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                addProductDialog.setBackground(RED_BORDER_SELECTED);
-                addProductDialog.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(RED_BORDER_HOVER, 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon to white on hover
-                try {
-                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
-                    addProductDialog.setIcon(addIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading add icon: " + e.getMessage());
-                }
-
-                // Update tooltip to show it's clickable
-                addProductDialog.setToolTipText("Add Return Product (Alt+A or Ctrl+N)");
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                addProductDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent
-                addProductDialog.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon back to red
-                try {
-                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> RED_BORDER_SELECTED));
-                    addProductDialog.setIcon(addIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading add icon: " + e.getMessage());
-                }
-
-                // Reset tooltip
-                addProductDialog.setToolTipText("Add Return Product");
-            }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                addProductDialog.setBackground(RED_BORDER_SELECTED.darker());
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                addProductDialog.setBackground(RED_BORDER_SELECTED);
-            }
-        });
-    }
-
-    private void setupReturnReportButton() {
-        returnReportDialogBtn.setPreferredSize(new Dimension(47, 47));
-        returnReportDialogBtn.setMinimumSize(new Dimension(47, 47));
-        returnReportDialogBtn.setMaximumSize(new Dimension(47, 47));
-
-        // Set initial state - transparent background with border
-        returnReportDialogBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
-        returnReportDialogBtn.setForeground(Color.decode("#10B981"));
-
-        // Remove text
-        returnReportDialogBtn.setText("");
-
-        // Set border with green color
-        returnReportDialogBtn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        // Set cursor
-        returnReportDialogBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Remove focus painting
-        returnReportDialogBtn.setFocusPainted(false);
-
-        // Set icon with green color
-        try {
-            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-            // Apply green color filter to the icon
-            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
-            returnReportDialogBtn.setIcon(printIcon);
-        } catch (Exception e) {
-            System.err.println("Error loading print icon: " + e.getMessage());
-        }
-
-        // Set tooltip
-        returnReportDialogBtn.setToolTipText("Export Return Report");
-
-        // Add hover effects
-        returnReportDialogBtn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                returnReportDialogBtn.setBackground(Color.decode("#10B981"));
-                returnReportDialogBtn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon to white on hover
-                try {
-                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
-                    returnReportDialogBtn.setIcon(printIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading print icon: " + e.getMessage());
-                }
-
-                // Update tooltip to show it's clickable
-                returnReportDialogBtn.setToolTipText("Export Return Report (Ctrl+P or Ctrl+R)");
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                returnReportDialogBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
-                returnReportDialogBtn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon back to green
-                try {
-                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
-                    returnReportDialogBtn.setIcon(printIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading print icon: " + e.getMessage());
-                }
-
-                // Reset tooltip
-                returnReportDialogBtn.setToolTipText("Export Return Report");
-            }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                returnReportDialogBtn.setBackground(Color.decode("#059669"));
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                returnReportDialogBtn.setBackground(Color.decode("#10B981"));
-            }
-        });
-    }
-
+    
     private void customizeComponents() {
-        // Enhanced search field with FlatLaf styling
+        // Enhanced search field with FlatLaf styling (like SalesPanel)
         jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search by invoice number...");
-        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
+        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,             
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         jTextField1.setToolTipText("Search returns (Ctrl+F or /) - Press ESC to clear all filters");
         jTextField1.setForeground(Color.GRAY);
-
+        
         // Enhanced combo boxes with FlatLaf styling - UPDATED WITH NEW PERIODS
         sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
-            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days",
+            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", 
             "1 Year", "2 Years", "5 Years", "10 Years"
         }));
         sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+9) - Press ESC to reset");
-
+        
         sortByReason.setForeground(Color.GRAY);
         sortByReason.setModel(new DefaultComboBoxModel<>(new String[]{
-            "All Reasons", "Damaged product", "Wrong item delivered",
+            "All Reasons", "Damaged product", "Wrong item delivered", 
             "Customer changed mind", "Expired product", "Incorrect size",
             "Product malfunction", "Packaging issue", "Defective item",
             "Late delivery", "Other"
         }));
         sortByReason.setToolTipText("Filter by reason (Shift+1 to Shift+0, Shift+-) - Press ESC to reset");
-
-        // Setup buttons with new styling
-        setupButtons();
-
+        
+        // Button tooltips
+        addProductDialog.setToolTipText("Return Product (Alt+A or Ctrl+N)");
+        returnReportDialogBtn.setToolTipText("Generate Return Report (Ctrl+P or Ctrl+R)");
+        
         roundedPanel1.setVisible(false);
-
+        
         // Enhanced scroll pane
         jScrollPane1.setBorder(null);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(20);
@@ -848,7 +650,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 + "thumb: #EF4444;"
                 + "width: 8");
     }
-
+    
     private void clearReturnCards() {
         for (JPanel card : returnCardsList) {
             for (MouseListener ml : card.getMouseListeners()) {
@@ -859,27 +661,27 @@ public class ReturnPanel extends javax.swing.JPanel {
         currentCardIndex = -1;
         currentFocusedCard = null;
     }
-
+    
     private void loadReturnData(String searchText, String period, String reason) {
         period = period.replace("", "").replace("", "")
-                .replace("", "").replace("", "").replace("", "");
+                      .replace("", "").replace("", "").replace("", "");
         reason = reason.replace("️", "").replace("", "").replace("", "")
-                .replace("", "").replace("", "").replace("", "")
-                .replace("", "").replace("", "").replace("", "")
-                .replace("", "").replace("️", "");
-
+                      .replace("", "").replace("", "").replace("", "")
+                      .replace("", "").replace("", "").replace("", "")
+                      .replace("", "").replace("️", "");
+        
         clearReturnCards();
-
+        
         String finalPeriod = period;
         String finalReason = reason;
         String finalSearchText = searchText;
-
+        
         SwingWorker<List<ReturnData>, Void> worker = new SwingWorker<>() {
             @Override
             protected List<ReturnData> doInBackground() throws Exception {
                 return fetchReturnsFromDatabase(finalSearchText, finalPeriod, finalReason);
             }
-
+            
             @Override
             protected void done() {
                 try {
@@ -896,12 +698,11 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         };
-
+        
         worker.execute();
     }
 
     private static class ReturnData {
-
         int returnId;
         String invoiceNo;
         String returnDate;
@@ -916,92 +717,92 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private List<ReturnData> fetchReturnsFromDatabase(String searchText, String period, String reason) throws Exception {
-        List<ReturnData> returns = new ArrayList<>();
-
-        try {
-            String baseQuery = "SELECT "
-                    + "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, "
-                    + "s.invoice_no, s.total as original_total, "
-                    + "rr.reason as return_reason, "
-                    + "ps.p_status as status_name, "
-                    + "u.name as processed_by, "
-                    + "pm.payment_method_name, "
-                    + "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name "
-                    + "FROM `return` r "
-                    + "INNER JOIN sales s ON r.sales_id = s.sales_id "
-                    + "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id "
-                    + "INNER JOIN p_status ps ON r.status_id = ps.p_status_id "
-                    + "INNER JOIN user u ON r.user_id = u.user_id "
-                    + "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id "
-                    + "LEFT JOIN credit c ON s.sales_id = c.sales_id "
-                    + "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id ";
-
-            StringBuilder whereClause = new StringBuilder();
-            List<Object> parameters = new ArrayList<>();
-
-            if (!searchText.isEmpty()) {
-                String escapedSearch = searchText.replace("'", "''")
-                        .replace("\\", "\\\\")
-                        .replace("%", "\\%")
-                        .replace("_", "\\_");
-                whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
-            }
-
-            String dateFilter = getDateFilter(period);
-            if (!dateFilter.isEmpty()) {
-                if (whereClause.length() == 0) {
-                    whereClause.append("WHERE ").append(dateFilter);
-                } else {
-                    whereClause.append("AND ").append(dateFilter);
-                }
-            }
-
-            if (!reason.equals("All Reasons")) {
-                if (whereClause.length() == 0) {
-                    whereClause.append("WHERE rr.reason LIKE ? ");
-                } else {
-                    whereClause.append("AND rr.reason LIKE ? ");
-                }
-                parameters.add("%" + reason + "%");
-            }
-
-            String orderBy = " ORDER BY r.return_date DESC";
-            String finalQuery = baseQuery + whereClause.toString() + orderBy;
-
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
-            for (int i = 0; i < parameters.size(); i++) {
-                pst.setObject(i + 1, parameters.get(i));
-            }
-
-            ResultSet rs = pst.executeQuery();
-
-            while (rs.next()) {
-                ReturnData data = new ReturnData();
-                data.returnId = rs.getInt("return_id");
-                data.invoiceNo = rs.getString("invoice_no");
-                data.returnDate = rs.getString("return_date");
-                data.returnAmount = rs.getDouble("total_return_amount");
-                data.discountPrice = rs.getDouble("total_discount_price");
-                data.originalTotal = rs.getDouble("original_total");
-                data.returnReason = rs.getString("return_reason");
-                data.statusName = rs.getString("status_name");
-                data.processedBy = rs.getString("processed_by");
-                data.paymentMethod = rs.getString("payment_method_name");
-                data.customerName = rs.getString("customer_name");
-
-                returns.add(data);
-            }
-
-            rs.close();
-            pst.close();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new Exception("Database error: " + e.getMessage());
+    List<ReturnData> returns = new ArrayList<>();
+    
+    try {
+        String baseQuery = "SELECT " +
+            "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
+            "s.invoice_no, s.total as original_total, " +
+            "rr.reason as return_reason, " +
+            "ps.p_status as status_name, " +
+            "u.name as processed_by, " +
+            "pm.payment_method_name, " +
+            "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
+            "FROM `return` r " +
+            "INNER JOIN sales s ON r.sales_id = s.sales_id " +
+            "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id " +
+            "INNER JOIN p_status ps ON r.status_id = ps.p_status_id " +
+            "INNER JOIN user u ON r.user_id = u.user_id " +
+            "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
+            "LEFT JOIN credit c ON s.sales_id = c.sales_id " +
+            "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id ";
+        
+        StringBuilder whereClause = new StringBuilder();
+        List<Object> parameters = new ArrayList<>();
+        
+        if (!searchText.isEmpty()) {
+            String escapedSearch = searchText.replace("'", "''")
+                                             .replace("\\", "\\\\")
+                                             .replace("%", "\\%")
+                                             .replace("_", "\\_");
+            whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
         }
-
-        return returns;
+        
+        String dateFilter = getDateFilter(period);
+        if (!dateFilter.isEmpty()) {
+            if (whereClause.length() == 0) {
+                whereClause.append("WHERE ").append(dateFilter);
+            } else {
+                whereClause.append("AND ").append(dateFilter);
+            }
+        }
+        
+        if (!reason.equals("All Reasons")) {
+            if (whereClause.length() == 0) {
+                whereClause.append("WHERE rr.reason LIKE ? ");
+            } else {
+                whereClause.append("AND rr.reason LIKE ? ");
+            }
+            parameters.add("%" + reason + "%");
+        }
+        
+        String orderBy = " ORDER BY r.return_date DESC";
+        String finalQuery = baseQuery + whereClause.toString() + orderBy;
+        
+        PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
+        for (int i = 0; i < parameters.size(); i++) {
+            pst.setObject(i + 1, parameters.get(i));
+        }
+        
+        ResultSet rs = pst.executeQuery();
+        
+        while (rs.next()) {
+            ReturnData data = new ReturnData();
+            data.returnId = rs.getInt("return_id");
+            data.invoiceNo = rs.getString("invoice_no");
+            data.returnDate = rs.getString("return_date");
+            data.returnAmount = rs.getDouble("total_return_amount");
+            data.discountPrice = rs.getDouble("total_discount_price");
+            data.originalTotal = rs.getDouble("original_total");
+            data.returnReason = rs.getString("return_reason");
+            data.statusName = rs.getString("status_name");
+            data.processedBy = rs.getString("processed_by");
+            data.paymentMethod = rs.getString("payment_method_name");
+            data.customerName = rs.getString("customer_name");
+            
+            returns.add(data);
+        }
+        
+        rs.close();
+        pst.close();
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        throw new Exception("Database error: " + e.getMessage());
     }
+    
+    return returns;
+}
 
     private void displayReturns(List<ReturnData> returns) {
         returnsContainer = new JPanel();
@@ -1009,18 +810,18 @@ public class ReturnPanel extends javax.swing.JPanel {
         returnsContainer.setBackground(new Color(248, 250, 252));
         returnsContainer.setOpaque(false);
         returnsContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
+        
         clearReturnCards();
-
+        
         if (returns.isEmpty()) {
             returnsContainer.add(createNoDataPanel());
         } else {
             for (ReturnData data : returns) {
                 JPanel returnCard = createReturnCard(
-                        data.returnId, data.invoiceNo, data.returnDate,
-                        data.returnAmount, data.discountPrice, data.originalTotal,
-                        data.returnReason, data.statusName, data.processedBy,
-                        data.paymentMethod, data.customerName
+                    data.returnId, data.invoiceNo, data.returnDate,
+                    data.returnAmount, data.discountPrice, data.originalTotal,
+                    data.returnReason, data.statusName, data.processedBy,
+                    data.paymentMethod, data.customerName
                 );
                 returnCard.putClientProperty("invoiceNo", data.invoiceNo);
                 returnsContainer.add(returnCard);
@@ -1028,7 +829,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 returnCardsList.add(returnCard);
             }
         }
-
+        
         jPanel2.removeAll();
         JPanel wrapperPanel = new JPanel(new BorderLayout());
         wrapperPanel.setBackground(new Color(248, 250, 252));
@@ -1037,35 +838,35 @@ public class ReturnPanel extends javax.swing.JPanel {
         jPanel2.revalidate();
         jPanel2.repaint();
     }
-
+    
     private JPanel createNoDataPanel() {
         JPanel noDataPanel = new JPanel();
         noDataPanel.setLayout(new BoxLayout(noDataPanel, BoxLayout.Y_AXIS));
         noDataPanel.setBackground(new Color(248, 250, 252));
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 60)));
-
+        
         JLabel iconLabel = new JLabel("");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 64));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(iconLabel);
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 20)));
-
+        
         JLabel noDataLabel = new JLabel("No return records found");
         noDataLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 20));
         noDataLabel.setForeground(new Color(71, 85, 105));
         noDataLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(noDataLabel);
-
+        
         JLabel hintLabel = new JLabel("Try adjusting your search or filters to see more results");
         hintLabel.setFont(new Font("Nunito", Font.PLAIN, 15));
         hintLabel.setForeground(new Color(148, 163, 184));
         hintLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         noDataPanel.add(hintLabel);
-
+        
         return noDataPanel;
     }
-
+    
     private JPanel createErrorPanel(Exception e) {
         RoundedPanel errorPanel = new RoundedPanel();
         errorPanel.setBackgroundColor(new Color(254, 242, 242));
@@ -1075,28 +876,28 @@ public class ReturnPanel extends javax.swing.JPanel {
         errorPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
         errorPanel.setMaximumSize(new Dimension(500, 250));
         errorPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
+        
         JLabel iconLabel = new JLabel("⚠️");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(iconLabel);
         errorPanel.add(Box.createRigidArea(new Dimension(0, 16)));
-
+        
         JLabel errorLabel = new JLabel("Oops! Something went wrong");
         errorLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
         errorLabel.setForeground(new Color(220, 38, 38));
         errorLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(errorLabel);
-
-        JLabel errorDetails = new JLabel("<html><div style='text-align: center;'>"
-                + "We couldn't load the return data.<br>"
-                + "Please check your connection and try again.</div></html>");
+        
+        JLabel errorDetails = new JLabel("<html><div style='text-align: center;'>" + 
+                                        "We couldn't load the return data.<br>" +
+                                        "Please check your connection and try again.</div></html>");
         errorDetails.setFont(new Font("Nunito", Font.PLAIN, 14));
         errorDetails.setForeground(new Color(185, 28, 28));
         errorDetails.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         errorPanel.add(errorDetails);
-
+        
         JButton retryButton = new JButton("Retry");
         retryButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         retryButton.setForeground(Color.WHITE);
@@ -1108,17 +909,17 @@ public class ReturnPanel extends javax.swing.JPanel {
         retryButton.addActionListener(ev -> loadReturnData("", "All Time", "All Reasons"));
         errorPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         errorPanel.add(retryButton);
-
+        
         JPanel container = new JPanel();
         container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
         container.setBackground(new Color(248, 250, 252));
         container.add(Box.createVerticalGlue());
         container.add(errorPanel);
         container.add(Box.createVerticalGlue());
-
+        
         return container;
     }
-
+    
     private String getDateFilter(String period) {
         switch (period) {
             case "Today":
@@ -1141,21 +942,21 @@ public class ReturnPanel extends javax.swing.JPanel {
                 return "";
         }
     }
-
+    
     private JPanel createReturnCard(int returnId, String invoiceNo, String returnDate,
-            double returnAmount, double discountPrice, double originalTotal,
-            String returnReason, String statusName, String processedBy,
-            String paymentMethod, String customerName) {
+                                   double returnAmount, double discountPrice, double originalTotal,
+                                   String returnReason, String statusName, String processedBy,
+                                   String paymentMethod, String customerName) {
         RoundedPanel cardPanel = new RoundedPanel();
         cardPanel.setLayout(new BorderLayout(0, 0));
         cardPanel.setBackground(Color.WHITE);
         cardPanel.setCornerRadius(20);
         cardPanel.setBorderThickness(0);
         cardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-
+        
         cardPanel.setBorder(BorderFactory.createCompoundBorder(
-                new ShadowBorder(),
-                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+            new ShadowBorder(),
+            BorderFactory.createEmptyBorder(2, 2, 2, 2)
         ));
 
         JPanel contentPanel = new JPanel(new BorderLayout(0, 0)) {
@@ -1192,19 +993,18 @@ public class ReturnPanel extends javax.swing.JPanel {
 
         cardPanel.addMouseListener(new MouseAdapter() {
             private Timer hoverTimer;
-
+            
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (cardPanel != currentFocusedCard) {
                     hoverTimer = new Timer(10, new ActionListener() {
                         float alpha = 0f;
-
                         @Override
                         public void actionPerformed(ActionEvent evt) {
                             alpha += 0.1f;
                             if (alpha >= 1f) {
                                 alpha = 1f;
-                                ((Timer) evt.getSource()).stop();
+                                ((Timer)evt.getSource()).stop();
                             }
                             Color baseColor = new Color(245, 247, 250);
                             cardPanel.setBackground(baseColor);
@@ -1216,12 +1016,10 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
                 cardPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
-
+            
             @Override
             public void mouseExited(MouseEvent e) {
-                if (hoverTimer != null) {
-                    hoverTimer.stop();
-                }
+                if (hoverTimer != null) hoverTimer.stop();
                 if (cardPanel != currentFocusedCard) {
                     cardPanel.setBackground(Color.WHITE);
                     contentPanel.setBackground(Color.WHITE);
@@ -1229,21 +1027,21 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
                 cardPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             }
-
+            
             @Override
             public void mousePressed(MouseEvent e) {
                 cardPanel.setBackground(new Color(241, 245, 249));
                 contentPanel.setBackground(new Color(241, 245, 249));
                 cardPanel.repaint();
             }
-
+            
             @Override
             public void mouseReleased(MouseEvent e) {
                 cardPanel.setBackground(new Color(248, 250, 252));
                 contentPanel.setBackground(new Color(248, 250, 252));
                 cardPanel.repaint();
             }
-
+            
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (currentFocusedCard != null && currentFocusedCard != cardPanel) {
@@ -1252,7 +1050,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                         deselectCard(oldIndex);
                     }
                 }
-
+                
                 currentCardIndex = returnCardsList.indexOf(cardPanel);
                 selectCurrentCard();
                 ReturnPanel.this.requestFocusInWindow();
@@ -1262,8 +1060,8 @@ public class ReturnPanel extends javax.swing.JPanel {
         return cardPanel;
     }
 
-    private JPanel createReturnHeader(String invoiceNo, String customerName, String paymentMethod,
-            double returnAmount, String statusName) {
+    private JPanel createReturnHeader(String invoiceNo, String customerName, String paymentMethod, 
+                                     double returnAmount, String statusName) {
         JPanel headerPanel = new JPanel();
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
         headerPanel.setOpaque(false);
@@ -1302,7 +1100,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setOpaque(false);
         rightPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-
+        
         JLabel totalLabel = new JLabel(String.format("Rs.%.2f", returnAmount));
         totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
         totalLabel.setForeground(new Color(239, 68, 68));
@@ -1323,7 +1121,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         iconLabel.setMinimumSize(new Dimension(40, 40));
         iconLabel.setMaximumSize(new Dimension(40, 40));
         iconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 12));
-
+        
         try {
             FlatSVGIcon icon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 28, 28);
             icon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.RED));
@@ -1346,12 +1144,12 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
-
+        
         JLabel itemsHeader = new JLabel("RETURNED ITEMS");
         itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
         itemsHeader.setForeground(new Color(71, 85, 105));
         itemsHeader.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
-
+        
         headerPanel.add(itemsHeader, BorderLayout.WEST);
 
         RoundedPanel itemsContainer = new RoundedPanel();
@@ -1370,90 +1168,72 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private void loadReturnItems(JPanel itemsListPanel, int returnId) {
-    Connection conn = null;
-    PreparedStatement pst = null;
-    ResultSet rs = null;
-    
-    try {
-        conn = MySQL.getConnection();
-        
-        String query = "SELECT "
-                + "ri.return_qty, ri.unit_return_price, ri.discount_price, ri.total_return_amount, "
-                + "p.product_name, "
-                + "st.batch_no "
-                + "FROM return_item ri "
-                + "INNER JOIN stock st ON ri.stock_id = st.stock_id "
-                + "INNER JOIN product p ON st.product_id = p.product_id "
-                + "WHERE ri.return_id = ? "
-                + "ORDER BY ri.return_item_id";
-
-        pst = conn.prepareStatement(query);
-        pst.setInt(1, returnId);
-        rs = pst.executeQuery();
-
-        // ✅ Read all data FIRST
-        List<ReturnItemData> items = new ArrayList<>();
-
-        while (rs.next()) {
-            String productName = rs.getString("product_name");
-            String qty = rs.getString("return_qty");
-            double price = rs.getDouble("unit_return_price");
-            double discountPrice = rs.getDouble("discount_price");
-            double itemTotal = rs.getDouble("total_return_amount");
-            String batchNo = rs.getString("batch_no");
-
-            items.add(new ReturnItemData(productName, qty, price, discountPrice, itemTotal, batchNo));
-        }
-
-        // ✅ Close resources
-        rs.close();
-        pst.close();
-        conn.close();
-
-        // ✅ Build UI AFTER closing
-        if (items.isEmpty()) {
-            JLabel noItemsLabel = new JLabel("No items in this return");
-            noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
-            noItemsLabel.setForeground(new Color(148, 163, 184));
-            noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            itemsListPanel.add(noItemsLabel);
-        } else {
-            for (int i = 0; i < items.size(); i++) {
-                ReturnItemData item = items.get(i);
-                JPanel itemCard = createReturnItemCard(item.productName, item.qty, item.price,
-                        item.discountPrice, item.total, item.batchNo);
-                itemsListPanel.add(itemCard);
-
-                if (i < items.size() - 1) {
-                    JSeparator separator = new JSeparator();
-                    separator.setForeground(new Color(229, 231, 235));
-                    separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-                    separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-                    itemsListPanel.add(separator);
+        try {
+            String query = "SELECT " +
+                "ri.return_qty, ri.unit_return_price, ri.discount_price, ri.total_return_amount, " +
+                "p.product_name, " +
+                "st.batch_no " +
+                "FROM return_item ri " +
+                "INNER JOIN stock st ON ri.stock_id = st.stock_id " +
+                "INNER JOIN product p ON st.product_id = p.product_id " +
+                "WHERE ri.return_id = ? " +
+                "ORDER BY ri.return_item_id";
+            
+            PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
+            pst.setInt(1, returnId);
+            ResultSet rs = pst.executeQuery();
+            
+            List<ReturnItemData> items = new ArrayList<>();
+            
+            while (rs.next()) {
+                String productName = rs.getString("product_name");
+                String qty = rs.getString("return_qty");
+                double price = rs.getDouble("unit_return_price");
+                double discountPrice = rs.getDouble("discount_price");
+                double itemTotal = rs.getDouble("total_return_amount");
+                String batchNo = rs.getString("batch_no");
+                
+                items.add(new ReturnItemData(productName, qty, price, discountPrice, itemTotal, batchNo));
+            }
+            
+            rs.close();
+            pst.close();
+            
+            if (items.isEmpty()) {
+                JLabel noItemsLabel = new JLabel("No items in this return");
+                noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
+                noItemsLabel.setForeground(new Color(148, 163, 184));
+                noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                itemsListPanel.add(noItemsLabel);
+            } else {
+                for (int i = 0; i < items.size(); i++) {
+                    ReturnItemData item = items.get(i);
+                    JPanel itemCard = createReturnItemCard(item.productName, item.qty, item.price, 
+                                                          item.discountPrice, item.total, item.batchNo);
+                    itemsListPanel.add(itemCard);
+                    
+                    if (i < items.size() - 1) {
+                        JSeparator separator = new JSeparator();
+                        separator.setForeground(new Color(229, 231, 235));
+                        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+                        separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+                        itemsListPanel.add(separator);
+                    }
                 }
             }
-        }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-        JLabel errorLabel = new JLabel("Error loading items");
-        errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-        errorLabel.setForeground(new Color(220, 38, 38));
-        errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        itemsListPanel.add(errorLabel);
-    } finally {
-        try {
-            if (rs != null) rs.close();
-            if (pst != null) pst.close();
-            if (conn != null) conn.close();
-        } catch (SQLException e) {
-            System.err.println("Error closing resources: " + e.getMessage());
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            JLabel errorLabel = new JLabel("Error loading items");
+            errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+            errorLabel.setForeground(new Color(220, 38, 38));
+            errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            itemsListPanel.add(errorLabel);
         }
     }
-}
 
-    private JPanel createReturnItemCard(String productName, String qty, double price,
-            double discountPrice, double total, String batchNo) {
+    private JPanel createReturnItemCard(String productName, String qty, double price, 
+                                       double discountPrice, double total, String batchNo) {
         JPanel itemPanel = new JPanel();
         itemPanel.setLayout(new BorderLayout(10, 0));
         itemPanel.setOpaque(false);
@@ -1502,7 +1282,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         leftPanel.add(productLabel);
         leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         leftPanel.add(detailsPanel);
-
+        
         if (extraInfoPanel.getComponentCount() > 0) {
             leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
             leftPanel.add(extraInfoPanel);
@@ -1518,8 +1298,8 @@ public class ReturnPanel extends javax.swing.JPanel {
         return itemPanel;
     }
 
-    private JPanel createReturnFooter(String returnDate, String returnReason,
-            double discountPrice, String processedBy) {
+    private JPanel createReturnFooter(String returnDate, String returnReason, 
+                                     double discountPrice, String processedBy) {
         JPanel footerPanel = new JPanel();
         footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
         footerPanel.setOpaque(false);
@@ -1533,32 +1313,32 @@ public class ReturnPanel extends javax.swing.JPanel {
         reasonPanel.setBorderThickness(0);
         reasonPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
         reasonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
-
+        
         JLabel reasonIcon = new JLabel(getReasonEmoji(returnReason));
         reasonIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
         reasonIcon.setVerticalAlignment(SwingConstants.TOP);
-
+        
         JPanel reasonTextPanel = new JPanel();
         reasonTextPanel.setLayout(new BoxLayout(reasonTextPanel, BoxLayout.Y_AXIS));
         reasonTextPanel.setOpaque(false);
-
+        
         JLabel reasonLabel = new JLabel("RETURN REASON");
         reasonLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 10));
         reasonLabel.setForeground(new Color(146, 64, 14));
         reasonLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
+        
         JLabel reasonValue = new JLabel(returnReason != null ? returnReason : "Not specified");
         reasonValue.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
         reasonValue.setForeground(new Color(71, 85, 105));
         reasonValue.setAlignmentX(Component.LEFT_ALIGNMENT);
-
+        
         reasonTextPanel.add(reasonLabel);
         reasonTextPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         reasonTextPanel.add(reasonValue);
-
+        
         reasonPanel.add(reasonIcon, BorderLayout.WEST);
         reasonPanel.add(reasonTextPanel, BorderLayout.CENTER);
-
+        
         footerPanel.add(reasonPanel);
         footerPanel.add(Box.createRigidArea(new Dimension(0, 16)));
 
@@ -1571,15 +1351,15 @@ public class ReturnPanel extends javax.swing.JPanel {
         datePanel.setLayout(new BoxLayout(datePanel, BoxLayout.X_AXIS));
         datePanel.setOpaque(false);
         datePanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-
+        
         JLabel dateIcon = new JLabel("📅");
         dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
         dateIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-
+        
         JLabel dateLabel = new JLabel(formatDateTime(returnDate));
         dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         dateLabel.setForeground(new Color(100, 116, 139));
-
+        
         datePanel.add(dateIcon);
         datePanel.add(dateLabel);
 
@@ -1587,19 +1367,19 @@ public class ReturnPanel extends javax.swing.JPanel {
         processedByPanel.setLayout(new BoxLayout(processedByPanel, BoxLayout.X_AXIS));
         processedByPanel.setOpaque(false);
         processedByPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-
+        
         JLabel userIcon = new JLabel("👤");
         userIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
         userIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-
+        
         JLabel processedText = new JLabel("Processed by: ");
         processedText.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         processedText.setForeground(new Color(100, 116, 139));
-
+        
         JLabel processedValue = new JLabel(processedBy != null ? processedBy : "Unknown");
         processedValue.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
         processedValue.setForeground(new Color(30, 41, 59));
-
+        
         processedByPanel.add(userIcon);
         processedByPanel.add(processedText);
         processedByPanel.add(processedValue);
@@ -1614,37 +1394,17 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private String getReasonEmoji(String reason) {
-        if (reason == null) {
-            return "️";
-        }
+        if (reason == null) return "️";
         String r = reason.toLowerCase();
-        if (r.contains("damaged")) {
-            return "️";
-        }
-        if (r.contains("wrong")) {
-            return "";
-        }
-        if (r.contains("changed mind")) {
-            return "";
-        }
-        if (r.contains("expired")) {
-            return "";
-        }
-        if (r.contains("size")) {
-            return "";
-        }
-        if (r.contains("malfunction")) {
-            return "";
-        }
-        if (r.contains("packaging")) {
-            return "";
-        }
-        if (r.contains("defective")) {
-            return "";
-        }
-        if (r.contains("late") || r.contains("delivery")) {
-            return "";
-        }
+        if (r.contains("damaged")) return "️";
+        if (r.contains("wrong")) return "";
+        if (r.contains("changed mind")) return "";
+        if (r.contains("expired")) return "";
+        if (r.contains("size")) return "";
+        if (r.contains("malfunction")) return "";
+        if (r.contains("packaging")) return "";
+        if (r.contains("defective")) return "";
+        if (r.contains("late") || r.contains("delivery")) return "";
         return "ℹ️";
     }
 
@@ -1661,19 +1421,18 @@ public class ReturnPanel extends javax.swing.JPanel {
             return datetime != null ? datetime : "Unknown Date";
         }
     }
-
+    
     // Helper class
     private static class ReturnItemData {
-
         String productName;
         String qty;
         double price;
         double discountPrice;
         double total;
         String batchNo;
-
-        ReturnItemData(String productName, String qty, double price, double discountPrice,
-                double total, String batchNo) {
+        
+        ReturnItemData(String productName, String qty, double price, double discountPrice, 
+                      double total, String batchNo) {
             this.productName = productName;
             this.qty = qty;
             this.price = price;
@@ -1682,59 +1441,56 @@ public class ReturnPanel extends javax.swing.JPanel {
             this.batchNo = batchNo;
         }
     }
-
+    
     // Custom border classes
     static class RoundBorder extends AbstractBorder {
-
         private Color color;
         private int thickness;
         private int radius;
-
+        
         RoundBorder(Color color, int thickness, int radius) {
             this.color = color;
             this.thickness = thickness;
             this.radius = radius;
         }
-
+        
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setColor(color);
             g2d.setStroke(new BasicStroke(thickness));
-            g2d.drawRoundRect(x + thickness / 2, y + thickness / 2,
-                    width - thickness, height - thickness,
-                    radius, radius);
+            g2d.drawRoundRect(x + thickness/2, y + thickness/2, 
+                             width - thickness, height - thickness, 
+                             radius, radius);
             g2d.dispose();
         }
-
+        
         @Override
         public Insets getBorderInsets(Component c) {
             return new Insets(thickness, thickness, thickness, thickness);
         }
     }
-
+    
     static class ShadowBorder extends AbstractBorder {
-
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
+            
             for (int i = 0; i < 4; i++) {
                 g2d.setColor(new Color(0, 0, 0, 5 - i));
-                g2d.drawRoundRect(x + i, y + i, width - 2 * i - 1, height - 2 * i - 1, 20, 20);
+                g2d.drawRoundRect(x + i, y + i, width - 2*i - 1, height - 2*i - 1, 20, 20);
             }
-
+            
             g2d.dispose();
         }
-
+        
         @Override
         public Insets getBorderInsets(Component c) {
             return new Insets(4, 4, 4, 4);
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2017,10 +1773,10 @@ public class ReturnPanel extends javax.swing.JPanel {
                         .addComponent(sortByDays, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(sortByReason, 0, 0, Short.MAX_VALUE)
-                        .addGap(226, 226, 226)
-                        .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 146, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addProductDialog)
                         .addGap(11, 11, 11)))
                 .addContainerGap())
         );
@@ -2033,7 +1789,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                     .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jTextField1)
                     .addComponent(sortByDays)
-                    .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 403, Short.MAX_VALUE)
                 .addGap(17, 17, 17))
@@ -2064,7 +1820,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         exchangeProductProductDialog.setLocationRelativeTo(null);
         exchangeProductProductDialog.setVisible(true);
         handleFilter();
-
+        
     }//GEN-LAST:event_addProductDialogActionPerformed
 
     private void returnReportDialogBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_returnReportDialogBtnActionPerformed

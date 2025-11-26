@@ -11,12 +11,13 @@ public class Notification {
     private static final Logger LOGGER = Logger.getLogger(Notification.class.getName());
     
     public Notification() {
-        // Constructor using static MySQL connection
+        // Constructor
     }
     
     public void checkAllNotifications() {
+        Connection connection = null;
         try {
-            Connection connection = MySQL.getConnection();
+            connection = MySQL.getConnection();
             
             // Check low stock (only active stocks)
             checkLowStock(connection);
@@ -37,13 +38,16 @@ public class Notification {
             
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error checking notifications", e);
+        } finally {
+            closeConnection(connection);
         }
     }
     
     // Method to be called whenever stock quantity changes (like after sale)
     public void checkStockAfterSale(int stockId, int newQty) {
+        Connection connection = null;
         try {
-            Connection connection = MySQL.getConnection();
+            connection = MySQL.getConnection();
             
             // First check if stock is active
             if (!isStockActive(connection, stockId)) {
@@ -62,13 +66,16 @@ public class Notification {
             
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error checking stock after sale", e);
+        } finally {
+            closeConnection(connection);
         }
     }
     
     // Method to check stock quantity changes
     public void checkStockQuantityChange(int stockId, int oldQty, int newQty) {
+        Connection connection = null;
         try {
-            Connection connection = MySQL.getConnection();
+            connection = MySQL.getConnection();
             
             // First check if stock is active
             if (!isStockActive(connection, stockId)) {
@@ -95,34 +102,49 @@ public class Notification {
             
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error checking stock quantity change", e);
+        } finally {
+            closeConnection(connection);
         }
     }
     
-    // Helper method to check if stock is active
+    // Helper method to safely close connection
+    private void closeConnection(Connection connection) {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                LOGGER.log(Level.WARNING, "Error closing connection", e);
+            }
+        }
+    }
+    
+    // ✅ FIXED: Helper method to check if stock is active
     private boolean isStockActive(Connection connection, int stockId) throws SQLException {
         String query = "SELECT p_status_id FROM stock WHERE stock_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, stockId);
-            ResultSet rs = stmt.executeQuery();
+            stmt.setInt(1, stockId);  // ✅ Set parameter FIRST
             
-            if (rs.next()) {
-                int statusId = rs.getInt("p_status_id");
-                return statusId == 1; // 1 = Active, 2 = Inactive
+            try (ResultSet rs = stmt.executeQuery()) {  // ✅ Then execute query
+                if (rs.next()) {
+                    int statusId = rs.getInt("p_status_id");
+                    return statusId == 1; // 1 = Active, 2 = Inactive
+                }
             }
         }
         return false;
     }
     
-    // Helper method to check if product is active
+    // ✅ FIXED: Helper method to check if product is active
     private boolean isProductActive(Connection connection, int productId) throws SQLException {
         String query = "SELECT p_status_id FROM product WHERE product_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, productId);
-            ResultSet rs = stmt.executeQuery();
+            stmt.setInt(1, productId);  // ✅ Set parameter FIRST
             
-            if (rs.next()) {
-                int statusId = rs.getInt("p_status_id");
-                return statusId == 1; // 1 = Active, 2 = Inactive
+            try (ResultSet rs = stmt.executeQuery()) {  // ✅ Then execute query
+                if (rs.next()) {
+                    int statusId = rs.getInt("p_status_id");
+                    return statusId == 1; // 1 = Active, 2 = Inactive
+                }
             }
         }
         return false;
@@ -147,6 +169,7 @@ public class Notification {
                     LOGGER.info("Low stock notification inserted for: " + productName);
                 }
             }
+            rs.close();
         }
     }
     
@@ -169,6 +192,7 @@ public class Notification {
                     LOGGER.info("Stock replenished notification inserted for: " + productName);
                 }
             }
+            rs.close();
         }
     }
     
@@ -191,6 +215,7 @@ public class Notification {
                     LOGGER.info("Stock back in stock notification inserted for: " + productName);
                 }
             }
+            rs.close();
         }
     }
     
@@ -213,6 +238,7 @@ public class Notification {
                     LOGGER.info("Out of stock notification inserted for: " + productName);
                 }
             }
+            rs.close();
         }
     }
     
@@ -291,6 +317,7 @@ public class Notification {
                     insertNotification(connection, message, 1);
                 }
             }
+            rs.close();
         }
     }
     
@@ -320,6 +347,7 @@ public class Notification {
                     insertNotification(connection, message, 7);
                 }
             }
+            rs.close();
         }
     }
     
@@ -363,8 +391,11 @@ public class Notification {
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
-                return rs.getInt("count") > 0;
+                int count = rs.getInt("count");
+                rs.close();
+                return count > 0;
             }
+            rs.close();
         }
         return false;
     }
@@ -377,8 +408,11 @@ public class Notification {
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
-                return rs.getInt("massage_id");
+                int id = rs.getInt("massage_id");
+                rs.close();
+                return id;
             }
+            rs.close();
         }
         
         // If not exists, insert new message
@@ -389,8 +423,11 @@ public class Notification {
             
             ResultSet generatedKeys = stmt.getGeneratedKeys();
             if (generatedKeys.next()) {
-                return generatedKeys.getInt(1);
+                int id = generatedKeys.getInt(1);
+                generatedKeys.close();
+                return id;
             }
+            generatedKeys.close();
         }
         return -1;
     }
@@ -414,8 +451,9 @@ public class Notification {
     
     // Method to check expired products every 6 hours
     public void checkExpiredProductsEvery6Hours() {
+        Connection connection = null;
         try {
-            Connection connection = MySQL.getConnection();
+            connection = MySQL.getConnection();
             checkExpiredProducts(connection);
             
             // Also check products expiring soon
@@ -424,13 +462,16 @@ public class Notification {
             LOGGER.info("Expired products check completed (6-hour interval)");
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error checking expired products every 6 hours", e);
+        } finally {
+            closeConnection(connection);
         }
     }
     
     // Method to check all periodic notifications every 12 hours
     public void checkPeriodicNotificationsEvery12Hours() {
+        Connection connection = null;
         try {
-            Connection connection = MySQL.getConnection();
+            connection = MySQL.getConnection();
             
             // Check low stock (only active stocks with quantity > 0)
             checkLowStock(connection);
@@ -448,13 +489,16 @@ public class Notification {
             
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error checking periodic notifications every 12 hours", e);
+        } finally {
+            closeConnection(connection);
         }
     }
     
     // Method to check every half hour (for frequent checks)
     public void checkFrequentNotificationsEveryHalfHour() {
+        Connection connection = null;
         try {
-            Connection connection = MySQL.getConnection();
+            connection = MySQL.getConnection();
             
             // Check critical notifications more frequently (only active stocks)
             checkLowStock(connection);
@@ -464,10 +508,12 @@ public class Notification {
             
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error checking frequent notifications every half hour", e);
+        } finally {
+            closeConnection(connection);
         }
     }
     
-    // Static methods for external use
+    // Static methods for external use - FIXED to properly close resources
     public static ResultSet getUnreadNotifications() throws SQLException {
         String query = "SELECT n.id, m.massage, mt.msg_type, n.create_at " +
                       "FROM notifocation n " +
@@ -476,47 +522,98 @@ public class Notification {
                       "WHERE n.is_read = 1 " +
                       "ORDER BY n.create_at DESC";
         
+        // WARNING: The caller MUST close this ResultSet and its Statement/Connection
         return MySQL.executeSearch(query);
     }
     
-    public static void markAsRead(int notificationId) {
-        String query = "UPDATE notifocation SET is_read = 0 WHERE id = " + notificationId;
-        MySQL.executeIUD(query);
+    public static void markAsRead(int notificationId) throws SQLException {
+        String query = "UPDATE notifocation SET is_read = 0 WHERE id = ?";
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        
+        try {
+            conn = MySQL.getConnection();
+            stmt = conn.prepareStatement(query);
+            stmt.setInt(1, notificationId);
+            stmt.executeUpdate();
+        } finally {
+            MySQL.close(null, stmt, conn);
+        }
     }
     
-    public static void markAllAsRead() {
+    public static void markAllAsRead() throws SQLException {
         String query = "UPDATE notifocation SET is_read = 0 WHERE is_read = 1";
-        MySQL.executeIUD(query);
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        
+        try {
+            conn = MySQL.getConnection();
+            stmt = conn.prepareStatement(query);
+            stmt.executeUpdate();
+        } finally {
+            MySQL.close(null, stmt, conn);
+        }
     }
     
     public static int getUnreadNotificationCount() throws SQLException {
         String query = "SELECT COUNT(*) as count FROM notifocation WHERE is_read = 1";
-        ResultSet rs = MySQL.executeSearch(query);
+        Connection conn = null;
+        Statement stmt = null;
+        ResultSet rs = null;
         
-        if (rs.next()) {
-            return rs.getInt("count");
+        try {
+            conn = MySQL.getConnection();
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(query);
+            
+            if (rs.next()) {
+                return rs.getInt("count");
+            }
+            return 0;
+        } finally {
+            MySQL.close(rs, stmt, conn);
         }
-        return 0;
     }
     
-    public static void clearOldNotifications() {
+    public static void clearOldNotifications() throws SQLException {
         String query = "DELETE FROM notifocation WHERE create_at < DATE_SUB(NOW(), INTERVAL 30 DAY)";
-        MySQL.executeIUD(query);
-        LOGGER.info("Old notifications cleared (older than 30 days)");
+        Connection conn = null;
+        PreparedStatement stmt = null;
+        
+        try {
+            conn = MySQL.getConnection();
+            stmt = conn.prepareStatement(query);
+            stmt.executeUpdate();
+            LOGGER.info("Old notifications cleared (older than 30 days)");
+        } finally {
+            MySQL.close(null, stmt, conn);
+        }
     }
     
     // Method to delete all notifications
-    public static void deleteAllNotifications() {
-        // First delete notifications, then messages that are not used
-        String query1 = "DELETE FROM notifocation";
-        String query2 = "DELETE FROM massage WHERE massage_id NOT IN (SELECT DISTINCT massage_id FROM notifocation)";
+    public static void deleteAllNotifications() throws SQLException {
+        Connection conn = null;
+        PreparedStatement stmt1 = null;
+        PreparedStatement stmt2 = null;
         
         try {
-            MySQL.executeIUD(query1);
-            MySQL.executeIUD(query2);
+            conn = MySQL.getConnection();
+            
+            // First delete notifications
+            String query1 = "DELETE FROM notifocation";
+            stmt1 = conn.prepareStatement(query1);
+            stmt1.executeUpdate();
+            
+            // Then messages that are not used
+            String query2 = "DELETE FROM massage WHERE massage_id NOT IN (SELECT DISTINCT massage_id FROM notifocation)";
+            stmt2 = conn.prepareStatement(query2);
+            stmt2.executeUpdate();
+            
             LOGGER.info("All notifications deleted");
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error deleting all notifications", e);
+        } finally {
+            if (stmt1 != null) stmt1.close();
+            if (stmt2 != null) stmt2.close();
+            if (conn != null) conn.close();
         }
     }
 }

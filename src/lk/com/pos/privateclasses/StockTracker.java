@@ -1,6 +1,3 @@
-// ✅ FINAL FIXED StockTracker.java
-// This version CORRECTLY preserves cart quantities during refresh
-
 package lk.com.pos.privateclasses;
 
 import lk.com.pos.connection.MySQL;
@@ -14,8 +11,6 @@ public class StockTracker {
     private static StockTracker instance;
     private Map<String, ProductCardReference> cardReferences = new ConcurrentHashMap<>();
     private Map<String, StockCache> stockCache = new ConcurrentHashMap<>();
-    
-    // ✅ CRITICAL: This stores cart quantities and MUST persist across refreshes
     private Map<String, Integer> cartQuantities = new ConcurrentHashMap<>();
     
     private String currentSessionId;
@@ -67,8 +62,6 @@ public class StockTracker {
     public void registerCard(int productId, String batchNo, ProductCardReference cardRef) {
         String key = productId + "_" + batchNo;
         cardReferences.put(key, cardRef);
-        
-        // Initial display update
         updateCardDisplayFromDB(productId, batchNo);
     }
     
@@ -107,7 +100,6 @@ public class StockTracker {
                 return Math.max(0, stockQty - holdQty);
             }
         } catch (SQLException e) {
-            System.err.println("Error getting available stock: " + e.getMessage());
         }
         return 0;
     }
@@ -154,32 +146,23 @@ public class StockTracker {
                 stockCache.put(cacheKey, new StockCache(stockQty, holdQty));
             }
         } catch (SQLException e) {
-            System.err.println("Error batch refreshing stock: " + e.getMessage());
         }
     }
     
-    // ✅ FIXED: Get cart quantity from persistent map
     public int getCartQuantity(int productId, String batchNo) {
         String key = productId + "_" + batchNo;
         Integer qty = cartQuantities.get(key);
-        System.out.println("📦 Getting cart qty for " + key + ": " + (qty != null ? qty : 0));
         return qty != null ? qty : 0;
     }
     
-    // ✅ FIXED: Add to cart - store in persistent map
     public void addToCart(int productId, String batchNo, int quantity) {
         String key = productId + "_" + batchNo;
         int currentQty = cartQuantities.getOrDefault(key, 0);
         int newQty = currentQty + quantity;
         cartQuantities.put(key, newQty);
-        
-        System.out.println("➕ Added to cart: " + key + " -> " + newQty + " (added: " + quantity + ")");
-        
-        // Update display
         updateCardDisplay(key, newQty);
     }
     
-    // ✅ FIXED: Remove from cart - update persistent map
     public void removeFromCart(int productId, String batchNo, int quantity) {
         String key = productId + "_" + batchNo;
         int currentQty = cartQuantities.getOrDefault(key, 0);
@@ -187,21 +170,14 @@ public class StockTracker {
         
         if (newQty == 0) {
             cartQuantities.remove(key);
-            System.out.println("➖ Removed from cart: " + key + " -> 0 (removed all)");
         } else {
             cartQuantities.put(key, newQty);
-            System.out.println("➖ Removed from cart: " + key + " -> " + newQty + " (removed: " + quantity + ")");
         }
-        
-        // Update display
         updateCardDisplay(key, newQty);
     }
     
-    // ✅ FIXED: Clear cart - clear persistent map
     public void clearCart() {
-        System.out.println("🗑️ Clearing entire cart");
         cartQuantities.clear();
-        
         SwingUtilities.invokeLater(() -> {
             for (Map.Entry<String, ProductCardReference> entry : cardReferences.entrySet()) {
                 String key = entry.getKey();
@@ -230,20 +206,15 @@ public class StockTracker {
     }
     
     public void refreshAllCards() {
-        // ✅ Thread-safe check with atomic update
         synchronized (refreshLock) {
             long currentTime = System.currentTimeMillis();
             
             if (currentTime - lastRefreshTime < REFRESH_THROTTLE) {
-                return; // Skip if refreshed recently
+                return;
             }
             
             lastRefreshTime = currentTime;
         }
-        
-        // Do refresh outside lock to avoid blocking other threads
-        System.out.println("🔄 Refreshing all cards...");
-        System.out.println("📦 Current cart quantities: " + cartQuantities);
         
         refreshStockForKeys(cardReferences.keySet());
         
@@ -251,8 +222,6 @@ public class StockTracker {
             for (String key : cardReferences.keySet()) {
                 Integer cartQty = cartQuantities.get(key);
                 int quantity = (cartQty != null) ? cartQty : 0;
-                
-                System.out.println("🔄 Updating card " + key + " with cart qty: " + quantity);
                 updateCardDisplay(key, quantity);
             }
         });
@@ -267,12 +236,9 @@ public class StockTracker {
         stockCache.clear();
     }
     
-    // ✅ FIXED: Only clear registrations, NOT cart quantities
     public void clearAllCards() {
-        System.out.println("🗑️ Clearing all card registrations (keeping cart quantities)");
         cardReferences.clear();
         stockCache.clear();
-        // ✅ DON'T clear cartQuantities here!
     }
     
     public ProductCardReference getCardReference(String key) {
@@ -283,12 +249,9 @@ public class StockTracker {
         String key = productId + "_" + batchNo;
         cardReferences.remove(key);
         stockCache.remove(key);
-        // ✅ Keep cart quantity even when unregistering card
     }
     
-    // ✅ ADD: Method to completely reset for new sale
     public void resetForNewSale() {
-        System.out.println("🆕 Resetting for new sale - clearing everything");
         cardReferences.clear();
         stockCache.clear();
         cartQuantities.clear();

@@ -7,7 +7,8 @@ public class RoundedPanel extends JPanel {
     private int cornerRadius = 20;
     private Color backgroundColor = Color.WHITE;
     private Color borderColor = new Color(180, 180, 180);
-    private int borderThickness = 1;
+    private int borderThickness = 0; // ✅ Changed to 0 (no border by default)
+    private boolean drawBorder = false; // ✅ New flag to control border drawing
 
     public RoundedPanel() {
         setOpaque(false);
@@ -22,22 +23,22 @@ public class RoundedPanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g.create();
-
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         int width = getWidth();
         int height = getHeight();
 
-        int offset = borderThickness / 2; // <-- Fix clipping on edges
-
-        // Background
+        // ✅ Background only
         g2.setColor(backgroundColor);
-        g2.fillRoundRect(offset, offset, width - borderThickness, height - borderThickness, cornerRadius, cornerRadius);
+        g2.fillRoundRect(0, 0, width, height, cornerRadius, cornerRadius);
 
-        // Border
-        g2.setStroke(new BasicStroke(borderThickness));
-        g2.setColor(borderColor);
-        g2.drawRoundRect(offset, offset, width - borderThickness, height - borderThickness, cornerRadius, cornerRadius);
+        // ✅ Border (only if enabled)
+        if (drawBorder && borderThickness > 0) {
+            int offset = borderThickness / 2;
+            g2.setStroke(new BasicStroke(borderThickness));
+            g2.setColor(borderColor);
+            g2.drawRoundRect(offset, offset, width - borderThickness, height - borderThickness, cornerRadius, cornerRadius);
+        }
 
         g2.dispose();
     }
@@ -63,15 +64,21 @@ public class RoundedPanel extends JPanel {
         repaint();
     }
 
-    public void setDrawBorder(boolean b) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void setDrawBorder(boolean drawBorder) {
+        this.drawBorder = drawBorder;
+        repaint();
     }
 
     public void removeBorder() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        this.drawBorder = false;
+        this.borderThickness = 0;
+        repaint();
     }
 
-    public void setRounded(boolean b) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void setRounded(boolean rounded) {
+        if (!rounded) {
+            this.cornerRadius = 0;
+        }
+        repaint();
     }
 }

@@ -16,6 +16,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
 import lk.com.pos.dialog.ExchangeProductDialog;
+import java.sql.SQLException;
+import java.sql.Connection;
 
 public class ReturnPanel extends javax.swing.JPanel {
 
@@ -1368,69 +1370,87 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private void loadReturnItems(JPanel itemsListPanel, int returnId) {
-        try {
-            String query = "SELECT "
-                    + "ri.return_qty, ri.unit_return_price, ri.discount_price, ri.total_return_amount, "
-                    + "p.product_name, "
-                    + "st.batch_no "
-                    + "FROM return_item ri "
-                    + "INNER JOIN stock st ON ri.stock_id = st.stock_id "
-                    + "INNER JOIN product p ON st.product_id = p.product_id "
-                    + "WHERE ri.return_id = ? "
-                    + "ORDER BY ri.return_item_id";
+    Connection conn = null;
+    PreparedStatement pst = null;
+    ResultSet rs = null;
+    
+    try {
+        conn = MySQL.getConnection();
+        
+        String query = "SELECT "
+                + "ri.return_qty, ri.unit_return_price, ri.discount_price, ri.total_return_amount, "
+                + "p.product_name, "
+                + "st.batch_no "
+                + "FROM return_item ri "
+                + "INNER JOIN stock st ON ri.stock_id = st.stock_id "
+                + "INNER JOIN product p ON st.product_id = p.product_id "
+                + "WHERE ri.return_id = ? "
+                + "ORDER BY ri.return_item_id";
 
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
-            pst.setInt(1, returnId);
-            ResultSet rs = pst.executeQuery();
+        pst = conn.prepareStatement(query);
+        pst.setInt(1, returnId);
+        rs = pst.executeQuery();
 
-            List<ReturnItemData> items = new ArrayList<>();
+        // ✅ Read all data FIRST
+        List<ReturnItemData> items = new ArrayList<>();
 
-            while (rs.next()) {
-                String productName = rs.getString("product_name");
-                String qty = rs.getString("return_qty");
-                double price = rs.getDouble("unit_return_price");
-                double discountPrice = rs.getDouble("discount_price");
-                double itemTotal = rs.getDouble("total_return_amount");
-                String batchNo = rs.getString("batch_no");
+        while (rs.next()) {
+            String productName = rs.getString("product_name");
+            String qty = rs.getString("return_qty");
+            double price = rs.getDouble("unit_return_price");
+            double discountPrice = rs.getDouble("discount_price");
+            double itemTotal = rs.getDouble("total_return_amount");
+            String batchNo = rs.getString("batch_no");
 
-                items.add(new ReturnItemData(productName, qty, price, discountPrice, itemTotal, batchNo));
-            }
+            items.add(new ReturnItemData(productName, qty, price, discountPrice, itemTotal, batchNo));
+        }
 
-            rs.close();
-            pst.close();
+        // ✅ Close resources
+        rs.close();
+        pst.close();
+        conn.close();
 
-            if (items.isEmpty()) {
-                JLabel noItemsLabel = new JLabel("No items in this return");
-                noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
-                noItemsLabel.setForeground(new Color(148, 163, 184));
-                noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-                itemsListPanel.add(noItemsLabel);
-            } else {
-                for (int i = 0; i < items.size(); i++) {
-                    ReturnItemData item = items.get(i);
-                    JPanel itemCard = createReturnItemCard(item.productName, item.qty, item.price,
-                            item.discountPrice, item.total, item.batchNo);
-                    itemsListPanel.add(itemCard);
+        // ✅ Build UI AFTER closing
+        if (items.isEmpty()) {
+            JLabel noItemsLabel = new JLabel("No items in this return");
+            noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
+            noItemsLabel.setForeground(new Color(148, 163, 184));
+            noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            itemsListPanel.add(noItemsLabel);
+        } else {
+            for (int i = 0; i < items.size(); i++) {
+                ReturnItemData item = items.get(i);
+                JPanel itemCard = createReturnItemCard(item.productName, item.qty, item.price,
+                        item.discountPrice, item.total, item.batchNo);
+                itemsListPanel.add(itemCard);
 
-                    if (i < items.size() - 1) {
-                        JSeparator separator = new JSeparator();
-                        separator.setForeground(new Color(229, 231, 235));
-                        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-                        separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-                        itemsListPanel.add(separator);
-                    }
+                if (i < items.size() - 1) {
+                    JSeparator separator = new JSeparator();
+                    separator.setForeground(new Color(229, 231, 235));
+                    separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+                    separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+                    itemsListPanel.add(separator);
                 }
             }
+        }
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            JLabel errorLabel = new JLabel("Error loading items");
-            errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-            errorLabel.setForeground(new Color(220, 38, 38));
-            errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            itemsListPanel.add(errorLabel);
+    } catch (Exception e) {
+        e.printStackTrace();
+        JLabel errorLabel = new JLabel("Error loading items");
+        errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+        errorLabel.setForeground(new Color(220, 38, 38));
+        errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        itemsListPanel.add(errorLabel);
+    } finally {
+        try {
+            if (rs != null) rs.close();
+            if (pst != null) pst.close();
+            if (conn != null) conn.close();
+        } catch (SQLException e) {
+            System.err.println("Error closing resources: " + e.getMessage());
         }
     }
+}
 
     private JPanel createReturnItemCard(String productName, String qty, double price,
             double discountPrice, double total, String batchNo) {

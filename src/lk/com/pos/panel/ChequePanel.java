@@ -2,7 +2,9 @@ package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.dao.ChequeDAO;
+import lk.com.pos.dto.ChequeDTO;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
@@ -1149,36 +1151,106 @@ public class ChequePanel extends javax.swing.JPanel {
         this.requestFocusInWindow();
     }
 
-    private static class ChequeCardData {
+    // =====================================================================
+    // 🚀 UPDATED DATABASE METHODS USING DAO PATTERN
+    // =====================================================================
 
-        int chequeId;
-        String chequeNo, customerName, invoiceNo, bankName, branch;
-        String phone, nic, address;
-        String givenDate, chequeDate;
-        String chequeType;
-        double chequeAmount;
-        int salesId;
+    private List<ChequeDTO> fetchChequesFromDatabase(String searchText, boolean bouncedOnly,
+            boolean clearedOnly, boolean pendingOnly) throws Exception {
+        
+        ChequeDAO chequeDAO = new ChequeDAO();
+        return chequeDAO.getCheques(searchText, bouncedOnly, clearedOnly, pendingOnly);
     }
 
-    private void loadCheques() {
-        String searchText = getSearchText();
-        boolean bouncedOnly = jRadioButton1.isSelected();
-        boolean clearedOnly = jRadioButton2.isSelected();
-        boolean pendingOnly = jRadioButton4.isSelected();
+    private void changeStatus(int chequeId) {
+        try {
+            ChequeDAO chequeDAO = new ChequeDAO();
+            ChequeDAO.ChequeStatus currentStatus = chequeDAO.getChequeStatus(chequeId);
+            
+            if (currentStatus == null) {
+                JOptionPane.showMessageDialog(this, "Cheque not found!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-        loadChequesAsync(searchText, bouncedOnly, clearedOnly, pendingOnly);
+            String[] options = {"Pending", "Cleared", "Bounced"};
+            JComboBox<String> statusCombo = new JComboBox<>(options);
+            statusCombo.setSelectedItem(currentStatus.getChequeType());
+
+            JPanel panel = new JPanel(new BorderLayout(10, 10));
+            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            panel.add(new JLabel("Current Status: " + currentStatus.getChequeType()), BorderLayout.NORTH);
+            panel.add(new JLabel("Select New Status:"), BorderLayout.CENTER);
+            panel.add(statusCombo, BorderLayout.SOUTH);
+
+            int result = JOptionPane.showConfirmDialog(
+                    this,
+                    panel,
+                    "Change Cheque Status",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE
+            );
+
+            if (result == JOptionPane.OK_OPTION) {
+                String newStatus = (String) statusCombo.getSelectedItem();
+
+                if (!newStatus.equals(currentStatus.getChequeType())) {
+                    boolean success = chequeDAO.updateChequeStatus(chequeId, newStatus);
+                    
+                    if (success) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Cheque status updated successfully!",
+                                "Success",
+                                JOptionPane.INFORMATION_MESSAGE
+                        );
+                        performSearch();
+                    } else {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Failed to update cheque status!",
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Failed to change status: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 
-    private String getSearchText() {
-        String text = jTextField1.getText().trim();
-        return text.equals(Strings.SEARCH_PLACEHOLDER) ? "" : text;
-    }
+    private void displayCheques(List<ChequeDTO> cheques) {
+        clearChequeCards();
 
-    private void performSearch() {
-        System.out.println("Performing search - Pending: " + jRadioButton4.isSelected()
-                + ", Bounced: " + jRadioButton1.isSelected()
-                + ", Cleared: " + jRadioButton2.isSelected());
-        loadCheques();
+        currentCardIndex = -1;
+        currentFocusedCard = null;
+
+        if (cheques.isEmpty()) {
+            showEmptyState();
+            return;
+        }
+
+        currentColumns = calculateColumns(jPanel2.getWidth());
+        final JPanel gridPanel = createGridPanel();
+
+        for (ChequeDTO data : cheques) {
+            lk.com.pos.privateclasses.RoundedPanel card = createChequeCard(data);
+            gridPanel.add(card);
+            chequeCardsList.add(card);
+        }
+
+        layoutCardsInPanel(gridPanel);
+        setupGridResizeListener(gridPanel);
+
+        jPanel2.revalidate();
+        jPanel2.repaint();
     }
 
     private void loadChequesAsync(String searchText, boolean bouncedOnly,
@@ -1186,16 +1258,16 @@ public class ChequePanel extends javax.swing.JPanel {
         showLoading(true);
         loadingLabel.setText("Loading cheques...");
 
-        SwingWorker<List<ChequeCardData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<ChequeDTO>, Void> worker = new SwingWorker<List<ChequeDTO>, Void>() {
             @Override
-            protected List<ChequeCardData> doInBackground() throws Exception {
+            protected List<ChequeDTO> doInBackground() throws Exception {
                 return fetchChequesFromDatabase(searchText, bouncedOnly, clearedOnly, pendingOnly);
             }
 
             @Override
             protected void done() {
                 try {
-                    List<ChequeCardData> cheques = get();
+                    List<ChequeDTO> cheques = get();
                     displayCheques(cheques);
 
                     if (cheques.isEmpty()) {
@@ -1216,296 +1288,15 @@ public class ChequePanel extends javax.swing.JPanel {
         worker.execute();
     }
 
-    private List<ChequeCardData> fetchChequesFromDatabase(String searchText, boolean bouncedOnly,
-            boolean clearedOnly, boolean pendingOnly) throws Exception {
-        List<ChequeCardData> cheques = new ArrayList<>();
+    // =====================================================================
+    // 🎨 UI METHODS - UPDATED TO USE ChequeDTO
+    // =====================================================================
 
-        try {
-            String query = buildChequeQuery(searchText, bouncedOnly, clearedOnly, pendingOnly);
-            System.out.println("Executing query: " + query);
-            ResultSet rs = MySQL.executeSearch(query);
+    private lk.com.pos.privateclasses.RoundedPanel createChequeCard(ChequeDTO data) {
+        String displayGivenDate = formatDate(data.getGivenDate());
+        String displayChequeDate = formatDate(data.getChequeDate());
 
-            while (rs.next()) {
-                ChequeCardData data = createChequeDataFromResultSet(rs);
-                cheques.add(data);
-            }
-
-        } catch (SQLException e) {
-            throw new Exception("Database error while fetching cheques: " + e.getMessage(), e);
-        }
-
-        return cheques;
-    }
-
-    private ChequeCardData createChequeDataFromResultSet(ResultSet rs) throws SQLException {
-        ChequeCardData data = new ChequeCardData();
-
-        data.chequeId = rs.getInt("cheque_id");
-        data.chequeNo = rs.getString("cheque_no");
-        data.customerName = rs.getString("customer_name");
-        data.invoiceNo = rs.getString("invoice_no");
-        data.bankName = rs.getString("bank_name");
-        data.branch = rs.getString("branch");
-        data.phone = rs.getString("customer_phone_no");
-        data.nic = rs.getString("nic");
-        data.address = rs.getString("customer_address");
-        data.givenDate = rs.getString("given_date");
-        data.chequeDate = rs.getString("cheque_date");
-        data.chequeType = rs.getString("cheque_type");
-        data.chequeAmount = rs.getDouble("cheque_amount");
-        data.salesId = rs.getInt("sales_id");
-
-        return data;
-    }
-
-    private String buildChequeQuery(String searchText, boolean bouncedOnly,
-            boolean clearedOnly, boolean pendingOnly) {
-        StringBuilder query = new StringBuilder();
-
-        query.append("SELECT ch.cheque_id, ch.cheque_no, ch.cheque_date, ");
-        query.append("ch.bank_name, ch.branch, ch.amount as cheque_amount, ch.sales_id, ");
-        query.append("cc.customer_name, cc.customer_phone_no, cc.nic, cc.customer_address, ");
-        query.append("s.invoice_no, ct.cheque_type, ");
-        query.append("DATE(ch.given_date) as given_date ");
-        query.append("FROM cheque ch ");
-        query.append("LEFT JOIN credit_customer cc ON ch.credit_customer_id = cc.customer_id ");
-        query.append("LEFT JOIN sales s ON ch.sales_id = s.sales_id ");
-        query.append("LEFT JOIN cheque_type ct ON ch.cheque_type_id = ct.cheque_type_id ");
-        query.append("WHERE 1=1 ");
-
-        if (isValidSearchText(searchText)) {
-            String escapedSearch = escapeSQL(searchText);
-            query.append("AND (ch.cheque_no LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR cc.customer_name LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR s.invoice_no LIKE '%").append(escapedSearch).append("%') ");
-        }
-
-        String statusFilter = buildStatusFilter(bouncedOnly, clearedOnly, pendingOnly);
-        query.append(statusFilter);
-
-        query.append("ORDER BY ch.cheque_id DESC");
-
-        return query.toString();
-    }
-
-    private boolean isValidSearchText(String searchText) {
-        return searchText != null
-                && !searchText.isEmpty()
-                && !searchText.equals(Strings.SEARCH_PLACEHOLDER);
-    }
-
-    private String escapeSQL(String input) {
-        if (input == null) {
-            return "";
-        }
-
-        return input.replace("\\", "\\\\")
-                .replace("'", "''")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
-    }
-
-    private String buildStatusFilter(boolean bouncedOnly, boolean clearedOnly, boolean pendingOnly) {
-        if (bouncedOnly) {
-            return "AND ct.cheque_type = 'Bounced' ";
-        } else if (clearedOnly) {
-            return "AND ct.cheque_type = 'Cleared' ";
-        } else if (pendingOnly) {
-            return "AND ct.cheque_type = 'Pending' ";
-        }
-        return "";
-    }
-
-    private void handleLoadError(Exception e) {
-        System.err.println("Error loading cheques: " + e.getMessage());
-        e.printStackTrace();
-
-        SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(this,
-                    "Failed to load cheques. Please try again.\n" + e.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
-        });
-    }
-
-    private void displayCheques(List<ChequeCardData> cheques) {
-        clearChequeCards();
-
-        currentCardIndex = -1;
-        currentFocusedCard = null;
-
-        if (cheques.isEmpty()) {
-            showEmptyState();
-            return;
-        }
-
-        currentColumns = calculateColumns(jPanel2.getWidth());
-        final JPanel gridPanel = createGridPanel();
-
-        for (ChequeCardData data : cheques) {
-            lk.com.pos.privateclasses.RoundedPanel card = createChequeCard(data);
-            gridPanel.add(card);
-            chequeCardsList.add(card);
-        }
-
-        layoutCardsInPanel(gridPanel);
-        setupGridResizeListener(gridPanel);
-
-        jPanel2.revalidate();
-        jPanel2.repaint();
-    }
-
-    private void clearChequeCards() {
-        for (lk.com.pos.privateclasses.RoundedPanel card : chequeCardsList) {
-            removeAllListeners(card);
-        }
-
-        chequeCardsList.clear();
-        jPanel2.removeAll();
-    }
-
-    private void removeAllListeners(Component component) {
-        for (java.awt.event.MouseListener ml : component.getMouseListeners()) {
-            component.removeMouseListener(ml);
-        }
-
-        for (Component child : getAllComponents(component)) {
-            if (child instanceof JButton) {
-                JButton btn = (JButton) child;
-                for (java.awt.event.ActionListener al : btn.getActionListeners()) {
-                    btn.removeActionListener(al);
-                }
-            }
-        }
-    }
-
-    private List<Component> getAllComponents(Component container) {
-        List<Component> list = new ArrayList<>();
-        if (container instanceof java.awt.Container) {
-            for (Component comp : ((java.awt.Container) container).getComponents()) {
-                list.add(comp);
-                if (comp instanceof java.awt.Container) {
-                    list.addAll(getAllComponents(comp));
-                }
-            }
-        }
-        return list;
-    }
-
-    private void showEmptyState() {
-        jPanel2.setLayout(new BorderLayout());
-        JPanel messagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        messagePanel.setBackground(Colors.BACKGROUND);
-        messagePanel.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
-
-        JLabel noCheques = new JLabel(Strings.NO_CHEQUES);
-        noCheques.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
-        noCheques.setForeground(Colors.TEXT_SECONDARY);
-        noCheques.setHorizontalAlignment(SwingConstants.CENTER);
-
-        messagePanel.add(noCheques);
-        jPanel2.add(messagePanel, BorderLayout.CENTER);
-        jPanel2.revalidate();
-        jPanel2.repaint();
-    }
-
-    private JPanel createGridPanel() {
-        JPanel gridPanel = new JPanel();
-        gridPanel.setLayout(new GridLayout(0, currentColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
-        gridPanel.setBackground(Colors.BACKGROUND);
-        return gridPanel;
-    }
-
-    private void layoutCardsInPanel(JPanel gridPanel) {
-        jPanel2.setLayout(new BorderLayout());
-
-        JPanel mainContainer = new JPanel();
-        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
-        mainContainer.setBackground(Colors.BACKGROUND);
-
-        JPanel paddingPanel = new JPanel(new BorderLayout());
-        paddingPanel.setBackground(Colors.BACKGROUND);
-        paddingPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
-        paddingPanel.add(gridPanel, BorderLayout.NORTH);
-
-        mainContainer.add(paddingPanel);
-        jPanel2.add(mainContainer, BorderLayout.NORTH);
-    }
-
-    private void setupGridResizeListener(final JPanel gridPanel) {
-        jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override
-            public void componentResized(java.awt.event.ComponentEvent e) {
-                int panelWidth = jPanel2.getWidth();
-                int newColumns = calculateColumns(panelWidth);
-
-                if (newColumns != currentColumns) {
-                    currentColumns = newColumns;
-                    gridPanel.setLayout(new GridLayout(0, newColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
-                    gridPanel.revalidate();
-                    gridPanel.repaint();
-                }
-            }
-        });
-    }
-
-    private int calculateColumns(int panelWidth) {
-        int availableWidth = panelWidth - 50;
-
-        if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 3) {
-            return 3;
-        } else if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 2) {
-            return 2;
-        } else {
-            return 1;
-        }
-    }
-
-    class RoundedBorder extends AbstractBorder {
-
-        private final Color color;
-        private final int thickness;
-        private final int arc;
-
-        public RoundedBorder(Color color, int thickness, int arc) {
-            this.color = color;
-            this.thickness = thickness;
-            this.arc = arc;
-        }
-
-        @Override
-        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            Graphics2D g2d = (Graphics2D) g.create();
-            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
-                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-            g2d.setColor(color);
-            g2d.setStroke(new BasicStroke(thickness));
-
-            int offset = thickness / 2;
-            g2d.drawRoundRect(x + offset, y + offset,
-                    width - thickness, height - thickness, arc, arc);
-            g2d.dispose();
-        }
-
-        @Override
-        public Insets getBorderInsets(Component c) {
-            int inset = thickness + 2;
-            return new Insets(inset, inset, inset, inset);
-        }
-
-        @Override
-        public Insets getBorderInsets(Component c, Insets insets) {
-            int inset = thickness + 2;
-            insets.left = insets.right = insets.top = insets.bottom = inset;
-            return insets;
-        }
-    }
-
-    private lk.com.pos.privateclasses.RoundedPanel createChequeCard(ChequeCardData data) {
-        String displayGivenDate = formatDate(data.givenDate);
-        String displayChequeDate = formatDate(data.chequeDate);
-
-        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.chequeId, data.chequeNo, data.salesId, data.chequeType);
+        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.getChequeId(), data.getChequeNo(), data.getSalesId(), data.getChequeType());
         JPanel contentPanel = createCardContent(data, displayGivenDate, displayChequeDate);
 
         card.add(contentPanel, BorderLayout.CENTER);
@@ -1593,33 +1384,33 @@ public class ChequePanel extends javax.swing.JPanel {
         ChequePanel.this.requestFocusInWindow();
     }
 
-    private JPanel createCardContent(ChequeCardData data, String displayGivenDate, String displayChequeDate) {
+    private JPanel createCardContent(ChequeDTO data, String displayGivenDate, String displayChequeDate) {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Colors.CARD_WHITE);
         contentPanel.setOpaque(false);
 
-        contentPanel.add(createHeaderSection(data.chequeId, data.customerName, data.salesId));
+        contentPanel.add(createHeaderSection(data.getChequeId(), data.getCustomerName(), data.getSalesId()));
         contentPanel.add(Box.createVerticalStrut(5));
-        contentPanel.add(createStatusBadgeSection(data.chequeType));
+        contentPanel.add(createStatusBadgeSection(data.getChequeType()));
         contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsSectionHeader(data.chequeType));
+        contentPanel.add(createDetailsSectionHeader(data.getChequeType()));
         contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsGrid1(data.chequeNo, data.invoiceNo, displayGivenDate, displayChequeDate));
+        contentPanel.add(createDetailsGrid1(data.getChequeNo(), data.getInvoiceNo(), displayGivenDate, displayChequeDate));
         contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsGrid2(data.bankName, data.branch));
+        contentPanel.add(createDetailsGrid2(data.getBankName(), data.getBranch()));
         contentPanel.add(Box.createVerticalStrut(10));
-        contentPanel.add(createDetailsGrid3(data.phone, data.nic));
+        contentPanel.add(createDetailsGrid3(data.getPhone(), data.getNic()));
         contentPanel.add(Box.createVerticalStrut(10));
 
-        if (data.address != null && !data.address.trim().isEmpty()) {
-            contentPanel.add(createAddressSection(data.address));
+        if (data.getAddress() != null && !data.getAddress().trim().isEmpty()) {
+            contentPanel.add(createAddressSection(data.getAddress()));
             contentPanel.add(Box.createVerticalStrut(10));
         }
 
         contentPanel.add(createAmountSectionHeader());
         contentPanel.add(Box.createVerticalStrut(8));
-        contentPanel.add(createAmountPanel(data.chequeAmount));
+        contentPanel.add(createAmountPanel(data.getChequeAmount()));
 
         return contentPanel;
     }
@@ -2020,6 +1811,7 @@ public class ChequePanel extends javax.swing.JPanel {
 
         addressPanel.add(addressTitle, BorderLayout.NORTH);
         addressPanel.add(Box.createVerticalStrut(3), BorderLayout.CENTER);
+        addressLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
         addressPanel.add(addressLabel, BorderLayout.CENTER);
 
         return addressPanel;
@@ -2094,76 +1886,6 @@ public class ChequePanel extends javax.swing.JPanel {
         return String.format("Rs.%.2f", price);
     }
 
-    private void changeStatus(int chequeId) {
-        try {
-            String query = "SELECT ct.cheque_type, ct.cheque_type_id FROM cheque ch "
-                    + "INNER JOIN cheque_type ct ON ch.cheque_type_id = ct.cheque_type_id "
-                    + "WHERE ch.cheque_id = " + chequeId;
-            ResultSet rs = MySQL.executeSearch(query);
-
-            String currentStatus = "Unknown";
-            int currentTypeId = 0;
-
-            if (rs.next()) {
-                currentStatus = rs.getString("cheque_type");
-                currentTypeId = rs.getInt("cheque_type_id");
-            }
-
-            String[] options = {"Pending", "Cleared", "Bounced"};
-            JComboBox<String> statusCombo = new JComboBox<>(options);
-            statusCombo.setSelectedItem(currentStatus);
-
-            JPanel panel = new JPanel(new BorderLayout(10, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            panel.add(new JLabel("Current Status: " + currentStatus), BorderLayout.NORTH);
-            panel.add(new JLabel("Select New Status:"), BorderLayout.CENTER);
-            panel.add(statusCombo, BorderLayout.SOUTH);
-
-            int result = JOptionPane.showConfirmDialog(
-                    this,
-                    panel,
-                    "Change Cheque Status",
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.PLAIN_MESSAGE
-            );
-
-            if (result == JOptionPane.OK_OPTION) {
-                String newStatus = (String) statusCombo.getSelectedItem();
-
-                if (!newStatus.equals(currentStatus)) {
-                    String typeQuery = "SELECT cheque_type_id FROM cheque_type WHERE cheque_type = '" + newStatus + "'";
-                    ResultSet typeRs = MySQL.executeSearch(typeQuery);
-
-                    if (typeRs.next()) {
-                        int newTypeId = typeRs.getInt("cheque_type_id");
-
-                        String updateQuery = "UPDATE cheque SET cheque_type_id = " + newTypeId
-                                + " WHERE cheque_id = " + chequeId;
-                        MySQL.executeIUD(updateQuery);
-
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "Cheque status updated successfully!",
-                                "Success",
-                                JOptionPane.INFORMATION_MESSAGE
-                        );
-
-                        performSearch();
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Failed to change status: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-        }
-    }
-
     private void editCheque(int chequeId, Integer salesId) {
         StringBuilder message = new StringBuilder();
         message.append("Edit Cheque Dialog\n");
@@ -2181,6 +1903,185 @@ public class ChequePanel extends javax.swing.JPanel {
                 "Edit Cheque",
                 JOptionPane.INFORMATION_MESSAGE
         );
+    }
+
+    private String getSearchText() {
+        String text = jTextField1.getText().trim();
+        return text.equals(Strings.SEARCH_PLACEHOLDER) ? "" : text;
+    }
+
+    private void performSearch() {
+        System.out.println("Performing search - Pending: " + jRadioButton4.isSelected()
+                + ", Bounced: " + jRadioButton1.isSelected()
+                + ", Cleared: " + jRadioButton2.isSelected());
+        loadCheques();
+    }
+
+    private void loadCheques() {
+        String searchText = getSearchText();
+        boolean bouncedOnly = jRadioButton1.isSelected();
+        boolean clearedOnly = jRadioButton2.isSelected();
+        boolean pendingOnly = jRadioButton4.isSelected();
+
+        loadChequesAsync(searchText, bouncedOnly, clearedOnly, pendingOnly);
+    }
+
+    private void clearChequeCards() {
+        for (lk.com.pos.privateclasses.RoundedPanel card : chequeCardsList) {
+            removeAllListeners(card);
+        }
+
+        chequeCardsList.clear();
+        jPanel2.removeAll();
+    }
+
+    private void removeAllListeners(Component component) {
+        for (java.awt.event.MouseListener ml : component.getMouseListeners()) {
+            component.removeMouseListener(ml);
+        }
+
+        for (Component child : getAllComponents(component)) {
+            if (child instanceof JButton) {
+                JButton btn = (JButton) child;
+                for (java.awt.event.ActionListener al : btn.getActionListeners()) {
+                    btn.removeActionListener(al);
+                }
+            }
+        }
+    }
+
+    private List<Component> getAllComponents(Component container) {
+        List<Component> list = new ArrayList<>();
+        if (container instanceof java.awt.Container) {
+            for (Component comp : ((java.awt.Container) container).getComponents()) {
+                list.add(comp);
+                if (comp instanceof java.awt.Container) {
+                    list.addAll(getAllComponents(comp));
+                }
+            }
+        }
+        return list;
+    }
+
+    private void showEmptyState() {
+        jPanel2.setLayout(new BorderLayout());
+        JPanel messagePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        messagePanel.setBackground(Colors.BACKGROUND);
+        messagePanel.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
+
+        JLabel noCheques = new JLabel(Strings.NO_CHEQUES);
+        noCheques.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
+        noCheques.setForeground(Colors.TEXT_SECONDARY);
+        noCheques.setHorizontalAlignment(SwingConstants.CENTER);
+
+        messagePanel.add(noCheques);
+        jPanel2.add(messagePanel, BorderLayout.CENTER);
+        jPanel2.revalidate();
+        jPanel2.repaint();
+    }
+
+    private JPanel createGridPanel() {
+        JPanel gridPanel = new JPanel();
+        gridPanel.setLayout(new GridLayout(0, currentColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
+        gridPanel.setBackground(Colors.BACKGROUND);
+        return gridPanel;
+    }
+
+    private void layoutCardsInPanel(JPanel gridPanel) {
+        jPanel2.setLayout(new BorderLayout());
+
+        JPanel mainContainer = new JPanel();
+        mainContainer.setLayout(new BoxLayout(mainContainer, BoxLayout.Y_AXIS));
+        mainContainer.setBackground(Colors.BACKGROUND);
+
+        JPanel paddingPanel = new JPanel(new BorderLayout());
+        paddingPanel.setBackground(Colors.BACKGROUND);
+        paddingPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+        paddingPanel.add(gridPanel, BorderLayout.NORTH);
+
+        mainContainer.add(paddingPanel);
+        jPanel2.add(mainContainer, BorderLayout.NORTH);
+    }
+
+    private void setupGridResizeListener(final JPanel gridPanel) {
+        jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                int panelWidth = jPanel2.getWidth();
+                int newColumns = calculateColumns(panelWidth);
+
+                if (newColumns != currentColumns) {
+                    currentColumns = newColumns;
+                    gridPanel.setLayout(new GridLayout(0, newColumns, Dimensions.GRID_GAP, Dimensions.GRID_GAP));
+                    gridPanel.revalidate();
+                    gridPanel.repaint();
+                }
+            }
+        });
+    }
+
+    private int calculateColumns(int panelWidth) {
+        int availableWidth = panelWidth - 50;
+
+        if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 3) {
+            return 3;
+        } else if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 2) {
+            return 2;
+        } else {
+            return 1;
+        }
+    }
+
+    private void handleLoadError(Exception e) {
+        System.err.println("Error loading cheques: " + e.getMessage());
+        e.printStackTrace();
+
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to load cheques. Please try again.\n" + e.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
+        });
+    }
+
+    class RoundedBorder extends AbstractBorder {
+
+        private final Color color;
+        private final int thickness;
+        private final int arc;
+
+        public RoundedBorder(Color color, int thickness, int arc) {
+            this.color = color;
+            this.thickness = thickness;
+            this.arc = arc;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setColor(color);
+            g2d.setStroke(new BasicStroke(thickness));
+
+            int offset = thickness / 2;
+            g2d.drawRoundRect(x + offset, y + offset,
+                    width - thickness, height - thickness, arc, arc);
+            g2d.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            int inset = thickness + 2;
+            return new Insets(inset, inset, inset, inset);
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c, Insets insets) {
+            int inset = thickness + 2;
+            insets.left = insets.right = insets.top = insets.bottom = inset;
+            return insets;
+        }
     }
 
     @SuppressWarnings("unchecked")

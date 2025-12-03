@@ -1,25 +1,67 @@
 package lk.com.pos.panel;
 
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.geom.RoundRectangle2D;
-import java.sql.ResultSet;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDate;
-import java.util.*;
-import javax.swing.*;
+import java.util.List;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
-import org.jfree.chart.*;
-import org.jfree.chart.plot.*;
+
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.chart.plot.PiePlot;
+import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
-import lk.com.pos.connection.MySQL;
+
+import lk.com.pos.dto.ChartDataDTO;
+import lk.com.pos.dto.DashboardDataDTO;
+import lk.com.pos.dto.ExpenseCategoryDTO;
+import lk.com.pos.dto.FinancialSummaryDTO;
+import lk.com.pos.dto.TransactionDTO;
+import lk.com.pos.service.FinancialDashboardService;
+import lk.com.pos.service.FinancialDashboardServiceImpl;
 
 /**
  * Modern Financial Dashboard Panel for Pharmacy POS System
+ * Using DAO & DTO Pattern with Real Database Connection
  * @author pasin
  */
 public class ChartPanel extends javax.swing.JPanel {
@@ -44,6 +86,23 @@ public class ChartPanel extends javax.swing.JPanel {
     // Number formatter
     private static final DecimalFormat currencyFormat = new DecimalFormat("#,##0.00");
     private static final NumberFormat numberFormat = NumberFormat.getInstance();
+    
+    // Service Layer
+    private final FinancialDashboardService dashboardService;
+    
+    // UI Components
+    private JPanel mainPanel;
+    private JPanel headerPanel;
+    private JPanel summaryCardsPanel;
+    private JPanel chartsPanel;
+    private JPanel transactionPanel;
+    private JComboBox<String> yearComboBox;
+    private JComboBox<String> monthComboBox;
+    private JComboBox<String> filterTypeComboBox;
+    
+    // Data holders
+    private FinancialSummaryDTO currentSummary;
+    private DashboardDataDTO dashboardData;
     
     // Static font initialization
     static {
@@ -80,23 +139,8 @@ public class ChartPanel extends javax.swing.JPanel {
         return false;
     }
     
-    // UI Components
-    private JPanel mainPanel;
-    private JPanel headerPanel;
-    private JPanel summaryCardsPanel;
-    private JPanel chartsPanel;
-    private JPanel transactionPanel;
-    private JComboBox<String> yearComboBox;
-    private JComboBox<String> monthComboBox;
-    private JComboBox<String> filterTypeComboBox;
-    
-    // Data holders
-    private double totalIncome = 0;
-    private double totalExpense = 0;
-    private double netProfit = 0;
-    private int transactionCount = 0;
-    
     public ChartPanel() {
+        this.dashboardService = new FinancialDashboardServiceImpl();
         initComponents();
         initCustomComponents();
         loadDashboardData();
@@ -160,12 +204,9 @@ public class ChartPanel extends javax.swing.JPanel {
         filterTypeComboBox.setPreferredSize(new Dimension(170, 38));
         styleComboBox(filterTypeComboBox);
         
-        // Year selector
+        // Year selector - Load available years from database
         yearComboBox = new JComboBox<>();
-        int currentYear = LocalDate.now().getYear();
-        for (int i = currentYear; i >= currentYear - 10; i--) {
-            yearComboBox.addItem(String.valueOf(i));
-        }
+        loadAvailableYears();
         yearComboBox.setFont(NUNITO_SEMIBOLD.deriveFont(13f));
         yearComboBox.setPreferredSize(new Dimension(110, 38));
         styleComboBox(yearComboBox);
@@ -194,11 +235,7 @@ public class ChartPanel extends javax.swing.JPanel {
         // Export button
         JButton exportBtn = createStyledButton("📥 Export", Color.WHITE, false);
         exportBtn.setPreferredSize(new Dimension(105, 38));
-        exportBtn.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, 
-                "Export functionality coming soon!\nYou'll be able to export to PDF and Excel.", 
-                "Export Options", JOptionPane.INFORMATION_MESSAGE);
-        });
+        exportBtn.addActionListener(e -> showExportOptions());
         
         rightPanel.add(filterTypeComboBox);
         rightPanel.add(yearComboBox);
@@ -217,6 +254,94 @@ public class ChartPanel extends javax.swing.JPanel {
         mainPanel.add(headerPanel);
     }
     
+    private void loadAvailableYears() {
+    try {
+        List<Integer> years = dashboardService.getAvailableYears();
+        yearComboBox.removeAllItems(); // Clear existing items
+        for (Integer year : years) {
+            yearComboBox.addItem(String.valueOf(year));
+        }
+        // Set current year as default
+        int currentYear = LocalDate.now().getYear();
+        yearComboBox.setSelectedItem(String.valueOf(currentYear));
+    } catch (Exception e) {
+        e.printStackTrace();
+        // Fallback to default years
+        yearComboBox.removeAllItems(); // Clear existing items
+        int currentYear = LocalDate.now().getYear();
+        for (int i = currentYear; i >= currentYear - 5; i--) {
+            yearComboBox.addItem(String.valueOf(i));
+        }
+    }
+}
+    
+    private void showExportOptions() {
+        JDialog exportDialog = new JDialog((Frame)SwingUtilities.getWindowAncestor(this), "Export Options", true);
+        exportDialog.setLayout(new BorderLayout(10, 10));
+        exportDialog.setSize(400, 300);
+        exportDialog.setLocationRelativeTo(this);
+        
+        JPanel contentPanel = new JPanel(new GridLayout(4, 1, 10, 10));
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel titleLabel = new JLabel("📤 Export Dashboard Data", SwingConstants.CENTER);
+        titleLabel.setFont(NUNITO_EXTRABOLD.deriveFont(18f));
+        
+        JButton csvBtn = createStyledButton("📊 Export to CSV", PRIMARY, true);
+        csvBtn.addActionListener(e -> {
+            try {
+                int year = Integer.parseInt((String) yearComboBox.getSelectedItem());
+                int month = monthComboBox.getSelectedIndex();
+                
+                String csvData = dashboardService.exportToCSV(year, month);
+                
+                // Save to file
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setSelectedFile(new java.io.File(
+                    String.format("dashboard_export_%d_%d.csv", year, month)
+                ));
+                
+                if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                    java.io.File file = fileChooser.getSelectedFile();
+                    try (java.io.FileWriter writer = new java.io.FileWriter(file)) {
+                        writer.write(csvData);
+                        JOptionPane.showMessageDialog(this, 
+                            "✅ Export successful!\nFile saved: " + file.getName(), 
+                            "Export Complete", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                }
+                
+                exportDialog.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, 
+                    "❌ Export failed: " + ex.getMessage(), 
+                    "Export Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        JButton pdfBtn = createStyledButton("📄 Export to PDF", PRIMARY_LIGHT, true);
+        pdfBtn.addActionListener(e -> {
+            JOptionPane.showMessageDialog(this, 
+                "PDF export functionality coming soon!\nCurrently supports CSV export only.", 
+                "Coming Soon", JOptionPane.INFORMATION_MESSAGE);
+        });
+        
+        JButton printBtn = createStyledButton("🖨️ Print Dashboard", WARNING_ORANGE, true);
+        printBtn.addActionListener(e -> {
+            JOptionPane.showMessageDialog(this, 
+                "Print functionality coming soon!", 
+                "Coming Soon", JOptionPane.INFORMATION_MESSAGE);
+        });
+        
+        contentPanel.add(titleLabel);
+        contentPanel.add(csvBtn);
+        contentPanel.add(pdfBtn);
+        contentPanel.add(printBtn);
+        
+        exportDialog.add(contentPanel, BorderLayout.CENTER);
+        exportDialog.setVisible(true);
+    }
+    
     private void updateFilterVisibility() {
         String selected = (String) filterTypeComboBox.getSelectedItem();
         monthComboBox.setVisible(selected.equals("Monthly View"));
@@ -232,18 +357,15 @@ public class ChartPanel extends javax.swing.JPanel {
     }
     
     private void updateSummaryCards() {
-        summaryCardsPanel.removeAll();
+        if (currentSummary == null) return;
         
-        // Calculate percentages
-        double incomeChange = totalIncome > 0 ? 12.5 : 0;
-        double expenseChange = totalExpense > 0 ? 8.2 : 0;
-        double profitChange = netProfit > 0 ? 18.7 : netProfit < 0 ? -5.2 : 0;
+        summaryCardsPanel.removeAll();
         
         summaryCardsPanel.add(createSummaryCard(
             "Total Income", 
-            "Rs. " + currencyFormat.format(totalIncome), 
+            currentSummary.getFormattedTotalIncome(), 
             "From sales & other sources",
-            String.format("%+.1f%%", incomeChange),
+            String.format("%+.1f%%", currentSummary.getIncomeChangePercent()),
             PRIMARY,
             INCOME_GREEN,
             "💵"
@@ -251,9 +373,9 @@ public class ChartPanel extends javax.swing.JPanel {
         
         summaryCardsPanel.add(createSummaryCard(
             "Total Expenses", 
-            "Rs. " + currencyFormat.format(totalExpense), 
+            currentSummary.getFormattedTotalExpense(), 
             "Operating costs",
-            String.format("%+.1f%%", expenseChange),
+            String.format("%+.1f%%", currentSummary.getExpenseChangePercent()),
             EXPENSE_RED,
             EXPENSE_RED,
             "📊"
@@ -261,19 +383,19 @@ public class ChartPanel extends javax.swing.JPanel {
         
         summaryCardsPanel.add(createSummaryCard(
             "Net Profit", 
-            "Rs. " + currencyFormat.format(netProfit), 
-            netProfit >= 0 ? "Profitable period" : "Loss period",
-            String.format("%+.1f%%", profitChange),
+            currentSummary.getFormattedNetProfit(), 
+            currentSummary.isProfitable() ? "Profitable period" : "Loss period",
+            String.format("%+.1f%%", currentSummary.getProfitChangePercent()),
             PRIMARY_LIGHTER,
-            netProfit >= 0 ? INCOME_GREEN : EXPENSE_RED,
+            currentSummary.isProfitable() ? INCOME_GREEN : EXPENSE_RED,
             "💎"
         ));
         
         summaryCardsPanel.add(createSummaryCard(
             "Transactions", 
-            numberFormat.format(transactionCount), 
+            currentSummary.getFormattedTransactionCount(), 
             "Total sales count",
-            numberFormat.format(transactionCount) + " sales",
+            currentSummary.getFormattedTransactionCount() + " sales",
             WARNING_ORANGE,
             TEXT_PRIMARY,
             "🛒"
@@ -448,6 +570,8 @@ public class ChartPanel extends javax.swing.JPanel {
     }
     
     private void updateCharts() {
+        if (dashboardData == null) return;
+        
         chartsPanel.removeAll();
         
         // Line Chart - Income vs Expense
@@ -489,51 +613,11 @@ public class ChartPanel extends javax.swing.JPanel {
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         
         try {
-            String year = (String) yearComboBox.getSelectedItem();
-            String query;
+            List<ChartDataDTO> chartData = dashboardData.getIncomeExpenseTrend();
             
-            if (monthComboBox.getSelectedIndex() == 0) { // All months
-                query = "SELECT MONTH(date) as period, SUM(amount) as total FROM " +
-                       "(SELECT datetime as date, total as amount FROM sales WHERE YEAR(datetime) = " + year +
-                       " UNION ALL " +
-                       "SELECT date, amount FROM income WHERE YEAR(date) = " + year + ") as income_data " +
-                       "GROUP BY MONTH(date) ORDER BY period";
-            } else {
-                int month = monthComboBox.getSelectedIndex();
-                query = "SELECT DAY(date) as period, SUM(amount) as total FROM " +
-                       "(SELECT datetime as date, total as amount FROM sales WHERE YEAR(datetime) = " + year + 
-                       " AND MONTH(datetime) = " + month +
-                       " UNION ALL " +
-                       "SELECT date, amount FROM income WHERE YEAR(date) = " + year + 
-                       " AND MONTH(date) = " + month + ") as income_data " +
-                       "GROUP BY DAY(date) ORDER BY period";
-            }
-            
-            ResultSet incomeRs = MySQL.executeSearch(query);
-            
-            while (incomeRs.next()) {
-                String label = formatChartLabel(incomeRs.getInt(1), monthComboBox.getSelectedIndex() == 0);
-                double amount = incomeRs.getDouble(2);
-                dataset.addValue(amount, "Income", label);
-            }
-            
-            // Get expenses
-            if (monthComboBox.getSelectedIndex() == 0) {
-                query = "SELECT MONTH(date) as period, SUM(amount) as total FROM expenses " +
-                       "WHERE YEAR(date) = " + year + " GROUP BY MONTH(date) ORDER BY period";
-            } else {
-                int month = monthComboBox.getSelectedIndex();
-                query = "SELECT DAY(date) as period, SUM(amount) as total FROM expenses " +
-                       "WHERE YEAR(date) = " + year + " AND MONTH(date) = " + month + 
-                       " GROUP BY DAY(date) ORDER BY period";
-            }
-            
-            ResultSet expenseRs = MySQL.executeSearch(query);
-            
-            while (expenseRs.next()) {
-                String label = formatChartLabel(expenseRs.getInt(1), monthComboBox.getSelectedIndex() == 0);
-                double amount = expenseRs.getDouble(2);
-                dataset.addValue(amount, "Expense", label);
+            for (ChartDataDTO data : chartData) {
+                dataset.addValue(data.getIncome(), "Income", data.getPeriod());
+                dataset.addValue(data.getExpense(), "Expense", data.getPeriod());
             }
             
         } catch (Exception e) {
@@ -589,22 +673,11 @@ public class ChartPanel extends javax.swing.JPanel {
         DefaultPieDataset dataset = new DefaultPieDataset();
         
         try {
-            String year = (String) yearComboBox.getSelectedItem();
-            String query = "SELECT et.expenses_type, SUM(e.amount) as total " +
-                          "FROM expenses e " +
-                          "INNER JOIN expenses_type et ON e.expenses_type_id = et.expenses_type_id " +
-                          "WHERE YEAR(e.date) = " + year;
+            List<ExpenseCategoryDTO> expenseBreakdown = dashboardData.getExpenseBreakdown();
             
-            if (monthComboBox.getSelectedIndex() != 0) {
-                query += " AND MONTH(e.date) = " + monthComboBox.getSelectedIndex();
-            }
-            
-            query += " GROUP BY et.expenses_type_id ORDER BY total DESC";
-            
-            ResultSet rs = MySQL.executeSearch(query);
-            
-            while (rs.next()) {
-                dataset.setValue(rs.getString(1), rs.getDouble(2));
+            for (ExpenseCategoryDTO category : expenseBreakdown) {
+                dataset.setValue(category.getCategoryName() + " (" + category.getFormattedPercentage() + ")", 
+                               category.getAmount());
             }
             
         } catch (Exception e) {
@@ -666,15 +739,6 @@ public class ChartPanel extends javax.swing.JPanel {
         return panel;
     }
     
-    private String formatChartLabel(int value, boolean isMonth) {
-        if (isMonth) {
-            String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-            return months[value - 1];
-        }
-        return String.valueOf(value);
-    }
-    
     private void createTransactionTable() {
         transactionPanel = new RoundedPanel(20);
         transactionPanel.setBackground(Color.WHITE);
@@ -686,6 +750,8 @@ public class ChartPanel extends javax.swing.JPanel {
     }
     
     private void updateTransactionTable() {
+        if (dashboardData == null) return;
+        
         transactionPanel.removeAll();
         
         // Header with icon
@@ -713,11 +779,13 @@ public class ChartPanel extends javax.swing.JPanel {
             }
         });
         
+        viewAllBtn.addActionListener(e -> showAllTransactionsDialog());
+        
         headerPanel.add(titleLabel, BorderLayout.WEST);
         headerPanel.add(viewAllBtn, BorderLayout.EAST);
         
         // Table
-        String[] columns = {"Date", "Type", "Category", "Description", "Amount"};
+        String[] columns = {"Date", "Type", "Category", "Description", "Amount", "Status"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -726,46 +794,16 @@ public class ChartPanel extends javax.swing.JPanel {
         };
         
         try {
-            String year = (String) yearComboBox.getSelectedItem();
+            List<TransactionDTO> transactions = dashboardData.getRecentTransactions();
             
-            // Get income transactions
-            String incomeQuery = "SELECT i.date, 'Income' as type, it.income_type as category, " +
-                                "i.description, i.amount FROM income i " +
-                                "INNER JOIN income_type it ON i.income_type_id = it.income_type_id " +
-                                "WHERE YEAR(i.date) = " + year;
-            
-            if (monthComboBox.getSelectedIndex() != 0) {
-                incomeQuery += " AND MONTH(i.date) = " + monthComboBox.getSelectedIndex();
-            }
-            
-            // Get expense transactions
-            String expenseQuery = "SELECT e.date, 'Expense' as type, et.expenses_type as category, " +
-                                 "e.description, e.amount FROM expenses e " +
-                                 "INNER JOIN expenses_type et ON e.expenses_type_id = et.expenses_type_id " +
-                                 "WHERE YEAR(e.date) = " + year;
-            
-            if (monthComboBox.getSelectedIndex() != 0) {
-                expenseQuery += " AND MONTH(e.date) = " + monthComboBox.getSelectedIndex();
-            }
-            
-            String combinedQuery = "(" + incomeQuery + ") UNION ALL (" + expenseQuery + ") " +
-                                  "ORDER BY date DESC LIMIT 15";
-            
-            ResultSet rs = MySQL.executeSearch(combinedQuery);
-            
-            while (rs.next()) {
-                String date = rs.getString(1);
-                String type = rs.getString(2);
-                String category = rs.getString(3);
-                String description = rs.getString(4);
-                double amount = rs.getDouble(5);
-                
+            for (TransactionDTO transaction : transactions) {
                 model.addRow(new Object[]{
-                    date,
-                    type,
-                    category,
-                    description != null ? description : "N/A",
-                    amount
+                    transaction.getFormattedDate(),
+                    transaction.getType(),
+                    transaction.getCategory(),
+                    transaction.getDescription() != null ? transaction.getDescription() : "N/A",
+                    transaction.getAmount(),
+                    transaction.getStatus()
                 });
             }
             
@@ -836,6 +874,17 @@ public class ChartPanel extends javax.swing.JPanel {
                         setText("- Rs. " + currencyFormat.format(amount));
                     }
                     setHorizontalAlignment(SwingConstants.RIGHT);
+                } else if (column == 5) { // Status column
+                    setFont(NUNITO_REGULAR.deriveFont(12f));
+                    String status = (String) value;
+                    if ("Completed".equals(status) || "Approved".equals(status)) {
+                        setForeground(INCOME_GREEN);
+                    } else if ("Pending".equals(status)) {
+                        setForeground(WARNING_ORANGE);
+                    } else {
+                        setForeground(EXPENSE_RED);
+                    }
+                    setHorizontalAlignment(SwingConstants.CENTER);
                 }
                 
                 if (!isSelected) {
@@ -847,11 +896,12 @@ public class ChartPanel extends javax.swing.JPanel {
         });
         
         // Set column widths
-        table.getColumnModel().getColumn(0).setPreferredWidth(120);  // Date
-        table.getColumnModel().getColumn(1).setPreferredWidth(100);  // Type
-        table.getColumnModel().getColumn(2).setPreferredWidth(150);  // Category
-        table.getColumnModel().getColumn(3).setPreferredWidth(250);  // Description
-        table.getColumnModel().getColumn(4).setPreferredWidth(150);  // Amount
+        table.getColumnModel().getColumn(0).setPreferredWidth(100);  // Date
+        table.getColumnModel().getColumn(1).setPreferredWidth(90);   // Type
+        table.getColumnModel().getColumn(2).setPreferredWidth(120);  // Category
+        table.getColumnModel().getColumn(3).setPreferredWidth(200);  // Description
+        table.getColumnModel().getColumn(4).setPreferredWidth(120);  // Amount
+        table.getColumnModel().getColumn(5).setPreferredWidth(90);   // Status
         
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230), 1));
@@ -864,82 +914,141 @@ public class ChartPanel extends javax.swing.JPanel {
         transactionPanel.repaint();
     }
     
+    private void showAllTransactionsDialog() {
+        try {
+            int year = Integer.parseInt((String) yearComboBox.getSelectedItem());
+            int month = monthComboBox.getSelectedIndex();
+            
+            List<TransactionDTO> allTransactions = dashboardService.getRecentTransactions(year, month, 100);
+            
+            JDialog dialog = new JDialog((Frame)SwingUtilities.getWindowAncestor(this), 
+                                        "All Transactions", true);
+            dialog.setLayout(new BorderLayout());
+            dialog.setSize(800, 600);
+            dialog.setLocationRelativeTo(this);
+            
+            JPanel headerPanel = new JPanel(new BorderLayout());
+            headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+            
+            JLabel titleLabel = new JLabel("📋 All Transactions (" + allTransactions.size() + ")");
+            titleLabel.setFont(NUNITO_EXTRABOLD.deriveFont(16f));
+            
+            JButton exportBtn = new JButton("📥 Export");
+            exportBtn.setFont(NUNITO_SEMIBOLD.deriveFont(12f));
+            exportBtn.addActionListener(e -> exportTransactionsToCSV(allTransactions));
+            
+            headerPanel.add(titleLabel, BorderLayout.WEST);
+            headerPanel.add(exportBtn, BorderLayout.EAST);
+            
+            // Table
+            String[] columns = {"Date", "Type", "Category", "Description", "Amount", "Status"};
+            DefaultTableModel model = new DefaultTableModel(columns, 0) {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return false;
+                }
+            };
+            
+            for (TransactionDTO transaction : allTransactions) {
+                model.addRow(new Object[]{
+                    transaction.getFormattedDate(),
+                    transaction.getType(),
+                    transaction.getCategory(),
+                    transaction.getDescription(),
+                    transaction.getAmount(),
+                    transaction.getStatus()
+                });
+            }
+            
+            JTable table = new JTable(model);
+            table.setFont(NUNITO_REGULAR.deriveFont(12f));
+            table.setRowHeight(40);
+            
+            JScrollPane scrollPane = new JScrollPane(table);
+            
+            dialog.add(headerPanel, BorderLayout.NORTH);
+            dialog.add(scrollPane, BorderLayout.CENTER);
+            
+            dialog.setVisible(true);
+            
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, 
+                "Error loading transactions: " + e.getMessage(), 
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void exportTransactionsToCSV(java.util.List<TransactionDTO> transactions) {
+        try {
+            StringBuilder csv = new StringBuilder();
+            csv.append("Date,Type,Category,Description,Amount,Status\n");
+            
+            for (TransactionDTO transaction : transactions) {
+                csv.append(transaction.getFormattedDate()).append(",")
+                   .append(transaction.getType()).append(",")
+                   .append(transaction.getCategory()).append(",")
+                   .append(transaction.getDescription()).append(",")
+                   .append(transaction.getAmount()).append(",")
+                   .append(transaction.getStatus()).append("\n");
+            }
+            
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setSelectedFile(new java.io.File("transactions_export.csv"));
+            
+            if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+                java.io.File file = fileChooser.getSelectedFile();
+                try (java.io.FileWriter writer = new java.io.FileWriter(file)) {
+                    writer.write(csv.toString());
+                    JOptionPane.showMessageDialog(this, 
+                        "✅ Export successful!", 
+                        "Export Complete", JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, 
+                "Export failed: " + e.getMessage(), 
+                "Export Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     private void loadDashboardData() {
         // Show loading state
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         
-        try {
-            String year = (String) yearComboBox.getSelectedItem();
-            
-            // Calculate total income
-            String incomeQuery = "SELECT COALESCE(SUM(total), 0) FROM sales WHERE YEAR(datetime) = " + year;
-            String otherIncomeQuery = "SELECT COALESCE(SUM(amount), 0) FROM income WHERE YEAR(date) = " + year;
-            
-            if (monthComboBox.getSelectedIndex() != 0) {
+        SwingWorker<DashboardDataDTO, Void> worker = new SwingWorker<DashboardDataDTO, Void>() {
+            @Override
+            protected DashboardDataDTO doInBackground() throws Exception {
+                int year = Integer.parseInt((String) yearComboBox.getSelectedItem());
                 int month = monthComboBox.getSelectedIndex();
-                incomeQuery += " AND MONTH(datetime) = " + month;
-                otherIncomeQuery += " AND MONTH(date) = " + month;
+                
+                return dashboardService.getCompleteDashboardData(year, month);
             }
             
-            ResultSet incomeRs = MySQL.executeSearch(incomeQuery);
-            ResultSet otherIncomeRs = MySQL.executeSearch(otherIncomeQuery);
-            
-            double salesIncome = 0;
-            double otherIncome = 0;
-            
-            if (incomeRs.next()) {
-                salesIncome = incomeRs.getDouble(1);
+            @Override
+            protected void done() {
+                try {
+                    dashboardData = get();
+                    currentSummary = dashboardData.getSummary();
+                    
+                    // Update UI on EDT
+                    SwingUtilities.invokeLater(() -> {
+                        updateSummaryCards();
+                        updateCharts();
+                        updateTransactionTable();
+                        setCursor(Cursor.getDefaultCursor());
+                    });
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    setCursor(Cursor.getDefaultCursor());
+                    JOptionPane.showMessageDialog(ChartPanel.this, 
+                        "Error loading dashboard data:\n" + e.getMessage(), 
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
-            if (otherIncomeRs.next()) {
-                otherIncome = otherIncomeRs.getDouble(1);
-            }
-            
-            totalIncome = salesIncome + otherIncome;
-            
-            // Calculate total expenses
-            String expenseQuery = "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE YEAR(date) = " + year;
-            
-            if (monthComboBox.getSelectedIndex() != 0) {
-                expenseQuery += " AND MONTH(date) = " + monthComboBox.getSelectedIndex();
-            }
-            
-            ResultSet expenseRs = MySQL.executeSearch(expenseQuery);
-            
-            if (expenseRs.next()) {
-                totalExpense = expenseRs.getDouble(1);
-            }
-            
-            // Calculate net profit
-            netProfit = totalIncome - totalExpense;
-            
-            // Count transactions
-            String countQuery = "SELECT COUNT(*) FROM sales WHERE YEAR(datetime) = " + year;
-            
-            if (monthComboBox.getSelectedIndex() != 0) {
-                countQuery += " AND MONTH(datetime) = " + monthComboBox.getSelectedIndex();
-            }
-            
-            ResultSet countRs = MySQL.executeSearch(countQuery);
-            
-            if (countRs.next()) {
-                transactionCount = countRs.getInt(1);
-            }
-            
-            // Update UI
-            SwingUtilities.invokeLater(() -> {
-                updateSummaryCards();
-                updateCharts();
-                updateTransactionTable();
-                setCursor(Cursor.getDefaultCursor());
-            });
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            setCursor(Cursor.getDefaultCursor());
-            JOptionPane.showMessageDialog(this, 
-                "Error loading dashboard data:\n" + e.getMessage(), 
-                "Error", JOptionPane.ERROR_MESSAGE);
-        }
+        };
+        
+        worker.execute();
     }
     
     private JButton createStyledButton(String text, Color bgColor, boolean isPrimary) {

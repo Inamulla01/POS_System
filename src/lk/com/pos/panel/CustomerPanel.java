@@ -2,9 +2,8 @@ package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import lk.com.pos.connection.MySQL;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import lk.com.pos.dao.CustomerDAO;
+import lk.com.pos.dto.CustomerDTO;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.awt.Color;
@@ -47,9 +46,11 @@ import lk.com.pos.dialog.UpdateCustomer;
 /**
  * CustomerPanel - Displays and manages customer information with credit details
  * Features: Search, filters, keyboard navigation, credit tracking
+ * 
+ * Updated to use CustomerDAO and CustomerDTO with new database connection
  *
  * @author Your Name
- * @version 2.0
+ * @version 3.0
  */
 public class CustomerPanel extends javax.swing.JPanel {
 
@@ -174,21 +175,33 @@ public class CustomerPanel extends javax.swing.JPanel {
 
     // State
     private long lastRefreshTime = 0;
+    private CustomerDAO customerDAO;
 
     public CustomerPanel() {
-        initComponents();
-        initializeUI();
-        createPositionIndicator();
-        createKeyboardHintsPanel();
-        createLoadingPanel();
-        setupKeyboardShortcuts();
+    initComponents();
+    initializeUI();
+    createPositionIndicator();
+    createKeyboardHintsPanel();
+    createLoadingPanel();
+    setupKeyboardShortcuts();
+    
+    // Initialize DAO with error handling
+    try {
+        customerDAO = new CustomerDAO();
         loadCustomers();
-
-        SwingUtilities.invokeLater(() -> {
-            this.requestFocusInWindow();
-            showKeyboardHints();
-        });
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this,
+            "Failed to initialize database connection: " + e.getMessage(),
+            "Database Error",
+            JOptionPane.ERROR_MESSAGE);
+        System.err.println("Database initialization error: " + e.getMessage());
     }
+
+    SwingUtilities.invokeLater(() -> {
+        this.requestFocusInWindow();
+        showKeyboardHints();
+    });
+}
 
     /**
      * Initializes UI components and settings
@@ -1094,17 +1107,6 @@ public class CustomerPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Data class to hold customer information
-     */
-    private static class CustomerCardData {
-
-        int customerId;
-        String customerName, phone, address, nic, registrationDate;
-        String status, finalDate;
-        double totalCreditAmount, totalPaid;
-    }
-
-    /**
      * Loads customers with default filters
      */
     private void loadCustomers() {
@@ -1132,22 +1134,22 @@ public class CustomerPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Loads customers asynchronously
+     * Loads customers asynchronously using CustomerDAO
      */
     private void loadCustomersAsync(String searchText, boolean missedDueDateOnly,
             boolean noDueOnly, boolean dueAmountOnly) {
         showLoading(true);
 
-        SwingWorker<List<CustomerCardData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<CustomerDTO>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<CustomerCardData> doInBackground() throws Exception {
-                return fetchCustomersFromDatabase(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+            protected List<CustomerDTO> doInBackground() throws Exception {
+                return customerDAO.searchCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
             }
 
             @Override
             protected void done() {
                 try {
-                    List<CustomerCardData> customers = get();
+                    List<CustomerDTO> customers = get();
                     displayCustomers(customers);
                 } catch (Exception e) {
                     handleLoadError(e);
@@ -1158,136 +1160,6 @@ public class CustomerPanel extends javax.swing.JPanel {
         };
 
         worker.execute();
-    }
-
-    /**
-     * Fetches customers from database
-     */
-    private List<CustomerCardData> fetchCustomersFromDatabase(String searchText, boolean missedDueDateOnly,
-            boolean noDueOnly, boolean dueAmountOnly) throws Exception {
-        List<CustomerCardData> customers = new ArrayList<>();
-        ResultSet rs = null;
-
-        try {
-            String query = buildCustomerQuery(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
-            rs = MySQL.executeSearch(query);
-
-            while (rs.next()) {
-                CustomerCardData data = createCustomerDataFromResultSet(rs);
-                customers.add(data);
-            }
-
-        } catch (SQLException e) {
-            throw new Exception("Database error while fetching customers: " + e.getMessage(), e);
-        } finally {
-            // Resource cleanup handled by MySQL class
-        }
-
-        return customers;
-    }
-
-    /**
-     * Creates CustomerCardData from ResultSet
-     */
-    private CustomerCardData createCustomerDataFromResultSet(ResultSet rs) throws SQLException {
-        CustomerCardData data = new CustomerCardData();
-
-        data.customerId = rs.getInt("customer_id");
-        data.customerName = rs.getString("customer_name");
-        data.phone = rs.getString("customer_phone_no");
-        data.address = rs.getString("customer_address");
-        data.nic = rs.getString("nic");
-        data.registrationDate = rs.getString("date_time");
-        data.status = rs.getString("status_name");
-        data.finalDate = rs.getString("latest_due_date");
-        data.totalCreditAmount = rs.getDouble("total_credit_amount");
-        data.totalPaid = rs.getDouble("total_paid");
-
-        return data;
-    }
-
-    /**
-     * Builds SQL query for customers
-     */
-    private String buildCustomerQuery(String searchText, boolean missedDueDateOnly,
-            boolean noDueOnly, boolean dueAmountOnly) {
-        StringBuilder query = new StringBuilder();
-
-        query.append("SELECT * FROM (");
-        query.append(buildCustomerSubquery());
-
-        // Add search filter with SQL injection protection
-        if (isValidSearchText(searchText)) {
-            String escapedSearch = escapeSQL(searchText);
-            query.append("WHERE (cc.customer_name LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR cc.nic LIKE '%").append(escapedSearch).append("%') ");
-        }
-
-        query.append("GROUP BY cc.customer_id, cc.customer_name, cc.customer_phone_no, ");
-        query.append("cc.customer_address, cc.nic, cc.date_time, s.status_name ");
-        query.append(") AS customer_data WHERE 1=1 ");
-
-        // Apply status filters
-        query.append(buildStatusFilter(missedDueDateOnly, noDueOnly, dueAmountOnly));
-        query.append("ORDER BY customer_id DESC");
-
-        return query.toString();
-    }
-
-    /**
-     * Builds customer subquery
-     */
-    /**
-     * Builds customer subquery
-     */
-    private String buildCustomerSubquery() {
-        return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, "
-                + "cc.customer_address, cc.nic, cc.date_time, s.status_name, "
-                + "MAX(c.credit_final_date) as latest_due_date, "
-                + "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, "
-                + "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid "
-                + "FROM credit_customer cc "
-                + "JOIN status s ON s.status_id = cc.status_id "
-                + "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id "
-                + "LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id ";  // FIXED: Join via credit_customer_id
-    }
-
-    /**
-     * Checks if search text is valid
-     */
-    private boolean isValidSearchText(String searchText) {
-        return searchText != null
-                && !searchText.isEmpty()
-                && !searchText.equals(Strings.SEARCH_PLACEHOLDER);
-    }
-
-    /**
-     * Escapes SQL special characters
-     */
-    private String escapeSQL(String input) {
-        if (input == null) {
-            return "";
-        }
-
-        return input.replace("\\", "\\\\")
-                .replace("'", "''")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
-    }
-
-    /**
-     * Builds status filter clause
-     */
-    private String buildStatusFilter(boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
-        if (missedDueDateOnly) {
-            return "AND latest_due_date < CURDATE() "
-                    + "AND total_credit_amount > total_paid ";
-        } else if (noDueOnly) {
-            return "AND total_credit_amount <= total_paid ";
-        } else if (dueAmountOnly) {
-            return "AND total_credit_amount > total_paid ";
-        }
-        return "";
     }
 
     /**
@@ -1306,9 +1178,9 @@ public class CustomerPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Displays customers in grid
+     * Displays customers in grid using CustomerDTO
      */
-    private void displayCustomers(List<CustomerCardData> customers) {
+    private void displayCustomers(List<CustomerDTO> customers) {
         clearCustomerCards();
 
         currentCardIndex = -1;
@@ -1322,8 +1194,8 @@ public class CustomerPanel extends javax.swing.JPanel {
         currentColumns = calculateColumns(jPanel2.getWidth());
         final JPanel gridPanel = createGridPanel();
 
-        for (CustomerCardData data : customers) {
-            lk.com.pos.privateclasses.RoundedPanel card = createCustomerCard(data);
+        for (CustomerDTO customer : customers) {
+            lk.com.pos.privateclasses.RoundedPanel card = createCustomerCard(customer);
             gridPanel.add(card);
             customerCardsList.add(card);
         }
@@ -1509,20 +1381,20 @@ public class CustomerPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Creates customer card from data
+     * Creates customer card from CustomerDTO
      */
-    private lk.com.pos.privateclasses.RoundedPanel createCustomerCard(CustomerCardData data) {
+    private lk.com.pos.privateclasses.RoundedPanel createCustomerCard(CustomerDTO customer) {
         // Calculate outstanding and dates
-        double outstanding = data.totalCreditAmount - data.totalPaid;
-        boolean missedDueDate = checkMissedDueDate(data.finalDate, outstanding);
-        String displayDueDate = formatDueDate(data.finalDate);
-        String regDate = formatRegistrationDate(data.registrationDate);
+        double outstanding = customer.getTotalCreditAmount() - customer.getTotalPaid();
+        boolean missedDueDate = customer.isMissedDueDate();
+        String displayDueDate = formatDueDate(customer.getLatestDueDate());
+        String regDate = formatRegistrationDate(customer.getRegistrationDate());
 
         // Create card
-        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.customerId, data.customerName);
+        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(customer.getCustomerId(), customer.getCustomerName());
 
         // Create content
-        JPanel contentPanel = createCardContent(data, outstanding, missedDueDate, displayDueDate, regDate);
+        JPanel contentPanel = createCardContent(customer, outstanding, missedDueDate, displayDueDate, regDate);
 
         card.add(contentPanel, BorderLayout.CENTER);
         return card;
@@ -1531,17 +1403,16 @@ public class CustomerPanel extends javax.swing.JPanel {
     /**
      * Checks if due date is missed
      */
-    private boolean checkMissedDueDate(String finalDate, double outstanding) {
+    private boolean checkMissedDueDate(Date finalDate, double outstanding) {
         if (finalDate == null || outstanding <= 0) {
             return false;
         }
 
         try {
-            Date dueDate = DATE_FORMAT.parse(finalDate);
             Date today = new Date();
-            return dueDate.before(today);
+            return finalDate.before(today);
         } catch (Exception e) {
-            System.err.println("Error parsing due date: " + e.getMessage());
+            System.err.println("Error checking due date: " + e.getMessage());
             return false;
         }
     }
@@ -1549,14 +1420,13 @@ public class CustomerPanel extends javax.swing.JPanel {
     /**
      * Formats due date for display
      */
-    private String formatDueDate(String finalDate) {
+    private String formatDueDate(Date finalDate) {
         if (finalDate == null) {
             return Strings.NO_CREDIT;
         }
 
         try {
-            Date dueDate = DATE_FORMAT.parse(finalDate);
-            return DISPLAY_DATE_FORMAT.format(dueDate);
+            return DISPLAY_DATE_FORMAT.format(finalDate);
         } catch (Exception e) {
             System.err.println("Error formatting due date: " + e.getMessage());
             return Strings.NO_VALUE;
@@ -1566,14 +1436,13 @@ public class CustomerPanel extends javax.swing.JPanel {
     /**
      * Formats registration date for display
      */
-    private String formatRegistrationDate(String registrationDate) {
+    private String formatRegistrationDate(Date registrationDate) {
         if (registrationDate == null) {
             return Strings.NO_VALUE;
         }
 
         try {
-            Date reg = DATE_FORMAT.parse(registrationDate);
-            return DISPLAY_DATE_FORMAT.format(reg);
+            return DISPLAY_DATE_FORMAT.format(registrationDate);
         } catch (Exception e) {
             System.err.println("Error formatting registration date: " + e.getMessage());
             return Strings.NO_VALUE;
@@ -1658,9 +1527,9 @@ public class CustomerPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Creates card content panel
+     * Creates card content panel using CustomerDTO
      */
-    private JPanel createCardContent(CustomerCardData data, double outstanding,
+    private JPanel createCardContent(CustomerDTO customer, double outstanding,
             boolean missedDueDate, String displayDueDate, String regDate) {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
@@ -1668,23 +1537,23 @@ public class CustomerPanel extends javax.swing.JPanel {
         contentPanel.setOpaque(false);
 
         // Add sections
-        contentPanel.add(createHeaderSection(data.customerId, data.customerName));
+        contentPanel.add(createHeaderSection(customer.getCustomerId(), customer.getCustomerName()));
         contentPanel.add(Box.createVerticalStrut(8));
-        contentPanel.add(createStatusBadgeSection(data.status, missedDueDate, outstanding));
+        contentPanel.add(createStatusBadgeSection(customer.getStatus(), missedDueDate, outstanding));
         contentPanel.add(Box.createVerticalStrut(15));
         contentPanel.add(createDetailsSectionHeader());
         contentPanel.add(Box.createVerticalStrut(15));
-        contentPanel.add(createDetailsGrid(data.phone, data.nic, displayDueDate, regDate));
+        contentPanel.add(createDetailsGrid(customer.getPhone(), customer.getNic(), displayDueDate, regDate));
         contentPanel.add(Box.createVerticalStrut(20));
 
-        if (hasAddress(data.address)) {
-            contentPanel.add(createAddressSection(data.address));
+        if (hasAddress(customer.getAddress())) {
+            contentPanel.add(createAddressSection(customer.getAddress()));
             contentPanel.add(Box.createVerticalStrut(15));
         }
 
-        contentPanel.add(createPaymentSectionHeader(data.customerId));
+        contentPanel.add(createPaymentSectionHeader(customer.getCustomerId()));
         contentPanel.add(Box.createVerticalStrut(12));
-        contentPanel.add(createPaymentPanels(data.totalCreditAmount, data.totalPaid, outstanding));
+        contentPanel.add(createPaymentPanels(customer.getTotalCreditAmount(), customer.getTotalPaid(), outstanding));
 
         return contentPanel;
     }

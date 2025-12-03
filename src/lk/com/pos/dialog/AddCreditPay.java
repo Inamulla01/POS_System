@@ -21,9 +21,14 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import lk.com.pos.connection.MySQL;
+import net.sf.jasperreports.engine.JREmptyDataSource;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperPrintManager;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -781,6 +786,28 @@ public class AddCreditPay extends javax.swing.JDialog {
         return customerId != null ? customerId : -1;
     }
 
+    public String[] getCustomerDetails(int customerId) {
+        String[] data = new String[2]; // [0] = name, [1] = nic
+
+        String sql = "SELECT customer_name, customer_nic FROM credit_customer WHERE customer_id = ?";
+
+        try (Connection conn = MySQL.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setInt(1, customerId);
+            ResultSet rs = pst.executeQuery();
+
+            if (rs.next()) {
+                data[0] = rs.getString("customer_name");
+                data[1] = rs.getString("customer_nic");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return data;
+    }
+
     private boolean validateInputs() {
         if (customerCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a customer");
@@ -847,7 +874,8 @@ public class AddCreditPay extends javax.swing.JDialog {
 
             int selectedCustomerId = getSelectedCustomerId();
             if (selectedCustomerId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Invalid customer selected");
                 isSaving = false;
                 return;
             }
@@ -860,9 +888,8 @@ public class AddCreditPay extends javax.swing.JDialog {
             conn = MySQL.getConnection();
             conn.setAutoCommit(false);
 
-            // Insert into credit_pay table with customer_id
+            // Insert credit payment
             String query = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) VALUES (?, ?, ?)";
-
             pst = conn.prepareStatement(query);
             pst.setString(1, paymentDateStr);
             pst.setDouble(2, amount);
@@ -871,12 +898,14 @@ public class AddCreditPay extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
+
                 this.paidAmount = amount;
 
-                // Check if customer still has due amount using proper calculation
-                String checkDueSql = "SELECT "
+                // Calculate remaining
+                String checkDueSql
+                        = "SELECT "
                         + "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = ?) - "
-                        + "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = ?) as remaining_amount";
+                        + "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = ?) AS remaining_amount";
 
                 PreparedStatement pstCheck = conn.prepareStatement(checkDueSql);
                 pstCheck.setInt(1, selectedCustomerId);
@@ -885,7 +914,7 @@ public class AddCreditPay extends javax.swing.JDialog {
 
                 if (rs.next()) {
                     double newRemaining = rs.getDouble("remaining_amount");
-                    // Update customer status if no due amount
+
                     if (newRemaining <= 0) {
                         String updateStatusSql = "UPDATE credit_customer SET status_id = 2 WHERE customer_id = ?";
                         PreparedStatement pstUpdate = conn.prepareStatement(updateStatusSql);
@@ -894,6 +923,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                         pstUpdate.close();
                     }
                 }
+
                 rs.close();
                 pstCheck.close();
 
@@ -901,15 +931,22 @@ public class AddCreditPay extends javax.swing.JDialog {
 
                 conn.commit();
 
+                // 🔥🔥 OPTION B – PRINT RECEIPT AFTER SUCCESSFUL COMMIT 🔥🔥
+                printReceiptForCreditPayment(selectedCustomerId, amount);
+
+                // Final success popup
                 String successMessage = String.format("Credit payment added successfully! Amount: Rs. %.2f", amount);
                 if (hasDiscount) {
                     successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
                 }
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+
                 dispose();
+
             } else {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit payment!");
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to add credit payment!");
             }
 
         } catch (Exception e) {
@@ -918,9 +955,11 @@ public class AddCreditPay extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                // Rollback exception ignored
             }
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit payment: " + e.getMessage());
+
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error saving credit payment: " + e.getMessage());
+
         } finally {
             try {
                 if (pst != null) {
@@ -931,9 +970,52 @@ public class AddCreditPay extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                // Closing resources exception ignored
             }
             isSaving = false;
+        }
+    }
+
+    private void printReceiptForCreditPayment(int customerId, double paidAmount) {
+        String[] details = getCustomerDetails(customerId);
+        String customerName = details[0];
+        String customerNIC = details[1];
+
+        String openingHours = "OPEN DAILY 8 AM to 11 PM";
+
+        try {
+            Map<String, Object> params = new HashMap<>();
+
+            params.put("B_NAME", "Avinam Global POS");
+            params.put("B_DETAILS", "Matale, Sri Lanka");
+            params.put("CREDIT_PAYMENT_INVOICE_NO", "CRDPAY0000524");
+            params.put("STAFF", "INAMULLA");
+            params.put("CUSTOMER", customerName);
+            params.put("PREV_BALANCE", paidAmount);
+            params.put("PAY_RECEIVED", paidAmount);
+            params.put("DISC_ALLOWED", paidAmount);
+            params.put("NEW_OUTSTANDING", paidAmount);
+            params.put("PAYMENT_TYPE", "CASH");
+
+            System.out.println("=== CREDIT PAYMENT RECEIPT ===");
+            params.put("CREDIT_CUSTOMER_ID", customerNIC);
+            params.put("OPENING_HOURS", openingHours);
+            System.out.println("Paid Amount: " + paidAmount);
+            System.out.println("================================");
+
+            JasperPrint jp = JasperFillManager.fillReport(
+                    getClass().getResourceAsStream("/lk/com/pos/reports/credit_pay_bill.jasper"),
+                    params,
+                    new JREmptyDataSource()
+            );
+
+            JasperPrintManager.printReport(jp, true);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Failed to print credit payment receipt: " + e.getMessage(),
+                    "Print Error",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 

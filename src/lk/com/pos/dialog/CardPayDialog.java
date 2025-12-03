@@ -30,7 +30,7 @@ public class CardPayDialog extends javax.swing.JDialog {
 
     private Integer generatedCardPaymentId = null;
     private Integer salesId = null; // Add this field to store sales ID
-    private boolean isCardPaymentSaved = false;
+    private boolean isCardPaymentSaved = false; // Track if card payment was saved
 
     /**
      * Creates new form CardPayDialog
@@ -83,8 +83,8 @@ public class CardPayDialog extends javax.swing.JDialog {
     }
 
     private void deleteSalesIfNotSaved() {
+        // Only delete if salesId exists and card payment was NOT saved
         if (salesId != null && salesId != -1 && !isCardPaymentSaved) {
-            // Only delete if salesId exists and card payment was not saved
             Connection conn = null;
             PreparedStatement pst = null;
             ResultSet rs = null;
@@ -93,7 +93,21 @@ public class CardPayDialog extends javax.swing.JDialog {
                 conn = MySQL.getConnection();
                 conn.setAutoCommit(false); // Start transaction
 
-                // First, get all sale items for this sales_id to return them to stock
+                // First, check if the sale still exists
+                String checkSaleSql = "SELECT COUNT(*) FROM sales WHERE sales_id = ?";
+                pst = conn.prepareStatement(checkSaleSql);
+                pst.setInt(1, salesId);
+                rs = pst.executeQuery();
+                
+                if (rs.next() && rs.getInt(1) == 0) {
+                    // Sale doesn't exist anymore, nothing to do
+                    conn.rollback();
+                    return;
+                }
+                rs.close();
+                pst.close();
+
+                // Get all sale items for this sales_id to return them to stock
                 String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
                 pst = conn.prepareStatement(getSaleItemsSql);
                 pst.setInt(1, salesId);
@@ -120,13 +134,12 @@ public class CardPayDialog extends javax.swing.JDialog {
                     pst.close();
                 }
 
-                // Now delete related records to maintain referential integrity
+                // Delete related records in correct order to maintain referential integrity
                 String[] deleteQueries = {
-                    "DELETE FROM sale_item WHERE sales_id = ?",
-                    "DELETE FROM card_pay WHERE sales_id = ?",
                     "DELETE FROM cheque WHERE sales_id = ?",
-                    "DELETE FROM return WHERE sales_id = ?",
+                    "DELETE FROM card_pay WHERE sales_id = ?",
                     "DELETE FROM stock_loss WHERE sales_id = ?",
+                    "DELETE FROM sale_item WHERE sales_id = ?",
                     "DELETE FROM sales WHERE sales_id = ?"
                 };
 
@@ -135,10 +148,10 @@ public class CardPayDialog extends javax.swing.JDialog {
                     try {
                         pst = conn.prepareStatement(query);
                         pst.setInt(1, salesId);
-                        int affectedRows = pst.executeUpdate();
+                        pst.executeUpdate();
                         pst.close();
                     } catch (Exception e) {
-                        // Log but continue with next query
+                        System.err.println("Error executing query: " + query + " - " + e.getMessage());
                         success = false;
                         break;
                     }
@@ -146,8 +159,10 @@ public class CardPayDialog extends javax.swing.JDialog {
 
                 if (success) {
                     conn.commit();
+                    System.out.println("Successfully deleted sale #" + salesId + " and returned stock");
                 } else {
                     conn.rollback();
+                    System.err.println("Failed to delete sale #" + salesId + ", transaction rolled back");
                 }
 
             } catch (Exception e) {
@@ -156,8 +171,9 @@ public class CardPayDialog extends javax.swing.JDialog {
                         conn.rollback();
                     }
                 } catch (Exception rollbackEx) {
-                    // Rollback failed, continue
+                    // Rollback exception ignored
                 }
+                
                 // Show error notification to user
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Error deleting sale: " + e.getMessage());
@@ -174,7 +190,7 @@ public class CardPayDialog extends javax.swing.JDialog {
                         conn.close();
                     }
                 } catch (Exception e) {
-                    // Error closing resources, continue
+                    // Closing resources exception ignored
                 }
             }
         }
@@ -553,35 +569,149 @@ public class CardPayDialog extends javax.swing.JDialog {
             return;
         }
 
+        Connection conn = null;
+        PreparedStatement pst = null;
+        ResultSet generatedKeys = null;
+
         try {
             String code = codeInput.getText().trim();
 
+            conn = MySQL.getConnection();
+            conn.setAutoCommit(false);
+
             // Insert into card_pay table (correct table name)
-            String query = String.format(
-                    "INSERT INTO card_pay (card_pay_code, sales_id) VALUES ('%s', %d)",
-                    code, salesId
-            );
+            String query = "INSERT INTO card_pay (card_pay_code, sales_id) VALUES (?, ?)";
+            pst = conn.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS);
+            pst.setString(1, code);
+            pst.setInt(2, salesId);
 
-            MySQL.executeIUD(query);
+            int rowsAffected = pst.executeUpdate();
 
-            // Get the generated card_pay_id
-            ResultSet rs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as card_pay_id");
-            if (rs.next()) {
-                generatedCardPaymentId = rs.getInt("card_pay_id");
-                isCardPaymentSaved = true; // Mark as saved
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Card payment saved successfully! ID: " + generatedCardPaymentId);
+            if (rowsAffected > 0) {
+                // Get the generated card_pay_id
+                generatedKeys = pst.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    generatedCardPaymentId = generatedKeys.getInt(1);
+                    isCardPaymentSaved = true; // Mark as saved
+                    
+                    // Create notification
+                    createCardPaymentNotification(code, conn);
+                    conn.commit();
+                    
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                            "Card payment saved successfully! ID: " + generatedCardPaymentId);
 
-                // Close the dialog after successful save
-                this.dispose();
+                    // Close the dialog after successful save
+                    this.dispose();
+                } else {
+                    conn.rollback();
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                            "Error retrieving generated card payment ID");
+                }
             } else {
+                conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Error retrieving generated card payment ID");
+                        "Failed to save card payment");
             }
 
         } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception rollbackEx) {
+                // Rollback exception ignored
+            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving card payment: " + e.getMessage());
+        } finally {
+            try {
+                if (generatedKeys != null) {
+                    generatedKeys.close();
+                }
+                if (pst != null) {
+                    pst.close();
+                }
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                // Closing resources exception ignored
+            }
+        }
+    }
+
+    private void createCardPaymentNotification(String code, Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
+
+        try {
+            // Get sale total to include in notification
+            String saleTotalSql = "SELECT total FROM sales WHERE sales_id = ?";
+            PreparedStatement pstSale = conn.prepareStatement(saleTotalSql);
+            pstSale.setInt(1, salesId);
+            ResultSet rsSale = pstSale.executeQuery();
+            
+            String totalInfo = "";
+            if (rsSale.next()) {
+                double total = rsSale.getDouble("total");
+                totalInfo = " | Sale Total: Rs " + String.format("%,.2f", total);
+            }
+            rsSale.close();
+            pstSale.close();
+
+            String messageText = "New card payment added | Code: " + code + totalInfo + " | Sales ID: " + salesId;
+
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            ResultSet rs = pstMassage.executeQuery();
+
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
+                massageId = rs.getInt(1);
+            } else {
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new Exception("Failed to get generated massage ID");
+                }
+            }
+
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1);
+            pstNotification.setInt(2, 13); // Card payment message type (using complete sale type for now)
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+
+        } catch (Exception e) {
+            // Error handled silently as notification creation is not critical
+        } finally {
+            try {
+                if (pstMassage != null) {
+                    pstMassage.close();
+                }
+                if (pstNotification != null) {
+                    pstNotification.close();
+                }
+            } catch (Exception e) {
+                // Closing resources exception ignored
+            }
         }
     }
 
@@ -594,7 +724,10 @@ public class CardPayDialog extends javax.swing.JDialog {
     // Override dispose to handle sales deletion when dialog is closed
     @Override
     public void dispose() {
-        deleteSalesIfNotSaved();
+        // Only delete if we haven't saved a card payment
+        if (!isCardPaymentSaved) {
+            deleteSalesIfNotSaved();
+        }
         super.dispose();
     }
     @SuppressWarnings("unchecked")

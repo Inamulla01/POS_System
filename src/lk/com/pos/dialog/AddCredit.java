@@ -38,6 +38,7 @@ public class AddCredit extends javax.swing.JDialog {
     private boolean isSaving = false;
     private int salesId = -1;
     private double paidAmount = 0.0;
+    private boolean isCreditSaved = false; // Track if credit was saved
 
     public AddCredit(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -73,7 +74,7 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     public boolean isCreditSaved() {
-        return creditId != -1;
+        return isCreditSaved; // Return our tracked flag
     }
 
     public boolean isPaymentMade() {
@@ -140,8 +141,8 @@ public class AddCredit extends javax.swing.JDialog {
     }
 
     private void deleteSalesIfNotSaved() {
-        if (salesId != -1 && creditId == -1) {
-            // Only delete if salesId exists and credit was not saved
+        // Only delete if salesId exists and credit was NOT saved
+        if (salesId != -1 && !isCreditSaved) {
             Connection conn = null;
             PreparedStatement pst = null;
             ResultSet rs = null;
@@ -150,7 +151,21 @@ public class AddCredit extends javax.swing.JDialog {
                 conn = MySQL.getConnection();
                 conn.setAutoCommit(false); // Start transaction
 
-                // First, get all sale items for this sales_id to return them to stock
+                // First, check if the sale still exists
+                String checkSaleSql = "SELECT COUNT(*) FROM sales WHERE sales_id = ?";
+                pst = conn.prepareStatement(checkSaleSql);
+                pst.setInt(1, salesId);
+                rs = pst.executeQuery();
+
+                if (rs.next() && rs.getInt(1) == 0) {
+                    // Sale doesn't exist anymore, nothing to do
+                    conn.rollback();
+                    return;
+                }
+                rs.close();
+                pst.close();
+
+                // Get all sale items for this sales_id to return them to stock
                 String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
                 pst = conn.prepareStatement(getSaleItemsSql);
                 pst.setInt(1, salesId);
@@ -177,13 +192,12 @@ public class AddCredit extends javax.swing.JDialog {
                     pst.close();
                 }
 
-                // Now delete related records to maintain referential integrity
+                // Delete related records in correct order to maintain referential integrity
                 String[] deleteQueries = {
-                    "DELETE FROM sale_item WHERE sales_id = ?",
-                    "DELETE FROM card_pay WHERE sales_id = ?",
                     "DELETE FROM cheque WHERE sales_id = ?",
-                    "DELETE FROM return WHERE sales_id = ?",
+                    "DELETE FROM card_pay WHERE sales_id = ?",
                     "DELETE FROM stock_loss WHERE sales_id = ?",
+                    "DELETE FROM sale_item WHERE sales_id = ?",
                     "DELETE FROM sales WHERE sales_id = ?"
                 };
 
@@ -192,9 +206,10 @@ public class AddCredit extends javax.swing.JDialog {
                     try {
                         pst = conn.prepareStatement(query);
                         pst.setInt(1, salesId);
-                        int affectedRows = pst.executeUpdate();
+                        pst.executeUpdate();
                         pst.close();
                     } catch (Exception e) {
+                        System.err.println("Error executing query: " + query + " - " + e.getMessage());
                         success = false;
                         break;
                     }
@@ -202,8 +217,10 @@ public class AddCredit extends javax.swing.JDialog {
 
                 if (success) {
                     conn.commit();
+                    System.out.println("Successfully deleted sale #" + salesId + " and returned stock");
                 } else {
                     conn.rollback();
+                    System.err.println("Failed to delete sale #" + salesId + ", transaction rolled back");
                 }
 
             } catch (Exception e) {
@@ -214,7 +231,7 @@ public class AddCredit extends javax.swing.JDialog {
                 } catch (Exception rollbackEx) {
                     // Rollback exception ignored
                 }
-                
+
                 // Show error notification to user
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Error deleting sale: " + e.getMessage());
@@ -957,6 +974,9 @@ public class AddCredit extends javax.swing.JDialog {
                 createCreditNotification(selectedDisplayText, amount, conn);
                 conn.commit();
 
+                // Mark that credit was successfully saved
+                isCreditSaved = true;
+
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit added successfully!");
 
                 askToOpenCreditPayDialog();
@@ -1179,7 +1199,10 @@ public class AddCredit extends javax.swing.JDialog {
     // Override dispose to handle sales deletion when dialog is closed
     @Override
     public void dispose() {
-        deleteSalesIfNotSaved();
+        // Only delete if we haven't saved a credit
+        if (!isCreditSaved) {
+            deleteSalesIfNotSaved();
+        }
         super.dispose();
     }
 
@@ -1432,6 +1455,7 @@ public class AddCredit extends javax.swing.JDialog {
         } else {
             handleArrowNavigation(evt, saveBtn);
         }
+
     }//GEN-LAST:event_saveBtnKeyPressed
 
     private void saveBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveBtnActionPerformed

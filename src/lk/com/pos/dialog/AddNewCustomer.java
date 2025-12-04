@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -641,21 +641,17 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }
 
     private boolean isCustomerNameExists(String name) {
-        try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM credit_customer WHERE customer_name = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
+        try (Connection conn = DB.getConnection();
+             PreparedStatement pst = conn.prepareStatement("SELECT COUNT(*) FROM credit_customer WHERE customer_name = ?")) {
+            
             pst.setString(1, name);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "Customer name already exists!");
-                return true;
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                            "Customer name already exists!");
+                    return true;
+                }
             }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error while checking customer name!");
@@ -664,21 +660,17 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }
 
     private boolean isNICExists(String nic) {
-        try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM credit_customer WHERE nic = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
+        try (Connection conn = DB.getConnection();
+             PreparedStatement pst = conn.prepareStatement("SELECT COUNT(*) FROM credit_customer WHERE nic = ?")) {
+            
             pst.setString(1, nic.trim().toUpperCase());
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
-                        "NIC number already exists!");
-                return true;
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                            "NIC number already exists!");
+                    return true;
+                }
             }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error while checking NIC!");
@@ -707,58 +699,58 @@ public class AddNewCustomer extends javax.swing.JDialog {
             String customerAddress = address.getText().trim();
             String nicNumber = nic.getText().trim();
 
-            Connection conn = MySQL.getConnection();
+            try (Connection conn = DB.getConnection()) {
+                // Start transaction
+                conn.setAutoCommit(false);
 
-            // Start transaction
-            conn.setAutoCommit(false);
+                try {
+                    // Insert customer
+                    String sql = "INSERT INTO credit_customer (customer_name, customer_phone_no, customer_address, nic, date_time, status_id) VALUES (?, ?, ?, ?, NOW(), ?)";
+                    
+                    try (PreparedStatement pst = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                        pst.setString(1, customerName);
+                        pst.setString(2, mobile);
+                        pst.setString(3, customerAddress);
+                        pst.setString(4, nicNumber.trim().toUpperCase()); // Store NIC in uppercase
+                        pst.setInt(5, 1); // status_id = 1 (Active)
 
-            try {
-                // Insert customer
-                String sql = "INSERT INTO credit_customer (customer_name, customer_phone_no, customer_address, nic, date_time, status_id) VALUES (?, ?, ?, ?, NOW(), ?)";
-                PreparedStatement pst = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pst.setString(1, customerName);
-                pst.setString(2, mobile);
-                pst.setString(3, customerAddress);
-                pst.setString(4, nicNumber.trim().toUpperCase()); // Store NIC in uppercase
-                pst.setInt(5, 1); // status_id = 1 (Active)
+                        int rowsAffected = pst.executeUpdate();
 
-                int rowsAffected = pst.executeUpdate();
+                        // Get the generated customer ID
+                        try (ResultSet generatedKeys = pst.getGeneratedKeys()) {
+                            if (generatedKeys.next()) {
+                                savedCustomerId = generatedKeys.getInt(1);
+                                savedCustomerName = customerName;
+                            }
+                        }
 
-                // Get the generated customer ID
-                ResultSet generatedKeys = pst.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    savedCustomerId = generatedKeys.getInt(1);
-                    savedCustomerName = customerName;
-                }
+                        if (rowsAffected > 0) {
+                            // Create notification for new customer
+                            createCustomerNotification(customerName, conn);
 
-                pst.close();
+                            // Commit transaction
+                            conn.commit();
 
-                if (rowsAffected > 0) {
-                    // Create notification for new customer
-                    createCustomerNotification(customerName, conn);
+                            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                                    "Customer added successfully!");
 
-                    // Commit transaction
-                    conn.commit();
+                            // Set the flag to indicate customer was saved
+                            customerSaved = true;
 
-                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                            "Customer added successfully!");
-
-                    // Set the flag to indicate customer was saved
-                    customerSaved = true;
-
-                    // Close the dialog after successful save
-                    dispose();
-                } else {
+                            // Close the dialog after successful save
+                            dispose();
+                        } else {
+                            conn.rollback();
+                            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                                    "Failed to add customer!");
+                        }
+                    }
+                } catch (Exception e) {
                     conn.rollback();
-                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                            "Failed to add customer!");
+                    throw e;
+                } finally {
+                    conn.setAutoCommit(true);
                 }
-
-            } catch (Exception e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
             }
 
         } catch (Exception e) {
@@ -771,68 +763,59 @@ public class AddNewCustomer extends javax.swing.JDialog {
     }
 
     private void createCustomerNotification(String customerName, Connection conn) {
-        PreparedStatement pstMassage = null;
-        PreparedStatement pstNotification = null;
+        // Create the message
+        String messageText = "New customer added: " + customerName;
 
         try {
-            // Create the message
-            String messageText = "New customer added: " + customerName;
-
             // Check if this exact message already exists to avoid duplicates
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            ResultSet rs = pstMassage.executeQuery();
-
-            int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                // Message already exists, get its ID
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
+            try (PreparedStatement pstMassage = conn.prepareStatement(checkSql)) {
                 pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
-            } else {
-                // Insert new message
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
+                try (ResultSet rs = pstMassage.executeQuery()) {
+                    int massageId;
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        // Message already exists, get its ID
+                        String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                        try (PreparedStatement pstGet = conn.prepareStatement(getSql)) {
+                            pstGet.setString(1, messageText);
+                            try (ResultSet rsGet = pstGet.executeQuery()) {
+                                if (rsGet.next()) {
+                                    massageId = rsGet.getInt("massage_id");
+                                } else {
+                                    return; // No message found
+                                }
+                            }
+                        }
+                    } else {
+                        // Message doesn't exist, insert new message
+                        String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                        try (PreparedStatement pstInsertMessage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                            pstInsertMessage.setString(1, messageText);
+                            pstInsertMessage.executeUpdate();
+                            
+                            // Get the generated message ID
+                            try (ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys()) {
+                                if (generatedKeys.next()) {
+                                    massageId = generatedKeys.getInt(1);
+                                } else {
+                                    return;
+                                }
+                            }
+                        }
+                    }
 
-                // Get the generated massage_id
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    throw new Exception("Failed to get generated massage ID");
+                    // Insert notification (msg_type_id 19 = 'Add New Customer' from your msg_type table)
+                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+                    try (PreparedStatement pstInsertNotification = conn.prepareStatement(notificationSql)) {
+                        pstInsertNotification.setInt(1, 1); // is_read = 1 (unread)
+                        pstInsertNotification.setInt(2, 19); // msg_type_id 19 = 'Add New Customer'
+                        pstInsertNotification.setInt(3, massageId);
+                        pstInsertNotification.executeUpdate();
+                    }
                 }
             }
-
-            // Insert notification (msg_type_id 19 = 'Add New Customer' from your msg_type table)
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1); // is_read = 1 (unread)
-            pstNotification.setInt(2, 19); // msg_type_id 19 = 'Add New Customer'
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
-
         } catch (Exception e) {
             // Silent exception handling for notification failure
-        } finally {
-            // Close resources
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Silent exception handling for resource cleanup
-            }
         }
     }
 

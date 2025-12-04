@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;  // Changed import
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -11,9 +11,9 @@ import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import javax.swing.*;
 import raven.toast.Notifications;
 
@@ -558,21 +558,23 @@ public class AddSupplier extends javax.swing.JDialog {
 
     private boolean isSupplierNameExists(String supplierName) {
         try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM suppliers WHERE suppliers_name = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, supplierName);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
+            Integer count = DB.executeQuerySafe(
+                "SELECT COUNT(*) as count FROM suppliers WHERE suppliers_name = ?",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("count");
+                    }
+                    return 0;
+                },
+                supplierName
+            );
+            
+            if (count > 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Supplier name already exists!");
                 return true;
             }
-
-            rs.close();
-            pst.close();
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Silent exception handling
         }
         return false;
@@ -580,21 +582,23 @@ public class AddSupplier extends javax.swing.JDialog {
 
     private boolean isRegistrationNoExists(String regNo) {
         try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM suppliers WHERE suppliers_reg_no = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, regNo);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
+            Integer count = DB.executeQuerySafe(
+                "SELECT COUNT(*) as count FROM suppliers WHERE suppliers_reg_no = ?",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("count");
+                    }
+                    return 0;
+                },
+                regNo
+            );
+            
+            if (count > 0) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Registration number already exists!");
                 return true;
             }
-
-            rs.close();
-            pst.close();
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Silent exception handling
         }
         return false;
@@ -632,104 +636,128 @@ public class AddSupplier extends javax.swing.JDialog {
             return;
         }
 
+        Connection conn = null;
+        PreparedStatement supplierStmt = null;
+        PreparedStatement msgStmt = null;
+        PreparedStatement notifStmt = null;
+        
         try {
-            Connection conn = MySQL.getConnection();
-            String sql = "INSERT INTO suppliers (suppliers_name, suppliers_mobile, suppliers_address, Company, suppliers_reg_no) VALUES (?, ?, ?, ?, ?)";
-
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, supplierName);
-            pst.setString(2, mobile);
-            pst.setString(3, supplierAddress);
-            pst.setString(4, company);
-            pst.setString(5, regNo);
-
-            int rowsAffected = pst.executeUpdate();
-
+            // Get connection from pool
+            conn = DB.getConnection();
+            
+            // Start transaction
+            conn.setAutoCommit(false);
+            
+            // Insert supplier
+            String supplierQuery = "INSERT INTO suppliers (suppliers_name, suppliers_mobile, suppliers_address, Company, suppliers_reg_no) VALUES (?, ?, ?, ?, ?)";
+            
+            supplierStmt = conn.prepareStatement(supplierQuery, Statement.RETURN_GENERATED_KEYS);
+            supplierStmt.setString(1, supplierName);
+            supplierStmt.setString(2, mobile);
+            supplierStmt.setString(3, supplierAddress);
+            supplierStmt.setString(4, company);
+            supplierStmt.setString(5, regNo);
+            
+            int rowsAffected = supplierStmt.executeUpdate();
+            
             if (rowsAffected > 0) {
-                // Get the newly inserted supplier ID
-                ResultSet newSupplierRs = MySQL.executeSearch("SELECT suppliers_id FROM suppliers WHERE suppliers_name = '"
-                        + supplierName + "' AND suppliers_reg_no = '" + regNo + "'");
-
-                if (newSupplierRs.next()) {
-                    newSupplierId = newSupplierRs.getInt("suppliers_id");
-                    newSupplierName = supplierName;
+                // Get the generated supplier ID
+                try (ResultSet generatedKeys = supplierStmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        newSupplierId = generatedKeys.getInt(1);
+                        newSupplierName = supplierName;
+                    }
                 }
-
-                // Add notification for new supplier
-                addSupplierNotification(supplierName, mobile);
-
+                
+                // Create notification for new supplier
+                String message = "New supplier added: " + supplierName + " (Phone: " + mobile + ")";
+                int messageId = 0;
+                
+                // Check if the message already exists in the massage table
+                String checkMessageQuery = "SELECT massage_id FROM massage WHERE massage = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkMessageQuery);
+                checkStmt.setString(1, message);
+                
+                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                    if (checkRs.next()) {
+                        // Message already exists, get the existing ID
+                        messageId = checkRs.getInt("massage_id");
+                    } else {
+                        // Message doesn't exist, insert new one
+                        String insertMessageQuery = "INSERT INTO massage (massage) VALUES (?)";
+                        msgStmt = conn.prepareStatement(insertMessageQuery, Statement.RETURN_GENERATED_KEYS);
+                        msgStmt.setString(1, message);
+                        msgStmt.executeUpdate();
+                        
+                        // Get the generated message ID
+                        try (ResultSet messageRs = msgStmt.getGeneratedKeys()) {
+                            if (messageRs.next()) {
+                                messageId = messageRs.getInt(1);
+                            } else {
+                                // Fallback if no generated key
+                                messageId = getMaxMessageId(conn);
+                            }
+                        }
+                    }
+                }
+                
+                // Insert into notification table
+                // msg_type_id 10 corresponds to 'Add New Supplier' based on your msg_type table
+                String insertNotificationQuery = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
+                        + "VALUES (1, NOW(), 10, ?)";
+                notifStmt = conn.prepareStatement(insertNotificationQuery);
+                notifStmt.setInt(1, messageId);
+                notifStmt.executeUpdate();
+                
+                // Commit transaction
+                conn.commit();
+                
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
                         "Supplier added successfully!");
                 clearFields();
                 this.dispose(); // Close the dialog after successful save
             } else {
+                // Rollback if no rows affected
+                conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Failed to add supplier!");
             }
-
-            pst.close();
-
-        } catch (Exception e) {
+            
+        } catch (SQLException e) {
+            // Rollback transaction in case of error
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Database error: " + e.getMessage());
+        } finally {
+            // Close resources
+            DB.closeQuietly(notifStmt, msgStmt, supplierStmt);
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
-    private void addSupplierNotification(String supplierName, String phoneNo) {
+    // Helper method to get the maximum message ID as fallback
+    private int getMaxMessageId(Connection conn) {
         try {
-            // Create the notification message
-            String message = "New supplier added: " + supplierName + " (Phone: " + phoneNo + ")";
-
-            int messageId;
-
-            // Check if the message already exists in the massage table
-            String checkMessageQuery = "SELECT massage_id FROM massage WHERE massage = '" + message + "'";
-            ResultSet checkRs = MySQL.executeSearch(checkMessageQuery);
-
-            if (checkRs.next()) {
-                // Message already exists, get the existing ID
-                messageId = checkRs.getInt("massage_id");
-                checkRs.close();
-            } else {
-                // Message doesn't exist, insert new one
-                String insertMessageQuery = "INSERT INTO massage (massage) VALUES ('" + message + "')";
-                MySQL.executeIUD(insertMessageQuery);
-
-                // Get the last inserted message ID
-                ResultSet messageRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as message_id");
-                if (messageRs.next()) {
-                    messageId = messageRs.getInt("message_id");
-                } else {
-                    // Fallback if LAST_INSERT_ID() doesn't work
-                    messageId = getMaxMessageId();
-                }
-                if (messageRs != null) {
-                    messageRs.close();
+            PreparedStatement stmt = conn.prepareStatement("SELECT MAX(massage_id) as max_id FROM massage");
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("max_id");
                 }
             }
-
-            // Insert into notifocation table
-            // msg_type_id 10 corresponds to 'Add New Supplier' based on your msg_type table
-            String insertNotificationQuery = String.format(
-                    "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
-                    + "VALUES (1, NOW(), 10, %d)", messageId
-            );
-
-            MySQL.executeIUD(insertNotificationQuery);
-
-        } catch (Exception e) {
-            // Silent exception handling for notification
-        }
-    }
-
-// Helper method to get the maximum message ID as fallback
-    private int getMaxMessageId() {
-        try {
-            ResultSet rs = MySQL.executeSearch("SELECT MAX(massage_id) as max_id FROM massage");
-            if (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Silent exception handling for max ID retrieval
         }
         return 0;

@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB; // Changed from MySQL to DB
 import lk.com.pos.dialogpanel.ExchangeProduct;
 import lk.com.pos.session.Session;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -718,13 +718,26 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                     + "LEFT JOIN credit c ON s.sales_id = c.sales_id "
                     + "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
                     + "WHERE s.status_id = 1 ORDER BY s.sales_id DESC";
-            ResultSet rs = MySQL.executeSearch(query);
+            
+            List<Object[]> results = DB.executeQuerySafe(query, rs -> {
+                List<Object[]> list = new ArrayList<>();
+                while (rs.next()) {
+                    Object[] row = new Object[6];
+                    row[0] = rs.getInt("sales_id");
+                    row[1] = rs.getString("invoice_no");
+                    row[2] = rs.getTimestamp("datetime");
+                    row[3] = rs.getDouble("total");
+                    row[4] = rs.getString("payment_method_name");
+                    row[5] = rs.getString("customer_name");
+                    list.add(row);
+                }
+                return list;
+            });
 
             invoiceMap.clear();
-
-            while (rs.next()) {
-                int salesId = rs.getInt("sales_id");
-                String invoiceNo = rs.getString("invoice_no");
+            for (Object[] row : results) {
+                int salesId = (int) row[0];
+                String invoiceNo = (String) row[1];
                 invoiceMap.put(salesId, invoiceNo);
             }
 
@@ -737,15 +750,25 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private void loadReturnReasons() {
         try {
             String query = "SELECT return_reason_id, reason FROM return_reason";
-            ResultSet rs = MySQL.executeSearch(query);
+            
+            List<Object[]> results = DB.executeQuerySafe(query, rs -> {
+                List<Object[]> list = new ArrayList<>();
+                while (rs.next()) {
+                    Object[] row = new Object[2];
+                    row[0] = rs.getInt("return_reason_id");
+                    row[1] = rs.getString("reason");
+                    list.add(row);
+                }
+                return list;
+            });
 
             reasonMap.clear();
             reasonCombo.removeAllItems();
             reasonCombo.addItem("Select Reason");
 
-            while (rs.next()) {
-                int reasonId = rs.getInt("return_reason_id");
-                String reason = rs.getString("reason");
+            for (Object[] row : results) {
+                int reasonId = (int) row[0];
+                String reason = (String) row[1];
                 reasonMap.put(reasonId, reason);
                 reasonCombo.addItem(reason);
             }
@@ -806,28 +829,45 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                     + "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
                     + "LEFT JOIN discount d ON s.discount_id = d.discount_id "
                     + "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
-                    + "WHERE s.invoice_no = '" + invoiceNo + "'";
+                    + "WHERE s.invoice_no = ?";
 
-            ResultSet rs = MySQL.executeSearch(query);
+            Object[] result = DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    Object[] row = new Object[12];
+                    row[0] = rs.getInt("sales_id");
+                    row[1] = rs.getTimestamp("datetime");
+                    row[2] = rs.getDouble("total");
+                    row[3] = rs.getString("invoice_no");
+                    row[4] = rs.getString("cashier_name");
+                    row[5] = rs.getString("payment_method_name");
+                    row[6] = rs.getInt("credit_customer_id");
+                    row[7] = rs.getString("customer_name");
+                    row[8] = rs.getDouble("discount");
+                    row[9] = rs.getString("discount_type");
+                    row[10] = rs.getObject("discount_id");
+                    row[11] = rs.getInt("payment_method_id");
+                    return row;
+                }
+                return null;
+            }, invoiceNo);
 
-            if (rs.next()) {
-                currentSalesId = rs.getInt("sales_id");
-
-                int paymentMethodId = rs.getInt("payment_method_id");
+            if (result != null) {
+                currentSalesId = (int) result[0];
+                int paymentMethodId = (int) result[11];
                 isCreditPayment = (paymentMethodId == 3);
 
                 if (isCreditPayment) {
-                    currentCreditCustomerId = rs.getInt("credit_customer_id");
+                    currentCreditCustomerId = (int) result[6];
                     loadCurrentCreditAmount();
                 }
 
-                JPanel invoiceHeaderPanel = createInvoiceHeaderPanel(rs);
+                JPanel invoiceHeaderPanel = createInvoiceHeaderPanel(result);
                 productsPanel.add(invoiceHeaderPanel);
                 productsPanel.add(Box.createVerticalStrut(10));
 
-                Double invoiceDiscount = rs.getDouble("discount");
-                String discountType = rs.getString("discount_type");
-                boolean hasInvoiceDiscount = rs.getObject("discount_id") != null;
+                Double invoiceDiscount = (Double) result[8];
+                String discountType = (String) result[9];
+                boolean hasInvoiceDiscount = result[10] != null;
 
                 if (hasInvoiceDiscount && invoiceDiscount != null && discountType != null) {
                     invoiceTotalDiscount = invoiceDiscount;
@@ -857,15 +897,16 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private void loadCurrentCreditAmount() {
         try {
             String query = "SELECT credit_amout FROM credit WHERE credit_customer_id = ? ORDER BY credit_id DESC LIMIT 1";
-            PreparedStatement stmt = MySQL.getConnection().prepareStatement(query);
-            stmt.setInt(1, currentCreditCustomerId);
-            ResultSet rs = stmt.executeQuery();
+            
+            Double amount = DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    return rs.getDouble("credit_amout");
+                } else {
+                    return 0.0;
+                }
+            }, currentCreditCustomerId);
 
-            if (rs.next()) {
-                currentCreditAmount = rs.getDouble("credit_amout");
-            } else {
-                currentCreditAmount = 0.0;
-            }
+            currentCreditAmount = amount;
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading credit amount",
                     "Database Error", JOptionPane.ERROR_MESSAGE);
@@ -877,20 +918,22 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             String query = "SELECT SUM(credit_pay_amount) as total_paid FROM credit_pay cp "
                     + "JOIN credit c ON cp.credit_id = c.credit_id "
                     + "WHERE c.credit_customer_id = ?";
-            PreparedStatement stmt = MySQL.getConnection().prepareStatement(query);
-            stmt.setInt(1, currentCreditCustomerId);
-            ResultSet rs = stmt.executeQuery();
+            
+            Double totalPaid = DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    return rs.getDouble("total_paid");
+                }
+                return 0.0;
+            }, currentCreditCustomerId);
 
-            if (rs.next()) {
-                return rs.getDouble("total_paid");
-            }
+            return totalPaid;
         } catch (SQLException e) {
             // Silent error handling
         }
         return 0.0;
     }
 
-    private JPanel createInvoiceHeaderPanel(ResultSet rs) throws SQLException {
+    private JPanel createInvoiceHeaderPanel(Object[] data) throws SQLException {
         JPanel headerPanel = new JPanel();
         headerPanel.setBackground(Color.WHITE);
         headerPanel.setLayout(new BorderLayout(10, 0));
@@ -903,18 +946,18 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel invoiceNoLabel = new JLabel("#" + rs.getString("invoice_no"));
+        JLabel invoiceNoLabel = new JLabel("#" + data[3]);
         invoiceNoLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
         invoiceNoLabel.setForeground(new Color(0, 0, 0));
         invoiceNoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        String customerName = rs.getString("customer_name");
+        String customerName = (String) data[7];
         JLabel customerLabel = new JLabel(customerName != null ? customerName : "Customer Name");
         customerLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         customerLabel.setForeground(new Color(102, 102, 102));
         customerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        Timestamp timestamp = rs.getTimestamp("datetime");
+        Timestamp timestamp = (Timestamp) data[1];
         String formattedDate = dateFormat.format(timestamp);
         JLabel dateLabel = new JLabel(formattedDate);
         dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
@@ -922,9 +965,9 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         dateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Fixed Discount Display Logic
-        Double invoiceDiscount = rs.getDouble("discount");
-        String discountType = rs.getString("discount_type");
-        Object discountId = rs.getObject("discount_id");
+        Double invoiceDiscount = (Double) data[8];
+        String discountType = (String) data[9];
+        Object discountId = data[10];
         JLabel discountLabel = new JLabel();
         discountLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         discountLabel.setForeground(new Color(255, 0, 0));
@@ -933,7 +976,8 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         if (discountId != null && invoiceDiscount != null && invoiceDiscount > 0) {
             String discountText = "Discount ";
             if ("percentage".equalsIgnoreCase(discountType)) {
-                double discountAmount = rs.getDouble("total") * invoiceDiscount / 100;
+                double total = (Double) data[2];
+                double discountAmount = total * invoiceDiscount / 100;
                 discountText += String.format("%.0f%% = Rs %.2f", invoiceDiscount, discountAmount);
             } else {
                 discountText += "Rs " + String.format("%.2f", invoiceDiscount);
@@ -958,7 +1002,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         paymentTotalPanel.setBackground(Color.WHITE);
         paymentTotalPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 0));
 
-        String paymentMethodName = rs.getString("payment_method_name");
+        String paymentMethodName = (String) data[5];
         JButton paymentBtn = new JButton(paymentMethodName != null ? paymentMethodName.replace(" Payment", "").toUpperCase() : "PAYMENT");
         paymentBtn.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
         paymentBtn.setForeground(Color.WHITE);
@@ -968,7 +1012,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         paymentBtn.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         updatePaymentMethodColor(paymentBtn, paymentMethodName);
 
-        JLabel totalLabel = new JLabel("Rs." + String.format("%.2f", rs.getDouble("total")));
+        JLabel totalLabel = new JLabel("Rs." + String.format("%.2f", (Double) data[2]));
         totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 20));
         totalLabel.setForeground(new Color(8, 147, 176));
 
@@ -983,7 +1027,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
         cashierText.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         cashierText.setForeground(new Color(102, 102, 102));
 
-        JLabel cashierName = new JLabel(rs.getString("cashier_name"));
+        JLabel cashierName = new JLabel((String) data[4]);
         cashierName.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
         cashierName.setForeground(new Color(0, 0, 0));
 
@@ -1032,9 +1076,25 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                     + "JOIN stock st ON si.stock_id = st.stock_id "
                     + "JOIN product p ON st.product_id = p.product_id "
                     + "JOIN brand b ON p.brand_id = b.brand_id "
-                    + "WHERE si.sales_id = " + salesId;
+                    + "WHERE si.sales_id = ?";
 
-            ResultSet rs = MySQL.executeSearch(query);
+            List<Object[]> results = DB.executeQuerySafe(query, rs -> {
+                List<Object[]> list = new ArrayList<>();
+                while (rs.next()) {
+                    Object[] row = new Object[9];
+                    row[0] = rs.getInt("sale_item_id");
+                    row[1] = rs.getInt("qty");
+                    row[2] = rs.getDouble("price");
+                    row[3] = rs.getDouble("discount_price");
+                    row[4] = rs.getString("product_name");
+                    row[5] = rs.getString("brand_name");
+                    row[6] = rs.getInt("stock_id");
+                    row[7] = rs.getDouble("item_total");
+                    row[8] = rs.getInt("current_stock_qty");
+                    list.add(row);
+                }
+                return list;
+            }, salesId);
 
             boolean hasProducts = false;
             int productIndex = 0;
@@ -1044,14 +1104,14 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             productsContainer.setBackground(Color.WHITE);
             productsContainer.setLayout(new BoxLayout(productsContainer, BoxLayout.Y_AXIS));
 
-            while (rs.next()) {
+            for (Object[] row : results) {
                 hasProducts = true;
-                int saleItemId = rs.getInt("sale_item_id");
-                int originalQty = rs.getInt("qty");
-                int currentStockQty = rs.getInt("current_stock_qty");
-                int stockId = rs.getInt("stock_id");
-                double price = rs.getDouble("price");
-                double discountPrice = rs.getDouble("discount_price");
+                int saleItemId = (int) row[0];
+                int originalQty = (int) row[1];
+                int currentStockQty = (int) row[8];
+                int stockId = (int) row[6];
+                double price = (double) row[2];
+                double discountPrice = (double) row[3];
 
                 productOriginalQtys.put(productIndex, originalQty);
                 productSaleItemIds.put(productIndex, saleItemId);
@@ -1067,10 +1127,10 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 productPanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
 
                 productPanel.getProductName().setText(
-                        rs.getString("product_name") + " (" + rs.getString("brand_name") + ")"
+                        (String) row[4] + " (" + (String) row[5] + ")"
                 );
 
-                double itemTotal = rs.getDouble("item_total");
+                double itemTotal = (double) row[7];
 
                 productPanel.getQty().setText("Original Quantity = " + originalQty);
                 productPanel.getQty().setToolTipText("Available in stock: " + currentStockQty);
@@ -1152,7 +1212,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
                 productsContainer.add(productPanel);
                 productPanels.add(productPanel);
 
-                if (!rs.isLast()) {
+                if (productIndex < results.size() - 1) {
                     JSeparator productSeparator = new JSeparator();
                     productSeparator.setForeground(new Color(240, 240, 240));
                     productSeparator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 5));
@@ -1406,7 +1466,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
     private boolean processExchange() {
         Connection conn = null;
         try {
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
             conn.setAutoCommit(false);
 
             // Get selected reason
@@ -1696,6 +1756,7 @@ public class ExchangeProductDialog extends javax.swing.JDialog {
             if (conn != null) {
                 try {
                     conn.setAutoCommit(true);
+                    conn.close();
                 } catch (SQLException e) {
                     // Silent exception
                 }

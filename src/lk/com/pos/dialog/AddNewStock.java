@@ -10,7 +10,7 @@ import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
@@ -21,8 +21,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -665,15 +664,20 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void loadProductCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT product_id, product_name FROM product");
-            Vector<String> products = new Vector<>();
-            products.add("Select Product");
-            while (rs.next()) {
-                products.add(rs.getString("product_name"));
-            }
+            Vector<String> products = DB.executeQuerySafe(
+                "SELECT product_id, product_name FROM product",
+                (ResultSet rs) -> {
+                    Vector<String> list = new Vector<>();
+                    list.add("Select Product");
+                    while (rs.next()) {
+                        list.add(rs.getString("product_name"));
+                    }
+                    return list;
+                }
+            );
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(products);
             productNameCombo.setModel(dcm);
-        } catch (Exception e) {
+        } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading products: " + e.getMessage());
         }
@@ -681,15 +685,20 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void loadSupplierCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT suppliers_id, suppliers_name FROM suppliers");
-            Vector<String> suppliers = new Vector<>();
-            suppliers.add("Select Supplier");
-            while (rs.next()) {
-                suppliers.add(rs.getString("suppliers_name"));
-            }
+            Vector<String> suppliers = DB.executeQuerySafe(
+                "SELECT suppliers_id, suppliers_name FROM suppliers",
+                (ResultSet rs) -> {
+                    Vector<String> list = new Vector<>();
+                    list.add("Select Supplier");
+                    while (rs.next()) {
+                        list.add(rs.getString("suppliers_name"));
+                    }
+                    return list;
+                }
+            );
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(suppliers);
             SupplierCombo.setModel(dcm);
-        } catch (Exception e) {
+        } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading suppliers: " + e.getMessage());
         }
@@ -721,9 +730,13 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private boolean isBatchNumberExists(String batchNo) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT batch_no FROM stock WHERE batch_no = '" + batchNo + "'");
-            return rs.next();
-        } catch (Exception e) {
+            Boolean exists = DB.executeQuerySafe(
+                "SELECT batch_no FROM stock WHERE batch_no = ?",
+                (ResultSet rs) -> rs.next(),
+                batchNo
+            );
+            return exists;
+        } catch (SQLException e) {
             return false;
         }
     }
@@ -1174,26 +1187,38 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private int getProductId(String productName) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT product_id FROM product WHERE product_name = '" + productName + "'");
-            if (rs.next()) {
-                return rs.getInt("product_id");
-            }
-        } catch (Exception e) {
-            // Silent exception handling for product ID retrieval
+            Integer productId = DB.executeQuerySafe(
+                "SELECT product_id FROM product WHERE product_name = ?",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("product_id");
+                    }
+                    return -1;
+                },
+                productName
+            );
+            return productId;
+        } catch (SQLException e) {
+            return -1;
         }
-        return -1;
     }
 
     private int getSupplierId(String supplierName) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT suppliers_id FROM suppliers WHERE suppliers_name = '" + supplierName + "'");
-            if (rs.next()) {
-                return rs.getInt("suppliers_id");
-            }
-        } catch (Exception e) {
-            // Silent exception handling for supplier ID retrieval
+            Integer supplierId = DB.executeQuerySafe(
+                "SELECT suppliers_id FROM suppliers WHERE suppliers_name = ?",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("suppliers_id");
+                    }
+                    return -1;
+                },
+                supplierName
+            );
+            return supplierId;
+        } catch (SQLException e) {
+            return -1;
         }
-        return -1;
     }
 
     private void saveStock() {
@@ -1201,6 +1226,11 @@ public class AddNewStock extends javax.swing.JDialog {
             return;
         }
 
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        PreparedStatement msgStmt = null;
+        PreparedStatement notifStmt = null;
+        
         try {
             int productId = getProductId(productNameCombo.getSelectedItem().toString());
             int supplierId = getSupplierId(SupplierCombo.getSelectedItem().toString());
@@ -1223,51 +1253,83 @@ public class AddNewStock extends javax.swing.JDialog {
             double purchasePriceValue = Double.parseDouble(purchasePrice.getText().trim());
             double lastPriceValue = lastPrice.getText().trim().isEmpty() ? 0 : Double.parseDouble(lastPrice.getText().trim());
 
-            String query = String.format(
-                    "INSERT INTO stock (batch_no, expriy_date, manufacture_date, qty, selling_price, last_price, purchase_price, product_id, suppliers_id, date_time) "
-                    + "VALUES ('%s', '%s', '%s', %d, %.2f, %.2f, %.2f, %d, %d, '%s')",
-                    batchNo, expiryDateStr, manufactureDateStr, quantity, sellingPriceValue, lastPriceValue, purchasePriceValue, productId, supplierId, currentDateTime
-            );
-
-            MySQL.executeIUD(query);
-
-            // Add notification for new stock
-            addStockNotification(productNameCombo.getSelectedItem().toString(), batchNo, quantity);
-
+            // Get connection from pool
+            conn = DB.getConnection();
+            
+            // Start transaction
+            conn.setAutoCommit(false);
+            
+            // Insert stock
+            String stockQuery = "INSERT INTO stock (batch_no, expriy_date, manufacture_date, qty, selling_price, last_price, purchase_price, product_id, suppliers_id, date_time) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
+            pstmt = conn.prepareStatement(stockQuery);
+            pstmt.setString(1, batchNo);
+            pstmt.setString(2, expiryDateStr);
+            pstmt.setString(3, manufactureDateStr);
+            pstmt.setInt(4, quantity);
+            pstmt.setDouble(5, sellingPriceValue);
+            pstmt.setDouble(6, lastPriceValue);
+            pstmt.setDouble(7, purchasePriceValue);
+            pstmt.setInt(8, productId);
+            pstmt.setInt(9, supplierId);
+            pstmt.setString(10, currentDateTime);
+            
+            pstmt.executeUpdate();
+            
+            // Create the notification message
+            String message = "New stock added: " + productNameCombo.getSelectedItem().toString() + 
+                            " (Batch: " + batchNo + ", Qty: " + quantity + ")";
+            
+            // Insert into massage table
+            String insertMessageQuery = "INSERT INTO massage (massage) VALUES (?)";
+            msgStmt = conn.prepareStatement(insertMessageQuery, Statement.RETURN_GENERATED_KEYS);
+            msgStmt.setString(1, message);
+            msgStmt.executeUpdate();
+            
+            // Get the generated message ID
+            int messageId = 0;
+            try (ResultSet generatedKeys = msgStmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    messageId = generatedKeys.getInt(1);
+                }
+            }
+            
+            // Insert into notification table
+            // msg_type_id 9 corresponds to 'Add New Stock' based on your msg_type table
+            String insertNotificationQuery = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
+                    + "VALUES (1, NOW(), 9, ?)";
+            notifStmt = conn.prepareStatement(insertNotificationQuery);
+            notifStmt.setInt(1, messageId);
+            notifStmt.executeUpdate();
+            
+            // Commit transaction
+            conn.commit();
+            
             clearForm();
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
+            
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving stock: " + e.getMessage());
-        }
-    }
-
-    private void addStockNotification(String productName, String batchNo, int quantity) {
-        try {
-            // Create the notification message
-            String message = "New stock added: " + productName + " (Batch: " + batchNo + ", Qty: " + quantity + ")";
-
-            // Insert into massage table
-            String insertMessageQuery = "INSERT INTO massage (massage) VALUES ('" + message + "')";
-            MySQL.executeIUD(insertMessageQuery);
-
-            // Get the last inserted message ID
-            ResultSet messageRs = MySQL.executeSearch("SELECT LAST_INSERT_ID() as message_id");
-            int messageId = 0;
-            if (messageRs.next()) {
-                messageId = messageRs.getInt("message_id");
+            // Rollback transaction in case of error
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
             }
-
-            // Insert into notifocation table
-            // msg_type_id 9 corresponds to 'Add New Stock' based on your msg_type table
-            String insertNotificationQuery = String.format(
-                    "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
-                    + "VALUES (1, NOW(), 9, %d)", messageId
-            );
-
-            MySQL.executeIUD(insertNotificationQuery);
-
-        } catch (Exception e) {
-            // Silent exception handling for notification creation
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving stock: " + e.getMessage());
+        } finally {
+            // Close resources
+            DB.closeQuietly(notifStmt, msgStmt, pstmt);
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 

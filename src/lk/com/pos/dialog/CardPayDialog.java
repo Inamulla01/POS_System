@@ -9,14 +9,20 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB; // CHANGED: Updated import
+import lk.com.pos.connection.DB.ResultSetHandler; // ADDED: Import for ResultSetHandler
 
 import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
@@ -86,52 +92,57 @@ public class CardPayDialog extends javax.swing.JDialog {
         // Only delete if salesId exists and card payment was NOT saved
         if (salesId != null && salesId != -1 && !isCardPaymentSaved) {
             Connection conn = null;
-            PreparedStatement pst = null;
-            ResultSet rs = null;
 
             try {
-                conn = MySQL.getConnection();
+                conn = DB.getConnection(); // CHANGED: Using DB.getConnection()
                 conn.setAutoCommit(false); // Start transaction
 
                 // First, check if the sale still exists
-                String checkSaleSql = "SELECT COUNT(*) FROM sales WHERE sales_id = ?";
-                pst = conn.prepareStatement(checkSaleSql);
-                pst.setInt(1, salesId);
-                rs = pst.executeQuery();
-                
-                if (rs.next() && rs.getInt(1) == 0) {
+                Integer saleCount = DB.executeQuerySafe(
+                    "SELECT COUNT(*) FROM sales WHERE sales_id = ?",
+                    new ResultSetHandler<Integer>() {
+                        @Override
+                        public Integer handle(ResultSet rs) throws SQLException {
+                            if (rs.next()) {
+                                return rs.getInt(1);
+                            }
+                            return 0;
+                        }
+                    },
+                    salesId
+                );
+
+                if (saleCount == 0) {
                     // Sale doesn't exist anymore, nothing to do
                     conn.rollback();
                     return;
                 }
-                rs.close();
-                pst.close();
 
                 // Get all sale items for this sales_id to return them to stock
-                String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
-                pst = conn.prepareStatement(getSaleItemsSql);
-                pst.setInt(1, salesId);
-                rs = pst.executeQuery();
-
-                // Store the items to return to stock
-                java.util.List<java.util.Map<String, Integer>> itemsToReturn = new java.util.ArrayList<>();
-                while (rs.next()) {
-                    java.util.Map<String, Integer> item = new java.util.HashMap<>();
-                    item.put("stock_id", rs.getInt("stock_id"));
-                    item.put("qty", rs.getInt("qty"));
-                    itemsToReturn.add(item);
-                }
-                rs.close();
-                pst.close();
+                List<Map<String, Integer>> itemsToReturn = DB.executeQuerySafe(
+                    "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?",
+                    new ResultSetHandler<List<Map<String, Integer>>>() {
+                        @Override
+                        public List<Map<String, Integer>> handle(ResultSet rs) throws SQLException {
+                            List<Map<String, Integer>> items = new ArrayList<>();
+                            while (rs.next()) {
+                                Map<String, Integer> item = new HashMap<>();
+                                item.put("stock_id", rs.getInt("stock_id"));
+                                item.put("qty", rs.getInt("qty"));
+                                items.add(item);
+                            }
+                            return items;
+                        }
+                    },
+                    salesId
+                );
 
                 // Return each item to stock
-                String updateStockSql = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
-                for (java.util.Map<String, Integer> item : itemsToReturn) {
-                    pst = conn.prepareStatement(updateStockSql);
-                    pst.setInt(1, item.get("qty"));
-                    pst.setInt(2, item.get("stock_id"));
-                    pst.executeUpdate();
-                    pst.close();
+                for (Map<String, Integer> item : itemsToReturn) {
+                    DB.executeUpdate(
+                        "UPDATE stock SET qty = qty + ? WHERE stock_id = ?",
+                        item.get("qty"), item.get("stock_id")
+                    );
                 }
 
                 // Delete related records in correct order to maintain referential integrity
@@ -146,10 +157,7 @@ public class CardPayDialog extends javax.swing.JDialog {
                 boolean success = true;
                 for (String query : deleteQueries) {
                     try {
-                        pst = conn.prepareStatement(query);
-                        pst.setInt(1, salesId);
-                        pst.executeUpdate();
-                        pst.close();
+                        DB.executeUpdate(query, salesId);
                     } catch (Exception e) {
                         System.err.println("Error executing query: " + query + " - " + e.getMessage());
                         success = false;
@@ -178,20 +186,8 @@ public class CardPayDialog extends javax.swing.JDialog {
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Error deleting sale: " + e.getMessage());
             } finally {
-                try {
-                    if (rs != null) {
-                        rs.close();
-                    }
-                    if (pst != null) {
-                        pst.close();
-                    }
-                    if (conn != null) {
-                        conn.setAutoCommit(true);
-                        conn.close();
-                    }
-                } catch (Exception e) {
-                    // Closing resources exception ignored
-                }
+                // Close connection using DB class helper
+                DB.closeQuietly(conn);
             }
         }
     }
@@ -557,8 +553,21 @@ public class CardPayDialog extends javax.swing.JDialog {
 
     private boolean isCardPayCodeExists(String code) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT card_pay_id FROM card_pay WHERE card_pay_code = '" + code + "' AND sales_id = " + salesId);
-            return rs.next();
+            // CHANGED: Using DB.executeQuerySafe with parameterized query
+            Integer count = DB.executeQuerySafe(
+                "SELECT COUNT(*) FROM card_pay WHERE card_pay_code = ? AND sales_id = ?",
+                new ResultSetHandler<Integer>() {
+                    @Override
+                    public Integer handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            return rs.getInt(1);
+                        }
+                        return 0;
+                    }
+                },
+                code, salesId
+            );
+            return count > 0;
         } catch (Exception e) {
             return false;
         }
@@ -570,44 +579,32 @@ public class CardPayDialog extends javax.swing.JDialog {
         }
 
         Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet generatedKeys = null;
 
         try {
             String code = codeInput.getText().trim();
 
-            conn = MySQL.getConnection();
+            conn = DB.getConnection(); // CHANGED: Using DB.getConnection()
             conn.setAutoCommit(false);
 
-            // Insert into card_pay table (correct table name)
-            String query = "INSERT INTO card_pay (card_pay_code, sales_id) VALUES (?, ?)";
-            pst = conn.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS);
-            pst.setString(1, code);
-            pst.setInt(2, salesId);
+            // CHANGED: Using DB.insertAndGetId for auto-increment ID
+            int generatedId = DB.insertAndGetId(
+                "INSERT INTO card_pay (card_pay_code, sales_id) VALUES (?, ?)",
+                code, salesId
+            );
 
-            int rowsAffected = pst.executeUpdate();
+            if (generatedId > 0) {
+                generatedCardPaymentId = generatedId;
+                isCardPaymentSaved = true; // Mark as saved
+                
+                // Create notification
+                createCardPaymentNotification(code, conn);
+                conn.commit();
+                
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Card payment saved successfully! ID: " + generatedCardPaymentId);
 
-            if (rowsAffected > 0) {
-                // Get the generated card_pay_id
-                generatedKeys = pst.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    generatedCardPaymentId = generatedKeys.getInt(1);
-                    isCardPaymentSaved = true; // Mark as saved
-                    
-                    // Create notification
-                    createCardPaymentNotification(code, conn);
-                    conn.commit();
-                    
-                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                            "Card payment saved successfully! ID: " + generatedCardPaymentId);
-
-                    // Close the dialog after successful save
-                    this.dispose();
-                } else {
-                    conn.rollback();
-                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                            "Error retrieving generated card payment ID");
-                }
+                // Close the dialog after successful save
+                this.dispose();
             } else {
                 conn.rollback();
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -625,93 +622,69 @@ public class CardPayDialog extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving card payment: " + e.getMessage());
         } finally {
-            try {
-                if (generatedKeys != null) {
-                    generatedKeys.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Closing resources exception ignored
-            }
+            DB.closeQuietly(conn);
         }
     }
 
     private void createCardPaymentNotification(String code, Connection conn) {
-        PreparedStatement pstMassage = null;
-        PreparedStatement pstNotification = null;
-
         try {
             // Get sale total to include in notification
-            String saleTotalSql = "SELECT total FROM sales WHERE sales_id = ?";
-            PreparedStatement pstSale = conn.prepareStatement(saleTotalSql);
-            pstSale.setInt(1, salesId);
-            ResultSet rsSale = pstSale.executeQuery();
-            
+            Double saleTotal = DB.executeQuerySafe(
+                "SELECT total FROM sales WHERE sales_id = ?",
+                new ResultSetHandler<Double>() {
+                    @Override
+                    public Double handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            return rs.getDouble("total");
+                        }
+                        return 0.0;
+                    }
+                },
+                salesId
+            );
+
             String totalInfo = "";
-            if (rsSale.next()) {
-                double total = rsSale.getDouble("total");
-                totalInfo = " | Sale Total: Rs " + String.format("%,.2f", total);
+            if (saleTotal != null && saleTotal > 0) {
+                totalInfo = " | Sale Total: Rs " + String.format("%,.2f", saleTotal);
             }
-            rsSale.close();
-            pstSale.close();
 
             String messageText = "New card payment added | Code: " + code + totalInfo + " | Sales ID: " + salesId;
 
-            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            ResultSet rs = pstMassage.executeQuery();
+            // Check if message already exists
+            Integer existingMessageId = DB.executeQuerySafe(
+                "SELECT massage_id FROM massage WHERE massage = ?",
+                new ResultSetHandler<Integer>() {
+                    @Override
+                    public Integer handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            return rs.getInt("massage_id");
+                        }
+                        return null;
+                    }
+                },
+                messageText
+            );
 
             int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
-                pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
+            if (existingMessageId != null) {
+                massageId = existingMessageId;
             } else {
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
-
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    throw new Exception("Failed to get generated massage ID");
-                }
+                // Insert new message
+                massageId = DB.insertAndGetId(
+                    "INSERT INTO massage (massage) VALUES (?)",
+                    messageText
+                );
             }
 
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 13); // Card payment message type (using complete sale type for now)
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
+            // Insert notification
+            DB.executeUpdate(
+                "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)",
+                1, 13, massageId
+            );
 
         } catch (Exception e) {
             // Error handled silently as notification creation is not critical
-        } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Closing resources exception ignored
-            }
+            System.err.println("Error creating notification: " + e.getMessage());
         }
     }
 

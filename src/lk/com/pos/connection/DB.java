@@ -7,33 +7,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * 🚀 ULTIMATE PERFORMANCE Database Connection 
- * Optimized for MAXIMUM SPEED + 25+ Year Reliability
- * 
- * ⚡ PERFORMANCE FEATURES:
- * - HikariCP (World's fastest connection pool)
- * - PreparedStatement caching (10x faster repeated queries)  
- * - Batch operations (100x faster bulk inserts)
- * - Zero connection overhead (0.05ms per query)
- * - Optimized MySQL driver settings
- * - Automatic retry logic
- * 
- * 🛡️ RELIABILITY FEATURES:
- * - Connection leak detection
- * - Automatic error recovery  
- * - Health monitoring
- * - Graceful shutdown
- * - 25+ year production ready
- * 
- * 📊 SPEED COMPARISON:
- * - Old MySQL.java: 50-100ms per query = SLOW 🐌
- * - This class: 0.05-0.5ms per query = BLAZING FAST! ⚡
- * - 100-1000x FASTER!
- * 
- * @author Your POS System
- * @version 4.1 - FIXED INITIALIZATION
- */
 public class DB {
     
     // =====================================================================
@@ -43,7 +16,7 @@ public class DB {
     private static final String DB_HOST     = "localhost"; 
     private static final String DB_PORT     = "3306";
     private static final String DB_USER     = "root";
-    private static final String DB_PASS     = "Pasindu@2005";
+    private static final String DB_PASS     = "Inamulla2005#";
     // =====================================================================
     
     // Performance tuning (optimized for POS system)

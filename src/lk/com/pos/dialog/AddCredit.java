@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -143,113 +143,80 @@ public class AddCredit extends javax.swing.JDialog {
     private void deleteSalesIfNotSaved() {
         // Only delete if salesId exists and credit was NOT saved
         if (salesId != -1 && !isCreditSaved) {
-            Connection conn = null;
-            PreparedStatement pst = null;
-            ResultSet rs = null;
+            try (Connection conn = DB.getConnection()) {
+                conn.setAutoCommit(false);
 
-            try {
-                conn = MySQL.getConnection();
-                conn.setAutoCommit(false); // Start transaction
-
-                // First, check if the sale still exists
-                String checkSaleSql = "SELECT COUNT(*) FROM sales WHERE sales_id = ?";
-                pst = conn.prepareStatement(checkSaleSql);
-                pst.setInt(1, salesId);
-                rs = pst.executeQuery();
-
-                if (rs.next() && rs.getInt(1) == 0) {
-                    // Sale doesn't exist anymore, nothing to do
-                    conn.rollback();
-                    return;
-                }
-                rs.close();
-                pst.close();
-
-                // Get all sale items for this sales_id to return them to stock
-                String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
-                pst = conn.prepareStatement(getSaleItemsSql);
-                pst.setInt(1, salesId);
-                rs = pst.executeQuery();
-
-                // Store the items to return to stock
-                java.util.List<java.util.Map<String, Integer>> itemsToReturn = new java.util.ArrayList<>();
-                while (rs.next()) {
-                    java.util.Map<String, Integer> item = new java.util.HashMap<>();
-                    item.put("stock_id", rs.getInt("stock_id"));
-                    item.put("qty", rs.getInt("qty"));
-                    itemsToReturn.add(item);
-                }
-                rs.close();
-                pst.close();
-
-                // Return each item to stock
-                String updateStockSql = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
-                for (java.util.Map<String, Integer> item : itemsToReturn) {
-                    pst = conn.prepareStatement(updateStockSql);
-                    pst.setInt(1, item.get("qty"));
-                    pst.setInt(2, item.get("stock_id"));
-                    pst.executeUpdate();
-                    pst.close();
-                }
-
-                // Delete related records in correct order to maintain referential integrity
-                String[] deleteQueries = {
-                    "DELETE FROM cheque WHERE sales_id = ?",
-                    "DELETE FROM card_pay WHERE sales_id = ?",
-                    "DELETE FROM stock_loss WHERE sales_id = ?",
-                    "DELETE FROM sale_item WHERE sales_id = ?",
-                    "DELETE FROM sales WHERE sales_id = ?"
-                };
-
-                boolean success = true;
-                for (String query : deleteQueries) {
-                    try {
-                        pst = conn.prepareStatement(query);
+                try {
+                    String checkSaleSql = "SELECT COUNT(*) FROM sales WHERE sales_id = ?";
+                    try (PreparedStatement pst = conn.prepareStatement(checkSaleSql)) {
                         pst.setInt(1, salesId);
-                        pst.executeUpdate();
-                        pst.close();
-                    } catch (Exception e) {
-                        System.err.println("Error executing query: " + query + " - " + e.getMessage());
-                        success = false;
-                        break;
+                        try (ResultSet rs = pst.executeQuery()) {
+                            if (rs.next() && rs.getInt(1) == 0) {
+                                conn.rollback();
+                                return;
+                            }
+                        }
                     }
-                }
 
-                if (success) {
-                    conn.commit();
-                    System.out.println("Successfully deleted sale #" + salesId + " and returned stock");
-                } else {
-                    conn.rollback();
-                    System.err.println("Failed to delete sale #" + salesId + ", transaction rolled back");
+                    String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
+                    java.util.List<java.util.Map<String, Integer>> itemsToReturn = new java.util.ArrayList<>();
+                    try (PreparedStatement pst = conn.prepareStatement(getSaleItemsSql)) {
+                        pst.setInt(1, salesId);
+                        try (ResultSet rs = pst.executeQuery()) {
+                            while (rs.next()) {
+                                java.util.Map<String, Integer> item = new java.util.HashMap<>();
+                                item.put("stock_id", rs.getInt("stock_id"));
+                                item.put("qty", rs.getInt("qty"));
+                                itemsToReturn.add(item);
+                            }
+                        }
+                    }
+
+                    String updateStockSql = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
+                    for (java.util.Map<String, Integer> item : itemsToReturn) {
+                        try (PreparedStatement pst = conn.prepareStatement(updateStockSql)) {
+                            pst.setInt(1, item.get("qty"));
+                            pst.setInt(2, item.get("stock_id"));
+                            pst.executeUpdate();
+                        }
+                    }
+
+                    String[] deleteQueries = {
+                        "DELETE FROM cheque WHERE sales_id = ?",
+                        "DELETE FROM card_pay WHERE sales_id = ?",
+                        "DELETE FROM stock_loss WHERE sales_id = ?",
+                        "DELETE FROM sale_item WHERE sales_id = ?",
+                        "DELETE FROM sales WHERE sales_id = ?"
+                    };
+
+                    boolean success = true;
+                    for (String query : deleteQueries) {
+                        try (PreparedStatement pst = conn.prepareStatement(query)) {
+                            pst.setInt(1, salesId);
+                            pst.executeUpdate();
+                        } catch (Exception e) {
+                            success = false;
+                            break;
+                        }
+                    }
+
+                    if (success) {
+                        conn.commit();
+                    } else {
+                        conn.rollback();
+                    }
+
+                } catch (Exception e) {
+                    try {
+                        conn.rollback();
+                    } catch (Exception rollbackEx) {
+                    }
+                    throw e;
                 }
 
             } catch (Exception e) {
-                try {
-                    if (conn != null) {
-                        conn.rollback();
-                    }
-                } catch (Exception rollbackEx) {
-                    // Rollback exception ignored
-                }
-
-                // Show error notification to user
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Error deleting sale: " + e.getMessage());
-            } finally {
-                try {
-                    if (rs != null) {
-                        rs.close();
-                    }
-                    if (pst != null) {
-                        pst.close();
-                    }
-                    if (conn != null) {
-                        conn.setAutoCommit(true);
-                        conn.close();
-                    }
-                } catch (Exception e) {
-                    // Closing resources exception ignored
-                }
             }
         }
     }
@@ -802,38 +769,42 @@ public class AddCredit extends javax.swing.JDialog {
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
-            ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> customers = new Vector<>();
-            customers.add("Select Customer");
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql);
+                 ResultSet rs = pst.executeQuery()) {
+                
+                Vector<String> customers = new Vector<>();
+                customers.add("Select Customer");
 
-            int count = 0;
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double remainingAmount = rs.getDouble("remaining_amount");
-                Date latestDueDate = rs.getDate("latest_due_date");
+                int count = 0;
+                while (rs.next()) {
+                    int customerId = rs.getInt("customer_id");
+                    String customerName = rs.getString("customer_name");
+                    double totalCredit = rs.getDouble("total_credit");
+                    double totalPaid = rs.getDouble("total_paid");
+                    double remainingAmount = rs.getDouble("remaining_amount");
+                    Date latestDueDate = rs.getDate("latest_due_date");
 
-                String displayText;
-                if (totalCredit > 0) {
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-                    String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
+                    String displayText;
+                    if (totalCredit > 0) {
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                        String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
 
-                    displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
-                            customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
-                } else {
-                    displayText = String.format("%s | No Credit History", customerName);
+                        displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
+                                customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
+                    } else {
+                        displayText = String.format("%s | No Credit History", customerName);
+                    }
+
+                    customers.add(displayText);
+                    customerIdMap.put(displayText, customerId);
+                    customerDisplayMap.put(customerId, displayText);
+                    count++;
                 }
 
-                customers.add(displayText);
-                customerIdMap.put(displayText, customerId);
-                customerDisplayMap.put(customerId, displayText);
-                count++;
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
+                customerCombo.setModel(dcm);
             }
-
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
-            customerCombo.setModel(dcm);
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -902,114 +873,94 @@ public class AddCredit extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet generatedKeys = null;
-
-        try {
+        try (Connection conn = DB.getConnection()) {
             isSaving = true;
-
-            String selectedDisplayText = (String) customerCombo.getSelectedItem();
-            this.customerId = getCustomerId(selectedDisplayText);
-            if (this.customerId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
-                isSaving = false;
-                return;
-            }
-
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String finalDateStr = dateFormat.format(finalDate.getDate());
-
-            java.util.Date givenDateValue = givenDate.getDate();
-            if (givenDateValue != null) {
-                java.util.Date currentDateTime = new java.util.Date();
-                java.util.Calendar dateCal = java.util.Calendar.getInstance();
-                java.util.Calendar timeCal = java.util.Calendar.getInstance();
-
-                dateCal.setTime(givenDateValue);
-                timeCal.setTime(currentDateTime);
-
-                dateCal.set(java.util.Calendar.HOUR_OF_DAY, timeCal.get(java.util.Calendar.HOUR_OF_DAY));
-                dateCal.set(java.util.Calendar.MINUTE, timeCal.get(java.util.Calendar.MINUTE));
-                dateCal.set(java.util.Calendar.SECOND, timeCal.get(java.util.Calendar.SECOND));
-                dateCal.set(java.util.Calendar.MILLISECOND, timeCal.get(java.util.Calendar.MILLISECOND));
-
-                givenDateValue = dateCal.getTime();
-            }
-
-            String givenDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(givenDateValue);
-            double amount = Double.parseDouble(amountField.getText().trim());
-
-            conn = MySQL.getConnection();
             conn.setAutoCommit(false);
 
-            String updateCustomerSql = "UPDATE credit_customer SET status_id = 1 WHERE customer_id = ?";
-            PreparedStatement pstUpdateCustomer = conn.prepareStatement(updateCustomerSql);
-            pstUpdateCustomer.setInt(1, this.customerId);
-            pstUpdateCustomer.executeUpdate();
-            pstUpdateCustomer.close();
-
-            String query = "INSERT INTO credit (credit_given_date, credit_final_date, credit_amout, credit_customer_id, sales_id) "
-                    + "VALUES (?, ?, ?, ?, ?)";
-
-            pst = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
-            pst.setString(1, givenDateStr);
-            pst.setString(2, finalDateStr);
-            pst.setDouble(3, amount);
-            pst.setInt(4, this.customerId);
-            if (salesId != -1) {
-                pst.setInt(5, salesId);
-            } else {
-                pst.setNull(5, java.sql.Types.INTEGER);
-            }
-
-            int rowsAffected = pst.executeUpdate();
-
-            if (rowsAffected > 0) {
-                generatedKeys = pst.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    this.creditId = generatedKeys.getInt(1);
+            try {
+                String selectedDisplayText = (String) customerCombo.getSelectedItem();
+                this.customerId = getCustomerId(selectedDisplayText);
+                if (this.customerId == -1) {
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
+                    isSaving = false;
+                    return;
                 }
 
-                createCreditNotification(selectedDisplayText, amount, conn);
-                conn.commit();
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                String finalDateStr = dateFormat.format(finalDate.getDate());
 
-                // Mark that credit was successfully saved
-                isCreditSaved = true;
+                java.util.Date givenDateValue = givenDate.getDate();
+                if (givenDateValue != null) {
+                    java.util.Date currentDateTime = new java.util.Date();
+                    java.util.Calendar dateCal = java.util.Calendar.getInstance();
+                    java.util.Calendar timeCal = java.util.Calendar.getInstance();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit added successfully!");
+                    dateCal.setTime(givenDateValue);
+                    timeCal.setTime(currentDateTime);
 
-                askToOpenCreditPayDialog();
+                    dateCal.set(java.util.Calendar.HOUR_OF_DAY, timeCal.get(java.util.Calendar.HOUR_OF_DAY));
+                    dateCal.set(java.util.Calendar.MINUTE, timeCal.get(java.util.Calendar.MINUTE));
+                    dateCal.set(java.util.Calendar.SECOND, timeCal.get(java.util.Calendar.SECOND));
+                    dateCal.set(java.util.Calendar.MILLISECOND, timeCal.get(java.util.Calendar.MILLISECOND));
 
-            } else {
+                    givenDateValue = dateCal.getTime();
+                }
+
+                String givenDateStr = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(givenDateValue);
+                double amount = Double.parseDouble(amountField.getText().trim());
+
+                String updateCustomerSql = "UPDATE credit_customer SET status_id = 1 WHERE customer_id = ?";
+                try (PreparedStatement pstUpdateCustomer = conn.prepareStatement(updateCustomerSql)) {
+                    pstUpdateCustomer.setInt(1, this.customerId);
+                    pstUpdateCustomer.executeUpdate();
+                }
+
+                String query = "INSERT INTO credit (credit_given_date, credit_final_date, credit_amout, credit_customer_id, sales_id) "
+                        + "VALUES (?, ?, ?, ?, ?)";
+
+                try (PreparedStatement pst = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+                    pst.setString(1, givenDateStr);
+                    pst.setString(2, finalDateStr);
+                    pst.setDouble(3, amount);
+                    pst.setInt(4, this.customerId);
+                    if (salesId != -1) {
+                        pst.setInt(5, salesId);
+                    } else {
+                        pst.setNull(5, java.sql.Types.INTEGER);
+                    }
+
+                    int rowsAffected = pst.executeUpdate();
+
+                    if (rowsAffected > 0) {
+                        try (ResultSet generatedKeys = pst.getGeneratedKeys()) {
+                            if (generatedKeys.next()) {
+                                this.creditId = generatedKeys.getInt(1);
+                            }
+                        }
+
+                        createCreditNotification(selectedDisplayText, amount, conn);
+                        conn.commit();
+
+                        isCreditSaved = true;
+
+                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit added successfully!");
+
+                        askToOpenCreditPayDialog();
+
+                    } else {
+                        conn.rollback();
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit!");
+                    }
+                }
+
+            } catch (Exception e) {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit!");
+                throw e;
             }
 
         } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-                // Rollback exception ignored
-            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit: " + e.getMessage());
         } finally {
-            try {
-                if (generatedKeys != null) {
-                    generatedKeys.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Closing resources exception ignored
-            }
             isSaving = false;
         }
     }
@@ -1127,7 +1078,6 @@ public class AddCredit extends javax.swing.JDialog {
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            // Error handled silently as notification creation is not critical
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1137,7 +1087,6 @@ public class AddCredit extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                // Closing resources exception ignored
             }
         }
     }
@@ -1196,16 +1145,13 @@ public class AddCredit extends javax.swing.JDialog {
         finalDate.getDateEditor().getUiComponent().setFocusable(true);
     }
 
-    // Override dispose to handle sales deletion when dialog is closed
     @Override
     public void dispose() {
-        // Only delete if we haven't saved a credit
         if (!isCreditSaved) {
             deleteSalesIfNotSaved();
         }
         super.dispose();
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

@@ -12,6 +12,7 @@ import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
@@ -20,7 +21,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB; // Changed from MySQL to DB
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -448,27 +449,27 @@ public class DiscountDialog extends javax.swing.JDialog {
 
             String sql = "SELECT discount_type_id, discount_type FROM discount_type ORDER BY discount_type_id";
 
-            ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> discountTypes = new Vector<>();
-            discountTypes.add("Select Discount Type");
+            DB.executeQuerySafe(sql, rs -> {
+                Vector<String> discountTypes = new Vector<>();
+                discountTypes.add("Select Discount Type");
 
-            int count = 0;
-            while (rs.next()) {
-                int typeId = rs.getInt("discount_type_id");
-                String discountType = rs.getString("discount_type");
+                while (rs.next()) {
+                    int typeId = rs.getInt("discount_type_id");
+                    String discountType = rs.getString("discount_type");
 
-                // Create display text
-                String displayText = discountType;
+                    // Create display text
+                    String displayText = discountType;
 
-                discountTypes.add(displayText);
+                    discountTypes.add(displayText);
 
-                // Store the mapping between display text and type ID
-                discountTypeIdMap.put(displayText, typeId);
-                count++;
-            }
+                    // Store the mapping between display text and type ID
+                    discountTypeIdMap.put(displayText, typeId);
+                }
 
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(discountTypes);
-            diTypeCombo.setModel(dcm);
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(discountTypes);
+                diTypeCombo.setModel(dcm);
+                return null;
+            });
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -487,132 +488,132 @@ public class DiscountDialog extends javax.swing.JDialog {
     }
 
     private void calculateDiscount() {
-    if (originalTotal == null || originalTotal <= 0) {
-        return;
-    }
-
-    if (diTypeCombo.getSelectedIndex() <= 0) {
-        return;
-    }
-
-    try {
-        String discountValueStr = discountInput.getText().trim();
-        if (discountValueStr.isEmpty()) {
+        if (originalTotal == null || originalTotal <= 0) {
             return;
         }
 
-        double discountValue = Double.parseDouble(discountValueStr);
-        String selectedType = (String) diTypeCombo.getSelectedItem();
-
-        // Check if it's percentage discount (PERC)
-        if (selectedType != null && selectedType.toUpperCase().contains("PERC")) {
-            // Percentage discount
-            if (discountValue > 100) {
-                discountValue = 100; // Cap at 100%
-                discountInput.setText("100");
-                JOptionPane.showMessageDialog(this,
-                        "Percentage discount cannot exceed 100%",
-                        "Validation",
-                        JOptionPane.WARNING_MESSAGE);
-            }
-            if (discountValue < 0) {
-                discountValue = 0;
-                discountInput.setText("0");
-            }
-            
-            // Calculate discount amount from percentage
-            discountAmount = (originalTotal * discountValue) / 100.0;
-            
-        } else if (selectedType != null && selectedType.toUpperCase().contains("FIXD")) {
-            // Fixed amount discount
-            if (discountValue > originalTotal) {
-                discountValue = originalTotal; // Cap at total amount
-                discountInput.setText(String.format("%.2f", discountValue));
-                JOptionPane.showMessageDialog(this,
-                        "Discount amount cannot exceed total amount",
-                        "Validation",
-                        JOptionPane.WARNING_MESSAGE);
-            }
-            if (discountValue < 0) {
-                discountValue = 0;
-                discountInput.setText("0");
-            }
-            
-            // Use the value directly as discount amount
-            discountAmount = discountValue;
-            
-        } else {
-            // Default to fixed amount if type is unclear
-            if (discountValue > originalTotal) {
-                discountValue = originalTotal;
-            }
-            if (discountValue < 0) {
-                discountValue = 0;
-            }
-            discountAmount = discountValue;
+        if (diTypeCombo.getSelectedIndex() <= 0) {
+            return;
         }
 
-    } catch (NumberFormatException e) {
-        discountAmount = 0.0;
+        try {
+            String discountValueStr = discountInput.getText().trim();
+            if (discountValueStr.isEmpty()) {
+                return;
+            }
+
+            double discountValue = Double.parseDouble(discountValueStr);
+            String selectedType = (String) diTypeCombo.getSelectedItem();
+
+            // Check if it's percentage discount (PERC)
+            if (selectedType != null && selectedType.toUpperCase().contains("PERC")) {
+                // Percentage discount
+                if (discountValue > 100) {
+                    discountValue = 100; // Cap at 100%
+                    discountInput.setText("100");
+                    JOptionPane.showMessageDialog(this,
+                            "Percentage discount cannot exceed 100%",
+                            "Validation",
+                            JOptionPane.WARNING_MESSAGE);
+                }
+                if (discountValue < 0) {
+                    discountValue = 0;
+                    discountInput.setText("0");
+                }
+                
+                // Calculate discount amount from percentage
+                discountAmount = (originalTotal * discountValue) / 100.0;
+                
+            } else if (selectedType != null && selectedType.toUpperCase().contains("FIXD")) {
+                // Fixed amount discount
+                if (discountValue > originalTotal) {
+                    discountValue = originalTotal; // Cap at total amount
+                    discountInput.setText(String.format("%.2f", discountValue));
+                    JOptionPane.showMessageDialog(this,
+                            "Discount amount cannot exceed total amount",
+                            "Validation",
+                            JOptionPane.WARNING_MESSAGE);
+                }
+                if (discountValue < 0) {
+                    discountValue = 0;
+                    discountInput.setText("0");
+                }
+                
+                // Use the value directly as discount amount
+                discountAmount = discountValue;
+                
+            } else {
+                // Default to fixed amount if type is unclear
+                if (discountValue > originalTotal) {
+                    discountValue = originalTotal;
+                }
+                if (discountValue < 0) {
+                    discountValue = 0;
+                }
+                discountAmount = discountValue;
+            }
+
+        } catch (NumberFormatException e) {
+            discountAmount = 0.0;
+        }
     }
-}
 
     private boolean validateInputs() {
-    if (diTypeCombo.getSelectedIndex() == 0) {
-        Notifications.getInstance().show(Notifications.Type.WARNING, 
-                Notifications.Location.TOP_RIGHT, "Please select a discount type");
-        diTypeCombo.requestFocus();
-        return false;
-    }
-
-    if (discountInput.getText().trim().isEmpty()) {
-        Notifications.getInstance().show(Notifications.Type.WARNING, 
-                Notifications.Location.TOP_RIGHT, "Please enter discount value");
-        discountInput.requestFocus();
-        return false;
-    }
-
-    double discountValue = 0;
-    try {
-        discountValue = Double.parseDouble(discountInput.getText().trim());
-        if (discountValue <= 0) {
+        if (diTypeCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, 
-                    Notifications.Location.TOP_RIGHT, "Discount value must be greater than 0");
+                    Notifications.Location.TOP_RIGHT, "Please select a discount type");
+            diTypeCombo.requestFocus();
+            return false;
+        }
+
+        if (discountInput.getText().trim().isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, 
+                    Notifications.Location.TOP_RIGHT, "Please enter discount value");
             discountInput.requestFocus();
             return false;
         }
-    } catch (NumberFormatException e) {
-        Notifications.getInstance().show(Notifications.Type.WARNING, 
-                Notifications.Location.TOP_RIGHT, "Please enter a valid discount value");
-        discountInput.requestFocus();
-        return false;
-    }
 
-    String selectedType = (String) diTypeCombo.getSelectedItem();
-    
-    // Validate percentage discount
-    if (selectedType != null && selectedType.toUpperCase().contains("PERC")) {
-        if (discountValue > 100) {
+        double discountValue = 0;
+        try {
+            discountValue = Double.parseDouble(discountInput.getText().trim());
+            if (discountValue <= 0) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, 
+                        Notifications.Location.TOP_RIGHT, "Discount value must be greater than 0");
+                discountInput.requestFocus();
+                return false;
+            }
+        } catch (NumberFormatException e) {
             Notifications.getInstance().show(Notifications.Type.WARNING, 
-                    Notifications.Location.TOP_RIGHT, "Percentage discount cannot exceed 100%");
+                    Notifications.Location.TOP_RIGHT, "Please enter a valid discount value");
             discountInput.requestFocus();
             return false;
         }
-    }
-    
-    // Validate fixed amount discount
-    if (selectedType != null && selectedType.toUpperCase().contains("FIXD")) {
-        if (originalTotal != null && discountValue > originalTotal) {
-            Notifications.getInstance().show(Notifications.Type.WARNING, 
-                    Notifications.Location.TOP_RIGHT, 
-                    String.format("Discount amount cannot exceed total (Rs.%.2f)", originalTotal));
-            discountInput.requestFocus();
-            return false;
-        }
-    }
 
-    return true;
-}
+        String selectedType = (String) diTypeCombo.getSelectedItem();
+        
+        // Validate percentage discount
+        if (selectedType != null && selectedType.toUpperCase().contains("PERC")) {
+            if (discountValue > 100) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, 
+                        Notifications.Location.TOP_RIGHT, "Percentage discount cannot exceed 100%");
+                discountInput.requestFocus();
+                return false;
+            }
+        }
+        
+        // Validate fixed amount discount
+        if (selectedType != null && selectedType.toUpperCase().contains("FIXD")) {
+            if (originalTotal != null && discountValue > originalTotal) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, 
+                        Notifications.Location.TOP_RIGHT, 
+                        String.format("Discount amount cannot exceed total (Rs.%.2f)", originalTotal));
+                discountInput.requestFocus();
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private void applyDiscount() {
         // Prevent multiple simultaneous saves
@@ -644,26 +645,23 @@ public class DiscountDialog extends javax.swing.JDialog {
                 return;
             }
 
-            // Save discount to database
-            String query = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
+            // Save discount to database using DB.insertAndGetId for auto-generated ID
+            try {
+                int discountId = DB.insertAndGetId(
+                    "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)",
+                    discountAmount, this.discountTypeId
+                );
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
-            pst.setDouble(1, discountAmount);
-            pst.setInt(2, this.discountTypeId);
-
-            int rowsAffected = pst.executeUpdate();
-
-            if (rowsAffected > 0) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Discount applied successfully!");
-                dispose(); // Close the dialog after successful application
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to apply discount!");
+                if (discountId > 0) {
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Discount applied successfully!");
+                    dispose(); // Close the dialog after successful application
+                } else {
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to apply discount!");
+                }
+            } catch (Exception e) {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error applying discount: " + e.getMessage());
             }
 
-            pst.close();
-        } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error applying discount: " + e.getMessage());
         } finally {
             isSaving = false;
         }

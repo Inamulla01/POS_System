@@ -1,7 +1,9 @@
 package lk.com.pos.dialog;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB; // CHANGED: Updated import
+import lk.com.pos.connection.DB.ResultSetHandler; // ADDED: Import for ResultSetHandler
+
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -603,22 +605,34 @@ public class CreditView extends javax.swing.JDialog {
     }
 
     private void loadCustomerDiscount() {
-        String customerDiscountQuery = "SELECT d.discount, dt.discount_type "
-                + "FROM credit_discount cd "
-                + "JOIN discount d ON cd.discount_id = d.discount_id "
-                + "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
-                + "WHERE cd.credit_id IN (SELECT credit_id FROM credit WHERE credit_customer_id = ?) "
-                + "LIMIT 1";
-
         try {
-            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(customerDiscountQuery);
-            pstmt.setInt(1, customerId);
-            ResultSet rs = pstmt.executeQuery();
+            // CHANGED: Using DB.executeQuerySafe with parameterized query
+            DiscountInfo discountInfo = DB.executeQuerySafe(
+                "SELECT d.discount, dt.discount_type " +
+                "FROM credit_discount cd " +
+                "JOIN discount d ON cd.discount_id = d.discount_id " +
+                "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id " +
+                "WHERE cd.credit_id IN (SELECT credit_id FROM credit WHERE credit_customer_id = ?) " +
+                "LIMIT 1",
+                new ResultSetHandler<DiscountInfo>() {
+                    @Override
+                    public DiscountInfo handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            return new DiscountInfo(
+                                rs.getDouble("discount"),
+                                rs.getString("discount_type")
+                            );
+                        }
+                        return null;
+                    }
+                },
+                customerId
+            );
 
-            if (rs.next()) {
-                customerDiscount = rs.getDouble("discount");
-                customerDiscountType = rs.getString("discount_type");
-                hasCustomerDiscount = !rs.wasNull() && customerDiscount > 0;
+            if (discountInfo != null) {
+                customerDiscount = discountInfo.discount;
+                customerDiscountType = discountInfo.discountType;
+                hasCustomerDiscount = customerDiscount > 0;
 
                 if (hasCustomerDiscount) {
                     double totalCreditAmount = getTotalCreditAmount();
@@ -637,9 +651,6 @@ public class CreditView extends javax.swing.JDialog {
                 netCreditLabel.setText("Rs " + String.format("%,.2f", getTotalCreditAmount()));
             }
 
-            rs.close();
-            pstmt.close();
-
         } catch (SQLException e) {
             discountLabel.setText("Rs 0.00");
             try {
@@ -647,94 +658,127 @@ public class CreditView extends javax.swing.JDialog {
             } catch (Exception ex) {
                 netCreditLabel.setText("Rs 0.00");
             }
+            showError("Error loading customer discount: " + e.getMessage());
+        }
+    }
+
+    // Helper class for discount information
+    private static class DiscountInfo {
+        double discount;
+        String discountType;
+        
+        DiscountInfo(double discount, String discountType) {
+            this.discount = discount;
+            this.discountType = discountType;
         }
     }
 
     private double getTotalCreditAmount() {
-        String query = "SELECT SUM(credit_amout) as total_amount FROM credit WHERE credit_customer_id = ?";
         try {
-            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
-            pstmt.setInt(1, customerId);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                double total = rs.getDouble("total_amount");
-                return !rs.wasNull() ? total : 0.0;
-            }
-
-            rs.close();
-            pstmt.close();
+            // CHANGED: Using DB.executeQuerySafe with parameterized query
+            Double totalAmount = DB.executeQuerySafe(
+                "SELECT SUM(credit_amout) as total_amount FROM credit WHERE credit_customer_id = ?",
+                new ResultSetHandler<Double>() {
+                    @Override
+                    public Double handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            double total = rs.getDouble("total_amount");
+                            return !rs.wasNull() ? total : 0.0;
+                        }
+                        return 0.0;
+                    }
+                },
+                customerId
+            );
+            
+            return totalAmount != null ? totalAmount : 0.0;
         } catch (SQLException e) {
-            // Error getting total credit amount
+            showError("Error getting total credit amount: " + e.getMessage());
+            return 0.0;
         }
-        return 0.0;
     }
 
     private void loadCredits() {
         creditsContainer.removeAll();
 
-        String query = "SELECT c.credit_id, c.credit_given_date, c.credit_final_date, "
-                + "c.credit_amout, s.invoice_no "
-                + "FROM credit c "
-                + "LEFT JOIN sales s ON c.sales_id = s.sales_id "
-                + "WHERE c.credit_customer_id = ? "
-                + "ORDER BY c.credit_given_date DESC";
-
         try {
-            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
-            pstmt.setInt(1, customerId);
-            ResultSet rs = pstmt.executeQuery();
+            // CHANGED: Using DB.executeQuerySafe with parameterized query
+            List<CreditInfo> credits = DB.executeQuerySafe(
+                "SELECT c.credit_id, c.credit_given_date, c.credit_final_date, " +
+                "c.credit_amout, s.invoice_no " +
+                "FROM credit c " +
+                "LEFT JOIN sales s ON c.sales_id = s.sales_id " +
+                "WHERE c.credit_customer_id = ? " +
+                "ORDER BY c.credit_given_date DESC",
+                new ResultSetHandler<List<CreditInfo>>() {
+                    @Override
+                    public List<CreditInfo> handle(ResultSet rs) throws SQLException {
+                        List<CreditInfo> creditList = new ArrayList<>();
+                        while (rs.next()) {
+                            CreditInfo info = new CreditInfo(
+                                rs.getInt("credit_id"),
+                                rs.getTimestamp("credit_given_date"),
+                                rs.getDate("credit_final_date"),
+                                rs.getDouble("credit_amout"),
+                                rs.getString("invoice_no")
+                            );
+                            creditList.add(info);
+                        }
+                        return creditList;
+                    }
+                },
+                customerId
+            );
 
-            boolean hasCredits = false;
+            if (!credits.isEmpty()) {
+                for (CreditInfo credit : credits) {
+                    double discountAmount = 0;
+                    double netAmount = credit.amount;
 
-            while (rs.next()) {
-                hasCredits = true;
-                int creditId = rs.getInt("credit_id");
-                java.sql.Timestamp givenDate = rs.getTimestamp("credit_given_date");
-                java.sql.Date finalDate = rs.getDate("credit_final_date");
-                double amount = rs.getDouble("credit_amout");
-                String invoiceNo = rs.getString("invoice_no");
+                    if (hasCustomerDiscount) {
+                        discountAmount = calculateDiscountAmount(credit.amount, customerDiscount, customerDiscountType);
+                        netAmount = credit.amount - discountAmount;
+                    }
 
-                double discountAmount = 0;
-                double netAmount = amount;
-
-                if (hasCustomerDiscount) {
-                    discountAmount = calculateDiscountAmount(amount, customerDiscount, customerDiscountType);
-                    netAmount = amount - discountAmount;
+                    JPanel creditCard = createCreditCard(
+                        credit.creditId, credit.givenDate, credit.finalDate, credit.amount,
+                        credit.invoiceNo, hasCustomerDiscount, customerDiscount,
+                        customerDiscountType, discountAmount, netAmount
+                    );
+                    creditsContainer.add(creditCard);
+                    creditsContainer.add(Box.createRigidArea(new Dimension(0, 12)));
                 }
-
-                JPanel creditCard = createCreditCard(creditId, givenDate, finalDate, amount,
-                        invoiceNo, hasCustomerDiscount, customerDiscount,
-                        customerDiscountType, discountAmount, netAmount);
-                creditsContainer.add(creditCard);
-                creditsContainer.add(Box.createRigidArea(new Dimension(0, 12)));
+            } else {
+                addNoRecordsLabel(creditsContainer, "No credit records found");
             }
-
-            if (!hasCredits) {
-                JLabel noCreditsLabel = new JLabel("No credit records found");
-                noCreditsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 14));
-                noCreditsLabel.setForeground(Color.GRAY);
-                noCreditsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-                noCreditsLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
-                creditsContainer.add(noCreditsLabel);
-            }
-
-            rs.close();
-            pstmt.close();
 
         } catch (SQLException e) {
             showError("Error loading credits: " + e.getMessage());
-
-            JLabel errorLabel = new JLabel("Error loading credits");
-            errorLabel.setForeground(Color.RED);
-            errorLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
-            creditsContainer.add(errorLabel);
+            addErrorLabel(creditsContainer, "Error loading credits");
         }
 
         creditsContainer.revalidate();
         creditsContainer.repaint();
         jScrollPane1.revalidate();
         jScrollPane1.repaint();
+    }
+
+    // Helper class for credit information
+    private static class CreditInfo {
+        int creditId;
+        java.sql.Timestamp givenDate;
+        java.sql.Date finalDate;
+        double amount;
+        String invoiceNo;
+        
+        CreditInfo(int creditId, java.sql.Timestamp givenDate, java.sql.Date finalDate, 
+                  double amount, String invoiceNo) {
+            this.creditId = creditId;
+            this.givenDate = givenDate;
+            this.finalDate = finalDate;
+            this.amount = amount;
+            this.invoiceNo = invoiceNo;
+        }
     }
 
     private JPanel createCreditCard(int creditId, java.sql.Timestamp givenDate,
@@ -902,26 +946,29 @@ public class CreditView extends javax.swing.JDialog {
     }
 
     private void loadTotalPayed() {
-        String query = "SELECT SUM(credit_pay_amount) as total_payed FROM credit_pay WHERE credit_customer_id = ?";
-
         try {
-            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
-            pstmt.setInt(1, customerId);
-            ResultSet rs = pstmt.executeQuery();
+            // CHANGED: Using DB.executeQuerySafe with parameterized query
+            Double totalPayedAmount = DB.executeQuerySafe(
+                "SELECT SUM(credit_pay_amount) as total_payed FROM credit_pay WHERE credit_customer_id = ?",
+                new ResultSetHandler<Double>() {
+                    @Override
+                    public Double handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            double total = rs.getDouble("total_payed");
+                            return !rs.wasNull() ? total : 0.0;
+                        }
+                        return 0.0;
+                    }
+                },
+                customerId
+            );
 
-            if (rs.next()) {
-                double total = rs.getDouble("total_payed");
-                if (!rs.wasNull()) {
-                    totalPayed.setText("Total Payed : Rs " + String.format("%,.2f", total));
-                } else {
-                    totalPayed.setText("Total Payed : Rs 0.00");
-                }
+            if (totalPayedAmount != null) {
+                totalPayed.setText("Total Payed : Rs " + String.format("%,.2f", totalPayedAmount));
             } else {
-                totalPayed.setText("Rs 0.00");
+                totalPayed.setText("Total Payed : Rs 0.00");
             }
 
-            rs.close();
-            pstmt.close();
         } catch (SQLException e) {
             totalPayed.setText("Total Payed : Rs 0.00");
             showError("Error loading total payments: " + e.getMessage());
@@ -931,52 +978,61 @@ public class CreditView extends javax.swing.JDialog {
     private void loadPayments() {
         paymentsContainer.removeAll();
 
-        String query = "SELECT credit_pay_id, credit_pay_date, credit_pay_amount "
-                + "FROM credit_pay "
-                + "WHERE credit_customer_id = ? "
-                + "ORDER BY credit_pay_date DESC";
-
         try {
-            java.sql.PreparedStatement pstmt = MySQL.getConnection().prepareStatement(query);
-            pstmt.setInt(1, customerId);
-            ResultSet rs = pstmt.executeQuery();
+            // CHANGED: Using DB.executeQuerySafe with parameterized query
+            List<PaymentInfo> payments = DB.executeQuerySafe(
+                "SELECT credit_pay_id, credit_pay_date, credit_pay_amount " +
+                "FROM credit_pay " +
+                "WHERE credit_customer_id = ? " +
+                "ORDER BY credit_pay_date DESC",
+                new ResultSetHandler<List<PaymentInfo>>() {
+                    @Override
+                    public List<PaymentInfo> handle(ResultSet rs) throws SQLException {
+                        List<PaymentInfo> paymentList = new ArrayList<>();
+                        while (rs.next()) {
+                            PaymentInfo info = new PaymentInfo(
+                                rs.getInt("credit_pay_id"),
+                                rs.getTimestamp("credit_pay_date"),
+                                rs.getDouble("credit_pay_amount")
+                            );
+                            paymentList.add(info);
+                        }
+                        return paymentList;
+                    }
+                },
+                customerId
+            );
 
-            boolean hasPayments = false;
-
-            while (rs.next()) {
-                hasPayments = true;
-                int payId = rs.getInt("credit_pay_id");
-                java.sql.Timestamp payDate = rs.getTimestamp("credit_pay_date");
-                double amount = rs.getDouble("credit_pay_amount");
-
-                JPanel paymentCard = createPaymentCard(payId, payDate, amount);
-                paymentsContainer.add(paymentCard);
-                paymentsContainer.add(Box.createRigidArea(new Dimension(0, 8)));
+            if (!payments.isEmpty()) {
+                for (PaymentInfo payment : payments) {
+                    JPanel paymentCard = createPaymentCard(payment.payId, payment.payDate, payment.amount);
+                    paymentsContainer.add(paymentCard);
+                    paymentsContainer.add(Box.createRigidArea(new Dimension(0, 8)));
+                }
+            } else {
+                addNoRecordsLabel(paymentsContainer, "No payment records found");
             }
-
-            if (!hasPayments) {
-                JLabel noPaymentsLabel = new JLabel("No payment records found");
-                noPaymentsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 12));
-                noPaymentsLabel.setForeground(Color.GRAY);
-                noPaymentsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-                noPaymentsLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
-                paymentsContainer.add(noPaymentsLabel);
-            }
-
-            rs.close();
-            pstmt.close();
 
         } catch (SQLException e) {
             showError("Error loading payments: " + e.getMessage());
-
-            JLabel errorLabel = new JLabel("Error loading payments");
-            errorLabel.setForeground(Color.RED);
-            errorLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
-            paymentsContainer.add(errorLabel);
+            addErrorLabel(paymentsContainer, "Error loading payments");
         }
 
         paymentsContainer.revalidate();
         paymentsContainer.repaint();
+    }
+
+    // Helper class for payment information
+    private static class PaymentInfo {
+        int payId;
+        java.sql.Timestamp payDate;
+        double amount;
+        
+        PaymentInfo(int payId, java.sql.Timestamp payDate, double amount) {
+            this.payId = payId;
+            this.payDate = payDate;
+            this.amount = amount;
+        }
     }
 
     private JPanel createPaymentCard(int payId, java.sql.Timestamp payDate, double amount) {
@@ -1040,6 +1096,22 @@ public class CreditView extends javax.swing.JDialog {
 
         card.add(contentPanel, BorderLayout.CENTER);
         return card;
+    }
+
+    private void addNoRecordsLabel(JPanel container, String message) {
+        JLabel noRecordsLabel = new JLabel(message);
+        noRecordsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 12));
+        noRecordsLabel.setForeground(Color.GRAY);
+        noRecordsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        noRecordsLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
+        container.add(noRecordsLabel);
+    }
+
+    private void addErrorLabel(JPanel container, String message) {
+        JLabel errorLabel = new JLabel(message);
+        errorLabel.setForeground(Color.RED);
+        errorLabel.setBorder(new EmptyBorder(10, 20, 10, 20));
+        container.add(errorLabel);
     }
 
     private double calculateDiscountAmount(double totalAmount, double discount, String discountType) {

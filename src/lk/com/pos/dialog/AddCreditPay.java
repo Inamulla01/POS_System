@@ -20,22 +20,18 @@ import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
-import net.sf.jasperreports.engine.JREmptyDataSource;
-import net.sf.jasperreports.engine.JasperFillManager;
-import net.sf.jasperreports.engine.JasperPrint;
-import net.sf.jasperreports.engine.JasperPrintManager;
+import javax.swing.KeyStroke;
+import lk.com.pos.connection.DB;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
-/**
- *
- * @author moham
- */
+// Add barcode printing imports
+import java.awt.print.PrinterJob;
+import java.awt.print.PrinterException;
+import java.awt.print.PageFormat;
+import java.awt.print.Printable;
+
 public class AddCreditPay extends javax.swing.JDialog {
 
     private Integer customerId;
@@ -50,11 +46,14 @@ public class AddCreditPay extends javax.swing.JDialog {
     private double discountAmount = 0.0;
     private double discountPercentage = 0.0;
     private boolean hasDiscount = false;
+    private boolean customerDataLoaded = false; // Add flag to track if customer data is loaded
 
     public AddCreditPay(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
         initComponents();
         initializeDialog();
+        loadCustomerData(); // Load customer data even without customerId
+        customerCombo.addActionListener(e -> updateRemainingAmountForSelectedCustomer());
     }
 
     public AddCreditPay(java.awt.Frame parent, boolean modal, int customerId) {
@@ -62,15 +61,8 @@ public class AddCreditPay extends javax.swing.JDialog {
         this.customerId = customerId;
         initComponents();
         initializeDialog();
-        loadCustomerData();
-    }
-
-    public AddCreditPay(java.awt.Frame parent, boolean modal, Integer customerId) {
-        super(parent, modal);
-        this.customerId = customerId;
-        initComponents();
-        initializeDialog();
-        loadCustomerData();
+        loadCustomerData(); // Load customer data with customerId
+        customerCombo.addActionListener(e -> updateRemainingAmountForSelectedCustomer());
     }
 
     public double getPaidAmount() {
@@ -90,6 +82,9 @@ public class AddCreditPay extends javax.swing.JDialog {
         setupTooltips();
         setupFocusTraversal();
 
+        // Auto-generate barcode on open
+        autoGenerateBarcode();
+
         customerCombo.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 customerCombo.showPopup();
@@ -102,6 +97,27 @@ public class AddCreditPay extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
+        // Add F3 and F4 shortcuts for barcode operations
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                generateBarcode();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
+        getRootPane().registerKeyboardAction(
+                new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                printBarcode();
+            }
+        },
+                KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
         getRootPane().registerKeyboardAction(
                 evt -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
@@ -111,17 +127,64 @@ public class AddCreditPay extends javax.swing.JDialog {
         customerCombo.requestFocusInWindow();
     }
 
+    // New method to update remaining amount when customer is selected
+    private void updateRemainingAmountForSelectedCustomer() {
+        if (customerCombo.getSelectedIndex() > 0) {
+            updateSelectedCustomerRemainingAmount();
+        }
+    }
+
+    private void autoGenerateBarcode() {
+        try {
+            // Get the last credit payment barcode from database
+            String sql = "SELECT credit_pay_barcode FROM credit_pay WHERE credit_pay_barcode LIKE 'CRDPAY%' ORDER BY LENGTH(credit_pay_barcode), credit_pay_barcode DESC LIMIT 1";
+            
+            DB.executeQuerySafe(sql, rs -> {
+                int lastNumber = 0;
+                if (rs.next()) {
+                    String lastBarcode = rs.getString("credit_pay_barcode");
+                    if (lastBarcode != null && lastBarcode.startsWith("CRDPAY")) {
+                        try {
+                            // Extract the number part (everything after "CRDPAY")
+                            String numberPart = lastBarcode.substring(6);
+                            lastNumber = Integer.parseInt(numberPart);
+                        } catch (NumberFormatException e) {
+                            lastNumber = 0;
+                        }
+                    }
+                }
+
+                // Generate next barcode with proper format: CRDPAY0000001
+                String nextBarcode = String.format("CRDPAY%07d", lastNumber + 1);
+                barcodeField.setText(nextBarcode);
+
+                // Make barcode field editable
+                barcodeField.setEditable(true);
+                return null;
+            });
+
+        } catch (Exception e) {
+            // If error, generate starting barcode
+            String barcode = "CRDPAY0000001";
+            barcodeField.setText(barcode);
+            barcodeField.setEditable(true);
+        }
+    }
+
     private void setupKeyboardNavigation() {
         customerCombo.addKeyListener(new java.awt.event.KeyAdapter() {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    updateRemainingAmountForSelectedCustomer(); // Update when navigating away
                     paymentDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    updateRemainingAmountForSelectedCustomer(); // Update when navigating away
                     paymentDate.getDateEditor().getUiComponent().requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    updateRemainingAmountForSelectedCustomer(); // Update when navigating away
                     saveBtn.requestFocus();
                     evt.consume();
                 } else {
@@ -156,6 +219,27 @@ public class AddCreditPay extends javax.swing.JDialog {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 if (evt.getKeyCode() == KeyEvent.VK_ENTER || evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    barcodeField.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
+                    paymentDate.getDateEditor().getUiComponent().requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    barcodeField.requestFocusInWindow();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
+                    paymentDate.getDateEditor().getUiComponent().requestFocus();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, amountField);
+                }
+            }
+        });
+
+        barcodeField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
                     if (areAllRequiredFieldsFilled()) {
                         saveBtn.requestFocusInWindow();
                     } else {
@@ -163,7 +247,10 @@ public class AddCreditPay extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    paymentDate.getDateEditor().getUiComponent().requestFocus();
+                    amountField.requestFocus();
+                    evt.consume();
+                } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
+                    cancelBtn.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_RIGHT) {
                     if (areAllRequiredFieldsFilled()) {
@@ -173,10 +260,34 @@ public class AddCreditPay extends javax.swing.JDialog {
                     }
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_LEFT) {
-                    paymentDate.getDateEditor().getUiComponent().requestFocus();
+                    amountField.requestFocus();
                     evt.consume();
                 } else {
-                    handleArrowNavigation(evt, amountField);
+                    handleArrowNavigation(evt, barcodeField);
+                }
+            }
+        });
+
+        genarateBarecode.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    generateBarcode();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, genarateBarecode);
+                }
+            }
+        });
+
+        printBarcode.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+                    printBarcode();
+                    evt.consume();
+                } else {
+                    handleArrowNavigation(evt, printBarcode);
                 }
             }
         });
@@ -188,7 +299,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     saveCreditPay();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    amountField.requestFocus();
+                    barcodeField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     clearFormBtn.requestFocus();
@@ -212,7 +323,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     clearForm();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    amountField.requestFocus();
+                    barcodeField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     cancelBtn.requestFocus();
@@ -236,7 +347,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                     dispose();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_UP) {
-                    amountField.requestFocus();
+                    barcodeField.requestFocus();
                     evt.consume();
                 } else if (evt.getKeyCode() == KeyEvent.VK_DOWN) {
                     saveBtn.requestFocus();
@@ -281,6 +392,12 @@ public class AddCreditPay extends javax.swing.JDialog {
         } else if (source == paymentDate.getDateEditor().getUiComponent()) {
             amountField.requestFocusInWindow();
         } else if (source == amountField) {
+            barcodeField.requestFocusInWindow();
+        } else if (source == barcodeField) {
+            genarateBarecode.requestFocusInWindow();
+        } else if (source == genarateBarecode) {
+            printBarcode.requestFocusInWindow();
+        } else if (source == printBarcode) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
             clearFormBtn.requestFocusInWindow();
@@ -298,8 +415,14 @@ public class AddCreditPay extends javax.swing.JDialog {
             customerCombo.requestFocusInWindow();
         } else if (source == amountField) {
             paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == cancelBtn) {
+        } else if (source == barcodeField) {
             amountField.requestFocusInWindow();
+        } else if (source == genarateBarecode) {
+            barcodeField.requestFocusInWindow();
+        } else if (source == printBarcode) {
+            genarateBarecode.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            printBarcode.requestFocusInWindow();
         } else if (source == clearFormBtn) {
             cancelBtn.requestFocusInWindow();
         } else if (source == saveBtn) {
@@ -313,6 +436,12 @@ public class AddCreditPay extends javax.swing.JDialog {
         } else if (source == paymentDate.getDateEditor().getUiComponent()) {
             amountField.requestFocusInWindow();
         } else if (source == amountField) {
+            barcodeField.requestFocusInWindow();
+        } else if (source == barcodeField) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == genarateBarecode) {
+            cancelBtn.requestFocusInWindow();
+        } else if (source == printBarcode) {
             cancelBtn.requestFocusInWindow();
         } else if (source == cancelBtn) {
             clearFormBtn.requestFocusInWindow();
@@ -330,10 +459,16 @@ public class AddCreditPay extends javax.swing.JDialog {
             customerCombo.requestFocusInWindow();
         } else if (source == amountField) {
             paymentDate.getDateEditor().getUiComponent().requestFocusInWindow();
-        } else if (source == cancelBtn) {
+        } else if (source == barcodeField) {
             amountField.requestFocusInWindow();
+        } else if (source == genarateBarecode) {
+            barcodeField.requestFocusInWindow();
+        } else if (source == printBarcode) {
+            barcodeField.requestFocusInWindow();
+        } else if (source == cancelBtn) {
+            barcodeField.requestFocusInWindow();
         } else if (source == clearFormBtn) {
-            cancelBtn.requestFocusInWindow();
+            barcodeField.requestFocusInWindow();
         } else if (source == saveBtn) {
             clearFormBtn.requestFocusInWindow();
         }
@@ -363,9 +498,30 @@ public class AddCreditPay extends javax.swing.JDialog {
         cancelIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
         cancelBtn.setIcon(cancelIcon);
 
+        // Setup barcode buttons
+        setupBarcodeButton(genarateBarecode);
+        setupBarcodeButton(printBarcode);
+
+        FlatSVGIcon barcodeIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 20, 20);
+        barcodeIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+        genarateBarecode.setIcon(barcodeIcon);
+
+        FlatSVGIcon printerIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 20, 20);
+        printerIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+        printBarcode.setIcon(printerIcon);
+
         setupButtonMouseListeners();
         setupButtonFocusListeners();
         setupSaveButton();
+    }
+
+    private void setupBarcodeButton(JButton button) {
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(false);
+        button.setFocusPainted(false);
+        button.setOpaque(false);
+        button.setFocusable(true);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
 
     private void setupSaveButton() {
@@ -476,6 +632,33 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
         });
 
+        genarateBarecode.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 20, 20);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                genarateBarecode.setIcon(hoverIcon);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 20, 20);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                genarateBarecode.setIcon(normalIcon);
+            }
+        });
+
+        printBarcode.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon hoverIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 20, 20);
+                hoverIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                printBarcode.setIcon(hoverIcon);
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 20, 20);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                printBarcode.setIcon(normalIcon);
+            }
+        });
     }
 
     private void setupButtonFocusListeners() {
@@ -533,16 +716,144 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
         });
 
+        genarateBarecode.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 20, 20);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                genarateBarecode.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/barcode.svg", 20, 20);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                genarateBarecode.setIcon(normalIcon);
+            }
+        });
+
+        printBarcode.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon focusedIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 20, 20);
+                focusedIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#0893B0")));
+                printBarcode.setIcon(focusedIcon);
+            }
+
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                FlatSVGIcon normalIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 20, 20);
+                normalIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.decode("#999999")));
+                printBarcode.setIcon(normalIcon);
+            }
+        });
     }
 
     private void setupTooltips() {
         customerCombo.setToolTipText("<html>Use DOWN arrow to open dropdown, ENTER to select and move to next field<br>Press <b>F2</b> to refresh customer list</html>");
         paymentDate.setToolTipText("<html>Type date in format dd/mm/yyyy then press ENTER<br>You can also type numbers: 01012024 for 01/01/2024</html>");
-        amountField.setToolTipText("Type payment amount and press ENTER to move to next field");
-
+        amountField.setToolTipText("Type payment amount and press ENTER to move to barcode field");
+        barcodeField.setToolTipText("<html>Type barcode and press ENTER to move to buttons<br>Press <b>F3</b> to generate barcode<br>Press <b>F4</b> to print barcode<br>Barcode is editable</html>");
+        genarateBarecode.setToolTipText("Click to generate barcode (or press F3)");
+        printBarcode.setToolTipText("Click to print barcode (or press F4)");
         saveBtn.setToolTipText("Click to save credit payment (or press ENTER when focused)");
         clearFormBtn.setToolTipText("Click to clear form (or press ENTER when focused)");
         cancelBtn.setToolTipText("Click to cancel (or press ESC)");
+    }
+
+    private void generateBarcode() {
+        try {
+            // Get the last credit payment barcode from database
+            String sql = "SELECT credit_pay_barcode FROM credit_pay WHERE credit_pay_barcode LIKE 'CRDPAY%' ORDER BY LENGTH(credit_pay_barcode), credit_pay_barcode DESC LIMIT 1";
+            
+            DB.executeQuerySafe(sql, rs -> {
+                int lastNumber = 0;
+                if (rs.next()) {
+                    String lastBarcode = rs.getString("credit_pay_barcode");
+                    if (lastBarcode != null && lastBarcode.startsWith("CRDPAY")) {
+                        try {
+                            // Extract the number part (everything after "CRDPAY")
+                            String numberPart = lastBarcode.substring(6);
+                            lastNumber = Integer.parseInt(numberPart);
+                        } catch (NumberFormatException e) {
+                            lastNumber = 0;
+                        }
+                    }
+                }
+
+                // Generate next barcode with proper format: CRDPAY0000001
+                String nextBarcode = String.format("CRDPAY%07d", lastNumber + 1);
+                barcodeField.setText(nextBarcode);
+
+                // Make barcode field editable
+                barcodeField.setEditable(true);
+
+                Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT,
+                        "Barcode generated: " + nextBarcode);
+                return null;
+            });
+
+        } catch (Exception e) {
+            // If error, generate starting barcode
+            String nextBarcode = String.format("CRDPAY%07d", 1);
+            barcodeField.setText(nextBarcode);
+            barcodeField.setEditable(true);
+
+            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT,
+                    "Barcode generated: " + nextBarcode);
+        }
+    }
+
+    private void printBarcode() {
+        String barcodeText = barcodeField.getText().trim();
+
+        if (barcodeText.isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                    "Please generate or enter a barcode first");
+            barcodeField.requestFocus();
+            return;
+        }
+
+        try {
+            PrinterJob printerJob = PrinterJob.getPrinterJob();
+            printerJob.setJobName("Credit Payment Barcode - " + barcodeText);
+
+            printerJob.setPrintable(new Printable() {
+                @Override
+                public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
+                    if (pageIndex > 0) {
+                        return Printable.NO_SUCH_PAGE;
+                    }
+
+                    Graphics2D g2d = (Graphics2D) graphics;
+                    g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+
+                    // Set up fonts
+                    Font barcodeFont = new Font("Monospaced", Font.BOLD, 24);
+                    Font labelFont = new Font("Nunito SemiBold", Font.PLAIN, 12);
+
+                    // Draw barcode number
+                    g2d.setFont(barcodeFont);
+                    g2d.drawString(barcodeText, 50, 100);
+
+                    // Draw label
+                    g2d.setFont(labelFont);
+                    g2d.drawString("Credit Payment Receipt", 50, 130);
+                    g2d.drawString("Generated by POS System", 50, 145);
+
+                    // Draw current date
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    g2d.drawString("Date: " + dateFormat.format(new Date()), 50, 160);
+
+                    return Printable.PAGE_EXISTS;
+                }
+            });
+
+            if (printerJob.printDialog()) {
+                printerJob.print();
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Barcode printed successfully!");
+            }
+        } catch (PrinterException e) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Printing error: " + e.getMessage());
+        }
     }
 
     private void loadCustomerCombo() {
@@ -552,69 +863,79 @@ public class AddCreditPay extends javax.swing.JDialog {
             customerDiscountTypeMap.clear();
             customerRemainingAmountMap.clear();
 
-            // Fixed SQL query with proper joins and calculations
-            String sql = "SELECT cc.customer_id, cc.customer_name, "
-                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
-                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, "
-                    + "d.discount, dt.discount_type "
+            // FIXED: Correct SQL query that properly calculates remaining amount
+            String sql = "SELECT "
+                    + "    cc.customer_id, "
+                    + "    cc.customer_name, "
+                    + "    COALESCE((SELECT SUM(credit_amout) FROM credit WHERE credit_customer_id = cc.customer_id), 0) as total_credit, "
+                    + "    COALESCE((SELECT SUM(credit_pay_amount) FROM credit_pay WHERE credit_customer_id = cc.customer_id), 0) as total_paid "
                     + "FROM credit_customer cc "
-                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
-                    + "LEFT JOIN credit_discount cd ON cc.customer_id = cd.credit_id "
-                    + "LEFT JOIN discount d ON cd.discount_id = d.discount_id "
-                    + "LEFT JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
                     + "WHERE cc.status_id = 1 "
-                    + "GROUP BY cc.customer_id, cc.customer_name, d.discount, dt.discount_type "
-                    + "HAVING remaining_amount > 0 "
                     + "ORDER BY cc.customer_name";
 
-            ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> customers = new Vector<>();
-            customers.add("Select Customer");
+            DB.executeQuerySafe(sql, rs -> {
+                Vector<String> customers = new Vector<>();
+                customers.add("Select Customer");
 
-            int count = 0;
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double remaining = rs.getDouble("remaining_amount");
-                double discount = rs.getDouble("discount");
-                String discountType = rs.getString("discount_type");
+                while (rs.next()) {
+                    int customerId = rs.getInt("customer_id");
+                    String customerName = rs.getString("customer_name");
+                    double totalCredit = rs.getDouble("total_credit");
+                    double totalPaid = rs.getDouble("total_paid");
+                    double remaining = totalCredit - totalPaid;
 
-                String displayText;
-                if (discountType != null && !rs.wasNull()) {
-                    if ("percentage".equals(discountType)) {
-                        double discountedAmount = remaining - (remaining * discount / 100);
-                        displayText = String.format("%s - Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
-                                customerName, remaining, discount, discountedAmount);
-                    } else {
-                        double discountedAmount = remaining - discount;
-                        if (discountedAmount < 0) {
-                            discountedAmount = 0;
-                        }
-                        displayText = String.format("%s - Due: %.2f (Disc: Rs.%.2f -> Pay: %.2f)",
-                                customerName, remaining, discount, discountedAmount);
+                    if (remaining > 0) {
+                        String displayText = String.format("%s - Due: %.2f", customerName, remaining);
+                        customers.add(displayText);
+                        customerIdMap.put(displayText, customerId);
+                        customerRemainingAmountMap.put(displayText, remaining);
                     }
-                    // Store discount info for later use
-                    customerDiscountMap.put(displayText, discount);
-                    customerDiscountTypeMap.put(displayText, discountType);
-                } else {
-                    displayText = String.format("%s - Due: %.2f", customerName, remaining);
                 }
 
-                customers.add(displayText);
-                customerIdMap.put(displayText, customerId);
-                customerRemainingAmountMap.put(displayText, remaining);
-                count++;
-            }
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
+                customerCombo.setModel(dcm);
 
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
-            customerCombo.setModel(dcm);
+                // Debug the maps
+                debugCustomerMaps();
+
+                // If customerId was provided in constructor, select that customer
+                if (AddCreditPay.this.customerId != null && AddCreditPay.this.customerId > 0) {
+                    selectCustomerById(AddCreditPay.this.customerId);
+                }
+                return null;
+            });
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
+        }
+    }
+
+    private void debugCustomerMaps() {
+    }
+
+    private void selectCustomerById(int customerId) {
+        try {
+            String sql = "SELECT customer_name FROM credit_customer WHERE customer_id = ?";
+            
+            DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    String customerName = rs.getString("customer_name");
+
+                    // Find and select the customer in combo box
+                    for (int i = 0; i < customerCombo.getItemCount(); i++) {
+                        String item = customerCombo.getItemAt(i);
+                        if (item.startsWith(customerName + " - Due: ")) {
+                            customerCombo.setSelectedIndex(i);
+                            updateSelectedCustomerRemainingAmount();
+                            break;
+                        }
+                    }
+                }
+                return null;
+            }, customerId);
+
+        } catch (Exception e) {
         }
     }
 
@@ -627,94 +948,69 @@ public class AddCreditPay extends javax.swing.JDialog {
                     + "WHERE cd.credit_id = ? "
                     + "ORDER BY d.discount_id DESC LIMIT 1";
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
+            DB.executeQuerySafe(sql, rs -> {
+                hasDiscount = false;
+                discountAmount = 0.0;
+                discountPercentage = 0.0;
 
-            hasDiscount = false;
-            discountAmount = 0.0;
-            discountPercentage = 0.0;
+                if (rs.next()) {
+                    double discountValue = rs.getDouble("discount");
+                    String discountType = rs.getString("discount_type");
+                    hasDiscount = true;
 
-            double discountValue = rs.getDouble("discount");
-            String discountType = rs.getString("discount_type");
-            hasDiscount = true;
+                    if ("percentage".equals(discountType)) {
+                        discountPercentage = discountValue;
+                        discountAmount = originalRemainingAmount * (discountPercentage / 100);
+                    } else if ("fixed amount".equals(discountType)) {
+                        discountAmount = discountValue;
+                        discountPercentage = (discountAmount / originalRemainingAmount) * 100;
+                    }
+                }
+                return null;
+            }, customerId);
 
-            if ("percentage".equals(discountType)) {
-                discountPercentage = discountValue;
-                discountAmount = originalRemainingAmount * (discountPercentage / 100);
-            } else if ("fixed amount".equals(discountType)) {
-                discountAmount = discountValue;
-                discountPercentage = (discountAmount / originalRemainingAmount) * 100;
-            }
-
-            updateDiscountLabel();
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error loading discount: " + e.getMessage());
         }
-    }
-
-    private void updateDiscountLabel() {
-        String discountText = String.format("Discount: %.2f%% (Rs. %.2f) | Payable: Rs. %.2f",
-                discountPercentage, discountAmount, remainingAmount);
     }
 
     private void loadCustomerInfo() {
         try {
-            // Fixed SQL query using proper joins
-            String sql = "SELECT cc.customer_id, cc.customer_name, "
-                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
-                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount "
+            // Fixed SQL query using COALESCE to handle null values
+            String sql = "SELECT "
+                    + "    cc.customer_id, "
+                    + "    cc.customer_name, "
+                    + "    COALESCE((SELECT SUM(credit_amout) FROM credit WHERE credit_customer_id = cc.customer_id), 0) as total_credit, "
+                    + "    COALESCE((SELECT SUM(credit_pay_amount) FROM credit_pay WHERE credit_customer_id = cc.customer_id), 0) as total_paid "
                     + "FROM credit_customer cc "
-                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
-                    + "WHERE cc.customer_id = ? "
-                    + "GROUP BY cc.customer_id, cc.customer_name";
+                    + "WHERE cc.customer_id = ?";
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
+            DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    String customerName = rs.getString("customer_name");
+                    double totalCredit = rs.getDouble("total_credit");
+                    double totalPaid = rs.getDouble("total_paid");
+                    originalRemainingAmount = totalCredit - totalPaid;
+                    remainingAmount = originalRemainingAmount;
 
-            if (rs.next()) {
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                originalRemainingAmount = rs.getDouble("remaining_amount");
-                remainingAmount = originalRemainingAmount;
+                    // Load discount for customer
+                    loadCustomerDiscount(customerId);
 
-                String displayText = String.format("%s - Due: %.2f", customerName, originalRemainingAmount);
-
-                // Find and select the customer in combo box
-                for (int i = 0; i < customerCombo.getItemCount(); i++) {
-                    String item = customerCombo.getItemAt(i);
-                    if (item.startsWith(customerName + " - Due: ")) {
-                        customerCombo.setSelectedIndex(i);
-                        break;
+                    // Apply discount to remaining amount
+                    if (hasDiscount) {
+                        remainingAmount = originalRemainingAmount - discountAmount;
+                        if (remainingAmount < 0) {
+                            remainingAmount = 0;
+                        }
                     }
+
+                    updateRemainingAmountLabel();
+
+                    // Select customer in combo box
+                    selectCustomerById(customerId);
                 }
+                return null;
+            }, customerId);
 
-                // Load discount for customer
-                loadCustomerDiscount(customerId);
-
-                // Apply discount to remaining amount
-                if (hasDiscount) {
-                    remainingAmount = originalRemainingAmount - discountAmount;
-                    if (remainingAmount < 0) {
-                        remainingAmount = 0;
-                    }
-                }
-
-                updateRemainingAmountLabel();
-            }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customer info: " + e.getMessage());
@@ -722,7 +1018,7 @@ public class AddCreditPay extends javax.swing.JDialog {
     }
 
     private void updateRemainingAmountLabel() {
-        String tooltipText = "Type payment amount (max: " + remainingAmount + ") and press ENTER to move to next field";
+        String tooltipText = "Type payment amount (max: " + remainingAmount + ") and press ENTER to move to barcode field";
         if (hasDiscount) {
             tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
         }
@@ -731,6 +1027,7 @@ public class AddCreditPay extends javax.swing.JDialog {
 
     private void updateSelectedCustomerRemainingAmount() {
         String selected = (String) customerCombo.getSelectedItem();
+
         if (selected == null || selected.equals("Select Customer")) {
             remainingAmount = 0.0;
             originalRemainingAmount = 0.0;
@@ -739,41 +1036,67 @@ public class AddCreditPay extends javax.swing.JDialog {
             return;
         }
 
-        // Get original remaining amount from map
-        originalRemainingAmount = customerRemainingAmountMap.getOrDefault(selected, 0.0);
-        remainingAmount = originalRemainingAmount;
+        // Get customer ID from map
+        Integer customerId = customerIdMap.get(selected);
 
-        // Check if this customer has discount from our maps
-        if (customerDiscountMap.containsKey(selected) && customerDiscountTypeMap.containsKey(selected)) {
-            hasDiscount = true;
-            double discountValue = customerDiscountMap.get(selected);
-            String discountType = customerDiscountTypeMap.get(selected);
-
-            if ("percentage".equals(discountType)) {
-                discountPercentage = discountValue;
-                discountAmount = originalRemainingAmount * (discountPercentage / 100);
-            } else {
-                discountAmount = discountValue;
-                discountPercentage = (discountAmount / originalRemainingAmount) * 100;
-            }
-
-            // Apply discount to remaining amount
-            remainingAmount = originalRemainingAmount - discountAmount;
-            if (remainingAmount < 0) {
-                remainingAmount = 0;
-            }
-        } else {
+        if (customerId == null) {
+            remainingAmount = 0.0;
+            originalRemainingAmount = 0.0;
             hasDiscount = false;
-            discountAmount = 0.0;
-            discountPercentage = 0.0;
+            updateRemainingAmountLabel();
+            return;
         }
 
-        updateRemainingAmountLabel();
-        updateDiscountLabel();
+        // Get remaining amount directly from database to ensure accuracy
+        try {
+            String sql = "SELECT "
+                    + "    COALESCE((SELECT SUM(credit_amout) FROM credit WHERE credit_customer_id = ?), 0) - "
+                    + "    COALESCE((SELECT SUM(credit_pay_amount) FROM credit_pay WHERE credit_customer_id = ?), 0) as remaining_amount";
+
+            DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    originalRemainingAmount = rs.getDouble("remaining_amount");
+                    remainingAmount = originalRemainingAmount;
+
+                    // Check if this customer has discount
+                    loadCustomerDiscount(customerId);
+
+                    // Apply discount to remaining amount
+                    if (hasDiscount) {
+                        remainingAmount = originalRemainingAmount - discountAmount;
+                        if (remainingAmount < 0) {
+                            remainingAmount = 0;
+                        }
+                    }
+                } else {
+                    originalRemainingAmount = 0.0;
+                    remainingAmount = 0.0;
+                    hasDiscount = false;
+                }
+
+                updateRemainingAmountLabel();
+                return null;
+            }, customerId, customerId);
+
+        } catch (Exception e) {
+            // If database query fails, fall back to the cached value
+            originalRemainingAmount = customerRemainingAmountMap.getOrDefault(selected, 0.0);
+            remainingAmount = originalRemainingAmount;
+            hasDiscount = false;
+
+            updateRemainingAmountLabel();
+        }
     }
 
     private void loadCustomerData() {
-        loadCustomerInfo();
+        customerDataLoaded = true;
+        if (customerId != null && customerId > 0) {
+            loadCustomerInfo();
+        } else {
+            // When opening without customerId, ensure the combo box is loaded
+            // and set up the action listener for customer selection
+            loadCustomerCombo();
+        }
     }
 
     private int getSelectedCustomerId() {
@@ -786,29 +1109,12 @@ public class AddCreditPay extends javax.swing.JDialog {
         return customerId != null ? customerId : -1;
     }
 
-    public String[] getCustomerDetails(int customerId) {
-        String[] data = new String[2]; // [0] = name, [1] = nic
-
-        String sql = "SELECT customer_name, customer_nic FROM credit_customer WHERE customer_id = ?";
-
-        try (Connection conn = MySQL.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
-
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                data[0] = rs.getString("customer_name");
-                data[1] = rs.getString("customer_nic");
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
+    private boolean validateInputs() {
+        // Ensure remaining amount is updated if customer is selected
+        if (customerCombo.getSelectedIndex() > 0) {
+            updateSelectedCustomerRemainingAmount();
         }
 
-        return data;
-    }
-
-    private boolean validateInputs() {
         if (customerCombo.getSelectedIndex() == 0) {
             Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please select a customer");
             customerCombo.requestFocus();
@@ -853,6 +1159,21 @@ public class AddCreditPay extends javax.swing.JDialog {
             return false;
         }
 
+        // Validate barcode
+        String barcodeText = barcodeField.getText().trim();
+        if (barcodeText.isEmpty()) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Please enter or generate barcode");
+            barcodeField.requestFocus();
+            return false;
+        }
+
+        // Validate barcode format - should start with CRDPAY and have 7 digits
+        if (!barcodeText.matches("CRDPAY\\d{7}")) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Barcode must be in format: CRDPAY followed by 7 digits (e.g., CRDPAY0000001)");
+            barcodeField.requestFocus();
+            return false;
+        }
+
         return true;
     }
 
@@ -863,235 +1184,171 @@ public class AddCreditPay extends javax.swing.JDialog {
 
         isSaving = true;
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-
-        try {
-            if (!validateInputs()) {
-                isSaving = false;
-                return;
-            }
-
-            int selectedCustomerId = getSelectedCustomerId();
-            if (selectedCustomerId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Invalid customer selected");
-                isSaving = false;
-                return;
-            }
-
-            SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String paymentDateStr = datetimeFormat.format(paymentDate.getDate());
-
-            double amount = Double.parseDouble(amountField.getText().trim());
-
-            conn = MySQL.getConnection();
+        try (Connection conn = DB.getConnection()) {
             conn.setAutoCommit(false);
 
-            // Insert credit payment
-            String query = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) VALUES (?, ?, ?)";
-            pst = conn.prepareStatement(query);
-            pst.setString(1, paymentDateStr);
-            pst.setDouble(2, amount);
-            pst.setInt(3, selectedCustomerId);
+            try {
+                if (!validateInputs()) {
+                    conn.rollback();
+                    isSaving = false;
+                    return;
+                }
 
-            int rowsAffected = pst.executeUpdate();
+                int selectedCustomerId = getSelectedCustomerId();
+                if (selectedCustomerId == -1) {
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
+                    conn.rollback();
+                    isSaving = false;
+                    return;
+                }
 
-            if (rowsAffected > 0) {
+                SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                String paymentDateStr = datetimeFormat.format(paymentDate.getDate());
 
-                this.paidAmount = amount;
+                double amount = Double.parseDouble(amountField.getText().trim());
+                String barcode = barcodeField.getText().trim();
 
-                // Calculate remaining
-                String checkDueSql
-                        = "SELECT "
-                        + "(SELECT COALESCE(SUM(credit_amout), 0) FROM credit WHERE credit_customer_id = ?) - "
-                        + "(SELECT COALESCE(SUM(credit_pay_amount), 0) FROM credit_pay WHERE credit_customer_id = ?) AS remaining_amount";
+                // Check if barcode already exists
+                String checkBarcodeSql = "SELECT COUNT(*) FROM credit_pay WHERE credit_pay_barcode = ?";
+                try (PreparedStatement pstCheckBarcode = conn.prepareStatement(checkBarcodeSql)) {
+                    pstCheckBarcode.setString(1, barcode);
+                    try (ResultSet rsBarcode = pstCheckBarcode.executeQuery()) {
+                        if (rsBarcode.next() && rsBarcode.getInt(1) > 0) {
+                            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                                    "Barcode already exists. Please generate a new one.");
+                            barcodeField.requestFocus();
+                            barcodeField.selectAll();
 
-                PreparedStatement pstCheck = conn.prepareStatement(checkDueSql);
-                pstCheck.setInt(1, selectedCustomerId);
-                pstCheck.setInt(2, selectedCustomerId);
-                ResultSet rs = pstCheck.executeQuery();
-
-                if (rs.next()) {
-                    double newRemaining = rs.getDouble("remaining_amount");
-
-                    if (newRemaining <= 0) {
-                        String updateStatusSql = "UPDATE credit_customer SET status_id = 2 WHERE customer_id = ?";
-                        PreparedStatement pstUpdate = conn.prepareStatement(updateStatusSql);
-                        pstUpdate.setInt(1, selectedCustomerId);
-                        pstUpdate.executeUpdate();
-                        pstUpdate.close();
+                            conn.rollback();
+                            isSaving = false;
+                            return;
+                        }
                     }
                 }
 
-                rs.close();
-                pstCheck.close();
+                // Insert into credit_pay table with customer_id and barcode
+                String query = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_pay_barcode, credit_customer_id) VALUES (?, ?, ?, ?)";
 
-                createCreditPaymentNotification(selectedCustomerId, amount, conn);
+                try (PreparedStatement pst = conn.prepareStatement(query)) {
+                    pst.setString(1, paymentDateStr);
+                    pst.setDouble(2, amount);
+                    pst.setString(3, barcode);
+                    pst.setInt(4, selectedCustomerId);
 
-                conn.commit();
+                    int rowsAffected = pst.executeUpdate();
 
-                // 🔥🔥 OPTION B – PRINT RECEIPT AFTER SUCCESSFUL COMMIT 🔥🔥
-                printReceiptForCreditPayment(selectedCustomerId, amount);
+                    if (rowsAffected > 0) {
+                        this.paidAmount = amount;
 
-                // Final success popup
-                String successMessage = String.format("Credit payment added successfully! Amount: Rs. %.2f", amount);
-                if (hasDiscount) {
-                    successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
+                        // Check if customer still has due amount using proper calculation
+                        String checkDueSql = "SELECT "
+                                + "COALESCE((SELECT SUM(credit_amout) FROM credit WHERE credit_customer_id = ?), 0) - "
+                                + "COALESCE((SELECT SUM(credit_pay_amount) FROM credit_pay WHERE credit_customer_id = ?), 0) as remaining_amount";
+
+                        try (PreparedStatement pstCheck = conn.prepareStatement(checkDueSql)) {
+                            pstCheck.setInt(1, selectedCustomerId);
+                            pstCheck.setInt(2, selectedCustomerId);
+                            try (ResultSet rs = pstCheck.executeQuery()) {
+                                if (rs.next()) {
+                                    double newRemaining = rs.getDouble("remaining_amount");
+                                    // Update customer status if no due amount
+                                    if (newRemaining <= 0) {
+                                        String updateStatusSql = "UPDATE credit_customer SET status_id = 2 WHERE customer_id = ?";
+                                        try (PreparedStatement pstUpdate = conn.prepareStatement(updateStatusSql)) {
+                                            pstUpdate.setInt(1, selectedCustomerId);
+                                            pstUpdate.executeUpdate();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        createCreditPaymentNotification(selectedCustomerId, amount, barcode, conn);
+
+                        conn.commit();
+
+                        String successMessage = String.format("Credit payment added successfully! Amount: Rs. %.2f | Barcode: %s", amount, barcode);
+                        if (hasDiscount) {
+                            successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
+                        }
+                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+                        dispose();
+                    } else {
+                        conn.rollback();
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add credit payment!");
+                    }
                 }
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
 
-                dispose();
-
-            } else {
+            } catch (Exception e) {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to add credit payment!");
+                throw e;
             }
 
         } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-            }
-
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error saving credit payment: " + e.getMessage());
-
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit payment: " + e.getMessage());
         } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-            }
             isSaving = false;
         }
     }
 
-    private void printReceiptForCreditPayment(int customerId, double paidAmount) {
-        String[] details = getCustomerDetails(customerId);
-        String customerName = details[0];
-        String customerNIC = details[1];
-
-        String openingHours = "OPEN DAILY 8 AM to 11 PM";
-
-        try {
-            Map<String, Object> params = new HashMap<>();
-
-            params.put("B_NAME", "Avinam Global POS");
-            params.put("B_DETAILS", "Matale, Sri Lanka");
-            params.put("CREDIT_PAYMENT_INVOICE_NO", "CRDPAY0000524");
-            params.put("STAFF", "INAMULLA");
-            params.put("CUSTOMER", customerName);
-            params.put("PREV_BALANCE", paidAmount);
-            params.put("PAY_RECEIVED", paidAmount);
-            params.put("DISC_ALLOWED", paidAmount);
-            params.put("NEW_OUTSTANDING", paidAmount);
-            params.put("PAYMENT_TYPE", "CASH");
-
-            System.out.println("=== CREDIT PAYMENT RECEIPT ===");
-            params.put("CREDIT_CUSTOMER_ID", customerNIC);
-            params.put("OPENING_HOURS", openingHours);
-            System.out.println("Paid Amount: " + paidAmount);
-            System.out.println("================================");
-
-            JasperPrint jp = JasperFillManager.fillReport(
-                    getClass().getResourceAsStream("/lk/com/pos/reports/credit_pay_bill.jasper"),
-                    params,
-                    new JREmptyDataSource()
-            );
-
-            JasperPrintManager.printReport(jp, true);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Failed to print credit payment receipt: " + e.getMessage(),
-                    "Print Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void createCreditPaymentNotification(int customerId, double amount, Connection conn) {
-        PreparedStatement pstMassage = null;
-        PreparedStatement pstNotification = null;
-        PreparedStatement pstCustomerInfo = null;
-
+    private void createCreditPaymentNotification(int customerId, double amount, String barcode, Connection conn) {
         try {
             String customerInfoSql = "SELECT customer_name FROM credit_customer WHERE customer_id = ?";
-            pstCustomerInfo = conn.prepareStatement(customerInfoSql);
-            pstCustomerInfo.setInt(1, customerId);
-            ResultSet rs = pstCustomerInfo.executeQuery();
+            try (PreparedStatement pstCustomerInfo = conn.prepareStatement(customerInfoSql)) {
+                pstCustomerInfo.setInt(1, customerId);
+                try (ResultSet rs = pstCustomerInfo.executeQuery()) {
+                    String customerName = "Unknown Customer";
+                    if (rs.next()) {
+                        customerName = rs.getString("customer_name");
+                    }
 
-            String customerName = "Unknown Customer";
-            if (rs.next()) {
-                customerName = rs.getString("customer_name");
-            }
+                    String messageText = String.format("Credit payment received from %s: Rs.%,.2f (Barcode: %s)", customerName, amount, barcode);
+                    if (hasDiscount) {
+                        messageText += String.format(" (Discount applied: Rs.%,.2f)", discountAmount);
+                    }
 
-            String messageText = String.format("Credit payment received from %s: Rs.%,.2f", customerName, amount);
-            if (hasDiscount) {
-                messageText += String.format(" (Discount applied: Rs.%,.2f)", discountAmount);
-            }
+                    String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+                    try (PreparedStatement pstMassage = conn.prepareStatement(checkSql)) {
+                        pstMassage.setString(1, messageText);
+                        try (ResultSet rsMassage = pstMassage.executeQuery()) {
+                            int massageId;
+                            if (rsMassage.next() && rsMassage.getInt(1) > 0) {
+                                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                                try (PreparedStatement pstGetMassage = conn.prepareStatement(getSql)) {
+                                    pstGetMassage.setString(1, messageText);
+                                    try (ResultSet rsGet = pstGetMassage.executeQuery()) {
+                                        rsGet.next();
+                                        massageId = rsGet.getInt(1);
+                                    }
+                                }
+                            } else {
+                                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                                try (PreparedStatement pstInsertMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                                    pstInsertMassage.setString(1, messageText);
+                                    pstInsertMassage.executeUpdate();
 
-            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            rs = pstMassage.executeQuery();
+                                    try (ResultSet generatedKeys = pstInsertMassage.getGeneratedKeys()) {
+                                        if (generatedKeys.next()) {
+                                            massageId = generatedKeys.getInt(1);
+                                        } else {
+                                            throw new Exception("Failed to get generated massage ID");
+                                        }
+                                    }
+                                }
+                            }
 
-            int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
-                pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
-            } else {
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
-
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    throw new Exception("Failed to get generated massage ID");
+                            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+                            try (PreparedStatement pstNotification = conn.prepareStatement(notificationSql)) {
+                                pstNotification.setInt(1, 1);
+                                pstNotification.setInt(2, 12); // Using msg_type_id 12 for "Credit Payed"
+                                pstNotification.setInt(3, massageId);
+                                pstNotification.executeUpdate();
+                            }
+                        }
+                    }
                 }
             }
-
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 3); // Assuming 3 is for credit payment notifications
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
-
         } catch (Exception e) {
-            // Error handled silently as notification creation is not critical
-        } finally {
-            try {
-                if (pstCustomerInfo != null) {
-                    pstCustomerInfo.close();
-                }
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Closing resources exception ignored
-            }
         }
     }
 
@@ -1099,6 +1356,9 @@ public class AddCreditPay extends javax.swing.JDialog {
         customerCombo.setSelectedIndex(0);
         paymentDate.setDate(new Date());
         amountField.setText("");
+
+        // Auto-generate new barcode when form is cleared
+        autoGenerateBarcode();
 
         remainingAmount = 0.0;
         originalRemainingAmount = 0.0;
@@ -1120,10 +1380,8 @@ public class AddCreditPay extends javax.swing.JDialog {
                 paymentDate.getDateEditor().getUiComponent().setFocusable(true);
             }
         } catch (Exception e) {
-            // Focus traversal setup error handled silently
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1137,6 +1395,9 @@ public class AddCreditPay extends javax.swing.JDialog {
         customerCombo = new javax.swing.JComboBox<>();
         paymentDate = new com.toedter.calendar.JDateChooser();
         amountField = new javax.swing.JTextField();
+        barcodeField = new javax.swing.JTextField();
+        printBarcode = new javax.swing.JButton();
+        genarateBarecode = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Add New Credit Payment");
@@ -1218,12 +1479,50 @@ public class AddCreditPay extends javax.swing.JDialog {
             }
         });
 
-        amountField.setFont(new java.awt.Font("Nunito SemiBold", 0, 14)); // NOI18N
+        amountField.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
         amountField.setText("0");
-        amountField.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 0, 14))); // NOI18N
+        amountField.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Amount  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
         amountField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 amountFieldActionPerformed(evt);
+            }
+        });
+
+        barcodeField.setFont(new java.awt.Font("Nunito SemiBold", 1, 14)); // NOI18N
+        barcodeField.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Barcode  *", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Nunito SemiBold", 1, 14))); // NOI18N
+        barcodeField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                barcodeFieldActionPerformed(evt);
+            }
+        });
+
+        printBarcode.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        printBarcode.setMaximumSize(new java.awt.Dimension(75, 7));
+        printBarcode.setMinimumSize(new java.awt.Dimension(75, 7));
+        printBarcode.setPreferredSize(new java.awt.Dimension(75, 7));
+        printBarcode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                printBarcodeActionPerformed(evt);
+            }
+        });
+        printBarcode.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                printBarcodeKeyPressed(evt);
+            }
+        });
+
+        genarateBarecode.setFont(new java.awt.Font("Nunito ExtraBold", 1, 14)); // NOI18N
+        genarateBarecode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                genarateBarecodeActionPerformed(evt);
+            }
+        });
+        genarateBarecode.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                genarateBarecodeKeyPressed(evt);
+            }
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                genarateBarecodeKeyReleased(evt);
             }
         });
 
@@ -1234,22 +1533,28 @@ public class AddCreditPay extends javax.swing.JDialog {
             .addGroup(jPanel2Layout.createSequentialGroup()
                 .addGap(19, 19, 19)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGroup(jPanel2Layout.createSequentialGroup()
-                            .addComponent(jLabel3)
-                            .addGap(83, 83, 83)))
+                    .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel3)
+                        .addGap(83, 83, 83))
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 134, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(amountField, javax.swing.GroupLayout.PREFERRED_SIZE, 386, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 384, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addGroup(jPanel2Layout.createSequentialGroup()
+                                    .addComponent(barcodeField)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(genarateBarecode, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(printBarcode, javax.swing.GroupLayout.PREFERRED_SIZE, 27, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(jPanel2Layout.createSequentialGroup()
+                                    .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 134, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE))))
                         .addGap(2, 2, 2)))
                 .addGap(0, 21, Short.MAX_VALUE))
         );
@@ -1259,19 +1564,28 @@ public class AddCreditPay extends javax.swing.JDialog {
                 .addGap(21, 21, 21)
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jSeparator3, javax.swing.GroupLayout.PREFERRED_SIZE, 3, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(customerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(amountField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(barcodeField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(printBarcode, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(genarateBarecode, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(paymentDate, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(13, 13, 13)
-                .addComponent(amountField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(cancelBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(saveBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(clearFormBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 45, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(18, 18, 18))
+                .addGap(21, 21, 21))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -1359,12 +1673,45 @@ public class AddCreditPay extends javax.swing.JDialog {
     }//GEN-LAST:event_paymentDateKeyPressed
 
     private void amountFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_amountFieldActionPerformed
+        barcodeField.requestFocusInWindow();
+    }//GEN-LAST:event_amountFieldActionPerformed
+
+    private void barcodeFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_barcodeFieldActionPerformed
         if (areAllRequiredFieldsFilled()) {
             saveBtn.requestFocusInWindow();
         } else {
             cancelBtn.requestFocusInWindow();
         }
-    }//GEN-LAST:event_amountFieldActionPerformed
+
+    }//GEN-LAST:event_barcodeFieldActionPerformed
+
+    private void printBarcodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_printBarcodeActionPerformed
+        printBarcode();
+    }//GEN-LAST:event_printBarcodeActionPerformed
+
+    private void printBarcodeKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_printBarcodeKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            printBarcodeActionPerformed(null);
+        } else {
+            handleArrowNavigation(evt, printBarcode);
+        }
+    }//GEN-LAST:event_printBarcodeKeyPressed
+
+    private void genarateBarecodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_genarateBarecodeActionPerformed
+        generateBarcode();
+    }//GEN-LAST:event_genarateBarecodeActionPerformed
+
+    private void genarateBarecodeKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_genarateBarecodeKeyPressed
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            genarateBarecodeActionPerformed(null);
+        } else {
+            handleArrowNavigation(evt, genarateBarecode);
+        }
+    }//GEN-LAST:event_genarateBarecodeKeyPressed
+
+    private void genarateBarecodeKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_genarateBarecodeKeyReleased
+        // TODO add your handling code here:
+    }//GEN-LAST:event_genarateBarecodeKeyReleased
 
     /**
      * @param args the command line arguments
@@ -1410,13 +1757,16 @@ public class AddCreditPay extends javax.swing.JDialog {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JTextField amountField;
+    private javax.swing.JTextField barcodeField;
     private javax.swing.JButton cancelBtn;
     private javax.swing.JButton clearFormBtn;
     private javax.swing.JComboBox<String> customerCombo;
+    private javax.swing.JButton genarateBarecode;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator3;
     private com.toedter.calendar.JDateChooser paymentDate;
+    private javax.swing.JButton printBarcode;
     private javax.swing.JButton saveBtn;
     // End of variables declaration//GEN-END:variables
 }

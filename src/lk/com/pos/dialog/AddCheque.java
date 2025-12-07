@@ -25,7 +25,7 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -45,7 +45,7 @@ public class AddCheque extends javax.swing.JDialog {
     private double totalPaid = 0.0;
     private Date latestDueDate = null;
     private double chequeAmount = 0.0;
-    private boolean isChequeSaved = false;
+    private boolean isChequeSaved = false; // Track if cheque was saved
 
     public AddCheque(java.awt.Frame parent, boolean modal) {
         super(parent, modal);
@@ -150,23 +150,33 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private void deleteSalesIfNotSaved() {
+        // Only delete if salesId exists and cheque was NOT saved
         if (salesId != -1 && !isChequeSaved) {
-            // Only delete if salesId exists and cheque was not saved
             Connection conn = null;
             PreparedStatement pst = null;
             ResultSet rs = null;
 
             try {
-                conn = MySQL.getConnection();
-                conn.setAutoCommit(false); // Start transaction
+                conn = DB.getConnection();
+                conn.setAutoCommit(false);
 
-                // First, get all sale items for this sales_id to return them to stock
+                String checkSaleSql = "SELECT COUNT(*) FROM sales WHERE sales_id = ?";
+                pst = conn.prepareStatement(checkSaleSql);
+                pst.setInt(1, salesId);
+                rs = pst.executeQuery();
+
+                if (rs.next() && rs.getInt(1) == 0) {
+                    conn.rollback();
+                    return;
+                }
+                rs.close();
+                pst.close();
+
                 String getSaleItemsSql = "SELECT si.stock_id, si.qty FROM sale_item si WHERE si.sales_id = ?";
                 pst = conn.prepareStatement(getSaleItemsSql);
                 pst.setInt(1, salesId);
                 rs = pst.executeQuery();
 
-                // Store the items to return to stock
                 java.util.List<java.util.Map<String, Integer>> itemsToReturn = new java.util.ArrayList<>();
                 while (rs.next()) {
                     java.util.Map<String, Integer> item = new java.util.HashMap<>();
@@ -177,7 +187,6 @@ public class AddCheque extends javax.swing.JDialog {
                 rs.close();
                 pst.close();
 
-                // Return each item to stock
                 String updateStockSql = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
                 for (java.util.Map<String, Integer> item : itemsToReturn) {
                     pst = conn.prepareStatement(updateStockSql);
@@ -187,13 +196,11 @@ public class AddCheque extends javax.swing.JDialog {
                     pst.close();
                 }
 
-                // Now delete related records to maintain referential integrity
                 String[] deleteQueries = {
-                    "DELETE FROM sale_item WHERE sales_id = ?",
-                    "DELETE FROM card_pay WHERE sales_id = ?",
                     "DELETE FROM cheque WHERE sales_id = ?",
-                    "DELETE FROM return WHERE sales_id = ?",
+                    "DELETE FROM card_pay WHERE sales_id = ?",
                     "DELETE FROM stock_loss WHERE sales_id = ?",
+                    "DELETE FROM sale_item WHERE sales_id = ?",
                     "DELETE FROM sales WHERE sales_id = ?"
                 };
 
@@ -202,9 +209,8 @@ public class AddCheque extends javax.swing.JDialog {
                     try {
                         pst = conn.prepareStatement(query);
                         pst.setInt(1, salesId);
-                        int affectedRows = pst.executeUpdate();
+                        pst.executeUpdate();
                         pst.close();
-                       
                     } catch (Exception e) {
                         success = false;
                         break;
@@ -223,10 +229,8 @@ public class AddCheque extends javax.swing.JDialog {
                         conn.rollback();
                     }
                 } catch (Exception rollbackEx) {
-                    // Rollback exception ignored
                 }
-               
-                // Show error notification to user
+
                 Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                         "Error deleting sale: " + e.getMessage());
             } finally {
@@ -242,7 +246,6 @@ public class AddCheque extends javax.swing.JDialog {
                         conn.close();
                     }
                 } catch (Exception e) {
-                    // Closing resources exception ignored
                 }
             }
         }
@@ -818,50 +821,54 @@ public class AddCheque extends javax.swing.JDialog {
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
-            ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> customers = new Vector<>();
-            customers.add("Select Customer");
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql);
+                 ResultSet rs = pst.executeQuery()) {
+                
+                Vector<String> customers = new Vector<>();
+                customers.add("Select Customer");
 
-            int count = 0;
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double remainingAmount = rs.getDouble("remaining_amount");
-                Date latestDueDate = rs.getDate("latest_due_date");
-                int activeCheques = rs.getInt("active_cheques");
+                int count = 0;
+                while (rs.next()) {
+                    int customerId = rs.getInt("customer_id");
+                    String customerName = rs.getString("customer_name");
+                    double totalCredit = rs.getDouble("total_credit");
+                    double totalPaid = rs.getDouble("total_paid");
+                    double remainingAmount = rs.getDouble("remaining_amount");
+                    Date latestDueDate = rs.getDate("latest_due_date");
+                    int activeCheques = rs.getInt("active_cheques");
 
-                String displayText;
-                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-                String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
+                    String displayText;
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                    String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
 
-                if (totalCredit > 0) {
-                    if (activeCheques > 0) {
-                        displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s | Active Cheques: %d",
-                                customerName, totalCredit, totalPaid, remainingAmount, dueDateStr, activeCheques);
+                    if (totalCredit > 0) {
+                        if (activeCheques > 0) {
+                            displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s | Active Cheques: %d",
+                                    customerName, totalCredit, totalPaid, remainingAmount, dueDateStr, activeCheques);
+                        } else {
+                            displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
+                                    customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
+                        }
                     } else {
-                        displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
-                                customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
+                        if (activeCheques > 0) {
+                            displayText = String.format("%s | No Credit History | Active Cheques: %d",
+                                    customerName, activeCheques);
+                        } else {
+                            displayText = String.format("%s | No Credit History | No Active Cheques",
+                                    customerName);
+                        }
                     }
-                } else {
-                    if (activeCheques > 0) {
-                        displayText = String.format("%s | No Credit History | Active Cheques: %d",
-                                customerName, activeCheques);
-                    } else {
-                        displayText = String.format("%s | No Credit History | No Active Cheques",
-                                customerName);
-                    }
+
+                    customers.add(displayText);
+                    customerIdMap.put(displayText, customerId);
+                    customerDisplayMap.put(customerId, displayText);
+                    count++;
                 }
 
-                customers.add(displayText);
-                customerIdMap.put(displayText, customerId);
-                customerDisplayMap.put(customerId, displayText);
-                count++;
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
+                comboCustomer.setModel(dcm);
             }
-
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
-            comboCustomer.setModel(dcm);
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -884,20 +891,20 @@ public class AddCheque extends javax.swing.JDialog {
                     + "WHERE cc.customer_id = ? "
                     + "GROUP BY cc.customer_id";
 
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                this.totalCredit = rs.getDouble("total_credit");
-                this.totalPaid = rs.getDouble("total_paid");
-                this.dueAmount = rs.getDouble("remaining_amount");
-                this.latestDueDate = rs.getDate("latest_due_date");
-                int activeCheques = rs.getInt("active_cheques");
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                pst.setInt(1, customerId);
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        this.totalCredit = rs.getDouble("total_credit");
+                        this.totalPaid = rs.getDouble("total_paid");
+                        this.dueAmount = rs.getDouble("remaining_amount");
+                        this.latestDueDate = rs.getDate("latest_due_date");
+                        int activeCheques = rs.getInt("active_cheques");
+                    }
+                }
             }
-
         } catch (Exception e) {
-            // Error handled silently as it's not critical for the main functionality
         }
     }
 
@@ -1014,10 +1021,9 @@ public class AddCheque extends javax.swing.JDialog {
                 return;
             }
 
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
             conn.setAutoCommit(false);
 
-            // Insert into cheque table with amount
             String chequeQuery = "INSERT INTO cheque (cheque_no, cheque_date, sales_id, credit_customer_id, bank_name, branch, amount) "
                     + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
@@ -1037,7 +1043,6 @@ public class AddCheque extends javax.swing.JDialog {
             int rowsAffected = pst.executeUpdate();
 
             if (rowsAffected > 0) {
-                // If salesId is NOT provided, also add to credit_pay table
                 if (salesId == -1) {
                     String creditPayQuery = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) "
                             + "VALUES (NOW(), ?, ?)";
@@ -1047,11 +1052,12 @@ public class AddCheque extends javax.swing.JDialog {
                     pstCreditPay.setInt(2, this.customerId);
 
                     int creditPayRows = pstCreditPay.executeUpdate();
-
                 }
 
                 createChequeNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
                 conn.commit();
+
+                isChequeSaved = true;
 
                 String successMessage = "Cheque added successfully!";
                 if (salesId == -1) {
@@ -1060,7 +1066,6 @@ public class AddCheque extends javax.swing.JDialog {
 
                 Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
 
-                isChequeSaved = true; // Mark as saved
                 dispose();
 
             } else {
@@ -1074,7 +1079,6 @@ public class AddCheque extends javax.swing.JDialog {
                     conn.rollback();
                 }
             } catch (Exception rollbackEx) {
-                // Rollback exception ignored
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving cheque: " + e.getMessage());
         } finally {
@@ -1090,7 +1094,6 @@ public class AddCheque extends javax.swing.JDialog {
                     conn.close();
                 }
             } catch (Exception e) {
-                // Closing resources exception ignored
             }
             isSaving = false;
         }
@@ -1099,15 +1102,16 @@ public class AddCheque extends javax.swing.JDialog {
     private boolean isDuplicateChequeNo(String chequeNo) {
         try {
             String sql = "SELECT COUNT(*) FROM cheque WHERE cheque_no = ?";
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setString(1, chequeNo);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                pst.setString(1, chequeNo);
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getInt(1) > 0;
+                    }
+                }
             }
         } catch (Exception e) {
-            // Error handled silently as it's not critical for the main functionality
         }
         return false;
     }
@@ -1161,12 +1165,11 @@ public class AddCheque extends javax.swing.JDialog {
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 30); // Cheque payment message type
+            pstNotification.setInt(2, 30);
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
         } catch (Exception e) {
-            // Error handled silently as notification creation is not critical
         } finally {
             try {
                 if (pstMassage != null) {
@@ -1176,7 +1179,6 @@ public class AddCheque extends javax.swing.JDialog {
                     pstNotification.close();
                 }
             } catch (Exception e) {
-                // Closing resources exception ignored
             }
         }
     }
@@ -1198,14 +1200,11 @@ public class AddCheque extends javax.swing.JDialog {
             dialog.setVisible(true);
 
             if (dialog.isCustomerSaved()) {
-                // Get the newly added customer details
                 int newCustomerId = dialog.getSavedCustomerId();
                 String newCustomerName = dialog.getSavedCustomerName();
 
-                // Reload the customer combo
                 loadCustomerCombo();
 
-                // Automatically select the newly added customer
                 String displayText = customerDisplayMap.get(newCustomerId);
                 if (displayText != null) {
                     comboCustomer.setSelectedItem(displayText);
@@ -1226,13 +1225,13 @@ public class AddCheque extends javax.swing.JDialog {
         dateChequeDate.getDateEditor().getUiComponent().setFocusable(true);
     }
 
-    // Override dispose to handle sales deletion when dialog is closed
     @Override
     public void dispose() {
-        deleteSalesIfNotSaved();
+        if (!isChequeSaved) {
+            deleteSalesIfNotSaved();
+        }
         super.dispose();
     }
-
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents

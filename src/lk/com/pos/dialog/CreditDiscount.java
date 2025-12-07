@@ -7,11 +7,10 @@ import java.awt.Font;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -23,7 +22,7 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;  // Changed import
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -136,22 +135,29 @@ public class CreditDiscount extends javax.swing.JDialog {
     // Add this method to check for existing discount
     private void checkExistingDiscount(int customerId) {
         try {
-            String sql = "SELECT cd.credit_discount_id, d.discount_id, d.discount, dt.discount_type "
-                    + "FROM credit_discount cd "
-                    + "JOIN discount d ON cd.discount_id = d.discount_id "
-                    + "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id "
-                    + "WHERE cd.credit_id = ? "
-                    + "ORDER BY cd.credit_discount_id DESC LIMIT 1";
-
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                // Customer has existing discount
-                currentDiscountId = rs.getInt("discount_id");
-                double discountValue = rs.getDouble("discount");
-                String discountType = rs.getString("discount_type");
+            String discountInfo = DB.executeQuerySafe(
+                "SELECT cd.credit_discount_id, d.discount_id, d.discount, dt.discount_type " +
+                "FROM credit_discount cd " +
+                "JOIN discount d ON cd.discount_id = d.discount_id " +
+                "JOIN discount_type dt ON d.discount_type_id = dt.discount_type_id " +
+                "WHERE cd.credit_id = ? " +
+                "ORDER BY cd.credit_discount_id DESC LIMIT 1",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("discount_id") + "|" + 
+                               rs.getDouble("discount") + "|" + 
+                               rs.getString("discount_type");
+                    }
+                    return null;
+                },
+                customerId
+            );
+            
+            if (discountInfo != null) {
+                String[] parts = discountInfo.split("\\|");
+                currentDiscountId = Integer.parseInt(parts[0]);
+                double discountValue = Double.parseDouble(parts[1]);
+                String discountType = parts[2];
 
                 // Load existing discount into form
                 diTypeCombo.setSelectedItem(discountType);
@@ -191,7 +197,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                 discountInput.setText("");
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Silent error handling
             currentDiscountId = -1;
             isUpdateMode = false;
@@ -817,80 +823,77 @@ public class CreditDiscount extends javax.swing.JDialog {
             customerIdMap.clear();
             customerDisplayMap.clear();
 
-            String sql = "SELECT cc.customer_id, cc.customer_name, "
-                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
-                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, "
-                    + "MAX(c.credit_final_date) as latest_due_date, "
-                    + "COUNT(ch.cheque_id) as active_cheques "
-                    + "FROM credit_customer cc "
-                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
-                    + "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() "
-                    + "WHERE cc.status_id = 1 "
-                    + "GROUP BY cc.customer_id, cc.customer_name "
-                    + "ORDER BY cc.customer_name";
+            Vector<String> customers = DB.executeQuerySafe(
+                "SELECT cc.customer_id, cc.customer_name, " +
+                "COALESCE(SUM(c.credit_amout), 0) as total_credit, " +
+                "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, " +
+                "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, " +
+                "MAX(c.credit_final_date) as latest_due_date, " +
+                "COUNT(ch.cheque_id) as active_cheques " +
+                "FROM credit_customer cc " +
+                "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id " +
+                "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id " +
+                "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() " +
+                "WHERE cc.status_id = 1 " +
+                "GROUP BY cc.customer_id, cc.customer_name " +
+                "ORDER BY cc.customer_name",
+                (ResultSet rs) -> {
+                    Vector<String> list = new Vector<>();
+                    list.add("Select Customer");
+                    
+                    while (rs.next()) {
+                        int customerId = rs.getInt("customer_id");
+                        String customerName = rs.getString("customer_name");
+                        double totalCredit = rs.getDouble("total_credit");
+                        double totalPaid = rs.getDouble("total_paid");
+                        double remainingAmount = rs.getDouble("remaining_amount");
+                        Date latestDueDate = rs.getDate("latest_due_date");
+                        int activeCheques = rs.getInt("active_cheques");
 
-            ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> customers = new Vector<>();
-            customers.add("Select Customer");
+                        String displayText;
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                        String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
 
-            int count = 0;
-            int preSelectedIndex = -1;
+                        if (totalCredit > 0) {
+                            if (activeCheques > 0) {
+                                displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s | Active Cheques: %d",
+                                        customerName, totalCredit, totalPaid, remainingAmount, dueDateStr, activeCheques);
+                            } else {
+                                displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
+                                        customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
+                            }
+                        } else {
+                            if (activeCheques > 0) {
+                                displayText = String.format("%s | No Credit History | Active Cheques: %d",
+                                        customerName, activeCheques);
+                            } else {
+                                displayText = String.format("%s | No Credit History | No Active Cheques",
+                                        customerName);
+                            }
+                        }
 
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double remainingAmount = rs.getDouble("remaining_amount");
-                Date latestDueDate = rs.getDate("latest_due_date");
-                int activeCheques = rs.getInt("active_cheques");
-
-                String displayText;
-                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-                String dueDateStr = latestDueDate != null ? dateFormat.format(latestDueDate) : "No Due Date";
-
-                if (totalCredit > 0) {
-                    if (activeCheques > 0) {
-                        displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s | Active Cheques: %d",
-                                customerName, totalCredit, totalPaid, remainingAmount, dueDateStr, activeCheques);
-                    } else {
-                        displayText = String.format("%s | Total: Rs %.2f | Paid: Rs %.2f | Due: Rs %.2f | Due Date: %s",
-                                customerName, totalCredit, totalPaid, remainingAmount, dueDateStr);
+                        list.add(displayText);
+                        customerIdMap.put(displayText, customerId);
+                        customerDisplayMap.put(customerId, displayText);
                     }
-                } else {
-                    if (activeCheques > 0) {
-                        displayText = String.format("%s | No Credit History | Active Cheques: %d",
-                                customerName, activeCheques);
-                    } else {
-                        displayText = String.format("%s | No Credit History | No Active Cheques",
-                                customerName);
-                    }
+                    return list;
                 }
-
-                customers.add(displayText);
-                customerIdMap.put(displayText, customerId);
-                customerDisplayMap.put(customerId, displayText);
-
-                // Check if this is the customer we need to pre-select
-                if (this.customerId != -1 && customerId == this.customerId) {
-                    preSelectedIndex = count + 1; // +1 because of "Select Customer" at index 0
-                }
-
-                count++;
-            }
+            );
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             comboCustomer3.setModel(dcm);
 
             // Pre-select the customer if provided
-            if (preSelectedIndex != -1) {
-                comboCustomer3.setSelectedIndex(preSelectedIndex);
-
-                // Load credit details for pre-selected customer
-                loadCustomerCreditDetails(this.customerId);
-                checkExistingDiscount(this.customerId);
+            if (this.customerId != -1 && customerDisplayMap.containsKey(this.customerId)) {
+                String displayText = customerDisplayMap.get(this.customerId);
+                for (int i = 0; i < comboCustomer3.getItemCount(); i++) {
+                    if (displayText.equals(comboCustomer3.getItemAt(i))) {
+                        comboCustomer3.setSelectedIndex(i);
+                        loadCustomerCreditDetails(this.customerId);
+                        checkExistingDiscount(this.customerId);
+                        break;
+                    }
+                }
             }
 
             // Auto-select newly added customer if available
@@ -909,7 +912,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                 }
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading customers: " + e.getMessage());
         }
@@ -917,52 +920,62 @@ public class CreditDiscount extends javax.swing.JDialog {
 
     private void loadDiscountTypeCombo() {
         try {
-            String sql = "SELECT discount_type_id, discount_type FROM discount_type";
-            ResultSet rs = MySQL.executeSearch(sql);
-
-            Vector<String> discountTypes = new Vector<>();
-            discountTypes.add("Select Discount Type");
-
-            while (rs.next()) {
-                String discountType = rs.getString("discount_type");
-                discountTypes.add(discountType);
-            }
+            Vector<String> discountTypes = DB.executeQuerySafe(
+                "SELECT discount_type_id, discount_type FROM discount_type",
+                (ResultSet rs) -> {
+                    Vector<String> list = new Vector<>();
+                    list.add("Select Discount Type");
+                    while (rs.next()) {
+                        list.add(rs.getString("discount_type"));
+                    }
+                    return list;
+                }
+            );
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(discountTypes);
             diTypeCombo.setModel(dcm);
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error loading discount types");
         }
     }
 
     private void loadCustomerCreditDetails(int customerId) {
         try {
-            String sql = "SELECT "
-                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                    + "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, "
-                    + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, "
-                    + "MAX(c.credit_final_date) as latest_due_date, "
-                    + "COUNT(ch.cheque_id) as active_cheques "
-                    + "FROM credit_customer cc "
-                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id "
-                    + "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() "
-                    + "WHERE cc.customer_id = ? "
-                    + "GROUP BY cc.customer_id";
+            String creditInfo = DB.executeQuerySafe(
+                "SELECT " +
+                "COALESCE(SUM(c.credit_amout), 0) as total_credit, " +
+                "COALESCE(SUM(cp.credit_pay_amount), 0) as total_paid, " +
+                "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as remaining_amount, " +
+                "MAX(c.credit_final_date) as latest_due_date, " +
+                "COUNT(ch.cheque_id) as active_cheques " +
+                "FROM credit_customer cc " +
+                "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id " +
+                "LEFT JOIN credit_pay cp ON cc.customer_id = cp.credit_customer_id " +
+                "LEFT JOIN cheque ch ON cc.customer_id = ch.credit_customer_id AND ch.cheque_date >= CURDATE() " +
+                "WHERE cc.customer_id = ? " +
+                "GROUP BY cc.customer_id",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getDouble("total_credit") + "|" +
+                               rs.getDouble("total_paid") + "|" +
+                               rs.getDouble("remaining_amount") + "|" +
+                               rs.getDate("latest_due_date").getTime();
+                    }
+                    return null;
+                },
+                customerId
+            );
 
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                this.totalCredit = rs.getDouble("total_credit");
-                this.totalPaid = rs.getDouble("total_paid");
-                this.dueAmount = rs.getDouble("remaining_amount");
-                this.latestDueDate = rs.getDate("latest_due_date");
+            if (creditInfo != null) {
+                String[] parts = creditInfo.split("\\|");
+                this.totalCredit = Double.parseDouble(parts[0]);
+                this.totalPaid = Double.parseDouble(parts[1]);
+                this.dueAmount = Double.parseDouble(parts[2]);
+                this.latestDueDate = new Date(Long.parseLong(parts[3]));
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Silent error handling for credit details loading
         }
     }
@@ -1024,6 +1037,9 @@ public class CreditDiscount extends javax.swing.JDialog {
         Connection conn = null;
         PreparedStatement pstDiscount = null;
         PreparedStatement pstCreditDiscount = null;
+        PreparedStatement checkPst = null;
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
 
         try {
             isSaving = true;
@@ -1047,7 +1063,7 @@ public class CreditDiscount extends javax.swing.JDialog {
                 return;
             }
 
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
             conn.setAutoCommit(false);
 
             if (isUpdateMode && currentDiscountId != -1) {
@@ -1075,52 +1091,54 @@ public class CreditDiscount extends javax.swing.JDialog {
             } else {
                 // INSERT NEW DISCOUNT (only if no existing discount)
                 // First check if customer already has a discount (double-check)
-                String checkSql = "SELECT COUNT(*) FROM credit_discount WHERE credit_id = ?";
-                PreparedStatement checkPst = conn.prepareStatement(checkSql);
+                String checkSql = "SELECT COUNT(*) as count FROM credit_discount WHERE credit_id = ?";
+                checkPst = conn.prepareStatement(checkSql);
                 checkPst.setInt(1, this.customerId);
-                ResultSet checkRs = checkPst.executeQuery();
-
-                if (checkRs.next() && checkRs.getInt(1) > 0) {
-                    conn.rollback();
-                    isSaving = false;
-                    return;
+                
+                try (ResultSet checkRs = checkPst.executeQuery()) {
+                    if (checkRs.next() && checkRs.getInt("count") > 0) {
+                        conn.rollback();
+                        isSaving = false;
+                        return;
+                    }
                 }
 
                 // Insert into discount table
                 String discountQuery = "INSERT INTO discount (discount, discount_type_id) VALUES (?, ?)";
-                pstDiscount = conn.prepareStatement(discountQuery, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstDiscount = conn.prepareStatement(discountQuery, Statement.RETURN_GENERATED_KEYS);
                 pstDiscount.setDouble(1, discountValue);
                 pstDiscount.setInt(2, discountTypeId);
 
                 int discountRows = pstDiscount.executeUpdate();
                 if (discountRows > 0) {
-                    ResultSet generatedKeys = pstDiscount.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        int discountId = generatedKeys.getInt(1);
+                    try (ResultSet generatedKeys = pstDiscount.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            int discountId = generatedKeys.getInt(1);
 
-                        // Insert into credit_discount table
-                        String creditDiscountQuery = "INSERT INTO credit_discount (credit_id, discount_id) VALUES (?, ?)";
-                        pstCreditDiscount = conn.prepareStatement(creditDiscountQuery);
-                        pstCreditDiscount.setInt(1, this.customerId);
-                        pstCreditDiscount.setInt(2, discountId);
+                            // Insert into credit_discount table
+                            String creditDiscountQuery = "INSERT INTO credit_discount (credit_id, discount_id) VALUES (?, ?)";
+                            pstCreditDiscount = conn.prepareStatement(creditDiscountQuery);
+                            pstCreditDiscount.setInt(1, this.customerId);
+                            pstCreditDiscount.setInt(2, discountId);
 
-                        int creditDiscountRows = pstCreditDiscount.executeUpdate();
-                        if (creditDiscountRows > 0) {
-                            createDiscountNotification(selectedDisplayText, discountValue, discountType, conn, false);
-                            conn.commit();
+                            int creditDiscountRows = pstCreditDiscount.executeUpdate();
+                            if (creditDiscountRows > 0) {
+                                createDiscountNotification(selectedDisplayText, discountValue, discountType, conn, false);
+                                conn.commit();
 
-                            String successMessage = String.format("Discount of %.2f %s applied successfully to customer!",
-                                    discountValue, discountType.equals("percentage") ? "%" : "");
-                            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+                                String successMessage = String.format("Discount of %.2f %s applied successfully to customer!",
+                                        discountValue, discountType.equals("percentage") ? "%" : "");
+                                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
 
-                            dispose();
+                                dispose();
+                            } else {
+                                conn.rollback();
+                                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to apply discount to customer!");
+                            }
                         } else {
                             conn.rollback();
-                            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to apply discount to customer!");
+                            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to get discount ID!");
                         }
-                    } else {
-                        conn.rollback();
-                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to get discount ID!");
                     }
                 } else {
                     conn.rollback();
@@ -1128,29 +1146,25 @@ public class CreditDiscount extends javax.swing.JDialog {
                 }
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             try {
                 if (conn != null) {
                     conn.rollback();
                 }
-            } catch (Exception rollbackEx) {
+            } catch (SQLException rollbackEx) {
                 // Silent rollback exception handling
             }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error applying discount: " + e.getMessage());
         } finally {
-            try {
-                if (pstDiscount != null) {
-                    pstDiscount.close();
-                }
-                if (pstCreditDiscount != null) {
-                    pstCreditDiscount.close();
-                }
-                if (conn != null) {
+            // Close resources
+            DB.closeQuietly(pstNotification, pstMassage, pstCreditDiscount, pstDiscount, checkPst);
+            if (conn != null) {
+                try {
                     conn.setAutoCommit(true);
                     conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
-                // Silent resource closing exception
             }
             isSaving = false;
         }
@@ -1158,18 +1172,20 @@ public class CreditDiscount extends javax.swing.JDialog {
 
     private int getDiscountTypeId(String discountType) {
         try {
-            String sql = "SELECT discount_type_id FROM discount_type WHERE discount_type = ?";
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setString(1, discountType);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                return rs.getInt("discount_type_id");
-            }
-        } catch (Exception e) {
-            // Silent exception handling
+            Integer discountTypeId = DB.executeQuerySafe(
+                "SELECT discount_type_id FROM discount_type WHERE discount_type = ?",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("discount_type_id");
+                    }
+                    return -1;
+                },
+                discountType
+            );
+            return discountTypeId;
+        } catch (SQLException e) {
+            return -1;
         }
-        return -1;
     }
 
     private void createDiscountNotification(String customerName, double discountValue, String discountType, Connection conn, boolean isUpdate) {
@@ -1181,35 +1197,40 @@ public class CreditDiscount extends javax.swing.JDialog {
             String messageText = String.format("Discount %s %s: %.2f %s",
                     action, customerName, discountValue, discountType.equals("percentage") ? "%" : "LKR");
 
-            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            ResultSet rs = pstMassage.executeQuery();
-
             int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
-                pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
+
+            // Check if the message already exists in the massage table
+            Integer existingMassageId = DB.executeQuerySafe(
+                "SELECT massage_id FROM massage WHERE massage = ?",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("massage_id");
+                    }
+                    return null;
+                },
+                messageText
+            );
+
+            if (existingMassageId != null) {
+                massageId = existingMassageId;
             } else {
-                pstMassage.close();
+                // Insert new message
                 String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage = conn.prepareStatement(insertMassageSql, Statement.RETURN_GENERATED_KEYS);
                 pstMassage.setString(1, messageText);
                 pstMassage.executeUpdate();
 
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    return;
+                try (ResultSet generatedKeys = pstMassage.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        massageId = generatedKeys.getInt(1);
+                    } else {
+                        // Fallback if no generated key
+                        massageId = getMaxMessageId(conn);
+                    }
                 }
             }
 
+            // Insert into notification table
             String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
             pstNotification = conn.prepareStatement(notificationSql);
             pstNotification.setInt(1, 1); // is_read = 1 (unread)
@@ -1217,19 +1238,28 @@ public class CreditDiscount extends javax.swing.JDialog {
             pstNotification.setInt(3, massageId);
             pstNotification.executeUpdate();
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Silent exception handling for notification
         } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
+            DB.closeQuietly(pstMassage, pstNotification);
+        }
+    }
+
+    // Helper method to get the maximum message ID as fallback
+    private int getMaxMessageId(Connection conn) {
+        try {
+            Integer maxId = DB.executeQuerySafe(
+                "SELECT MAX(massage_id) as max_id FROM massage",
+                (ResultSet rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("max_id");
+                    }
+                    return 0;
                 }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing exception
-            }
+            );
+            return maxId;
+        } catch (SQLException e) {
+            return 0;
         }
     }
 
@@ -1285,7 +1315,6 @@ public class CreditDiscount extends javax.swing.JDialog {
             checkExistingDiscount(customerId);
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

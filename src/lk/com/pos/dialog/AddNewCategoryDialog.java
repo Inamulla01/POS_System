@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -384,19 +384,15 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
     }
 
     private boolean isCategoryNameExists(String categoryName) {
-        try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM category WHERE category_name = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
+        try (Connection conn = DB.getConnection();
+             PreparedStatement pst = conn.prepareStatement("SELECT COUNT(*) FROM category WHERE category_name = ?")) {
+            
             pst.setString(1, categoryName);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
-                return true;
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                }
             }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             // Exception handling without printing
         }
@@ -418,59 +414,69 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pstCategory = null;
-        PreparedStatement pstCheckMessage = null;
-        PreparedStatement pstInsertMessage = null;
-        PreparedStatement pstInsertNotification = null;
-        ResultSet rs = null;
-
-        try {
-            conn = MySQL.getConnection();
+        try (Connection conn = DB.getConnection()) {
             conn.setAutoCommit(false); // Start transaction
 
-            // 1. Insert the new category
-            String categorySql = "INSERT INTO category (category_name) VALUES (?)";
-            pstCategory = conn.prepareStatement(categorySql, PreparedStatement.RETURN_GENERATED_KEYS);
-            pstCategory.setString(1, categoryName);
+            try {
+                // 1. Insert the new category
+                String categorySql = "INSERT INTO category (category_name) VALUES (?)";
+                int categoryId;
+                
+                try (PreparedStatement pstCategory = conn.prepareStatement(categorySql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                    pstCategory.setString(1, categoryName);
+                    int rowsAffected = pstCategory.executeUpdate();
 
-            int rowsAffected = pstCategory.executeUpdate();
+                    if (rowsAffected <= 0) {
+                        conn.rollback();
+                        return;
+                    }
 
-            if (rowsAffected > 0) {
+                    // Get the generated category ID if needed
+                    try (ResultSet generatedKeys = pstCategory.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            categoryId = generatedKeys.getInt(1);
+                        }
+                    }
+                }
+
                 // 2. Check if message already exists in massage table
                 String messageText = "New category added: " + categoryName;
-                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstCheckMessage = conn.prepareStatement(checkMessageSql);
-                pstCheckMessage.setString(1, messageText);
-                rs = pstCheckMessage.executeQuery();
-
                 int messageId;
                 
-                if (rs.next()) {
-                    // Message already exists, get the existing massage_id
-                    messageId = rs.getInt("massage_id");
-                } else {
-                    // Message doesn't exist, insert new message
-                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                    pstInsertMessage.setString(1, messageText);
-                    pstInsertMessage.executeUpdate();
-                    
-                    // Get the generated message ID
-                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        messageId = generatedKeys.getInt(1);
-                    } else {
-                        throw new Exception("Failed to get generated message ID");
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                try (PreparedStatement pstCheckMessage = conn.prepareStatement(checkMessageSql)) {
+                    pstCheckMessage.setString(1, messageText);
+                    try (ResultSet rs = pstCheckMessage.executeQuery()) {
+                        if (rs.next()) {
+                            // Message already exists, get the existing massage_id
+                            messageId = rs.getInt("massage_id");
+                        } else {
+                            // Message doesn't exist, insert new message
+                            String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                            try (PreparedStatement pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                                pstInsertMessage.setString(1, messageText);
+                                pstInsertMessage.executeUpdate();
+
+                                // Get the generated message ID
+                                try (ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys()) {
+                                    if (generatedKeys.next()) {
+                                        messageId = generatedKeys.getInt(1);
+                                    } else {
+                                        conn.rollback();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
                     }
-                    generatedKeys.close();
                 }
 
                 // 3. Insert notification (msg_type_id 23 for "Add New Category")
                 String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 23, ?)";
-                pstInsertNotification = conn.prepareStatement(notificationSql);
-                pstInsertNotification.setInt(1, messageId);
-                pstInsertNotification.executeUpdate();
+                try (PreparedStatement pstInsertNotification = conn.prepareStatement(notificationSql)) {
+                    pstInsertNotification.setInt(1, messageId);
+                    pstInsertNotification.executeUpdate();
+                }
 
                 // Commit transaction
                 conn.commit();
@@ -479,34 +485,13 @@ public class AddNewCategoryDialog extends javax.swing.JDialog {
                 newCategoryName = categoryName;
 
                 dispose(); // Close the dialog after successful save
-            } else {
-                conn.rollback();
-            }
 
-        } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception ex) {
-                // Exception handling without printing
-            }
-            // Exception handling without printing
-        } finally {
-            // Close all resources
-            try {
-                if (rs != null) rs.close();
-                if (pstCategory != null) pstCategory.close();
-                if (pstCheckMessage != null) pstCheckMessage.close();
-                if (pstInsertMessage != null) pstInsertMessage.close();
-                if (pstInsertNotification != null) pstInsertNotification.close();
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
             } catch (Exception e) {
+                conn.rollback();
                 // Exception handling without printing
             }
+        } catch (Exception e) {
+            // Exception handling without printing
         }
     }
     @SuppressWarnings("unchecked")

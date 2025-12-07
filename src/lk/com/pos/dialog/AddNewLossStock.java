@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import lk.com.pos.session.Session;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import raven.toast.Notifications;
@@ -570,69 +570,60 @@ public class AddNewLossStock extends javax.swing.JDialog {
 
     // ---------------- NOTIFICATION SYSTEM ----------------
     private void createStockLossNotification(String productName, String batchNo, String reason, int quantity, double sellingPrice, Connection conn) {
-        PreparedStatement pstMassage = null;
-        PreparedStatement pstNotification = null;
+        // Build detailed message
+        String messageText = String.format("Stock loss recorded: %s (Batch: %s) - %s (Qty: %d, Value: Rs.%,.2f)", 
+                productName, batchNo, reason, quantity, quantity * sellingPrice);
 
         try {
-            // Build detailed message
-            String messageText = String.format("Stock loss recorded: %s (Batch: %s) - %s (Qty: %d, Value: Rs.%,.2f)", 
-                    productName, batchNo, reason, quantity, quantity * sellingPrice);
-
             // Check if this exact message already exists to avoid duplicates
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            ResultSet rs = pstMassage.executeQuery();
-
-            int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                // Message already exists, get its ID
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
+            try (PreparedStatement pstMassage = conn.prepareStatement(checkSql)) {
                 pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
-            } else {
-                // Insert new message
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
+                try (ResultSet rs = pstMassage.executeQuery()) {
+                    int massageId;
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        // Message already exists, get its ID
+                        String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                        try (PreparedStatement pstGet = conn.prepareStatement(getSql)) {
+                            pstGet.setString(1, messageText);
+                            try (ResultSet rsGet = pstGet.executeQuery()) {
+                                if (rsGet.next()) {
+                                    massageId = rsGet.getInt("massage_id");
+                                } else {
+                                    return; // No message found
+                                }
+                            }
+                        }
+                    } else {
+                        // Message doesn't exist, insert new message
+                        String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                        try (PreparedStatement pstInsertMessage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                            pstInsertMessage.setString(1, messageText);
+                            pstInsertMessage.executeUpdate();
+                            
+                            // Get the generated message ID
+                            try (ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys()) {
+                                if (generatedKeys.next()) {
+                                    massageId = generatedKeys.getInt(1);
+                                } else {
+                                    return;
+                                }
+                            }
+                        }
+                    }
 
-                // Get the generated massage_id
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    throw new SQLException("Failed to get generated massage ID");
+                    // Insert notification (msg_type_id 25 = 'Stock Loss' from your msg_type table)
+                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+                    try (PreparedStatement pstInsertNotification = conn.prepareStatement(notificationSql)) {
+                        pstInsertNotification.setInt(1, 1); // is_read = 1 (unread)
+                        pstInsertNotification.setInt(2, 25); // msg_type_id 25 = 'Stock Loss'
+                        pstInsertNotification.setInt(3, massageId);
+                        pstInsertNotification.executeUpdate();
+                    }
                 }
             }
-
-            // Insert notification (msg_type_id 25 = 'Stock Loss' from your msg_type table)
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1); // is_read = 1 (unread)
-            pstNotification.setInt(2, 25); // msg_type_id 25 = 'Stock Loss'
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
-
         } catch (Exception e) {
             // Silent exception handling for notification
-        } finally {
-            // Close resources
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Silent exception handling for resource cleanup
-            }
         }
     }
 
@@ -640,16 +631,16 @@ public class AddNewLossStock extends javax.swing.JDialog {
         String query = "SELECT p.product_name, s.batch_no, s.selling_price " +
                      "FROM stock s " +
                      "JOIN product p ON s.product_id = p.product_id " +
-                     "WHERE s.stock_id = " + stockId;
-        ResultSet rs = MySQL.executeSearch(query);
+                     "WHERE s.stock_id = ?";
         
-        if (rs.next()) {
-            return rs.getString("product_name") + "|" + 
-                   rs.getString("batch_no") + "|" + 
-                   rs.getDouble("selling_price");
-        }
-        
-        throw new SQLException("Product details not found for stock ID: " + stockId);
+        return DB.executeQuerySafe(query, (rs) -> {
+            if (rs.next()) {
+                return rs.getString("product_name") + "|" + 
+                       rs.getString("batch_no") + "|" + 
+                       rs.getDouble("selling_price");
+            }
+            throw new SQLException("Product details not found for stock ID: " + stockId);
+        }, stockId);
     }
 
     // ---------------- EXISTING BUSINESS LOGIC ----------------
@@ -661,16 +652,18 @@ public class AddNewLossStock extends javax.swing.JDialog {
                     + "WHERE s.qty > 0 AND s.p_status_id = 1 "
                     + "ORDER BY s.batch_no, p.product_name";
 
-            ResultSet rs = MySQL.executeSearch(query);
-            Vector<String> stocks = new Vector<>();
-            stocks.add("Select Stock");
+            Vector<String> stocks = DB.executeQuerySafe(query, (rs) -> {
+                Vector<String> result = new Vector<>();
+                result.add("Select Stock");
 
-            while (rs.next()) {
-                String batchNo = rs.getString("batch_no");
-                String productName = rs.getString("product_name");
-                int qty = rs.getInt("qty");
-                stocks.add(batchNo + " - " + productName + " (Available: " + qty + ")");
-            }
+                while (rs.next()) {
+                    String batchNo = rs.getString("batch_no");
+                    String productName = rs.getString("product_name");
+                    int qty = rs.getInt("qty");
+                    result.add(batchNo + " - " + productName + " (Available: " + qty + ")");
+                }
+                return result;
+            });
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(stocks);
             stockCombo.setModel(dcm);
@@ -684,18 +677,21 @@ public class AddNewLossStock extends javax.swing.JDialog {
     private void loadLossReasons() {
         try {
             String query = "SELECT return_reason_id, reason FROM return_reason";
-            ResultSet rs = MySQL.executeSearch(query);
-            Vector<String> reasons = new Vector<>();
-            reasons.add("Select Reason");
+            
+            Vector<String> reasons = DB.executeQuerySafe(query, (rs) -> {
+                Vector<String> result = new Vector<>();
+                result.add("Select Reason");
 
-            while (rs.next()) {
-                String reason = rs.getString("reason").toLowerCase();
-                if (reason.contains("expired") || reason.contains("damaged")
-                        || reason.contains("defective") || reason.contains("malfunction")
-                        || reason.contains("other")) {
-                    reasons.add(rs.getString("reason"));
+                while (rs.next()) {
+                    String reason = rs.getString("reason").toLowerCase();
+                    if (reason.contains("expired") || reason.contains("damaged")
+                            || reason.contains("defective") || reason.contains("malfunction")
+                            || reason.contains("other")) {
+                        result.add(rs.getString("reason"));
+                    }
                 }
-            }
+                return result;
+            });
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(reasons);
             reasonCombo.setModel(dcm);
@@ -737,7 +733,6 @@ public class AddNewLossStock extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
         try {
             int qtyValue = Integer.parseInt(qty.getText().trim());
             if (qtyValue <= 0) {
@@ -787,58 +782,61 @@ public class AddNewLossStock extends javax.swing.JDialog {
             String batchNo = details[1];
             double sellingPrice = Double.parseDouble(details[2]);
 
-            // Get database connection
-            conn = MySQL.getConnection();
+            try (Connection conn = DB.getConnection()) {
+                // Start transaction
+                conn.setAutoCommit(false);
 
-            // Start transaction
-            conn.setAutoCommit(false);
-
-            try {
-                // Insert into stock_loss table
-                String insertLossQuery = "INSERT INTO stock_loss (qty, stock_id, stock_loss_date, return_reason_id, user_id) "
-                        + "VALUES (" + qtyValue + ", " + stockId + ", NOW(), " + reasonId + ", " + userId + ")";
-                MySQL.executeIUD(insertLossQuery);
-
-                // Update stock table - decrease quantity
-                String updateStockQuery = "UPDATE stock SET qty = qty - " + qtyValue + " WHERE stock_id = " + stockId;
-                MySQL.executeIUD(updateStockQuery);
-
-                // Create notification for stock loss
-                createStockLossNotification(productName, batchNo, selectedReason, qtyValue, sellingPrice, conn);
-
-                // Commit transaction
-                conn.commit();
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "Stock loss added successfully!");
-
-                // Reset form
-                resetForm();
-
-            } catch (SQLException ex) {
-                // Rollback transaction in case of error
                 try {
-                    if (conn != null) {
+                    // Insert into stock_loss table
+                    String insertLossQuery = "INSERT INTO stock_loss (qty, stock_id, stock_loss_date, return_reason_id, user_id) "
+                            + "VALUES (?, ?, NOW(), ?, ?)";
+                    
+                    try (PreparedStatement pst = conn.prepareStatement(insertLossQuery)) {
+                        pst.setInt(1, qtyValue);
+                        pst.setInt(2, stockId);
+                        pst.setInt(3, reasonId);
+                        pst.setInt(4, userId);
+                        pst.executeUpdate();
+                    }
+
+                    // Update stock table - decrease quantity
+                    String updateStockQuery = "UPDATE stock SET qty = qty - ? WHERE stock_id = ?";
+                    
+                    try (PreparedStatement pst = conn.prepareStatement(updateStockQuery)) {
+                        pst.setInt(1, qtyValue);
+                        pst.setInt(2, stockId);
+                        pst.executeUpdate();
+                    }
+
+                    // Create notification for stock loss
+                    createStockLossNotification(productName, batchNo, selectedReason, qtyValue, sellingPrice, conn);
+
+                    // Commit transaction
+                    conn.commit();
+
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                            "Stock loss added successfully!");
+
+                    // Reset form
+                    resetForm();
+
+                } catch (SQLException ex) {
+                    // Rollback transaction in case of error
+                    try {
                         conn.rollback();
+                    } catch (SQLException rollbackEx) {
+                        // Silent exception handling for rollback
                     }
-                } catch (SQLException rollbackEx) {
-                    // Silent exception handling for rollback
-                }
 
-                // Check if it's a foreign key constraint violation
-                if (ex.getMessage().contains("foreign key constraint") && ex.getMessage().contains("user_id")) {
-                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                            "Invalid user account. Please contact administrator!");
-                } else {
-                    throw ex; // Re-throw other SQL exceptions
-                }
-            } finally {
-                try {
-                    if (conn != null) {
-                        conn.setAutoCommit(true);
+                    // Check if it's a foreign key constraint violation
+                    if (ex.getMessage().contains("foreign key constraint") && ex.getMessage().contains("user_id")) {
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                                "Invalid user account. Please contact administrator!");
+                    } else {
+                        throw ex; // Re-throw other SQL exceptions
                     }
-                } catch (SQLException autoCommitEx) {
-                    // Silent exception handling for auto-commit
+                } finally {
+                    conn.setAutoCommit(true);
                 }
             }
 
@@ -851,25 +849,17 @@ public class AddNewLossStock extends javax.swing.JDialog {
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error: " + e.getMessage());
-        } finally {
-            // Close connection if it was opened
-            try {
-                if (conn != null) {
-                    conn.close();
-                }
-            } catch (SQLException e) {
-                // Silent exception handling for connection close
-            }
         }
     }
 
     // Add this method to validate if user exists in database
     private boolean isValidUser(int userId) {
         try {
-            String query = "SELECT user_id FROM user WHERE user_id = " + userId;
-            ResultSet rs = MySQL.executeSearch(query);
-            return rs.next(); // Returns true if user exists
-        } catch (SQLException e) {
+            String query = "SELECT user_id FROM user WHERE user_id = ?";
+            return DB.executeQuerySafe(query, (rs) -> {
+                return rs.next(); // Returns true if user exists
+            }, userId);
+        } catch (Exception e) {
             return false;
         }
     }
@@ -879,14 +869,13 @@ public class AddNewLossStock extends javax.swing.JDialog {
         // Format: "batchNo - productName (Available: qty)"
         String batchNo = stockText.split(" - ")[0];
 
-        String query = "SELECT stock_id FROM stock WHERE batch_no = '" + batchNo + "'";
-        ResultSet rs = MySQL.executeSearch(query);
-
-        if (rs.next()) {
-            return rs.getInt("stock_id");
-        }
-
-        throw new SQLException("Stock not found");
+        String query = "SELECT stock_id FROM stock WHERE batch_no = ?";
+        return DB.executeQuerySafe(query, (rs) -> {
+            if (rs.next()) {
+                return rs.getInt("stock_id");
+            }
+            throw new SQLException("Stock not found");
+        }, batchNo);
     }
 
     private int extractAvailableQty(String stockText) {
@@ -898,14 +887,13 @@ public class AddNewLossStock extends javax.swing.JDialog {
     }
 
     private int getReasonId(String reason) throws SQLException {
-        String query = "SELECT return_reason_id FROM return_reason WHERE reason = '" + reason + "'";
-        ResultSet rs = MySQL.executeSearch(query);
-
-        if (rs.next()) {
-            return rs.getInt("return_reason_id");
-        }
-
-        return -1;
+        String query = "SELECT return_reason_id FROM return_reason WHERE reason = ?";
+        return DB.executeQuerySafe(query, (rs) -> {
+            if (rs.next()) {
+                return rs.getInt("return_reason_id");
+            }
+            return -1;
+        }, reason);
     }
 
     private void resetForm() {
@@ -914,6 +902,7 @@ public class AddNewLossStock extends javax.swing.JDialog {
         qty.setText("");
         loadStocks(); // Reload stocks to reflect updated quantities
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

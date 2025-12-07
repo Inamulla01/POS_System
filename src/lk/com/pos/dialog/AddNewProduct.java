@@ -9,7 +9,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import java.awt.event.KeyEvent;
 import java.sql.ResultSet;
 import java.util.Vector;
@@ -18,7 +18,6 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.PlainDocument;
@@ -734,12 +733,15 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void loadCategoryCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM category");
-            Vector<String> categories = new Vector<>();
-            categories.add("Select Category");
-            while (rs.next()) {
-                categories.add(rs.getString("category_name"));
-            }
+            Vector<String> categories = DB.executeQuerySafe("SELECT * FROM category", (rs) -> {
+                Vector<String> result = new Vector<>();
+                result.add("Select Category");
+                while (rs.next()) {
+                    result.add(rs.getString("category_name"));
+                }
+                return result;
+            });
+            
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
             categoryCombo.setModel(dcm);
         } catch (Exception e) {
@@ -750,12 +752,15 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void loadBrandCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM brand");
-            Vector<String> brands = new Vector<>();
-            brands.add("Select Brand");
-            while (rs.next()) {
-                brands.add(rs.getString("brand_name"));
-            }
+            Vector<String> brands = DB.executeQuerySafe("SELECT * FROM brand", (rs) -> {
+                Vector<String> result = new Vector<>();
+                result.add("Select Brand");
+                while (rs.next()) {
+                    result.add(rs.getString("brand_name"));
+                }
+                return result;
+            });
+            
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
             brandCombo.setModel(dcm);
         } catch (Exception e) {
@@ -881,28 +886,47 @@ public class AddNewProduct extends javax.swing.JDialog {
                 productName = productName.substring(0, 35);
             }
 
-            int brandId = 0;
-            ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
-                    + brandCombo.getSelectedItem().toString() + "'");
-            if (brandRs.next()) {
-                brandId = brandRs.getInt("brand_id");
-            }
+            // Get brand ID
+            int brandId = DB.executeQuerySafe("SELECT brand_id FROM brand WHERE brand_name = ?", (rs) -> {
+                if (rs.next()) {
+                    return rs.getInt("brand_id");
+                }
+                return 0;
+            }, brandCombo.getSelectedItem().toString());
 
-            ResultSet productCheckRs = MySQL.executeSearch(
-                    "SELECT product_id FROM product WHERE product_name = '" + productName
-                    + "' AND brand_id = " + brandId
+            // Check if product with same name and brand already exists
+            Integer existingProductId = DB.executeQuerySafe(
+                "SELECT product_id FROM product WHERE product_name = ? AND brand_id = ?",
+                (rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("product_id");
+                    }
+                    return null;
+                },
+                productName, brandId
             );
 
-            if (productCheckRs.next()) {
-
+            if (existingProductId != null) {
+                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
+                        "Product with this name and brand already exists!");
                 productInput.requestFocus();
                 productInput.selectAll();
                 return;
             }
 
-            ResultSet barcodeCheckRs = MySQL.executeSearch("SELECT product_id FROM product WHERE barcode = '"
-                    + barcodeInput.getText().trim() + "'");
-            if (barcodeCheckRs.next()) {
+            // Check if barcode already exists
+            Integer existingBarcodeProductId = DB.executeQuerySafe(
+                "SELECT product_id FROM product WHERE barcode = ?",
+                (rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("product_id");
+                    }
+                    return null;
+                },
+                barcodeInput.getText().trim()
+            );
+
+            if (existingBarcodeProductId != null) {
                 Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT,
                         "Barcode already exists for another product!");
                 barcodeInput.requestFocus();
@@ -910,34 +934,40 @@ public class AddNewProduct extends javax.swing.JDialog {
                 return;
             }
 
-            int categoryId = 0;
-            ResultSet catRs = MySQL.executeSearch("SELECT category_id FROM category WHERE category_name = '"
-                    + categoryCombo.getSelectedItem().toString() + "'");
-            if (catRs.next()) {
-                categoryId = catRs.getInt("category_id");
-            }
+            // Get category ID
+            int categoryId = DB.executeQuerySafe(
+                "SELECT category_id FROM category WHERE category_name = ?",
+                (rs) -> {
+                    if (rs.next()) {
+                        return rs.getInt("category_id");
+                    }
+                    return 0;
+                },
+                categoryCombo.getSelectedItem().toString()
+            );
 
             int statusId = 1;
 
-            String query = "INSERT INTO product (product_name, brand_id, category_id, p_status_id, barcode) "
-                    + "VALUES ('" + productName + "', " + brandId + ", " + categoryId
-                    + ", " + statusId + ", '" + barcodeInput.getText().trim() + "')";
+            // Insert the product and get the generated ID
+            String insertQuery = "INSERT INTO product (product_name, brand_id, category_id, p_status_id, barcode) VALUES (?, ?, ?, ?, ?)";
+            
+            newProductId = DB.insertAndGetId(insertQuery, 
+                productName, 
+                brandId, 
+                categoryId, 
+                statusId, 
+                barcodeInput.getText().trim()
+            );
 
-            MySQL.executeIUD(query);
-
-            // Get the newly inserted product ID
-            ResultSet newProductRs = MySQL.executeSearch("SELECT product_id FROM product WHERE product_name = '"
-                    + productName + "' AND brand_id = " + brandId + " AND barcode = '" + barcodeInput.getText().trim() + "'");
-
-            if (newProductRs.next()) {
-                newProductId = newProductRs.getInt("product_id");
+            if (newProductId > 0) {
                 newProductName = productName;
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Product added successfully!");
+                dispose();
+            } else {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to add product!");
             }
-
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Product added successfully!");
-
-            dispose();
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,

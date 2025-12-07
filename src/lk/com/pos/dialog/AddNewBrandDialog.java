@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -15,7 +15,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import javax.swing.*;
-// import raven.toast.Notifications; // Removed import
 
 /**
  *
@@ -384,19 +383,15 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
     }
 
     private boolean isBrandNameExists(String brandName) {
-        try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM brand WHERE brand_name = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
+        try (Connection conn = DB.getConnection();
+             PreparedStatement pst = conn.prepareStatement("SELECT COUNT(*) FROM brand WHERE brand_name = ?")) {
+            
             pst.setString(1, brandName);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
-                return true;
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                }
             }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             // Exception handling without printing
         }
@@ -418,59 +413,69 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pstBrand = null;
-        PreparedStatement pstCheckMessage = null;
-        PreparedStatement pstInsertMessage = null;
-        PreparedStatement pstInsertNotification = null;
-        ResultSet rs = null;
-
-        try {
-            conn = MySQL.getConnection();
+        try (Connection conn = DB.getConnection()) {
             conn.setAutoCommit(false); // Start transaction
 
-            // 1. Insert the new brand
-            String brandSql = "INSERT INTO brand (brand_name) VALUES (?)";
-            pstBrand = conn.prepareStatement(brandSql, PreparedStatement.RETURN_GENERATED_KEYS);
-            pstBrand.setString(1, brandName);
+            try {
+                // 1. Insert the new brand
+                String brandSql = "INSERT INTO brand (brand_name) VALUES (?)";
+                int brandId;
+                
+                try (PreparedStatement pstBrand = conn.prepareStatement(brandSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                    pstBrand.setString(1, brandName);
+                    int rowsAffected = pstBrand.executeUpdate();
 
-            int rowsAffected = pstBrand.executeUpdate();
+                    if (rowsAffected <= 0) {
+                        conn.rollback();
+                        return;
+                    }
 
-            if (rowsAffected > 0) {
+                    // Get the generated brand ID if needed
+                    try (ResultSet generatedKeys = pstBrand.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            brandId = generatedKeys.getInt(1);
+                        }
+                    }
+                }
+
                 // 2. Check if message already exists in massage table
                 String messageText = "New brand added: " + brandName;
-                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstCheckMessage = conn.prepareStatement(checkMessageSql);
-                pstCheckMessage.setString(1, messageText);
-                rs = pstCheckMessage.executeQuery();
-
                 int messageId;
+                
+                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                try (PreparedStatement pstCheckMessage = conn.prepareStatement(checkMessageSql)) {
+                    pstCheckMessage.setString(1, messageText);
+                    try (ResultSet rs = pstCheckMessage.executeQuery()) {
+                        if (rs.next()) {
+                            // Message already exists, get the existing massage_id
+                            messageId = rs.getInt("massage_id");
+                        } else {
+                            // Message doesn't exist, insert new message
+                            String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                            try (PreparedStatement pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                                pstInsertMessage.setString(1, messageText);
+                                pstInsertMessage.executeUpdate();
 
-                if (rs.next()) {
-                    // Message already exists, get the existing massage_id
-                    messageId = rs.getInt("massage_id");
-                } else {
-                    // Message doesn't exist, insert new message
-                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                    pstInsertMessage.setString(1, messageText);
-                    pstInsertMessage.executeUpdate();
-
-                    // Get the generated message ID
-                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        messageId = generatedKeys.getInt(1);
-                    } else {
-                        throw new Exception("Failed to get generated message ID");
+                                // Get the generated message ID
+                                try (ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys()) {
+                                    if (generatedKeys.next()) {
+                                        messageId = generatedKeys.getInt(1);
+                                    } else {
+                                        conn.rollback();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
                     }
-                    generatedKeys.close();
                 }
 
                 // 3. Insert notification (msg_type_id 24 for "Add New Brand")
                 String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 24, ?)";
-                pstInsertNotification = conn.prepareStatement(notificationSql);
-                pstInsertNotification.setInt(1, messageId);
-                pstInsertNotification.executeUpdate();
+                try (PreparedStatement pstInsertNotification = conn.prepareStatement(notificationSql)) {
+                    pstInsertNotification.setInt(1, messageId);
+                    pstInsertNotification.executeUpdate();
+                }
 
                 // Commit transaction
                 conn.commit();
@@ -479,44 +484,13 @@ public class AddNewBrandDialog extends javax.swing.JDialog {
                 newBrandName = brandName;
 
                 dispose(); // Close the dialog after successful save
-            } else {
-                conn.rollback();
-            }
 
-        } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception ex) {
-                // Exception handling without printing
-            }
-            // Exception handling without printing
-        } finally {
-            // Close all resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pstBrand != null) {
-                    pstBrand.close();
-                }
-                if (pstCheckMessage != null) {
-                    pstCheckMessage.close();
-                }
-                if (pstInsertMessage != null) {
-                    pstInsertMessage.close();
-                }
-                if (pstInsertNotification != null) {
-                    pstInsertNotification.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
             } catch (Exception e) {
+                conn.rollback();
                 // Exception handling without printing
             }
+        } catch (Exception e) {
+            // Exception handling without printing
         }
     }
 

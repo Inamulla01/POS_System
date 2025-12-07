@@ -3,7 +3,8 @@ package lk.com.pos.dialog;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.validation.Validater;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB; // CHANGED: Updated import
+import lk.com.pos.connection.DB.ResultSetHandler; // ADDED: Import for ResultSetHandler
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
@@ -18,7 +19,10 @@ import java.awt.event.KeyEvent;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Vector;
+import java.util.List;
+import java.util.ArrayList;
 import javax.swing.*;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
@@ -787,13 +791,25 @@ public class AddNewUser extends javax.swing.JDialog {
     // ---------------- DATABASE & VALIDATION ----------------
     private void loadUserRoles() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM role");
-            Vector<String> userRoles = new Vector<>();
-            userRoles.add("Select User Role");
-            while (rs.next()) {
-                userRoles.add(rs.getString("role_name"));
-            }
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(userRoles);
+            // CHANGED: Using DB.executeQuerySafe for safer query execution
+            List<String> roleNames = DB.executeQuerySafe(
+                "SELECT role_name FROM role", 
+                new ResultSetHandler<List<String>>() {
+                    @Override
+                    public List<String> handle(ResultSet rs) throws SQLException {
+                        List<String> roles = new ArrayList<>();
+                        roles.add("Select User Role");
+                        while (rs.next()) {
+                            roles.add(rs.getString("role_name"));
+                        }
+                        return roles;
+                    }
+                }
+            );
+            
+            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(
+                roleNames.toArray(new String[0])
+            );
             userRoleCombo.setModel(dcm);
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -851,10 +867,22 @@ public class AddNewUser extends javax.swing.JDialog {
 
     private boolean isUsernameExists(String username) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT COUNT(*) as count FROM user WHERE name='" + username + "'");
-            if (rs.next()) {
-                return rs.getInt("count") > 0;
-            }
+            // CHANGED: Using parameterized query to prevent SQL injection
+            Integer count = DB.executeQuerySafe(
+                "SELECT COUNT(*) as count FROM user WHERE name = ?",
+                new ResultSetHandler<Integer>() {
+                    @Override
+                    public Integer handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            return rs.getInt("count");
+                        }
+                        return 0;
+                    }
+                },
+                username
+            );
+            
+            return count > 0;
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error checking username: " + e.getMessage());
@@ -864,10 +892,22 @@ public class AddNewUser extends javax.swing.JDialog {
 
     private int getRoleId(String roleName) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT role_id FROM role WHERE role_name='" + roleName + "'");
-            if (rs.next()) {
-                return rs.getInt("role_id");
-            }
+            // CHANGED: Using parameterized query
+            Integer roleId = DB.executeQuerySafe(
+                "SELECT role_id FROM role WHERE role_name = ?",
+                new ResultSetHandler<Integer>() {
+                    @Override
+                    public Integer handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            return rs.getInt("role_id");
+                        }
+                        return -1;
+                    }
+                },
+                roleName
+            );
+            
+            return roleId;
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error getting role ID: " + e.getMessage());
@@ -897,8 +937,7 @@ public class AddNewUser extends javax.swing.JDialog {
 
     private void saveUser() {
         java.sql.Connection conn = null;
-        java.sql.PreparedStatement pst = null;
-
+        
         try {
             String formattedUsername = formatUsername(userNameField.getText().trim());
             String password = new String(passwordField.getPassword());
@@ -921,126 +960,111 @@ public class AddNewUser extends javax.swing.JDialog {
 
             String hashedPassword = hashPassword(password);
 
-            // Get database connection
-            conn = MySQL.getConnection();
+            // CHANGED: Get connection from new DB class
+            conn = DB.getConnection();
 
             // Start transaction
             conn.setAutoCommit(false);
 
-            // Insert user
-            String insertUserSQL = "INSERT INTO user (name, password, role_id) VALUES (?, ?, ?)";
-            pst = conn.prepareStatement(insertUserSQL);
-            pst.setString(1, formattedUsername);
-            pst.setString(2, hashedPassword);
-            pst.setInt(3, roleId);
+            try {
+                // Insert user using PreparedStatement
+                String insertUserSQL = "INSERT INTO user (name, password, role_id) VALUES (?, ?, ?)";
+                try (java.sql.PreparedStatement pst = conn.prepareStatement(insertUserSQL)) {
+                    pst.setString(1, formattedUsername);
+                    pst.setString(2, hashedPassword);
+                    pst.setInt(3, roleId);
+                    
+                    int rowsAffected = pst.executeUpdate();
 
-            int rowsAffected = pst.executeUpdate();
+                    if (rowsAffected > 0) {
+                        // Create notification for new user
+                        createUserNotification(formattedUsername, roleName, conn);
 
-            if (rowsAffected > 0) {
-                // Create notification for new user
-                createUserNotification(formattedUsername, roleName, conn);
+                        // Commit transaction
+                        conn.commit();
 
-                // Commit transaction
-                conn.commit();
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "User '" + formattedUsername + "' added successfully!");
-                clearForm();
-            } else {
+                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                                "User '" + formattedUsername + "' added successfully!");
+                        clearForm();
+                    } else {
+                        conn.rollback();
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                                "Failed to add user!");
+                    }
+                }
+            } catch (Exception e) {
                 conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to add user!");
+                throw e;
+            } finally {
+                // Reset auto-commit
+                conn.setAutoCommit(true);
             }
 
         } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-                // Rollback failed, continue
-            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error saving user: " + e.getMessage());
         } finally {
-            // Close resources
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Error closing resources, continue
-            }
+            // Close connection using DB class helper
+            DB.closeQuietly(conn);
         }
     }
 
     private void createUserNotification(String username, String roleName, java.sql.Connection conn) {
-        java.sql.PreparedStatement pstMassage = null;
-        java.sql.PreparedStatement pstNotification = null;
-
         try {
             // Create the message
             String messageText = "New user account created: " + username + " (" + roleName + ")";
 
             // Check if this exact message already exists to avoid duplicates
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            java.sql.ResultSet rs = pstMassage.executeQuery();
-
-            int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                // Message already exists, get its ID
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
+            try (java.sql.PreparedStatement pstMassage = conn.prepareStatement(checkSql)) {
                 pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
-            } else {
-                // Insert new message
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
+                try (java.sql.ResultSet rs = pstMassage.executeQuery()) {
+                    int massageId;
+                    
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        // Message already exists, get its ID
+                        String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                        try (java.sql.PreparedStatement pstGet = conn.prepareStatement(getSql)) {
+                            pstGet.setString(1, messageText);
+                            try (java.sql.ResultSet rs2 = pstGet.executeQuery()) {
+                                if (rs2.next()) {
+                                    massageId = rs2.getInt(1);
+                                } else {
+                                    return; // Should not happen
+                                }
+                            }
+                        }
+                    } else {
+                        // Insert new message
+                        String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                        try (java.sql.PreparedStatement pstInsert = conn.prepareStatement(insertMassageSql, 
+                                java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                            pstInsert.setString(1, messageText);
+                            pstInsert.executeUpdate();
 
-                // Get the generated massage_id
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    throw new java.sql.SQLException("Failed to get generated massage ID");
+                            // Get the generated massage_id
+                            try (java.sql.ResultSet rs2 = pstInsert.getGeneratedKeys()) {
+                                if (rs2.next()) {
+                                    massageId = rs2.getInt(1);
+                                } else {
+                                    throw new java.sql.SQLException("Failed to get generated massage ID");
+                                }
+                            }
+                        }
+                    }
+
+                    // Insert notification (msg_type_id 21 = 'Add New User' from your msg_type table)
+                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+                    try (java.sql.PreparedStatement pstNotification = conn.prepareStatement(notificationSql)) {
+                        pstNotification.setInt(1, 1); // is_read = 1 (unread)
+                        pstNotification.setInt(2, 21); // msg_type_id 21 = 'Add New User'
+                        pstNotification.setInt(3, massageId);
+                        pstNotification.executeUpdate();
+                    }
                 }
             }
-
-            // Insert notification (msg_type_id 21 = 'Add New User' from your msg_type table)
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1); // is_read = 1 (unread)
-            pstNotification.setInt(2, 21); // msg_type_id 21 = 'Add New User'
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
-
         } catch (Exception e) {
-            // Don't throw exception here - we don't want notification failure to affect user creation
-        } finally {
-            // Close resources
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Error closing resources, continue
-            }
+
         }
     }
 

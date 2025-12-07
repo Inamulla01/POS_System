@@ -10,7 +10,7 @@ public class MySQL {
     
     private static final String DATABASE = "pos_system";
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "InAaM@109149";
+    private static final String PASSWORD = "Pasindu@2005";
     private static final String URL = "jdbc:mysql://localhost:3306/" + DATABASE;
     
     // Static initializer to load the driver

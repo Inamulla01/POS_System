@@ -2,7 +2,9 @@ package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.dao.SupplierDAO;
+import lk.com.pos.dto.SupplierDTO;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.awt.Color;
@@ -47,7 +49,7 @@ import lk.com.pos.privateclasses.RoundedPanel;
  * Default: Shows ONLY active suppliers (inactive only shown when explicitly filtered)
  * 
  * @author pasin
- * @version 2.0
+ * @version 3.0 - Updated with DTO/DAO pattern
  */
 public class SupplierPanel extends javax.swing.JPanel {
 
@@ -174,6 +176,9 @@ public class SupplierPanel extends javax.swing.JPanel {
     // State
     private long lastRefreshTime = 0;
 
+    // DAO Instance
+    private SupplierDAO supplierDAO;
+
     public SupplierPanel() {
         initComponents();
         initializeUI();
@@ -181,6 +186,10 @@ public class SupplierPanel extends javax.swing.JPanel {
         createKeyboardHintsPanel();
         createLoadingPanel();
         setupKeyboardShortcuts();
+        
+        // Initialize DAO
+        supplierDAO = new SupplierDAO();
+        
         loadSupplier(); // Will load ACTIVE suppliers by default (no filter selected)
         
         SwingUtilities.invokeLater(() -> {
@@ -1118,12 +1127,6 @@ public class SupplierPanel extends javax.swing.JPanel {
         performSearch();
         this.requestFocusInWindow();
     }
-
-    private static class SupplierCardData {
-        int supplierId, pStatusId;
-        String company, supplierName, mobile, regNo, address, status;
-        double creditAmount, paidAmount;
-    }
     
     private void loadSupplier() {
         String searchText = getSearchText();
@@ -1168,16 +1171,16 @@ public class SupplierPanel extends javax.swing.JPanel {
     private void loadSupplier(String searchText, String status, String dueStatus) {
         showLoading(true);
         
-        SwingWorker<List<SupplierCardData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<SupplierDTO>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<SupplierCardData> doInBackground() throws Exception {
+            protected List<SupplierDTO> doInBackground() throws Exception {
                 return fetchSuppliersFromDatabase(searchText, status, dueStatus);
             }
             
             @Override
             protected void done() {
                 try {
-                    List<SupplierCardData> suppliers = get();
+                    List<SupplierDTO> suppliers = get();
                     displaySuppliers(suppliers);
                 } catch (Exception e) {
                     handleLoadError(e);
@@ -1190,109 +1193,12 @@ public class SupplierPanel extends javax.swing.JPanel {
         worker.execute();
     }
     
-    private List<SupplierCardData> fetchSuppliersFromDatabase(String searchText, String status, String dueStatus) throws Exception {
-        List<SupplierCardData> suppliers = new ArrayList<>();
-        ResultSet rs = null;
-        
+    private List<SupplierDTO> fetchSuppliersFromDatabase(String searchText, String status, String dueStatus) throws Exception {
         try {
-            String query = buildSupplierQuery(searchText, status, dueStatus);
-            rs = MySQL.executeSearch(query);
-
-            while (rs.next()) {
-                SupplierCardData data = createSupplierDataFromResultSet(rs);
-                suppliers.add(data);
-            }
-            
+            return supplierDAO.getAllSuppliers(searchText, status, dueStatus);
         } catch (SQLException e) {
             throw new Exception("Database error while fetching suppliers: " + e.getMessage(), e);
         }
-        
-        return suppliers;
-    }
-    
-    private SupplierCardData createSupplierDataFromResultSet(ResultSet rs) throws SQLException {
-        SupplierCardData data = new SupplierCardData();
-        
-        data.supplierId = rs.getInt("suppliers_id");
-        data.company = rs.getString("Company");
-        data.supplierName = rs.getString("suppliers_name");
-        data.mobile = rs.getString("suppliers_mobile");
-        data.regNo = rs.getString("suppliers_reg_no");
-        data.address = rs.getString("suppliers_address");
-        data.status = rs.getString("p_status");
-        data.pStatusId = rs.getInt("p_status_id");
-        data.creditAmount = rs.getDouble("credit_amount");
-        data.paidAmount = rs.getDouble("credit_pay_amount");
-        
-        return data;
-    }
-    
-    /**
-     * Builds query with proper Active/Inactive filtering
-     * DEFAULT: Shows only ACTIVE suppliers (unless Inactive is explicitly selected)
-     * - Inactive suppliers are NEVER shown unless Inactive radio button is selected
-     * - Due filters only apply to active suppliers
-     */
-    private String buildSupplierQuery(String searchText, String status, String dueStatus) {
-        StringBuilder query = new StringBuilder();
-        
-        query.append("SELECT s.suppliers_id, s.Company, s.suppliers_name, s.suppliers_mobile, ");
-        query.append("s.suppliers_reg_no, s.suppliers_address, p.p_status, s.p_status_id, ");
-        query.append("COALESCE(cs.credit_amount, 0) as credit_amount, ");
-        query.append("COALESCE(SUM(scp.credit_pay_amount), 0) as credit_pay_amount ");
-        query.append("FROM suppliers s ");
-        query.append("LEFT JOIN p_status p ON s.p_status_id = p.p_status_id ");
-        query.append("LEFT JOIN credit_supplier cs ON cs.suppliers_id = s.suppliers_id ");
-        query.append("LEFT JOIN supplier_credit_pay scp ON scp.credit_supplier_id = cs.credit_supplier_id ");
-        query.append("WHERE 1=1 ");
-        
-        // Search filter
-        if (isValidSearchText(searchText)) {
-            String escapedSearch = escapeSQL(searchText);
-            query.append("AND (s.Company LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR s.suppliers_name LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR s.suppliers_reg_no LIKE '%").append(escapedSearch).append("%') ");
-        }
-        
-        // Status filter logic:
-        // ALWAYS filter by status - default to Active if not explicitly showing Inactive
-        if (Strings.STATUS_INACTIVE.equals(status)) {
-            // Only show inactive when Inactive radio button is selected
-            query.append("AND s.p_status_id = ").append(Business.STATUS_INACTIVE_ID).append(" ");
-        } else {
-            // Default: ALWAYS show only active suppliers (even if no radio button selected)
-            query.append("AND s.p_status_id = ").append(Business.STATUS_ACTIVE_ID).append(" ");
-        }
-        
-        query.append("GROUP BY s.suppliers_id, s.Company, s.suppliers_name, s.suppliers_mobile, ");
-        query.append("s.suppliers_reg_no, s.suppliers_address, p.p_status, s.p_status_id, cs.credit_amount ");
-        
-        // Due filters - only apply when NOT showing inactive suppliers
-        if (!Strings.STATUS_INACTIVE.equals(status)) {
-            if (Strings.DUE_NO_DUE.equals(dueStatus)) {
-                query.append("HAVING (COALESCE(cs.credit_amount, 0) - COALESCE(SUM(scp.credit_pay_amount), 0)) = 0 ");
-            } else if (Strings.DUE_HAS_DUE.equals(dueStatus)) {
-                query.append("HAVING (COALESCE(cs.credit_amount, 0) - COALESCE(SUM(scp.credit_pay_amount), 0)) > 0 ");
-            }
-        }
-        
-        query.append("ORDER BY s.Company");
-        
-        return query.toString();
-    }
-    
-    private boolean isValidSearchText(String searchText) {
-        return searchText != null && 
-               !searchText.isEmpty() && 
-               !searchText.equals(Strings.SEARCH_PLACEHOLDER);
-    }
-    
-    private String escapeSQL(String input) {
-        if (input == null) return "";
-        return input.replace("\\", "\\\\")
-                   .replace("'", "''")
-                   .replace("%", "\\%")
-                   .replace("_", "\\_");
     }
     
     private void handleLoadError(Exception e) {
@@ -1307,7 +1213,7 @@ public class SupplierPanel extends javax.swing.JPanel {
         });
     }
 
-    private void displaySuppliers(List<SupplierCardData> suppliers) {
+    private void displaySuppliers(List<SupplierDTO> suppliers) {
         clearSupplierCards();
         
         currentCardIndex = -1;
@@ -1321,8 +1227,8 @@ public class SupplierPanel extends javax.swing.JPanel {
         currentColumns = calculateColumns(jScrollPane1.getWidth());
         final JPanel gridPanel = createGridPanel();
         
-        for (SupplierCardData data : suppliers) {
-            RoundedPanel card = createSupplierCard(data);
+        for (SupplierDTO supplier : suppliers) {
+            RoundedPanel card = createSupplierCard(supplier);
             gridPanel.add(card);
             supplierCardsList.add(card);
         }
@@ -1481,11 +1387,11 @@ public class SupplierPanel extends javax.swing.JPanel {
         }
     }
     
-    private RoundedPanel createSupplierCard(SupplierCardData data) {
-        double outstanding = data.creditAmount - data.paidAmount;
+    private RoundedPanel createSupplierCard(SupplierDTO supplier) {
+        double outstanding = supplier.getOutstandingAmount();
         
-        RoundedPanel card = createBaseCard(data.supplierId, data.company, data.pStatusId);
-        JPanel contentPanel = createCardContent(data, outstanding);
+        RoundedPanel card = createBaseCard(supplier.getSupplierId(), supplier.getCompany(), supplier.getPStatusId());
+        JPanel contentPanel = createCardContent(supplier, outstanding);
         
         card.add(contentPanel);
         return card;
@@ -1557,24 +1463,24 @@ public class SupplierPanel extends javax.swing.JPanel {
         SupplierPanel.this.requestFocusInWindow();
     }
 
-    private JPanel createCardContent(SupplierCardData data, double outstanding) {
+    private JPanel createCardContent(SupplierDTO supplier, double outstanding) {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setOpaque(false);
 
-        contentPanel.add(createHeaderSection(data.supplierId, data.company, data.pStatusId));
+        contentPanel.add(createHeaderSection(supplier.getSupplierId(), supplier.getCompany(), supplier.getPStatusId()));
         contentPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        contentPanel.add(createNameBadgeSection(data.supplierName, data.status, data.pStatusId));
+        contentPanel.add(createNameBadgeSection(supplier.getSupplierName(), supplier.getStatus(), supplier.getPStatusId()));
         contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        contentPanel.add(createDetailsSectionHeader(data.pStatusId));
+        contentPanel.add(createDetailsSectionHeader(supplier.getPStatusId()));
         contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        contentPanel.add(createDetailsGrid(data.mobile, data.regNo, data.pStatusId));
+        contentPanel.add(createDetailsGrid(supplier.getMobile(), supplier.getRegNo(), supplier.getPStatusId()));
         contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        contentPanel.add(createAddressPanel(data.address, data.pStatusId));
+        contentPanel.add(createAddressPanel(supplier.getAddress(), supplier.getPStatusId()));
         contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        contentPanel.add(createPaymentSectionHeader(data.supplierId, data.company, outstanding, data.pStatusId));
+        contentPanel.add(createPaymentSectionHeader(supplier.getSupplierId(), supplier.getCompany(), outstanding, supplier.getPStatusId()));
         contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-        contentPanel.add(createFinancialPanels(data.creditAmount, data.paidAmount, outstanding, data.pStatusId));
+        contentPanel.add(createFinancialPanels(supplier.getCreditAmount(), supplier.getPaidAmount(), outstanding, supplier.getPStatusId()));
 
         return contentPanel;
     }
@@ -1965,19 +1871,24 @@ public class SupplierPanel extends javax.swing.JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                String updateQuery = "UPDATE suppliers SET p_status_id = " + Business.STATUS_INACTIVE_ID + 
-                                   " WHERE suppliers_id = " + supplierId;
-                MySQL.executeIUD(updateQuery);
-
-                JOptionPane.showMessageDialog(this,
-                        "Supplier '" + companyName + "' has been deactivated successfully!\n" +
-                        "You can view it in the 'Inactive Suppliers' section.",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
-
+                boolean success = supplierDAO.deactivateSupplier(supplierId);
+                
+                if (success) {
+                    JOptionPane.showMessageDialog(this,
+                            "Supplier '" + companyName + "' has been deactivated successfully!\n" +
+                            "You can view it in the 'Inactive Suppliers' section.",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                            "Failed to deactivate supplier. Please try again.",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+                
                 performSearch();
 
-            } catch (Exception e) {
+            } catch (SQLException e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this,
                         "Error deactivating supplier: " + e.getMessage(),
@@ -2001,18 +1912,23 @@ public class SupplierPanel extends javax.swing.JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                String updateQuery = "UPDATE suppliers SET p_status_id = " + Business.STATUS_ACTIVE_ID + 
-                                   " WHERE suppliers_id = " + supplierId;
-                MySQL.executeIUD(updateQuery);
-
-                JOptionPane.showMessageDialog(this,
-                        "Supplier '" + companyName + "' has been reactivated successfully!",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
-
+                boolean success = supplierDAO.reactivateSupplier(supplierId);
+                
+                if (success) {
+                    JOptionPane.showMessageDialog(this,
+                            "Supplier '" + companyName + "' has been reactivated successfully!",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                            "Failed to reactivate supplier. Please try again.",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+                
                 performSearch();
 
-            } catch (Exception e) {
+            } catch (SQLException e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this,
                         "Error reactivating supplier: " + e.getMessage(),
@@ -2030,12 +1946,57 @@ public class SupplierPanel extends javax.swing.JPanel {
             return;
         }
         
-        System.out.println("View details for supplier: " + supplierId + " - " + companyName);
-        // TODO: Implement view details dialog/panel
+        try {
+            SupplierDTO supplier = supplierDAO.getSupplierById(supplierId);
+            if (supplier != null) {
+                showSupplierDetailsDialog(supplier);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Supplier not found!",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error loading supplier details: " + e.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+        
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
     
-     private void generateSupplierReport() {
+    private void showSupplierDetailsDialog(SupplierDTO supplier) {
+        // Create a custom dialog to show supplier details
+        // You can expand this to show more detailed information
+        String details = String.format(
+            "Company: %s\n" +
+            "Supplier Name: %s\n" +
+            "Mobile: %s\n" +
+            "Registration No: %s\n" +
+            "Address: %s\n" +
+            "Status: %s\n" +
+            "Credit Amount: Rs.%.2f\n" +
+            "Paid Amount: Rs.%.2f\n" +
+            "Outstanding: Rs.%.2f",
+            supplier.getCompany(),
+            supplier.getSupplierName(),
+            supplier.getMobile(),
+            supplier.getRegNo(),
+            supplier.getAddress(),
+            supplier.getStatus(),
+            supplier.getCreditAmount(),
+            supplier.getPaidAmount(),
+            supplier.getOutstandingAmount()
+        );
+        
+        JOptionPane.showMessageDialog(this,
+                details,
+                "Supplier Details - " + supplier.getCompany(),
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private void generateSupplierReport() {
         // TODO: Implement your actual report generation logic here.
         // This could involve fetching data and using a library like JasperReports.
         System.out.println("Supplier Report generation triggered.");

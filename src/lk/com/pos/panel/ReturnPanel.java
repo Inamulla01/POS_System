@@ -1,7 +1,7 @@
 package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import lk.com.pos.privateclasses.RoundedPanel;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.*;
@@ -16,6 +16,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
 import lk.com.pos.dialog.ExchangeProductDialog;
+import lk.com.pos.dao.ReturnDAO;
+import lk.com.pos.dao.ReturnItemDAO;
+import lk.com.pos.dto.ReturnDetailsDTO;
+import lk.com.pos.dto.ReturnItemDetailsDTO;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ReturnPanel extends javax.swing.JPanel {
 
@@ -23,6 +29,10 @@ public class ReturnPanel extends javax.swing.JPanel {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy, HH:mm:ss");
     private int currentWidth = 0;
     private Timer searchTimer;
+    
+    // DAO instances
+    private ReturnDAO returnDAO = new ReturnDAO();
+    private ReturnItemDAO returnItemDAO = new ReturnItemDAO();
     
     // Keyboard navigation
     private List<JPanel> returnCardsList = new ArrayList<>();
@@ -44,6 +54,9 @@ public class ReturnPanel extends javax.swing.JPanel {
     private static final Color RED_BORDER_SELECTED = new Color(239, 68, 68);
     private static final Color RED_BORDER_HOVER = new Color(248, 113, 113);
     private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
+    
+    // Formatters
+    private DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a");
     
     public ReturnPanel() {
         initComponents();
@@ -144,6 +157,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Alt+7", "2 Years", "#60A5FA");
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
+        addHintRow("Alt+0", "20 Years", "#9333EA");
         
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
@@ -272,7 +286,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
         registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
         
-        // Period filters - ALT+1 to ALT+9 (All Time, Today, 7D, 30D, 90D, 1Y, 2Y, 5Y, 10Y)
+        // Period filters - ALT+1 to ALT+0 (All Time, Today, 7D, 30D, 90D, 1Y, 2Y, 5Y, 10Y, 20Y)
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
         registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(2));
@@ -282,6 +296,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         registerKeyAction("ALT_7", KeyEvent.VK_7, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(6));
         registerKeyAction("ALT_8", KeyEvent.VK_8, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(7));
         registerKeyAction("ALT_9", KeyEvent.VK_9, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(8));
+        registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(9));
         
         // Reason filters - ALL 11 REASONS
         registerKeyAction("SHIFT_1", KeyEvent.VK_1, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(0));
@@ -612,20 +627,20 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
     
     private void customizeComponents() {
-        // Enhanced search field with FlatLaf styling (like SalesPanel)
+        // Enhanced search field with FlatLaf styling
         jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search by invoice number...");
         jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,             
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         jTextField1.setToolTipText("Search returns (Ctrl+F or /) - Press ESC to clear all filters");
         jTextField1.setForeground(Color.GRAY);
         
-        // Enhanced combo boxes with FlatLaf styling - UPDATED WITH NEW PERIODS
+        // Enhanced combo boxes with FlatLaf styling - UPDATED WITH 20 YEARS
         sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
             "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", 
-            "1 Year", "2 Years", "5 Years", "10 Years"
+            "1 Year", "2 Years", "5 Years", "10 Years", "20 Years"
         }));
-        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+9) - Press ESC to reset");
+        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+0) - Press ESC to reset");
         
         sortByReason.setForeground(Color.GRAY);
         sortByReason.setModel(new DefaultComboBoxModel<>(new String[]{
@@ -676,16 +691,16 @@ public class ReturnPanel extends javax.swing.JPanel {
         String finalReason = reason;
         String finalSearchText = searchText;
         
-        SwingWorker<List<ReturnData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<ReturnDetailsDTO>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<ReturnData> doInBackground() throws Exception {
-                return fetchReturnsFromDatabase(finalSearchText, finalPeriod, finalReason);
+            protected List<ReturnDetailsDTO> doInBackground() throws Exception {
+                return returnDAO.getReturnsWithFilters(finalSearchText, finalPeriod, finalReason);
             }
             
             @Override
             protected void done() {
                 try {
-                    List<ReturnData> returns = get();
+                    List<ReturnDetailsDTO> returns = get();
                     displayReturns(returns);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -702,109 +717,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         worker.execute();
     }
 
-    private static class ReturnData {
-        int returnId;
-        String invoiceNo;
-        String returnDate;
-        double returnAmount;
-        double discountPrice;
-        double originalTotal;
-        String returnReason;
-        String statusName;
-        String processedBy;
-        String paymentMethod;
-        String customerName;
-    }
-
-    private List<ReturnData> fetchReturnsFromDatabase(String searchText, String period, String reason) throws Exception {
-    List<ReturnData> returns = new ArrayList<>();
-    
-    try {
-        String baseQuery = "SELECT " +
-            "r.return_id, r.return_date, r.total_return_amount, r.total_discount_price, " +
-            "s.invoice_no, s.total as original_total, " +
-            "rr.reason as return_reason, " +
-            "ps.p_status as status_name, " +
-            "u.name as processed_by, " +
-            "pm.payment_method_name, " +
-            "COALESCE(cc.customer_name, 'Walk-in Customer') as customer_name " +
-            "FROM `return` r " +
-            "INNER JOIN sales s ON r.sales_id = s.sales_id " +
-            "INNER JOIN return_reason rr ON r.return_reason_id = rr.return_reason_id " +
-            "INNER JOIN p_status ps ON r.status_id = ps.p_status_id " +
-            "INNER JOIN user u ON r.user_id = u.user_id " +
-            "INNER JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
-            "LEFT JOIN credit c ON s.sales_id = c.sales_id " +
-            "LEFT JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id ";
-        
-        StringBuilder whereClause = new StringBuilder();
-        List<Object> parameters = new ArrayList<>();
-        
-        if (!searchText.isEmpty()) {
-            String escapedSearch = searchText.replace("'", "''")
-                                             .replace("\\", "\\\\")
-                                             .replace("%", "\\%")
-                                             .replace("_", "\\_");
-            whereClause.append("WHERE s.invoice_no LIKE '%").append(escapedSearch).append("%' ");
-        }
-        
-        String dateFilter = getDateFilter(period);
-        if (!dateFilter.isEmpty()) {
-            if (whereClause.length() == 0) {
-                whereClause.append("WHERE ").append(dateFilter);
-            } else {
-                whereClause.append("AND ").append(dateFilter);
-            }
-        }
-        
-        if (!reason.equals("All Reasons")) {
-            if (whereClause.length() == 0) {
-                whereClause.append("WHERE rr.reason LIKE ? ");
-            } else {
-                whereClause.append("AND rr.reason LIKE ? ");
-            }
-            parameters.add("%" + reason + "%");
-        }
-        
-        String orderBy = " ORDER BY r.return_date DESC";
-        String finalQuery = baseQuery + whereClause.toString() + orderBy;
-        
-        PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
-        for (int i = 0; i < parameters.size(); i++) {
-            pst.setObject(i + 1, parameters.get(i));
-        }
-        
-        ResultSet rs = pst.executeQuery();
-        
-        while (rs.next()) {
-            ReturnData data = new ReturnData();
-            data.returnId = rs.getInt("return_id");
-            data.invoiceNo = rs.getString("invoice_no");
-            data.returnDate = rs.getString("return_date");
-            data.returnAmount = rs.getDouble("total_return_amount");
-            data.discountPrice = rs.getDouble("total_discount_price");
-            data.originalTotal = rs.getDouble("original_total");
-            data.returnReason = rs.getString("return_reason");
-            data.statusName = rs.getString("status_name");
-            data.processedBy = rs.getString("processed_by");
-            data.paymentMethod = rs.getString("payment_method_name");
-            data.customerName = rs.getString("customer_name");
-            
-            returns.add(data);
-        }
-        
-        rs.close();
-        pst.close();
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        throw new Exception("Database error: " + e.getMessage());
-    }
-    
-    return returns;
-}
-
-    private void displayReturns(List<ReturnData> returns) {
+    private void displayReturns(List<ReturnDetailsDTO> returns) {
         returnsContainer = new JPanel();
         returnsContainer.setLayout(new BoxLayout(returnsContainer, BoxLayout.Y_AXIS));
         returnsContainer.setBackground(new Color(248, 250, 252));
@@ -816,14 +729,9 @@ public class ReturnPanel extends javax.swing.JPanel {
         if (returns.isEmpty()) {
             returnsContainer.add(createNoDataPanel());
         } else {
-            for (ReturnData data : returns) {
-                JPanel returnCard = createReturnCard(
-                    data.returnId, data.invoiceNo, data.returnDate,
-                    data.returnAmount, data.discountPrice, data.originalTotal,
-                    data.returnReason, data.statusName, data.processedBy,
-                    data.paymentMethod, data.customerName
-                );
-                returnCard.putClientProperty("invoiceNo", data.invoiceNo);
+            for (ReturnDetailsDTO data : returns) {
+                JPanel returnCard = createReturnCard(data);
+                returnCard.putClientProperty("invoiceNo", data.getInvoiceNo());
                 returnsContainer.add(returnCard);
                 returnsContainer.add(Box.createRigidArea(new Dimension(0, 16)));
                 returnCardsList.add(returnCard);
@@ -920,33 +828,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         return container;
     }
     
-    private String getDateFilter(String period) {
-        switch (period) {
-            case "Today":
-                return "DATE(r.return_date) = CURDATE()";
-            case "Last 7 Days":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-            case "Last 30 Days":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-            case "Last 90 Days":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
-            case "1 Year":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
-            case "2 Years":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 2 YEAR)";
-            case "5 Years":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 5 YEAR)";
-            case "10 Years":
-                return "r.return_date >= DATE_SUB(NOW(), INTERVAL 10 YEAR)";
-            default:
-                return "";
-        }
-    }
-    
-    private JPanel createReturnCard(int returnId, String invoiceNo, String returnDate,
-                                   double returnAmount, double discountPrice, double originalTotal,
-                                   String returnReason, String statusName, String processedBy,
-                                   String paymentMethod, String customerName) {
+    private JPanel createReturnCard(ReturnDetailsDTO data) {
         RoundedPanel cardPanel = new RoundedPanel();
         cardPanel.setLayout(new BorderLayout(0, 0));
         cardPanel.setBackground(Color.WHITE);
@@ -977,9 +859,20 @@ public class ReturnPanel extends javax.swing.JPanel {
         contentPanel.setBackground(Color.WHITE);
         contentPanel.setOpaque(false);
 
-        JPanel headerPanel = createReturnHeader(invoiceNo, customerName, paymentMethod, returnAmount, statusName);
-        JPanel itemsPanel = createReturnItemsPanel(returnId);
-        JPanel footerPanel = createReturnFooter(returnDate, returnReason, discountPrice, processedBy);
+        JPanel headerPanel = createReturnHeader(
+            data.getInvoiceNo(), 
+            data.getCustomerName(), 
+            data.getPaymentMethod(), 
+            data.getReturnAmount(), 
+            data.getStatusName()
+        );
+        JPanel itemsPanel = createReturnItemsPanel(data.getReturnId());
+        JPanel footerPanel = createReturnFooter(
+            data.getReturnDate(), 
+            data.getReturnReason(), 
+            data.getDiscountPrice(), 
+            data.getProcessedBy()
+        );
 
         headerPanel.setOpaque(false);
         itemsPanel.setOpaque(false);
@@ -1169,35 +1062,7 @@ public class ReturnPanel extends javax.swing.JPanel {
 
     private void loadReturnItems(JPanel itemsListPanel, int returnId) {
         try {
-            String query = "SELECT " +
-                "ri.return_qty, ri.unit_return_price, ri.discount_price, ri.total_return_amount, " +
-                "p.product_name, " +
-                "st.batch_no " +
-                "FROM return_item ri " +
-                "INNER JOIN stock st ON ri.stock_id = st.stock_id " +
-                "INNER JOIN product p ON st.product_id = p.product_id " +
-                "WHERE ri.return_id = ? " +
-                "ORDER BY ri.return_item_id";
-            
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
-            pst.setInt(1, returnId);
-            ResultSet rs = pst.executeQuery();
-            
-            List<ReturnItemData> items = new ArrayList<>();
-            
-            while (rs.next()) {
-                String productName = rs.getString("product_name");
-                String qty = rs.getString("return_qty");
-                double price = rs.getDouble("unit_return_price");
-                double discountPrice = rs.getDouble("discount_price");
-                double itemTotal = rs.getDouble("total_return_amount");
-                String batchNo = rs.getString("batch_no");
-                
-                items.add(new ReturnItemData(productName, qty, price, discountPrice, itemTotal, batchNo));
-            }
-            
-            rs.close();
-            pst.close();
+            List<ReturnItemDetailsDTO> items = returnItemDAO.getReturnItemDetails(returnId);
             
             if (items.isEmpty()) {
                 JLabel noItemsLabel = new JLabel("No items in this return");
@@ -1207,9 +1072,8 @@ public class ReturnPanel extends javax.swing.JPanel {
                 itemsListPanel.add(noItemsLabel);
             } else {
                 for (int i = 0; i < items.size(); i++) {
-                    ReturnItemData item = items.get(i);
-                    JPanel itemCard = createReturnItemCard(item.productName, item.qty, item.price, 
-                                                          item.discountPrice, item.total, item.batchNo);
+                    ReturnItemDetailsDTO item = items.get(i);
+                    JPanel itemCard = createReturnItemCard(item);
                     itemsListPanel.add(itemCard);
                     
                     if (i < items.size() - 1) {
@@ -1232,8 +1096,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         }
     }
 
-    private JPanel createReturnItemCard(String productName, String qty, double price, 
-                                       double discountPrice, double total, String batchNo) {
+    private JPanel createReturnItemCard(ReturnItemDetailsDTO item) {
         JPanel itemPanel = new JPanel();
         itemPanel.setLayout(new BorderLayout(10, 0));
         itemPanel.setOpaque(false);
@@ -1244,7 +1107,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setOpaque(false);
 
-        JLabel productLabel = new JLabel(productName != null ? productName : "Unknown Product");
+        JLabel productLabel = new JLabel(item.getProductName() != null ? item.getProductName() : "Unknown Product");
         productLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
         productLabel.setForeground(new Color(30, 41, 59));
         productLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -1254,14 +1117,14 @@ public class ReturnPanel extends javax.swing.JPanel {
         detailsPanel.setOpaque(false);
         detailsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel priceQtyLabel = new JLabel(String.format("Rs.%.2f × %s", price, qty));
+        JLabel priceQtyLabel = new JLabel(String.format("Rs.%.2f × %s", item.getPrice(), item.getQty()));
         priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
         priceQtyLabel.setForeground(new Color(100, 116, 139));
 
         detailsPanel.add(priceQtyLabel);
 
-        if (discountPrice > 0) {
-            JLabel discountInfo = new JLabel(String.format(" • Rs.%.2f discount", discountPrice));
+        if (item.getDiscountPrice() > 0) {
+            JLabel discountInfo = new JLabel(String.format(" • Rs.%.2f discount", item.getDiscountPrice()));
             discountInfo.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
             discountInfo.setForeground(new Color(220, 38, 38));
             detailsPanel.add(discountInfo);
@@ -1272,8 +1135,8 @@ public class ReturnPanel extends javax.swing.JPanel {
         extraInfoPanel.setOpaque(false);
         extraInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        if (batchNo != null && !batchNo.isEmpty()) {
-            JLabel batchLabel = new JLabel("Batch: " + batchNo);
+        if (item.getBatchNo() != null && !item.getBatchNo().isEmpty()) {
+            JLabel batchLabel = new JLabel("Batch: " + item.getBatchNo());
             batchLabel.setFont(new Font("Nunito", Font.PLAIN, 11));
             batchLabel.setForeground(new Color(148, 163, 184));
             extraInfoPanel.add(batchLabel);
@@ -1288,7 +1151,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             leftPanel.add(extraInfoPanel);
         }
 
-        JLabel totalLabel = new JLabel(String.format("Rs.%.2f", total));
+        JLabel totalLabel = new JLabel(String.format("Rs.%.2f", item.getTotal()));
         totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 15));
         totalLabel.setForeground(new Color(239, 68, 68));
 
@@ -1298,7 +1161,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         return itemPanel;
     }
 
-    private JPanel createReturnFooter(String returnDate, String returnReason, 
+    private JPanel createReturnFooter(LocalDateTime returnDate, String returnReason, 
                                      double discountPrice, String processedBy) {
         JPanel footerPanel = new JPanel();
         footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
@@ -1408,37 +1271,12 @@ public class ReturnPanel extends javax.swing.JPanel {
         return "ℹ️";
     }
 
-    private String formatDateTime(String datetime) {
+    private String formatDateTime(LocalDateTime datetime) {
+        if (datetime == null) return "Unknown Date";
         try {
-            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            SimpleDateFormat outputFormat = new SimpleDateFormat("dd MMM yyyy, hh:mm a");
-            Date date = inputFormat.parse(datetime);
-            return outputFormat.format(date);
+            return datetime.format(displayFormatter);
         } catch (Exception e) {
-            if (datetime != null && datetime.length() >= 10) {
-                return datetime.substring(0, 10) + ", " + (datetime.length() > 11 ? datetime.substring(11) : "");
-            }
-            return datetime != null ? datetime : "Unknown Date";
-        }
-    }
-    
-    // Helper class
-    private static class ReturnItemData {
-        String productName;
-        String qty;
-        double price;
-        double discountPrice;
-        double total;
-        String batchNo;
-        
-        ReturnItemData(String productName, String qty, double price, double discountPrice, 
-                      double total, String batchNo) {
-            this.productName = productName;
-            this.qty = qty;
-            this.price = price;
-            this.discountPrice = discountPrice;
-            this.total = total;
-            this.batchNo = batchNo;
+            return datetime.toString();
         }
     }
     

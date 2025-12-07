@@ -3,14 +3,12 @@ package lk.com.pos.dao;
 import lk.com.pos.dto.ProductDTO;
 import lk.com.pos.connection.DB;
 import java.sql.*;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
  * ProductDAO - Data Access Object for Product operations
- * Uses the new DB connection class for maximum performance
  * @author pasin
  */
 public class ProductDAO {
@@ -29,9 +27,7 @@ public class ProductDAO {
                        "b.brand_name, " +
                        "c.category_name, " +
                        "p.barcode, " +
-                       "p.p_status_id, " +
-                       "p.unit_price, " +
-                       "p.selling_price " +
+                       "p.p_status_id " +
                        "FROM product p " +
                        "JOIN category c ON c.category_id = p.category_id " +
                        "JOIN brand b ON b.brand_id = p.brand_id " +
@@ -66,8 +62,6 @@ public class ProductDAO {
                     product.setCategoryName(rs.getString("category_name"));
                     product.setBarcode(rs.getString("barcode"));
                     product.setPStatusId(rs.getInt("p_status_id"));
-                    product.setUnitPrice(rs.getBigDecimal("unit_price"));
-                    product.setSellingPrice(rs.getBigDecimal("selling_price"));
                     resultList.add(product);
                 }
                 return resultList;
@@ -86,12 +80,10 @@ public class ProductDAO {
      * @return ProductDTO or null if not found
      */
     public ProductDTO getProductById(int productId) {
-        String query = "SELECT p.*, b.brand_name, c.category_name, " +
-                       "s.stock_id, s.suppliers_id, s.quantity, s.date as stock_date, s.buying_price " +
+        String query = "SELECT p.*, b.brand_name, c.category_name " +
                        "FROM product p " +
                        "LEFT JOIN brand b ON b.brand_id = p.brand_id " +
                        "LEFT JOIN category c ON c.category_id = p.category_id " +
-                       "LEFT JOIN stock s ON s.product_id = p.product_id " +
                        "WHERE p.product_id = ?";
         
         try {
@@ -104,21 +96,9 @@ public class ProductDAO {
                     product.setBrandId(rs.getInt("brand_id"));
                     product.setCategoryId(rs.getInt("category_id"));
                     product.setPStatusId(rs.getInt("p_status_id"));
-                    product.setUnitPrice(rs.getBigDecimal("unit_price"));
-                    product.setSellingPrice(rs.getBigDecimal("selling_price"));
                     product.setReorderLevel(rs.getInt("reorder_level"));
                     product.setBrandName(rs.getString("brand_name"));
                     product.setCategoryName(rs.getString("category_name"));
-                    
-                    // Stock details
-                    product.setStockId(rs.getInt("stock_id"));
-                    if (!rs.wasNull()) {
-                        product.setSuppliersId(rs.getInt("suppliers_id"));
-                        product.setQuantity(rs.getInt("quantity"));
-                        product.setStockDate(rs.getDate("stock_date"));
-                        product.setBuyingPrice(rs.getBigDecimal("buying_price"));
-                    }
-                    
                     return product;
                 }
                 return null;
@@ -153,8 +133,6 @@ public class ProductDAO {
                     product.setBrandId(rs.getInt("brand_id"));
                     product.setCategoryId(rs.getInt("category_id"));
                     product.setPStatusId(rs.getInt("p_status_id"));
-                    product.setUnitPrice(rs.getBigDecimal("unit_price"));
-                    product.setSellingPrice(rs.getBigDecimal("selling_price"));
                     product.setReorderLevel(rs.getInt("reorder_level"));
                     product.setBrandName(rs.getString("brand_name"));
                     product.setCategoryName(rs.getString("category_name"));
@@ -177,8 +155,8 @@ public class ProductDAO {
      */
     public int insertProduct(ProductDTO product) {
         String query = "INSERT INTO product (product_name, barcode, brand_id, " +
-                       "category_id, p_status_id, unit_price, selling_price, reorder_level) " +
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                       "category_id, p_status_id, reorder_level) " +
+                       "VALUES (?, ?, ?, ?, ?, ?)";
         
         try {
             return DB.insertAndGetId(query,
@@ -187,8 +165,6 @@ public class ProductDAO {
                 product.getBrandId(),
                 product.getCategoryId(),
                 product.getPStatusId(),
-                product.getUnitPrice(),
-                product.getSellingPrice(),
                 product.getReorderLevel()
             );
             
@@ -211,8 +187,6 @@ public class ProductDAO {
                        "brand_id = ?, " +
                        "category_id = ?, " +
                        "p_status_id = ?, " +
-                       "unit_price = ?, " +
-                       "selling_price = ?, " +
                        "reorder_level = ? " +
                        "WHERE product_id = ?";
         
@@ -223,8 +197,6 @@ public class ProductDAO {
                 product.getBrandId(),
                 product.getCategoryId(),
                 product.getPStatusId(),
-                product.getUnitPrice(),
-                product.getSellingPrice(),
                 product.getReorderLevel(),
                 product.getProductId()
             );
@@ -369,5 +341,28 @@ public class ProductDAO {
      */
     public List<ProductDTO> searchProducts(String searchText) {
         return getProductsForDisplay(searchText, null);
+    }
+    
+    /**
+     * Get stock ID for product
+     * @param productId Product ID
+     * @return Stock ID or -1 if not found
+     */
+    public int getStockIdForProduct(int productId) {
+        String query = "SELECT stock_id FROM stock WHERE product_id = ? LIMIT 1";
+        
+        try {
+            return DB.executeQuerySafe(query, (ResultSet rs) -> {
+                if (rs.next()) {
+                    return rs.getInt("stock_id");
+                }
+                return -1;
+            }, productId);
+            
+        } catch (SQLException e) {
+            log.severe("Error getting stock ID for product: " + e.getMessage());
+            e.printStackTrace();
+            return -1;
+        }
     }
 }

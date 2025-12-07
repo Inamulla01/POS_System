@@ -1,7 +1,10 @@
 package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.dto.InvoiceDTO;
+import lk.com.pos.dto.SaleItemDTO;
+import lk.com.pos.dao.SalesDAO;
 import lk.com.pos.privateclasses.RoundedPanel;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.*;
@@ -45,6 +48,9 @@ public class SalesPanel extends javax.swing.JPanel {
     private static final Color TEAL_BORDER_HOVER = new Color(60, 200, 206);
     private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
     
+    // DAO instance
+    private SalesDAO salesDAO = new SalesDAO();
+    
     public SalesPanel() {
         initComponents();
         setupPanel();
@@ -54,7 +60,11 @@ public class SalesPanel extends javax.swing.JPanel {
         setupKeyboardShortcuts();
         
         // Debug: Check what status values exist
-        debugStatusValues();
+        try {
+            salesDAO.debugStatusValues();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         
         loadSalesData("", "All Time");
         setupEventListeners();
@@ -64,47 +74,6 @@ public class SalesPanel extends javax.swing.JPanel {
             showKeyboardHints();
         });
     }
-    
-    private void debugStatusValues() {
-    try {
-        String query = "SELECT DISTINCT s.status_id, st.status_name, COUNT(*) as count " +
-                      "FROM sales s " +
-                      "LEFT JOIN status st ON s.status_id = st.status_id " +
-                      "GROUP BY s.status_id, st.status_name " +
-                      "ORDER BY s.status_id";
-        
-        PreparedStatement pst = MySQL.getConnection().prepareStatement(query);
-        ResultSet rs = pst.executeQuery();
-        
-        System.out.println("=== Sales Status Distribution ===");
-        while (rs.next()) {
-            int statusId = rs.getInt("status_id");
-            String statusName = rs.getString("status_name");
-            int count = rs.getInt("count");
-            System.out.println("Status ID: " + statusId + ", Name: '" + statusName + "', Count: " + count);
-        }
-        
-        // Also check what status types exist in status table
-        System.out.println("=== All Status Types in status table ===");
-        String statusQuery = "SELECT status_id, status_name FROM status ORDER BY status_id";
-        PreparedStatement statusPst = MySQL.getConnection().prepareStatement(statusQuery);
-        ResultSet statusRs = statusPst.executeQuery();
-        
-        while (statusRs.next()) {
-            int statusId = statusRs.getInt("status_id");
-            String statusName = statusRs.getString("status_name");
-            System.out.println("Status ID: " + statusId + ", Name: '" + statusName + "'");
-        }
-        
-        rs.close();
-        pst.close();
-        statusRs.close();
-        statusPst.close();
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-}
     
     private void createPositionIndicator() {
         positionIndicator = new JPanel();
@@ -178,6 +147,7 @@ public class SalesPanel extends javax.swing.JPanel {
         addHintRow("Alt+7", "2 Years", "#60A5FA");
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
+        addHintRow("Alt+0", "20 Years", "#DC2626");
         addHintRow("Esc", "Clear All Filters", "#EF4444");
         addHintRow("?", "Toggle Help", "#1CB5BB");
         
@@ -280,7 +250,7 @@ public class SalesPanel extends javax.swing.JPanel {
         registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openSalesReport);
         registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openSalesReport);
         
-        // Period filters (Extended)
+        // Period filters (Extended with 20 Years)
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
         registerKeyAction("ALT_3", KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(2));
@@ -290,6 +260,7 @@ public class SalesPanel extends javax.swing.JPanel {
         registerKeyAction("ALT_7", KeyEvent.VK_7, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(6));
         registerKeyAction("ALT_8", KeyEvent.VK_8, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(7));
         registerKeyAction("ALT_9", KeyEvent.VK_9, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(8));
+        registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(9));
         
         // Escape - UPDATED TO CLEAR ALL FILTERS
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
@@ -596,13 +567,13 @@ public class SalesPanel extends javax.swing.JPanel {
         jTextField1.setToolTipText("Search invoices (Ctrl+F or /) - Press ESC to clear all filters");
         jTextField1.setForeground(Color.GRAY);
         
-        // Enhanced combo box with FlatLaf styling - UPDATED WITH NEW PERIODS
+        // Enhanced combo box with FlatLaf styling - UPDATED WITH 20 YEARS
         sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
             "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", 
-            "1 Year", "2 Years", "5 Years", "10 Years"
+            "1 Year", "2 Years", "5 Years", "10 Years", "20 Years"
         }));
-        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+9) - Press ESC to reset");
+        sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+0) - Press ESC to reset");
         
         // Sales Report Button Tooltip - UPDATED
         salesReportBtn.setToolTipText("Generate Sales Report (Ctrl+P or Ctrl+R)");
@@ -642,12 +613,12 @@ public class SalesPanel extends javax.swing.JPanel {
         String finalPeriod = period;
         String finalSearchText = searchText;
         
-        SwingWorker<List<InvoiceData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<InvoiceDTO>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<InvoiceData> doInBackground() throws Exception {
+            protected List<InvoiceDTO> doInBackground() throws Exception {
                 try {
                     System.out.println("Fetching invoices from database...");
-                    List<InvoiceData> invoices = fetchInvoicesFromDatabase(finalSearchText, finalPeriod);
+                    List<InvoiceDTO> invoices = salesDAO.fetchInvoicesFromDatabase(finalSearchText, finalPeriod);
                     System.out.println("Fetched " + invoices.size() + " invoices");
                     return invoices;
                 } catch (Exception e) {
@@ -660,7 +631,7 @@ public class SalesPanel extends javax.swing.JPanel {
             @Override
             protected void done() {
                 try {
-                    List<InvoiceData> invoices = get();
+                    List<InvoiceDTO> invoices = get();
                     System.out.println("Displaying " + invoices.size() + " invoices");
                     displayInvoices(invoices);
                 } catch (Exception e) {
@@ -678,142 +649,51 @@ public class SalesPanel extends javax.swing.JPanel {
         worker.execute();
     }
 
-   private static class InvoiceData {
-    int salesId;
-    String invoiceNo;
-    String datetime;
-    double total;
-    double itemDiscount;
-    double saleDiscount;
-    double totalDiscount;
-    String paymentMethod;
-    String cashierName;
-    String customerName;
-    int statusId;
-    String saleStatus;
-}
-
-    private List<InvoiceData> fetchInvoicesFromDatabase(String searchText, String period) throws Exception {
-    List<InvoiceData> invoices = new ArrayList<>();
-    
-    try {
-        // CORRECTED: Based on actual schema structure
-        String baseQuery = "SELECT " +
-            "s.sales_id, s.invoice_no, s.datetime, s.total, " +
-            "s.status_id, " +
-            "st.status_name, " +
-            // Item-level discounts
-            "(SELECT COALESCE(SUM(si.discount_price), 0) FROM sale_item si WHERE si.sales_id = s.sales_id) as total_item_discount, " +
-            // Sale-level discount - Get directly from discount table via the foreign key
-            "COALESCE(d.discount, 0) as total_sale_discount, " +
-            "pm.payment_method_name, u.name as cashier_name, " +
-            // Get customer name through credit table if exists
-            "(SELECT cc.customer_name FROM credit c " +
-            "INNER JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id " +
-            "WHERE c.sales_id = s.sales_id LIMIT 1) as customer_name " +
-            "FROM sales s " +
-            "LEFT JOIN payment_method pm ON s.payment_method_id = pm.payment_method_id " +
-            "LEFT JOIN user u ON s.user_id = u.user_id " +
-            "LEFT JOIN status st ON s.status_id = st.status_id " +
-            // JOIN discount table via the discount_id foreign key in sales table
-            "LEFT JOIN discount d ON s.discount_id = d.discount_id ";
+    private void displayInvoices(List<InvoiceDTO> invoices) {
+        invoicesContainer = new JPanel();
+        invoicesContainer.setLayout(new BoxLayout(invoicesContainer, BoxLayout.Y_AXIS));
+        invoicesContainer.setBackground(new Color(248, 250, 252));
+        invoicesContainer.setOpaque(false);
+        invoicesContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         
-        StringBuilder whereClause = new StringBuilder();
-        List<Object> parameters = new ArrayList<>();
+        clearInvoiceCards();
         
-        whereClause.append("WHERE 1=1 ");
-        
-        if (!searchText.isEmpty()) {
-            whereClause.append("AND s.invoice_no LIKE ? ");
-            parameters.add("%" + searchText + "%");
+        if (invoices.isEmpty()) {
+            invoicesContainer.add(createNoDataPanel());
+        } else {
+            for (InvoiceDTO data : invoices) {
+                JPanel invoiceCard = createInvoiceCard(data);
+                invoiceCard.putClientProperty("invoiceNo", data.getInvoiceNo());
+                invoicesContainer.add(invoiceCard);
+                invoicesContainer.add(Box.createRigidArea(new Dimension(0, 16)));
+                invoiceCardsList.add(invoiceCard);
+            }
         }
         
-        String dateFilter = getDateFilter(period);
-        if (!dateFilter.isEmpty()) {
-            whereClause.append("AND ").append(dateFilter);
-        }
-        
-        String orderBy = " ORDER BY s.datetime DESC";
-        String finalQuery = baseQuery + whereClause.toString() + orderBy;
-        
-        System.out.println("Executing Query: " + finalQuery);
-        
-        PreparedStatement pst = MySQL.getConnection().prepareStatement(finalQuery);
-        for (int i = 0; i < parameters.size(); i++) {
-            pst.setObject(i + 1, parameters.get(i));
-        }
-        
-        ResultSet rs = pst.executeQuery();
-        
-        while (rs.next()) {
-            InvoiceData data = new InvoiceData();
-            data.salesId = rs.getInt("sales_id");
-            data.invoiceNo = rs.getString("invoice_no");
-            data.datetime = rs.getString("datetime");
-            data.total = rs.getDouble("total");
-            data.itemDiscount = rs.getDouble("total_item_discount");
-            data.statusId = rs.getInt("status_id");
-            data.saleStatus = rs.getString("status_name");
-            
-            // Sale discount comes directly from the JOIN now
-            data.saleDiscount = rs.getDouble("total_sale_discount");
-            data.totalDiscount = data.itemDiscount + data.saleDiscount;
-            data.paymentMethod = rs.getString("payment_method_name");
-            data.cashierName = rs.getString("cashier_name");
-            
-            // Customer name from credit table subquery, default to Walk-in
-            String custName = rs.getString("customer_name");
-            data.customerName = (custName != null && !custName.isEmpty()) ? custName : "Walk-in Customer";
-            
-            invoices.add(data);
-        }
-        
-        rs.close();
-        pst.close();
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        throw new Exception("Database error: " + e.getMessage());
+        jPanel2.removeAll();
+        JPanel wrapperPanel = new JPanel(new BorderLayout());
+        wrapperPanel.setBackground(new Color(248, 250, 252));
+        wrapperPanel.add(invoicesContainer, BorderLayout.NORTH);
+        jPanel2.add(wrapperPanel, BorderLayout.CENTER);
+        jPanel2.revalidate();
+        jPanel2.repaint();
     }
-    
-    return invoices;
-}
 
-    private void displayInvoices(List<InvoiceData> invoices) {
-    invoicesContainer = new JPanel();
-    invoicesContainer.setLayout(new BoxLayout(invoicesContainer, BoxLayout.Y_AXIS));
-    invoicesContainer.setBackground(new Color(248, 250, 252));
-    invoicesContainer.setOpaque(false);
-    invoicesContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-    
-    clearInvoiceCards();
-    
-    if (invoices.isEmpty()) {
-        invoicesContainer.add(createNoDataPanel());
-    } else {
-        for (InvoiceData data : invoices) {
-            JPanel invoiceCard = createInvoiceCard(
-                data.salesId, data.invoiceNo, data.datetime, 
-                data.total, data.itemDiscount, data.saleDiscount, 
-                data.totalDiscount, data.paymentMethod, 
-                data.cashierName, data.customerName,
-                data.saleStatus  // Removed: discountId parameter
-            );
-            invoiceCard.putClientProperty("invoiceNo", data.invoiceNo);
-            invoicesContainer.add(invoiceCard);
-            invoicesContainer.add(Box.createRigidArea(new Dimension(0, 16)));
-            invoiceCardsList.add(invoiceCard);
-        }
+    private JPanel createInvoiceCard(InvoiceDTO data) {
+        return createInvoiceCard(
+            data.getSalesId(),
+            data.getInvoiceNo(),
+            data.getFormattedDateTime(),
+            data.getTotal(),
+            data.getItemDiscount(),
+            data.getSaleDiscount(),
+            data.getTotalDiscount(),
+            data.getPaymentMethod(),
+            data.getCashierName(),
+            data.getCustomerName(),
+            data.getSaleStatus()
+        );
     }
-    
-    jPanel2.removeAll();
-    JPanel wrapperPanel = new JPanel(new BorderLayout());
-    wrapperPanel.setBackground(new Color(248, 250, 252));
-    wrapperPanel.add(invoicesContainer, BorderLayout.NORTH);
-    jPanel2.add(wrapperPanel, BorderLayout.CENTER);
-    jPanel2.revalidate();
-    jPanel2.repaint();
-}
 
     private void clearInvoiceCards() {
         for (JPanel card : invoiceCardsList) {
@@ -824,20 +704,6 @@ public class SalesPanel extends javax.swing.JPanel {
         invoiceCardsList.clear();
         currentCardIndex = -1;
         currentFocusedCard = null;
-    }
-    
-    private double calculateSaleDiscount(double total, double saleDiscountAmount, int saleDiscountType, int discountId) {
-        double saleDiscount = 0;
-        
-        if (discountId > 0 && saleDiscountAmount > 0 && !Double.isNaN(saleDiscountAmount)) {
-            if (saleDiscountType == 1) {
-                saleDiscount = (total * saleDiscountAmount) / 100;
-            } else if (saleDiscountType == 2) {
-                saleDiscount = saleDiscountAmount;
-            }
-        }
-        
-        return saleDiscount;
     }
     
     private JPanel createNoDataPanel() {
@@ -921,326 +787,302 @@ public class SalesPanel extends javax.swing.JPanel {
         return container;
     }
     
-    private String getDateFilter(String period) {
-        switch (period) {
-            case "Today":
-                return "DATE(s.datetime) = CURDATE()";
-            case "Last 7 Days":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-            case "Last 30 Days":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
-            case "Last 90 Days":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 90 DAY)";
-            case "1 Year":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
-            case "2 Years":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 2 YEAR)";
-            case "5 Years":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 5 YEAR)";
-            case "10 Years":
-                return "s.datetime >= DATE_SUB(NOW(), INTERVAL 10 YEAR)";
-            default:
-                return "";
-        }
-    }
-    
     private JPanel createInvoiceCard(int salesId, String invoiceNo, String datetime, 
                                  double total, double itemDiscount, double saleDiscount, 
                                  double totalDiscount, String paymentMethod, 
                                  String cashierName, String customerName,
                                  String saleStatus) {
-    RoundedPanel cardPanel = new RoundedPanel();
-    cardPanel.setLayout(new BorderLayout(0, 0));
-    cardPanel.setBackground(Color.WHITE);
-    cardPanel.setCornerRadius(20);
-    cardPanel.setBorderThickness(0);
-    cardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-    
-    cardPanel.setBorder(BorderFactory.createCompoundBorder(
-        new ShadowBorder(),
-        BorderFactory.createEmptyBorder(2, 2, 2, 2)
-    ));
-
-    JPanel contentPanel = new JPanel(new BorderLayout(0, 0)) {
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(getBackground());
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
-            g2.dispose();
-        }
-
-        @Override
-        public boolean isOpaque() {
-            return false;
-        }
-    };
-    contentPanel.setBackground(Color.WHITE);
-    contentPanel.setOpaque(false);
-
-    JPanel headerPanel = createInvoiceHeader(invoiceNo, customerName, paymentMethod, total, saleStatus);
-    JPanel itemsPanel = createItemsContentPanel(salesId);
-    JPanel footerPanel = createInvoiceFooter(datetime, itemDiscount, saleDiscount, totalDiscount, cashierName, salesId);
-
-    headerPanel.setOpaque(false);
-    itemsPanel.setOpaque(false);
-    footerPanel.setOpaque(false);
-
-    contentPanel.add(headerPanel, BorderLayout.NORTH);
-    contentPanel.add(itemsPanel, BorderLayout.CENTER);
-    contentPanel.add(footerPanel, BorderLayout.SOUTH);
-
-    cardPanel.add(contentPanel, BorderLayout.CENTER);
-
-    cardPanel.addMouseListener(new MouseAdapter() {
-        private Timer hoverTimer;
+        RoundedPanel cardPanel = new RoundedPanel();
+        cardPanel.setLayout(new BorderLayout(0, 0));
+        cardPanel.setBackground(Color.WHITE);
+        cardPanel.setCornerRadius(20);
+        cardPanel.setBorderThickness(0);
+        cardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         
-        @Override
-        public void mouseEntered(MouseEvent e) {
-            if (cardPanel != currentFocusedCard) {
-                hoverTimer = new Timer(10, new ActionListener() {
-                    float alpha = 0f;
-                    @Override
-                    public void actionPerformed(ActionEvent evt) {
-                        alpha += 0.1f;
-                        if (alpha >= 1f) {
-                            alpha = 1f;
-                            ((Timer)evt.getSource()).stop();
+        cardPanel.setBorder(BorderFactory.createCompoundBorder(
+            new ShadowBorder(),
+            BorderFactory.createEmptyBorder(2, 2, 2, 2)
+        ));
+
+        JPanel contentPanel = new JPanel(new BorderLayout(0, 0)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2.dispose();
+            }
+
+            @Override
+            public boolean isOpaque() {
+                return false;
+            }
+        };
+        contentPanel.setBackground(Color.WHITE);
+        contentPanel.setOpaque(false);
+
+        JPanel headerPanel = createInvoiceHeader(invoiceNo, customerName, paymentMethod, total, saleStatus);
+        JPanel itemsPanel = createItemsContentPanel(salesId);
+        JPanel footerPanel = createInvoiceFooter(datetime, itemDiscount, saleDiscount, totalDiscount, cashierName, salesId);
+
+        headerPanel.setOpaque(false);
+        itemsPanel.setOpaque(false);
+        footerPanel.setOpaque(false);
+
+        contentPanel.add(headerPanel, BorderLayout.NORTH);
+        contentPanel.add(itemsPanel, BorderLayout.CENTER);
+        contentPanel.add(footerPanel, BorderLayout.SOUTH);
+
+        cardPanel.add(contentPanel, BorderLayout.CENTER);
+
+        cardPanel.addMouseListener(new MouseAdapter() {
+            private Timer hoverTimer;
+            
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (cardPanel != currentFocusedCard) {
+                    hoverTimer = new Timer(10, new ActionListener() {
+                        float alpha = 0f;
+                        @Override
+                        public void actionPerformed(ActionEvent evt) {
+                            alpha += 0.1f;
+                            if (alpha >= 1f) {
+                                alpha = 1f;
+                                ((Timer)evt.getSource()).stop();
+                            }
+                            Color baseColor = new Color(245, 247, 250);
+                            cardPanel.setBackground(baseColor);
+                            contentPanel.setBackground(baseColor);
+                            cardPanel.repaint();
                         }
-                        Color baseColor = new Color(245, 247, 250);
-                        cardPanel.setBackground(baseColor);
-                        contentPanel.setBackground(baseColor);
-                        cardPanel.repaint();
-                    }
-                });
-                hoverTimer.start();
-            }
-            cardPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        }
-        
-        @Override
-        public void mouseExited(MouseEvent e) {
-            if (hoverTimer != null) hoverTimer.stop();
-            if (cardPanel != currentFocusedCard) {
-                cardPanel.setBackground(Color.WHITE);
-                contentPanel.setBackground(Color.WHITE);
-                cardPanel.repaint();
-            }
-            cardPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-        }
-        
-        @Override
-        public void mousePressed(MouseEvent e) {
-            cardPanel.setBackground(new Color(241, 245, 249));
-            contentPanel.setBackground(new Color(241, 245, 249));
-            cardPanel.repaint();
-        }
-        
-        @Override
-        public void mouseReleased(MouseEvent e) {
-            cardPanel.setBackground(new Color(248, 250, 252));
-            contentPanel.setBackground(new Color(248, 250, 252));
-            cardPanel.repaint();
-        }
-        
-        @Override
-        public void mouseClicked(MouseEvent e) {
-            if (currentFocusedCard != null && currentFocusedCard != cardPanel) {
-                int oldIndex = invoiceCardsList.indexOf(currentFocusedCard);
-                if (oldIndex >= 0) {
-                    deselectCard(oldIndex);
+                    });
+                    hoverTimer.start();
                 }
+                cardPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
             
-            currentCardIndex = invoiceCardsList.indexOf(cardPanel);
-            selectCurrentCard();
-            SalesPanel.this.requestFocusInWindow();
-        }
-    });
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (hoverTimer != null) hoverTimer.stop();
+                if (cardPanel != currentFocusedCard) {
+                    cardPanel.setBackground(Color.WHITE);
+                    contentPanel.setBackground(Color.WHITE);
+                    cardPanel.repaint();
+                }
+                cardPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                cardPanel.setBackground(new Color(241, 245, 249));
+                contentPanel.setBackground(new Color(241, 245, 249));
+                cardPanel.repaint();
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                cardPanel.setBackground(new Color(248, 250, 252));
+                contentPanel.setBackground(new Color(248, 250, 252));
+                cardPanel.repaint();
+            }
+            
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (currentFocusedCard != null && currentFocusedCard != cardPanel) {
+                    int oldIndex = invoiceCardsList.indexOf(currentFocusedCard);
+                    if (oldIndex >= 0) {
+                        deselectCard(oldIndex);
+                    }
+                }
+                
+                currentCardIndex = invoiceCardsList.indexOf(cardPanel);
+                selectCurrentCard();
+                SalesPanel.this.requestFocusInWindow();
+            }
+        });
 
-    return cardPanel;
-}
+        return cardPanel;
+    }
 
     private JPanel createInvoiceHeader(String invoiceNo, String customerName, String paymentMethod, 
                                   double total, String saleStatus) {
-    JPanel headerPanel = new JPanel();
-    headerPanel.setLayout(new BorderLayout(20, 0));
-    headerPanel.setOpaque(false);
-    headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 16, 24));
+        JPanel headerPanel = new JPanel();
+        headerPanel.setLayout(new BorderLayout(20, 0));
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 16, 24));
 
-    // LEFT SIDE: Invoice info with modern layout
-    JPanel leftPanel = new JPanel();
-    leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
-    leftPanel.setOpaque(false);
-    leftPanel.setAlignmentY(Component.TOP_ALIGNMENT);
+        // LEFT SIDE: Invoice info with modern layout
+        JPanel leftPanel = new JPanel();
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.setOpaque(false);
+        leftPanel.setAlignmentY(Component.TOP_ALIGNMENT);
 
-    // Invoice number with icon inline
-    JPanel invoiceRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-    invoiceRow.setOpaque(false);
-    invoiceRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-    
-    // Add invoice SVG icon
-    JLabel invoiceIcon = new JLabel();
-    try {
-        FlatSVGIcon svgIcon = new FlatSVGIcon("lk/com/pos/icon/invoice.svg", 28, 28);
-        svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> TEAL_BORDER_SELECTED));
-        invoiceIcon.setIcon(svgIcon);
-    } catch (Exception e) {
-        // Fallback: use text emoji
-        invoiceIcon.setText("");
-        invoiceIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        // Invoice number with icon inline
+        JPanel invoiceRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        invoiceRow.setOpaque(false);
+        invoiceRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        // Add invoice SVG icon
+        JLabel invoiceIcon = new JLabel();
+        try {
+            FlatSVGIcon svgIcon = new FlatSVGIcon("lk/com/pos/icon/invoice.svg", 28, 28);
+            svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> TEAL_BORDER_SELECTED));
+            invoiceIcon.setIcon(svgIcon);
+        } catch (Exception e) {
+            // Fallback: use text emoji
+            invoiceIcon.setText("");
+            invoiceIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        }
+        
+        JLabel invoiceLabel = new JLabel("#" + (invoiceNo != null ? invoiceNo.toUpperCase() : ""));
+        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
+        invoiceLabel.setForeground(new Color(30, 41, 59));
+        
+        invoiceRow.add(invoiceIcon);
+        invoiceRow.add(invoiceLabel);
+
+        // Customer name
+        JLabel customerLabel = new JLabel((customerName != null ? customerName : "Walk-in Customer"));
+        customerLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
+        customerLabel.setForeground(new Color(100, 116, 139));
+        customerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftPanel.add(invoiceRow);
+        leftPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftPanel.add(customerLabel);
+
+        // RIGHT SIDE: Clean layout with total and badges
+        JPanel rightPanel = new JPanel();
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+        rightPanel.setOpaque(false);
+        rightPanel.setAlignmentY(Component.TOP_ALIGNMENT);
+
+        // Total amount - prominent display
+        JLabel totalLabel = new JLabel(String.format("Rs.%.2f", total));
+        totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 28));
+        totalLabel.setForeground(new Color(16, 185, 129)); // Emerald green
+        totalLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        totalLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        
+        // Badges container - placed below total with proper spacing
+        JPanel badgesPanel = new JPanel();
+        badgesPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        badgesPanel.setOpaque(false);
+        badgesPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        
+        // Payment badge
+        JLabel paymentBadge = createPaymentBadge(paymentMethod);
+        badgesPanel.add(paymentBadge);
+        
+        // Status badge (only if not completed)
+        if (saleStatus != null && !isCompletedStatus(saleStatus)) {
+            JLabel statusBadge = createStatusBadge(saleStatus);
+            badgesPanel.add(statusBadge);
+        }
+
+        rightPanel.add(totalLabel);
+        rightPanel.add(Box.createRigidArea(new Dimension(0, 8))); // Space between total and badges
+        rightPanel.add(badgesPanel);
+
+        headerPanel.add(leftPanel, BorderLayout.WEST);
+        headerPanel.add(rightPanel, BorderLayout.EAST);
+
+        return headerPanel;
     }
-    
-    JLabel invoiceLabel = new JLabel("#" + (invoiceNo != null ? invoiceNo.toUpperCase() : ""));
-    invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
-    invoiceLabel.setForeground(new Color(30, 41, 59));
-    
-    invoiceRow.add(invoiceIcon);
-    invoiceRow.add(invoiceLabel);
-
-    // Customer name
-    JLabel customerLabel = new JLabel((customerName != null ? customerName : "Walk-in Customer"));
-    customerLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
-    customerLabel.setForeground(new Color(100, 116, 139));
-    customerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-    leftPanel.add(invoiceRow);
-    leftPanel.add(Box.createRigidArea(new Dimension(0, 6)));
-    leftPanel.add(customerLabel);
-
-    // RIGHT SIDE: Clean layout with total and badges
-    JPanel rightPanel = new JPanel();
-    rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-    rightPanel.setOpaque(false);
-    rightPanel.setAlignmentY(Component.TOP_ALIGNMENT);
-
-    // Total amount - prominent display
-    JLabel totalLabel = new JLabel(String.format("Rs.%.2f", total));
-    totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 28));
-    totalLabel.setForeground(new Color(16, 185, 129)); // Emerald green
-    totalLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
-    totalLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-    
-    // Badges container - placed below total with proper spacing
-    JPanel badgesPanel = new JPanel();
-    badgesPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-    badgesPanel.setOpaque(false);
-    badgesPanel.setAlignmentX(Component.RIGHT_ALIGNMENT);
-    
-    // Payment badge
-    JLabel paymentBadge = createPaymentBadge(paymentMethod);
-    badgesPanel.add(paymentBadge);
-    
-    // Status badge (only if not completed)
-    if (saleStatus != null && !isCompletedStatus(saleStatus)) {
-        JLabel statusBadge = createStatusBadge(saleStatus);
-        badgesPanel.add(statusBadge);
-    }
-
-    rightPanel.add(totalLabel);
-    rightPanel.add(Box.createRigidArea(new Dimension(0, 8))); // Space between total and badges
-    rightPanel.add(badgesPanel);
-
-    headerPanel.add(leftPanel, BorderLayout.WEST);
-    headerPanel.add(rightPanel, BorderLayout.EAST);
-
-    return headerPanel;
-}
 
     private boolean isCompletedStatus(String status) {
-    if (status == null) return true;
-    String normalized = status.trim().toLowerCase();
-    // Adjust these based on your actual status names from the status table
-    return normalized.equals("completed") || normalized.equals("done") || 
-           normalized.equals("success") || normalized.equals("finished") ||
-           normalized.equals("paid") || normalized.equals("confirmed") ||
-           normalized.isEmpty();
-}
+        if (status == null) return true;
+        String normalized = status.trim().toLowerCase();
+        // Adjust these based on your actual status names from the status table
+        return normalized.equals("completed") || normalized.equals("done") || 
+               normalized.equals("success") || normalized.equals("finished") ||
+               normalized.equals("paid") || normalized.equals("confirmed") ||
+               normalized.isEmpty();
+    }
 
     private JLabel createStatusBadge(String status) {
-    if (status == null) return new JLabel();
-    
-    String normalizedStatus = status.trim().toLowerCase();
-    JLabel statusBadge = new JLabel();
-    statusBadge.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-    statusBadge.setForeground(Color.WHITE);
-    statusBadge.setOpaque(true);
-    statusBadge.setBorder(BorderFactory.createCompoundBorder(
-        BorderFactory.createLineBorder(Color.WHITE, 1, true),
-        BorderFactory.createEmptyBorder(6, 12, 6, 12)
-    ));
-    
-    // Status mapping with emojis
-    switch (normalizedStatus) {
-        case "due amount":
-        case "due":
-        case "pending payment":
-            statusBadge.setBackground(new Color(234, 88, 12)); // Orange
-            statusBadge.setText("DUE");
-            break;
-        case "no due":
-        case "paid":
-        case "complete":
-            statusBadge.setBackground(new Color(34, 197, 94)); // Green
-            statusBadge.setText("PAID");
-            break;
-        case "hold":
-        case "holding":
-            statusBadge.setBackground(new Color(245, 158, 11)); // Amber
-            statusBadge.setText("HOLD");
-            break;
-        case "cancelled":
-        case "canceled":
-            statusBadge.setBackground(new Color(220, 38, 38)); // Red
-            statusBadge.setText("CANCELLED");
-            break;
-        case "void":
-        case "voided":
-            statusBadge.setBackground(new Color(159, 18, 57)); // Dark Red
-            statusBadge.setText("VOID");
-            break;
-        case "pending":
-        case "processing":
-            statusBadge.setBackground(new Color(245, 158, 11)); // Amber
-            statusBadge.setText("PENDING");
-            break;
-        default:
-            statusBadge.setBackground(new Color(100, 116, 139)); // Gray
-            String displayText = status.toUpperCase();
-            if (displayText.length() > 12) {
-                displayText = displayText.substring(0, 12) + "...";
-            }
-            statusBadge.setText(displayText);
+        if (status == null) return new JLabel();
+        
+        String normalizedStatus = status.trim().toLowerCase();
+        JLabel statusBadge = new JLabel();
+        statusBadge.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+        statusBadge.setForeground(Color.WHITE);
+        statusBadge.setOpaque(true);
+        statusBadge.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.WHITE, 1, true),
+            BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+        
+        // Status mapping with emojis
+        switch (normalizedStatus) {
+            case "due amount":
+            case "due":
+            case "pending payment":
+                statusBadge.setBackground(new Color(234, 88, 12)); // Orange
+                statusBadge.setText("DUE");
+                break;
+            case "no due":
+            case "paid":
+            case "complete":
+                statusBadge.setBackground(new Color(34, 197, 94)); // Green
+                statusBadge.setText("PAID");
+                break;
+            case "hold":
+            case "holding":
+                statusBadge.setBackground(new Color(245, 158, 11)); // Amber
+                statusBadge.setText("HOLD");
+                break;
+            case "cancelled":
+            case "canceled":
+                statusBadge.setBackground(new Color(220, 38, 38)); // Red
+                statusBadge.setText("CANCELLED");
+                break;
+            case "void":
+            case "voided":
+                statusBadge.setBackground(new Color(159, 18, 57)); // Dark Red
+                statusBadge.setText("VOID");
+                break;
+            case "pending":
+            case "processing":
+                statusBadge.setBackground(new Color(245, 158, 11)); // Amber
+                statusBadge.setText("PENDING");
+                break;
+            default:
+                statusBadge.setBackground(new Color(100, 116, 139)); // Gray
+                String displayText = status.toUpperCase();
+                if (displayText.length() > 12) {
+                    displayText = displayText.substring(0, 12) + "...";
+                }
+                statusBadge.setText(displayText);
+        }
+        
+        return statusBadge;
     }
-    
-    return statusBadge;
-}
-
     
     private ImageIcon loadInvoiceIcon() {
-    try {
-        // Try to load the SVG icon
-        FlatSVGIcon svgIcon = new FlatSVGIcon("lk/com/pos/icon/invoice.svg", 32, 32);
-        // Apply color filter to match your theme
-        svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> TEAL_BORDER_SELECTED));
-        return new ImageIcon(svgIcon.getImage());
-    } catch (Exception e) {
-        System.out.println("Invoice SVG icon not found, using fallback");
-        // Fallback: try PNG
         try {
-            java.net.URL imageUrl = getClass().getResource("/lk/com/pos/icon/invoice.png");
-            if (imageUrl != null) {
-                ImageIcon imageIcon = new ImageIcon(imageUrl);
-                Image scaledImage = imageIcon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
-                return new ImageIcon(scaledImage);
+            // Try to load the SVG icon
+            FlatSVGIcon svgIcon = new FlatSVGIcon("lk/com/pos/icon/invoice.svg", 32, 32);
+            // Apply color filter to match your theme
+            svgIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> TEAL_BORDER_SELECTED));
+            return new ImageIcon(svgIcon.getImage());
+        } catch (Exception e) {
+            System.out.println("Invoice SVG icon not found, using fallback");
+            // Fallback: try PNG
+            try {
+                java.net.URL imageUrl = getClass().getResource("/lk/com/pos/icon/invoice.png");
+                if (imageUrl != null) {
+                    ImageIcon imageIcon = new ImageIcon(imageUrl);
+                    Image scaledImage = imageIcon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                    return new ImageIcon(scaledImage);
+                }
+            } catch (Exception ex) {
+                System.out.println("Invoice PNG icon also not found");
             }
-        } catch (Exception ex) {
-            System.out.println("Invoice PNG icon also not found");
         }
+        return null;
     }
-    return null;
-}
 
     private ImageIcon createFallbackIcon() {
         int size = 40;
@@ -1304,110 +1146,108 @@ public class SalesPanel extends javax.swing.JPanel {
 
     private JPanel createInvoiceFooter(String datetime, double itemDiscount, double saleDiscount, 
                                  double totalDiscount, String cashierName, int salesId) {
-    JPanel footerPanel = new JPanel();
-    footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
-    footerPanel.setOpaque(false);
-    footerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
+        JPanel footerPanel = new JPanel();
+        footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
+        footerPanel.setOpaque(false);
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
-    // Discount section (if applicable)
-    if (totalDiscount > 0) {
-        RoundedPanel discountPanel = new RoundedPanel();
-        discountPanel.setLayout(new BoxLayout(discountPanel, BoxLayout.Y_AXIS));
-        discountPanel.setBackgroundColor(new Color(255, 247, 237)); // Warm orange tint
-        discountPanel.setCornerRadius(12);
-        discountPanel.setBorderThickness(0);
-        discountPanel.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
-        discountPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-        
-        JLabel discountHeader = new JLabel("DISCOUNTS APPLIED");
-        discountHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
-        discountHeader.setForeground(new Color(194, 65, 12));
-        discountPanel.add(discountHeader);
-        discountPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        
-        if (itemDiscount > 0) {
-            JPanel itemDiscountPanel = createDiscountRow("Item Discount", itemDiscount, new Color(100, 116, 139));
-            itemDiscountPanel.setOpaque(false);
-            discountPanel.add(itemDiscountPanel);
+        // Discount section (if applicable)
+        if (totalDiscount > 0) {
+            RoundedPanel discountPanel = new RoundedPanel();
+            discountPanel.setLayout(new BoxLayout(discountPanel, BoxLayout.Y_AXIS));
+            discountPanel.setBackgroundColor(new Color(255, 247, 237)); // Warm orange tint
+            discountPanel.setCornerRadius(12);
+            discountPanel.setBorderThickness(0);
+            discountPanel.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+            discountPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+            
+            JLabel discountHeader = new JLabel("DISCOUNTS APPLIED");
+            discountHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
+            discountHeader.setForeground(new Color(194, 65, 12));
+            discountPanel.add(discountHeader);
+            discountPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+            
+            if (itemDiscount > 0) {
+                JPanel itemDiscountPanel = createDiscountRow("Item Discount", itemDiscount, new Color(100, 116, 139));
+                itemDiscountPanel.setOpaque(false);
+                discountPanel.add(itemDiscountPanel);
+                discountPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+            }
+            
+            if (saleDiscount > 0) {
+                JPanel saleDiscountPanel = createDiscountRow("Sale Discount", saleDiscount, new Color(245, 158, 11));
+                saleDiscountPanel.setOpaque(false);
+                discountPanel.add(saleDiscountPanel);
+                discountPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+            }
+            
             discountPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+            
+            JSeparator separator = new JSeparator();
+            separator.setForeground(new Color(253, 186, 116));
+            separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+            discountPanel.add(separator);
+            discountPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+            
+            JPanel totalDiscountPanel = createDiscountRow("TOTAL SAVINGS", totalDiscount, new Color(220, 38, 38));
+            totalDiscountPanel.setOpaque(false);
+            discountPanel.add(totalDiscountPanel);
+            
+            footerPanel.add(discountPanel);
+            footerPanel.add(Box.createRigidArea(new Dimension(0, 14)));
         }
+
+        // Bottom info bar with better styling
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setLayout(new BorderLayout(16, 0));
+        bottomPanel.setOpaque(false);
+        bottomPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240)),
+            BorderFactory.createEmptyBorder(12, 0, 0, 0)
+        ));
+
+        // Date on left
+        JPanel datePanel = new JPanel();
+        datePanel.setLayout(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        datePanel.setOpaque(false);
         
-        if (saleDiscount > 0) {
-            JPanel saleDiscountPanel = createDiscountRow("Sale Discount", saleDiscount, new Color(245, 158, 11));
-            saleDiscountPanel.setOpaque(false);
-            discountPanel.add(saleDiscountPanel);
-            discountPanel.add(Box.createRigidArea(new Dimension(0, 4)));
-        }
+        JLabel dateIcon = new JLabel("📅");
+        dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
         
-        discountPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        JLabel dateLabel = new JLabel(formatDateTime(datetime));
+        dateLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
+        dateLabel.setForeground(new Color(100, 116, 139));
         
-        JSeparator separator = new JSeparator();
-        separator.setForeground(new Color(253, 186, 116));
-        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-        discountPanel.add(separator);
-        discountPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        datePanel.add(dateIcon);
+        datePanel.add(dateLabel);
+
+        // Cashier on right
+        JPanel cashierPanel = new JPanel();
+        cashierPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        cashierPanel.setOpaque(false);
         
-        JPanel totalDiscountPanel = createDiscountRow("TOTAL SAVINGS", totalDiscount, new Color(220, 38, 38));
-        totalDiscountPanel.setOpaque(false);
-        discountPanel.add(totalDiscountPanel);
+        JLabel cashierIcon = new JLabel("👤");
+        cashierIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
         
-        footerPanel.add(discountPanel);
-        footerPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+        JLabel cashierLabel = new JLabel("Cashier: ");
+        cashierLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
+        cashierLabel.setForeground(new Color(100, 116, 139));
+        
+        JLabel cashierValue = new JLabel(cashierName != null ? cashierName : "Unknown");
+        cashierValue.setFont(new Font("Nunito SemiBold", Font.BOLD, 13));
+        cashierValue.setForeground(new Color(51, 65, 85));
+        
+        cashierPanel.add(cashierIcon);
+        cashierPanel.add(cashierLabel);
+        cashierPanel.add(cashierValue);
+
+        bottomPanel.add(datePanel, BorderLayout.WEST);
+        bottomPanel.add(cashierPanel, BorderLayout.EAST);
+
+        footerPanel.add(bottomPanel);
+
+        return footerPanel;
     }
-
-    // Bottom info bar with better styling
-    JPanel bottomPanel = new JPanel();
-    bottomPanel.setLayout(new BorderLayout(16, 0));
-    bottomPanel.setOpaque(false);
-    bottomPanel.setBorder(BorderFactory.createCompoundBorder(
-        BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(226, 232, 240)),
-        BorderFactory.createEmptyBorder(12, 0, 0, 0)
-    ));
-
-    // Date on left
-    JPanel datePanel = new JPanel();
-    datePanel.setLayout(new FlowLayout(FlowLayout.LEFT, 6, 0));
-    datePanel.setOpaque(false);
-    
-    JLabel dateIcon = new JLabel("📅");
-    dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
-    
-    JLabel dateLabel = new JLabel(formatDateTime(datetime));
-    dateLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
-    dateLabel.setForeground(new Color(100, 116, 139));
-    
-    datePanel.add(dateIcon);
-    datePanel.add(dateLabel);
-
-    // Cashier on right
-    JPanel cashierPanel = new JPanel();
-    cashierPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-    cashierPanel.setOpaque(false);
-    
-    JLabel cashierIcon = new JLabel("👤");
-    cashierIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 13));
-    
-    JLabel cashierLabel = new JLabel("Cashier: ");
-    cashierLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
-    cashierLabel.setForeground(new Color(100, 116, 139));
-    
-    JLabel cashierValue = new JLabel(cashierName != null ? cashierName : "Unknown");
-    cashierValue.setFont(new Font("Nunito SemiBold", Font.BOLD, 13));
-    cashierValue.setForeground(new Color(51, 65, 85));
-    
-    cashierPanel.add(cashierIcon);
-    cashierPanel.add(cashierLabel);
-    cashierPanel.add(cashierValue);
-
-    bottomPanel.add(datePanel, BorderLayout.WEST);
-    bottomPanel.add(cashierPanel, BorderLayout.EAST);
-
-    footerPanel.add(bottomPanel);
-
-    return footerPanel;
-}
-
-
 
     private JPanel createDiscountRow(String label, double amount, Color color) {
         JPanel discountRow = new JPanel();
@@ -1431,126 +1271,91 @@ public class SalesPanel extends javax.swing.JPanel {
     }
 
     private JLabel createPaymentBadge(String paymentMethod) {
-    if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
-        paymentMethod = "UNKNOWN";
+        if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
+            paymentMethod = "UNKNOWN";
+        }
+        
+        String normalizedPayment = paymentMethod.trim().toUpperCase();
+        
+        JLabel paymentBadge = new JLabel();
+        paymentBadge.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
+        paymentBadge.setForeground(Color.WHITE);
+        paymentBadge.setOpaque(true);
+        
+        // Clean, user-friendly styling with proper padding
+        paymentBadge.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.WHITE, 2, true),
+            BorderFactory.createEmptyBorder(6, 12, 6, 12) // Balanced padding
+        ));
+        
+        // Simple color coding without emojis for cleaner look
+        if (normalizedPayment.contains("CASH")) {
+            paymentBadge.setBackground(new Color(34, 197, 94)); // Green
+            paymentBadge.setText("CASH");
+        } else if (normalizedPayment.contains("CARD") || normalizedPayment.contains("CREDIT CARD")) {
+            paymentBadge.setBackground(new Color(59, 130, 246)); // Blue
+            paymentBadge.setText("CARD");
+        } else if (normalizedPayment.contains("CREDIT") || normalizedPayment.contains("ACCOUNT")) {
+            paymentBadge.setBackground(new Color(234, 88, 12)); // Orange
+            paymentBadge.setText("CREDIT");
+        } else if (normalizedPayment.contains("CHEQUE") || normalizedPayment.contains("CHECK")) {
+            paymentBadge.setBackground(new Color(139, 92, 246)); // Purple
+            paymentBadge.setText("CHEQUE");
+        } else if (normalizedPayment.contains("ONLINE") || normalizedPayment.contains("DIGITAL")) {
+            paymentBadge.setBackground(new Color(168, 85, 247)); // Violet
+            paymentBadge.setText("ONLINE");
+        } else {
+            paymentBadge.setBackground(new Color(100, 116, 139)); // Gray
+            String displayText = normalizedPayment.length() > 12 ? 
+                               normalizedPayment.substring(0, 12) + "..." : normalizedPayment;
+            paymentBadge.setText(displayText);
+        }
+        
+        return paymentBadge;
     }
-    
-    String normalizedPayment = paymentMethod.trim().toUpperCase();
-    
-    JLabel paymentBadge = new JLabel();
-    paymentBadge.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
-    paymentBadge.setForeground(Color.WHITE);
-    paymentBadge.setOpaque(true);
-    
-    // Clean, user-friendly styling with proper padding
-    paymentBadge.setBorder(BorderFactory.createCompoundBorder(
-        BorderFactory.createLineBorder(Color.WHITE, 2, true),
-        BorderFactory.createEmptyBorder(6, 12, 6, 12) // Balanced padding
-    ));
-    
-    // Simple color coding without emojis for cleaner look
-    if (normalizedPayment.contains("CASH")) {
-        paymentBadge.setBackground(new Color(34, 197, 94)); // Green
-        paymentBadge.setText("CASH");
-    } else if (normalizedPayment.contains("CARD") || normalizedPayment.contains("CREDIT CARD")) {
-        paymentBadge.setBackground(new Color(59, 130, 246)); // Blue
-        paymentBadge.setText("CARD");
-    } else if (normalizedPayment.contains("CREDIT") || normalizedPayment.contains("ACCOUNT")) {
-        paymentBadge.setBackground(new Color(234, 88, 12)); // Orange
-        paymentBadge.setText("CREDIT");
-    } else if (normalizedPayment.contains("CHEQUE") || normalizedPayment.contains("CHECK")) {
-        paymentBadge.setBackground(new Color(139, 92, 246)); // Purple
-        paymentBadge.setText("CHEQUE");
-    } else if (normalizedPayment.contains("ONLINE") || normalizedPayment.contains("DIGITAL")) {
-        paymentBadge.setBackground(new Color(168, 85, 247)); // Violet
-        paymentBadge.setText("ONLINE");
-    } else {
-        paymentBadge.setBackground(new Color(100, 116, 139)); // Gray
-        String displayText = normalizedPayment.length() > 12 ? 
-                           normalizedPayment.substring(0, 12) + "..." : normalizedPayment;
-        paymentBadge.setText(displayText);
-    }
-    
-    return paymentBadge;
-}
 
     private void loadSaleItems(JPanel itemsListPanel, int salesId) {
-    Connection conn = null;
-    PreparedStatement pst = null;
-    ResultSet rs = null;
-    
-    try {
-        String query = "SELECT " +
-            "si.qty, si.price, si.discount_price, si.total, " +
-            "p.product_name, p.product_id, " +
-            "st.stock_id, st.batch_no " +
-            "FROM sale_item si " +
-            "INNER JOIN stock st ON si.stock_id = st.stock_id " +
-            "INNER JOIN product p ON st.product_id = p.product_id " +
-            "WHERE si.sales_id = ? " +
-            "ORDER BY si.sale_item_id";
-        
-        // Get a NEW dedicated connection for this query
-        conn = MySQL.getConnection();
-        pst = conn.prepareStatement(query);
-        pst.setInt(1, salesId);
-        rs = pst.executeQuery();
-        
-        // Collect ALL data BEFORE closing anything
-        List<ItemData> items = new ArrayList<>();
-        
-        while (rs.next()) {
-            String productName = rs.getString("product_name");
-            int qty = rs.getInt("qty");
-            double price = rs.getDouble("price");
-            double discountPrice = rs.getDouble("discount_price");
-            double itemTotal = rs.getDouble("total");
-            String batchNo = rs.getString("batch_no");
+        try {
+            List<SaleItemDTO> items = salesDAO.loadSaleItems(salesId);
             
-            items.add(new ItemData(productName, qty, price, discountPrice, itemTotal, batchNo));
-        }
-        
-        // NOW close everything
-        rs.close();
-        pst.close();
-        conn.close();
-        
-        // Build UI from collected data
-        if (items.isEmpty()) {
-            JLabel noItemsLabel = new JLabel("No items in this sale");
-            noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
-            noItemsLabel.setForeground(new Color(148, 163, 184));
-            noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            itemsListPanel.add(noItemsLabel);
-        } else {
-            for (int i = 0; i < items.size(); i++) {
-                ItemData item = items.get(i);
-                JPanel itemCard = createItemCard(item.productName, item.qty, item.price, 
-                                                 item.discountPrice, item.total, item.batchNo);
-                itemsListPanel.add(itemCard);
-                
-                if (i < items.size() - 1) {
-                    JSeparator separator = new JSeparator();
-                    separator.setForeground(new Color(229, 231, 235));
-                    separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
-                    separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-                    itemsListPanel.add(separator);
+            if (items.isEmpty()) {
+                JLabel noItemsLabel = new JLabel("No items in this sale");
+                noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
+                noItemsLabel.setForeground(new Color(148, 163, 184));
+                noItemsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                itemsListPanel.add(noItemsLabel);
+            } else {
+                for (int i = 0; i < items.size(); i++) {
+                    SaleItemDTO item = items.get(i);
+                    JPanel itemCard = createItemCard(
+                        item.getProductName(), 
+                        item.getQty(), 
+                        item.getPrice(), 
+                        item.getDiscountPrice(), 
+                        item.getTotal(), 
+                        item.getBatchNo()
+                    );
+                    itemsListPanel.add(itemCard);
+                    
+                    if (i < items.size() - 1) {
+                        JSeparator separator = new JSeparator();
+                        separator.setForeground(new Color(229, 231, 235));
+                        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+                        separator.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+                        itemsListPanel.add(separator);
+                    }
                 }
             }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            JLabel errorLabel = new JLabel("Error loading items");
+            errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+            errorLabel.setForeground(new Color(220, 38, 38));
+            errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            itemsListPanel.add(errorLabel);
         }
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        JLabel errorLabel = new JLabel("Error loading items");
-        errorLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-        errorLabel.setForeground(new Color(220, 38, 38));
-        errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        itemsListPanel.add(errorLabel);
-    } finally {
-        // Cleanup
-        MySQL.close(rs, pst, conn);
     }
-}
     
     private static class ItemData {
         String productName;
@@ -1573,73 +1378,73 @@ public class SalesPanel extends javax.swing.JPanel {
 
     private JPanel createItemCard(String productName, int qty, double price, 
                           double discountPrice, double total, String batchNo) {
-    JPanel itemPanel = new JPanel();
-    itemPanel.setLayout(new BorderLayout(15, 0));
-    itemPanel.setOpaque(false);
-    itemPanel.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
-    itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        JPanel itemPanel = new JPanel();
+        itemPanel.setLayout(new BorderLayout(15, 0));
+        itemPanel.setOpaque(false);
+        itemPanel.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
+        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
-    JPanel leftPanel = new JPanel();
-    leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
-    leftPanel.setOpaque(false);
+        JPanel leftPanel = new JPanel();
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.setOpaque(false);
 
-    JLabel productLabel = new JLabel(productName != null ? productName : "Unknown Product");
-    productLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
-    productLabel.setForeground(new Color(30, 41, 59));
-    productLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel productLabel = new JLabel(productName != null ? productName : "Unknown Product");
+        productLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 15));
+        productLabel.setForeground(new Color(30, 41, 59));
+        productLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-    JPanel detailsPanel = new JPanel();
-    detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.X_AXIS));
-    detailsPanel.setOpaque(false);
-    detailsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JPanel detailsPanel = new JPanel();
+        detailsPanel.setLayout(new BoxLayout(detailsPanel, BoxLayout.X_AXIS));
+        detailsPanel.setOpaque(false);
+        detailsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-    JLabel priceQtyLabel = new JLabel(String.format("Rs.%.2f × %d", price, qty));
-    priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
-    priceQtyLabel.setForeground(new Color(100, 116, 139));
-    priceQtyLabel.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
+        JLabel priceQtyLabel = new JLabel(String.format("Rs.%.2f × %d", price, qty));
+        priceQtyLabel.setFont(new Font("Nunito", Font.PLAIN, 13));
+        priceQtyLabel.setForeground(new Color(100, 116, 139));
+        priceQtyLabel.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
 
-    detailsPanel.add(priceQtyLabel);
+        detailsPanel.add(priceQtyLabel);
 
-    if (discountPrice > 0) {
-        JLabel discountInfo = new JLabel(String.format(" • Rs.%.2f discount", discountPrice));
-        discountInfo.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-        discountInfo.setForeground(new Color(220, 38, 38));
-        discountInfo.setBorder(BorderFactory.createEmptyBorder(2, 8, 0, 0));
-        detailsPanel.add(discountInfo);
+        if (discountPrice > 0) {
+            JLabel discountInfo = new JLabel(String.format(" • Rs.%.2f discount", discountPrice));
+            discountInfo.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+            discountInfo.setForeground(new Color(220, 38, 38));
+            discountInfo.setBorder(BorderFactory.createEmptyBorder(2, 8, 0, 0));
+            detailsPanel.add(discountInfo);
+        }
+
+        JPanel extraInfoPanel = new JPanel();
+        extraInfoPanel.setLayout(new BoxLayout(extraInfoPanel, BoxLayout.X_AXIS));
+        extraInfoPanel.setOpaque(false);
+        extraInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        if (batchNo != null && !batchNo.isEmpty()) {
+            JLabel batchLabel = new JLabel("Batch: " + batchNo);
+            batchLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
+            batchLabel.setForeground(new Color(148, 163, 184));
+            batchLabel.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+            extraInfoPanel.add(batchLabel);
+        }
+
+        leftPanel.add(productLabel);
+        leftPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftPanel.add(detailsPanel);
+        
+        if (extraInfoPanel.getComponentCount() > 0) {
+            leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+            leftPanel.add(extraInfoPanel);
+        }
+
+        JLabel totalLabel = new JLabel(String.format("Rs.%.2f", total));
+        totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        totalLabel.setForeground(new Color(30, 41, 59));
+        totalLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+
+        itemPanel.add(leftPanel, BorderLayout.CENTER);
+        itemPanel.add(totalLabel, BorderLayout.EAST);
+
+        return itemPanel;
     }
-
-    JPanel extraInfoPanel = new JPanel();
-    extraInfoPanel.setLayout(new BoxLayout(extraInfoPanel, BoxLayout.X_AXIS));
-    extraInfoPanel.setOpaque(false);
-    extraInfoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-    if (batchNo != null && !batchNo.isEmpty()) {
-        JLabel batchLabel = new JLabel("Batch: " + batchNo);
-        batchLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
-        batchLabel.setForeground(new Color(148, 163, 184));
-        batchLabel.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
-        extraInfoPanel.add(batchLabel);
-    }
-
-    leftPanel.add(productLabel);
-    leftPanel.add(Box.createRigidArea(new Dimension(0, 6)));
-    leftPanel.add(detailsPanel);
-    
-    if (extraInfoPanel.getComponentCount() > 0) {
-        leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
-        leftPanel.add(extraInfoPanel);
-    }
-
-    JLabel totalLabel = new JLabel(String.format("Rs.%.2f", total));
-    totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
-    totalLabel.setForeground(new Color(30, 41, 59));
-    totalLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-
-    itemPanel.add(leftPanel, BorderLayout.CENTER);
-    itemPanel.add(totalLabel, BorderLayout.EAST);
-
-    return itemPanel;
-}
 
     private String formatDateTime(String datetime) {
         try {

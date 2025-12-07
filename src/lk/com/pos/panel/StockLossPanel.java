@@ -2,9 +2,8 @@ package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import lk.com.pos.connection.MySQL;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import lk.com.pos.dao.StockLossDAO;
+import lk.com.pos.dto.StockLossDTO;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.awt.Color;
@@ -26,7 +25,6 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Calendar;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -51,15 +49,17 @@ import javax.swing.SwingConstants;
  */
 public class StockLossPanel extends javax.swing.JPanel {
 
+    // DAO instance
+    private StockLossDAO stockLossDAO;
+    
     // Date & Number Formatting
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
     private static final SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    // UI Constants - Colors
+    // UI Constants - Colors (same as before)
     private static final class Colors {
-
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
         static final Color TEAL_HOVER = new Color(60, 200, 206);
         static final Color BORDER_DEFAULT = new Color(230, 230, 230);
@@ -68,8 +68,6 @@ public class StockLossPanel extends javax.swing.JPanel {
         static final Color TEXT_PRIMARY = Color.decode("#1E293B");
         static final Color TEXT_SECONDARY = Color.decode("#6B7280");
         static final Color TEXT_MUTED = Color.decode("#94A3B8");
-
-        // Badge Colors
         static final Color BADGE_BOUNCED_BG = Color.decode("#FEE2E2");
         static final Color BADGE_BOUNCED_FG = Color.decode("#991B1B");
         static final Color BADGE_BOUNCED_BORDER = Color.decode("#F87171");
@@ -79,44 +77,33 @@ public class StockLossPanel extends javax.swing.JPanel {
         static final Color BADGE_DAMAGED_BG = Color.decode("#FECACA");
         static final Color BADGE_DAMAGED_FG = Color.decode("#7F1D1D");
         static final Color BADGE_DAMAGED_BORDER = Color.decode("#EF4444");
-
-        // Detail Colors
         static final Color DETAIL_BATCH = Color.decode("#8B5CF6");
         static final Color DETAIL_INVOICE = Color.decode("#EC4899");
         static final Color DETAIL_PRICE = Color.decode("#10B981");
         static final Color DETAIL_QTY = Color.decode("#06B6D4");
         static final Color DETAIL_USER = Color.decode("#6366F1");
         static final Color DETAIL_DATE = Color.decode("#F59E0B");
-
-        // Loss Amount Colors - Updated with red color
-        static final Color LOSS_HIGH = Color.decode("#DC2626"); // Red color
-        static final Color LOSS_MEDIUM = Color.decode("#DC2626"); // Red color
-        static final Color LOSS_LOW = Color.decode("#DC2626"); // Red color
-        static final Color LOSS_BG = Color.decode("#FEE2E2"); // Light red background
-        static final Color LOSS_BORDER = Color.decode("#FECACA"); // Light red border
-
-        // Button Colors
+        static final Color LOSS_HIGH = Color.decode("#DC2626");
+        static final Color LOSS_MEDIUM = Color.decode("#DC2626");
+        static final Color LOSS_LOW = Color.decode("#DC2626");
+        static final Color LOSS_BG = Color.decode("#FEE2E2");
+        static final Color LOSS_BORDER = Color.decode("#FECACA");
         static final Color BTN_EDIT_BG = Color.decode("#EFF6FF");
         static final Color BTN_EDIT_BORDER = Color.decode("#BFDBFE");
-
-        // Export Button Colors
-        static final Color EXPORT_BTN_BG = new Color(0, 0, 0, 0); // Transparent
+        static final Color EXPORT_BTN_BG = new Color(0, 0, 0, 0);
         static final Color EXPORT_BTN_FG = Color.decode("#10B981");
         static final Color EXPORT_BTN_BORDER = Color.decode("#10B981");
         static final Color EXPORT_BTN_HOVER_BG = Color.decode("#10B981");
         static final Color EXPORT_BTN_HOVER_BORDER = Color.decode("#34D399");
-
-        // Add Stock Button Colors
-        static final Color ADD_STOCK_BTN_BG = new Color(0, 0, 0, 0); // Transparent
+        static final Color ADD_STOCK_BTN_BG = new Color(0, 0, 0, 0);
         static final Color ADD_STOCK_BTN_FG = Colors.TEAL_PRIMARY;
         static final Color ADD_STOCK_BTN_BORDER = Colors.TEAL_PRIMARY;
         static final Color ADD_STOCK_BTN_HOVER_BG = Colors.TEAL_PRIMARY;
         static final Color ADD_STOCK_BTN_HOVER_BORDER = Colors.TEAL_HOVER;
     }
 
-    // UI Constants - Dimensions
+    // UI Constants - Dimensions (same as before)
     private static final class Dimensions {
-
         static final Dimension CARD_SIZE = new Dimension(420, 420);
         static final Dimension CARD_MAX_SIZE = new Dimension(420, 420);
         static final Dimension CARD_MIN_SIZE = new Dimension(380, 420);
@@ -124,19 +111,14 @@ public class StockLossPanel extends javax.swing.JPanel {
         static final int CARD_WIDTH_WITH_GAP = 445;
         static final int GRID_GAP = 25;
         static final int CARD_PADDING = 16;
-
-        // Responsive breakpoints
-        static final int THREE_COLUMN_MIN_WIDTH = 1200; // Reduced from 1400
-        static final int TWO_COLUMN_MIN_WIDTH = 768;    // Standard tablet size
-        static final int SINGLE_COLUMN_MAX_WIDTH = 767; // Mobile size
-
-        // Button Dimensions
+        static final int THREE_COLUMN_MIN_WIDTH = 1200;
+        static final int TWO_COLUMN_MIN_WIDTH = 768;
+        static final int SINGLE_COLUMN_MAX_WIDTH = 767;
         static final Dimension ACTION_BTN_SIZE = new Dimension(47, 47);
     }
 
-    // UI Constants - Fonts
+    // UI Constants - Fonts (same as before)
     private static final class Fonts {
-
         static final java.awt.Font HEADER = new java.awt.Font("Nunito ExtraBold", 1, 20);
         static final java.awt.Font SECTION_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 11);
         static final java.awt.Font BADGE = new java.awt.Font("Nunito ExtraBold", 1, 11);
@@ -150,9 +132,8 @@ public class StockLossPanel extends javax.swing.JPanel {
         static final java.awt.Font POSITION = new java.awt.Font("Nunito ExtraBold", 1, 14);
     }
 
-    // UI Constants - Strings
+    // UI Constants - Strings (same as before)
     private static final class Strings {
-
         static final String SEARCH_PLACEHOLDER = "Search by Product Name, Invoice, or Batch No";
         static final String NO_RECORDS = "No stock loss records found";
         static final String LOADING_MESSAGE = "Loading stock losses...";
@@ -163,21 +144,20 @@ public class StockLossPanel extends javax.swing.JPanel {
         static final String NO_VALUE = "N/A";
     }
 
-    // Business Constants
+    // Business Constants (same as before)
     private static final class Business {
-
         static final double HIGH_LOSS_THRESHOLD = 10000.0;
         static final double MEDIUM_LOSS_THRESHOLD = 5000.0;
         static final long REFRESH_COOLDOWN_MS = 1000;
     }
 
-    // Keyboard Navigation
+    // Keyboard Navigation (same as before)
     private lk.com.pos.privateclasses.RoundedPanel currentFocusedCard = null;
     private List<lk.com.pos.privateclasses.RoundedPanel> lossCardsList = new ArrayList<>();
     private int currentCardIndex = -1;
     private int currentColumns = 3;
 
-    // UI Components
+    // UI Components (same as before)
     private JPanel positionIndicator;
     private JLabel positionLabel;
     private Timer positionTimer;
@@ -185,10 +165,13 @@ public class StockLossPanel extends javax.swing.JPanel {
     private boolean hintsVisible = false;
     private JPanel loadingPanel;
 
-    // State
+    // State (same as before)
     private long lastRefreshTime = 0;
 
     public StockLossPanel() {
+        // Initialize DAO
+        stockLossDAO = new StockLossDAO();
+        
         initComponents();
         initializeUI();
         createPositionIndicator();
@@ -284,7 +267,7 @@ public class StockLossPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Configures combo box
+     * Configures combo box with 20 years option
      */
     private void setupComboBox() {
         sortByDays.removeAllItems();
@@ -297,6 +280,7 @@ public class StockLossPanel extends javax.swing.JPanel {
         sortByDays.addItem("2 Years");
         sortByDays.addItem("5 Years");
         sortByDays.addItem("10 Years");
+        sortByDays.addItem("20 Years"); // Added 20 years option
 
         sortByDays.setSelectedItem("All Time");
         sortByDays.setToolTipText("Filter by time period (Alt+T)");
@@ -326,39 +310,28 @@ public class StockLossPanel extends javax.swing.JPanel {
         lostReportBtn.setMinimumSize(Dimensions.ACTION_BTN_SIZE);
         lostReportBtn.setMaximumSize(Dimensions.ACTION_BTN_SIZE);
 
-        // Set initial state - transparent background with border
         lostReportBtn.setBackground(Colors.EXPORT_BTN_BG);
         lostReportBtn.setForeground(Colors.EXPORT_BTN_FG);
-
-        // Remove text
         lostReportBtn.setText("");
 
-        // Set border with green color
         lostReportBtn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Colors.EXPORT_BTN_BORDER, 2),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        // Set cursor
         lostReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Remove focus painting
         lostReportBtn.setFocusPainted(false);
 
-        // Set icon with green color
         try {
             FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-            // Apply green color filter to the icon
             printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.EXPORT_BTN_FG));
             lostReportBtn.setIcon(printIcon);
         } catch (Exception e) {
             System.err.println("Error loading print icon: " + e.getMessage());
         }
 
-        // Set initial tooltip with button name
         lostReportBtn.setToolTipText("Export Stock Loss Report");
 
-        // Add hover effects
         lostReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -368,7 +341,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
 
-                // Change icon to white on hover
                 try {
                     FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
                     printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
@@ -377,7 +349,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                     System.err.println("Error loading print icon: " + e.getMessage());
                 }
 
-                // Update tooltip to show button name and shortcut
                 lostReportBtn.setToolTipText("Export Stock Loss Report (Ctrl+R)");
             }
 
@@ -389,7 +360,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
 
-                // Change icon back to green
                 try {
                     FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
                     printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.EXPORT_BTN_FG));
@@ -398,7 +368,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                     System.err.println("Error loading print icon: " + e.getMessage());
                 }
 
-                // Reset tooltip to just button name
                 lostReportBtn.setToolTipText("Export Stock Loss Report");
             }
 
@@ -422,39 +391,28 @@ public class StockLossPanel extends javax.swing.JPanel {
         addNewLostBtn.setMinimumSize(Dimensions.ACTION_BTN_SIZE);
         addNewLostBtn.setMaximumSize(Dimensions.ACTION_BTN_SIZE);
 
-        // Set initial state - transparent background with border
         addNewLostBtn.setBackground(Colors.ADD_STOCK_BTN_BG);
         addNewLostBtn.setForeground(Colors.ADD_STOCK_BTN_FG);
-
-        // Remove text
         addNewLostBtn.setText("");
 
-        // Set border with teal color
         addNewLostBtn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Colors.ADD_STOCK_BTN_BORDER, 2),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        // Set cursor
         addNewLostBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Remove focus painting
         addNewLostBtn.setFocusPainted(false);
 
-        // Set icon with teal color
         try {
             FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-            // Apply teal color filter to the icon
             addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.ADD_STOCK_BTN_FG));
             addNewLostBtn.setIcon(addIcon);
         } catch (Exception e) {
             System.err.println("Error loading add icon: " + e.getMessage());
         }
 
-        // Set initial tooltip with button name
         addNewLostBtn.setToolTipText("Add New Stock Loss");
 
-        // Add hover effects
         addNewLostBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
@@ -464,7 +422,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
 
-                // Change icon to white on hover
                 try {
                     FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
                     addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
@@ -473,7 +430,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                     System.err.println("Error loading add icon: " + e.getMessage());
                 }
 
-                // Update tooltip to show button name and shortcut
                 addNewLostBtn.setToolTipText("Add New Stock Loss (Ctrl+N)");
             }
 
@@ -485,7 +441,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
 
-                // Change icon back to teal
                 try {
                     FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
                     addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.ADD_STOCK_BTN_FG));
@@ -494,7 +449,6 @@ public class StockLossPanel extends javax.swing.JPanel {
                     System.err.println("Error loading add icon: " + e.getMessage());
                 }
 
-                // Reset tooltip to just button name
                 addNewLostBtn.setToolTipText("Add New Stock Loss");
             }
 
@@ -516,7 +470,6 @@ public class StockLossPanel extends javax.swing.JPanel {
     private void setupPanel() {
         jPanel2.setBackground(Colors.BACKGROUND);
 
-        // Add component listener for responsive layout
         jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
@@ -559,18 +512,9 @@ public class StockLossPanel extends javax.swing.JPanel {
         jPanel2.revalidate();
         jPanel2.repaint();
 
-        // Update position indicator if a card is selected
         if (currentCardIndex >= 0) {
             updatePositionIndicator();
         }
-    }
-
-    /**
-     * Called when filter changes
-     */
-    private void onFilterChanged() {
-        performSearch();
-        this.requestFocusInWindow();
     }
 
     /**
@@ -835,28 +779,46 @@ public class StockLossPanel extends javax.swing.JPanel {
         // Help
         registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, this::showKeyboardHints);
 
+        // FIXED: Setup search field shortcuts properly
         setupSearchFieldShortcuts();
     }
 
     /**
-     * Sets up search field specific shortcuts
+     * FIXED: Sets up search field specific shortcuts
      */
     private void setupSearchFieldShortcuts() {
+        // Clear search on Escape when search field is focused
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
         jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                clearSearchAndFilters();
+                jTextField1.setText("");
+                performSearch();
+                StockLossPanel.this.requestFocusInWindow();
+                showPositionIndicator("Search cleared");
             }
         });
 
+        // Start navigation from search field with Down arrow
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
         jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 startNavigationFromSearch();
+            }
+        });
+
+        // Search on Enter key
+        jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "performSearch");
+        jTextField1.getActionMap().put("performSearch", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                performSearch();
+                StockLossPanel.this.requestFocusInWindow();
+                showPositionIndicator("Search performed");
             }
         });
     }
@@ -882,11 +844,15 @@ public class StockLossPanel extends javax.swing.JPanel {
      * Determines if key action should be ignored
      */
     private boolean shouldIgnoreKeyAction(int keyCode, int modifiers) {
+        // Don't ignore slash key even when search field is focused
+        if (keyCode == KeyEvent.VK_SLASH && modifiers == 0) {
+            return false;
+        }
+        
         return jTextField1.hasFocus()
                 && keyCode != KeyEvent.VK_ESCAPE
                 && keyCode != KeyEvent.VK_ENTER
-                && modifiers == 0
-                && keyCode != KeyEvent.VK_SLASH;
+                && modifiers == 0;
     }
 
     /**
@@ -904,6 +870,9 @@ public class StockLossPanel extends javax.swing.JPanel {
     private void handleSlashKey() {
         if (!jTextField1.hasFocus()) {
             focusSearch();
+        } else {
+            // If already in search field, do nothing (allows typing slash)
+            jTextField1.requestFocus();
         }
     }
 
@@ -1312,18 +1281,6 @@ public class StockLossPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Data class to hold stock loss information
-     */
-    private static class StockLossData {
-
-        int lossId;
-        String productName, batchNo, invoiceNo, recordedBy, lossDate, reason;
-        int quantityLost;
-        double unitPrice, lossAmount;
-        boolean isPaid;
-    }
-
-    /**
      * Loads stock losses with filters
      */
     private void loadStockLosses() {
@@ -1355,16 +1312,16 @@ public class StockLossPanel extends javax.swing.JPanel {
     private void loadLossesAsync(String searchText, String timePeriod, String reasonFilter) {
         showLoading(true);
 
-        SwingWorker<List<StockLossData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<StockLossDTO>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<StockLossData> doInBackground() throws Exception {
-                return fetchLossesFromDatabase(searchText, timePeriod, reasonFilter);
+            protected List<StockLossDTO> doInBackground() throws Exception {
+                return stockLossDAO.getAllStockLosses(searchText, timePeriod, reasonFilter);
             }
 
             @Override
             protected void done() {
                 try {
-                    List<StockLossData> losses = get();
+                    List<StockLossDTO> losses = get();
                     displayLosses(losses);
                 } catch (Exception e) {
                     handleLoadError(e);
@@ -1375,163 +1332,6 @@ public class StockLossPanel extends javax.swing.JPanel {
         };
 
         worker.execute();
-    }
-
-    /**
-     * Fetches losses from database
-     */
-    private List<StockLossData> fetchLossesFromDatabase(String searchText, String timePeriod,
-            String reasonFilter) throws Exception {
-        List<StockLossData> losses = new ArrayList<>();
-        ResultSet rs = null;
-
-        try {
-            String query = buildLossQuery(searchText, timePeriod, reasonFilter);
-            rs = MySQL.executeSearch(query);
-
-            while (rs.next()) {
-                StockLossData data = createLossDataFromResultSet(rs);
-                losses.add(data);
-            }
-
-        } catch (SQLException e) {
-            throw new Exception("Database error while fetching stock losses: " + e.getMessage(), e);
-        }
-
-        return losses;
-    }
-
-    /**
-     * Creates StockLossData from ResultSet
-     */
-    private StockLossData createLossDataFromResultSet(ResultSet rs) throws SQLException {
-        StockLossData data = new StockLossData();
-
-        data.lossId = rs.getInt("stock_loss_id");
-        data.productName = rs.getString("product_name");
-        data.batchNo = rs.getString("batch_no");
-        data.invoiceNo = rs.getString("invoice_no");
-        data.recordedBy = rs.getString("user_name");
-        data.lossDate = rs.getString("stock_loss_date");
-        data.reason = rs.getString("reason");
-        data.quantityLost = rs.getInt("qty");
-        data.unitPrice = rs.getDouble("selling_price");
-        data.lossAmount = data.quantityLost * data.unitPrice;
-
-        return data;
-    }
-
-    /**
-     * Builds SQL query for losses
-     */
-    private String buildLossQuery(String searchText, String timePeriod, String reasonFilter) {
-        StringBuilder query = new StringBuilder();
-
-        query.append("SELECT sl.stock_loss_id, sl.qty, sl.stock_loss_date, ");
-        query.append("p.product_name, s.batch_no, s.selling_price, ");
-        query.append("u.name AS user_name, rr.reason, ");
-
-        // Get invoice number from sales if available
-        query.append("IFNULL(sa.sales_id, 'N/A') AS invoice_no ");
-
-        query.append("FROM stock_loss sl ");
-        query.append("INNER JOIN stock s ON sl.stock_id = s.stock_id ");
-        query.append("INNER JOIN product p ON s.product_id = p.product_id ");
-        query.append("INNER JOIN user u ON sl.user_id = u.user_id ");
-        query.append("INNER JOIN return_reason rr ON sl.return_reason_id = rr.return_reason_id ");
-        query.append("LEFT JOIN sales sa ON sl.sales_id = sa.sales_id ");
-        query.append("WHERE 1=1 ");
-
-        // Add search filter
-        if (isValidSearchText(searchText)) {
-            String escapedSearch = escapeSQL(searchText);
-            query.append("AND (p.product_name LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR CAST(sa.sales_id AS CHAR) LIKE '%").append(escapedSearch).append("%' ");
-            query.append("OR s.batch_no LIKE '%").append(escapedSearch).append("%') ");
-        }
-
-        // Add time period filter
-        query.append(buildTimePeriodFilter(timePeriod));
-
-        // Add reason filter
-        if (!reasonFilter.equals("All Reasons")) {
-            query.append("AND rr.reason LIKE '%").append(escapeSQL(reasonFilter)).append("%' ");
-        }
-
-        query.append("ORDER BY sl.stock_loss_date DESC, sl.stock_loss_id DESC");
-
-        return query.toString();
-    }
-
-    /**
-     * Builds time period filter clause
-     */
-    private String buildTimePeriodFilter(String timePeriod) {
-        if (timePeriod == null || timePeriod.equals("All Time")) {
-            return "";
-        }
-
-        Calendar cal = Calendar.getInstance();
-        String dateCondition = "";
-
-        switch (timePeriod) {
-            case "Today":
-                dateCondition = "AND DATE(sl.stock_loss_date) = CURDATE() ";
-                break;
-            case "Last 7 Days":
-                cal.add(Calendar.DAY_OF_MONTH, -7);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-            case "Last 30 Days":
-                cal.add(Calendar.DAY_OF_MONTH, -30);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-            case "Last 90 Days":
-                cal.add(Calendar.DAY_OF_MONTH, -90);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-            case "1 Year":
-                cal.add(Calendar.YEAR, -1);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-            case "2 Years":
-                cal.add(Calendar.YEAR, -2);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-            case "5 Years":
-                cal.add(Calendar.YEAR, -5);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-            case "10 Years":
-                cal.add(Calendar.YEAR, -10);
-                dateCondition = "AND sl.stock_loss_date >= '" + DATE_FORMAT.format(cal.getTime()) + "' ";
-                break;
-        }
-
-        return dateCondition;
-    }
-
-    /**
-     * Checks if search text is valid
-     */
-    private boolean isValidSearchText(String searchText) {
-        return searchText != null
-                && !searchText.isEmpty()
-                && !searchText.equals(Strings.SEARCH_PLACEHOLDER);
-    }
-
-    /**
-     * Escapes SQL special characters
-     */
-    private String escapeSQL(String input) {
-        if (input == null) {
-            return "";
-        }
-
-        return input.replace("\\", "\\\\")
-                .replace("'", "''")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
     }
 
     /**
@@ -1552,7 +1352,7 @@ public class StockLossPanel extends javax.swing.JPanel {
     /**
      * Displays losses in grid
      */
-    private void displayLosses(List<StockLossData> losses) {
+    private void displayLosses(List<StockLossDTO> losses) {
         clearLossCards();
 
         currentCardIndex = -1;
@@ -1569,7 +1369,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
         final JPanel gridPanel = createGridPanel();
 
-        for (StockLossData data : losses) {
+        for (StockLossDTO data : losses) {
             lk.com.pos.privateclasses.RoundedPanel card = createLossCard(data);
             gridPanel.add(card);
             lossCardsList.add(card);
@@ -1704,17 +1504,12 @@ public class StockLossPanel extends javax.swing.JPanel {
         // Account for padding (25px on each side)
         int availableWidth = panelWidth - 50;
 
-        System.out.println("DEBUG - Panel Width: " + panelWidth + ", Available: " + availableWidth);
-
         // Responsive column calculation
         if (availableWidth >= Dimensions.THREE_COLUMN_MIN_WIDTH) {
-            System.out.println("DEBUG - Using 3 columns (Desktop)");
             return 3;
         } else if (availableWidth >= Dimensions.TWO_COLUMN_MIN_WIDTH) {
-            System.out.println("DEBUG - Using 2 columns (Tablet)");
             return 2;
         } else {
-            System.out.println("DEBUG - Using 1 column (Mobile)");
             return 1;
         }
     }
@@ -1763,12 +1558,12 @@ public class StockLossPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Creates loss card from data
+     * Creates loss card from DTO
      */
-    private lk.com.pos.privateclasses.RoundedPanel createLossCard(StockLossData data) {
-        String displayDate = formatLossDate(data.lossDate);
+    private lk.com.pos.privateclasses.RoundedPanel createLossCard(StockLossDTO data) {
+        String displayDate = formatLossDate(data.getStockLossDate());
 
-        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.lossId, data.productName);
+        lk.com.pos.privateclasses.RoundedPanel card = createBaseCard(data.getStockLossId(), data.getProductName());
         JPanel contentPanel = createCardContent(data, displayDate);
 
         card.add(contentPanel, BorderLayout.CENTER);
@@ -1778,21 +1573,15 @@ public class StockLossPanel extends javax.swing.JPanel {
     /**
      * Formats loss date for display
      */
-    private String formatLossDate(String lossDate) {
+    private String formatLossDate(Date lossDate) {
         if (lossDate == null) {
             return Strings.NO_VALUE;
         }
 
         try {
-            Date date = DATE_FORMAT.parse(lossDate);
-            return DISPLAY_DATE_FORMAT.format(date);
+            return DISPLAY_DATE_FORMAT.format(lossDate);
         } catch (Exception e) {
-            try {
-                Date date = DATETIME_FORMAT.parse(lossDate);
-                return DISPLAY_DATE_FORMAT.format(date);
-            } catch (Exception ex) {
-                return lossDate;
-            }
+            return DATE_FORMAT.format(lossDate);
         }
     }
 
@@ -1872,24 +1661,24 @@ public class StockLossPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Creates card content panel
+     * Creates card content panel from DTO
      */
-    private JPanel createCardContent(StockLossData data, String displayDate) {
+    private JPanel createCardContent(StockLossDTO data, String displayDate) {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Colors.CARD_WHITE);
         contentPanel.setOpaque(false);
 
-        contentPanel.add(createHeaderSection(data.lossId, data.productName));
+        contentPanel.add(createHeaderSection(data.getStockLossId(), data.getProductName()));
         contentPanel.add(Box.createVerticalStrut(8));
-        contentPanel.add(createReasonBadgeSection(data.reason));
+        contentPanel.add(createReasonBadgeSection(data.getReason()));
         contentPanel.add(Box.createVerticalStrut(15));
         contentPanel.add(createDetailsSectionHeader());
         contentPanel.add(Box.createVerticalStrut(15));
-        contentPanel.add(createDetailsGrid(data.batchNo, data.invoiceNo, data.unitPrice,
-                data.quantityLost, data.recordedBy, displayDate));
+        contentPanel.add(createDetailsGrid(data.getBatchNo(), data.getInvoiceNo(), data.getSellingPrice(),
+                data.getQty(), data.getUserName(), displayDate));
         contentPanel.add(Box.createVerticalStrut(20));
-        contentPanel.add(createLossAmountPanel(data.lossAmount));
+        contentPanel.add(createLossAmountPanel(data.getLossAmount()));
 
         return contentPanel;
     }
@@ -1968,7 +1757,6 @@ public class StockLossPanel extends javax.swing.JPanel {
         JLabel reasonBadge = createReasonBadge(reason);
         reasonBadgePanel.add(reasonBadge, BorderLayout.WEST);
 
-        // Removed paid/unpaid badges
         return reasonBadgePanel;
     }
 
@@ -2079,7 +1867,6 @@ public class StockLossPanel extends javax.swing.JPanel {
     private JPanel createLossAmountPanel(double lossAmount) {
         lk.com.pos.privateclasses.RoundedPanel panel = new lk.com.pos.privateclasses.RoundedPanel();
 
-        // Always use red color scheme for loss amount
         Color bgColor = Colors.LOSS_BG;
         Color fgColor = Colors.LOSS_HIGH;
         Color borderColor = Colors.LOSS_BORDER;
@@ -2136,26 +1923,67 @@ public class StockLossPanel extends javax.swing.JPanel {
             return;
         }
 
-        // TODO: Implement edit dialog
-        JOptionPane.showMessageDialog(this,
-                "Edit Stock Loss functionality\nLoss ID: " + lossId
-                + "\n\nThis would open an edit dialog for the stock loss record.",
-                "Edit Stock Loss",
-                JOptionPane.INFORMATION_MESSAGE);
+        // Get the stock loss data from DAO
+        StockLossDTO stockLoss = stockLossDAO.getStockLossById(lossId);
+        
+        if (stockLoss != null) {
+            JOptionPane.showMessageDialog(this,
+                    "Edit Stock Loss - ID: " + lossId + 
+                    "\nProduct: " + stockLoss.getProductName() +
+                    "\nReason: " + stockLoss.getReason() +
+                    "\nQuantity: " + stockLoss.getQty() +
+                    "\nLoss Amount: Rs." + String.format("%.2f", stockLoss.getLossAmount()) +
+                    "\n\nThis would open an edit dialog for the stock loss record.",
+                    "Edit Stock Loss",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "Stock loss record not found with ID: " + lossId,
+                    "Not Found",
+                    JOptionPane.WARNING_MESSAGE);
+        }
 
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
 
     /**
-     * Generates stock loss report
+     * Generates stock loss report using DAO
      */
     private void generateLossReport() {
-        System.out.println("Stock Loss Report generation triggered.");
-        JOptionPane.showMessageDialog(this,
-                "Stock Loss Report generation\n"
-                + "This would generate a report with current filters applied.",
-                "Loss Report",
-                JOptionPane.INFORMATION_MESSAGE);
+        try {
+            String timePeriod = (String) sortByDays.getSelectedItem();
+            String reasonFilter = (String) sortByReason.getSelectedItem();
+            
+            StringBuilder report = new StringBuilder();
+            report.append("STOCK LOSS REPORT\n");
+            report.append("=================\n");
+            report.append("Time Period: ").append(timePeriod).append("\n");
+            report.append("Reason Filter: ").append(reasonFilter).append("\n");
+            report.append("=================\n\n");
+            
+            report.append("(Report generation would use DAO for summary data)\n\n");
+            report.append("Would include:\n");
+            report.append("- Date-wise summary\n");
+            report.append("- Total records\n");
+            report.append("- Total quantity lost\n");
+            report.append("- Total loss amount\n");
+            report.append("- Product-wise breakdown\n");
+            
+            JOptionPane.showMessageDialog(this,
+                    report.toString(),
+                    "Stock Loss Report",
+                    JOptionPane.INFORMATION_MESSAGE);
+            
+        } catch (Exception e) {
+            System.err.println("Error generating report: " + e.getMessage());
+            e.printStackTrace();
+            
+            JOptionPane.showMessageDialog(this,
+                    "Failed to generate report. Please try again.\n" + e.getMessage(),
+                    "Report Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+        
         this.requestFocusInWindow();
     }
 

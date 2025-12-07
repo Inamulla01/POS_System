@@ -2,53 +2,28 @@ package lk.com.pos.panel;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.Component;
-import java.awt.BasicStroke;
-import java.awt.BorderLayout;
-import java.awt.FlowLayout;
-import java.awt.Insets;
-import java.awt.event.KeyEvent;
-import java.sql.ResultSet;
-import java.util.List;
-import java.util.ArrayList;
-import javax.swing.AbstractAction;
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.KeyStroke;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import javax.swing.JOptionPane;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.dao.ProductDAO;
+import lk.com.pos.dto.ProductDTO;
+import lk.com.pos.privateclasses.RoundedPanel;
 import lk.com.pos.dialog.AddNewProduct;
 import lk.com.pos.dialog.UpdateProduct;
-import lk.com.pos.privateclasses.RoundedPanel;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
- * ProductPanel - Displays and manages product information with keyboard
- * navigation Features: Search, filters, keyboard navigation,
- * activate/deactivate Default: Shows ONLY active products (inactive only shown
- * when explicitly filtered)
- *
+ * ProductPanel - Displays and manages product information with keyboard navigation
+ * Features: Search, filters, keyboard navigation, activate/deactivate
+ * Default: Shows ONLY active products (inactive only shown when explicitly filtered)
+ * 
  * @author pasin
- * @version 2.0
+ * @version 3.0 - Updated with DAO/DTO pattern
  */
 public class ProductPanel extends javax.swing.JPanel {
-
+    
     private static final class Colors {
-
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
         static final Color TEAL_HOVER = new Color(60, 200, 206);
         static final Color BACKGROUND = Color.decode("#F8FAFC");
@@ -59,9 +34,8 @@ public class ProductPanel extends javax.swing.JPanel {
         static final Color TEXT_MUTED = Color.decode("#94A3B8");
         static final Color TEXT_INACTIVE = Color.decode("#9CA3AF");
     }
-
+    
     private static final class Dimensions {
-
         static final Dimension CARD_SIZE = new Dimension(420, 280);
         static final Dimension CARD_MAX_SIZE = new Dimension(420, 280);
         static final Dimension CARD_MIN_SIZE = new Dimension(380, 280);
@@ -69,37 +43,42 @@ public class ProductPanel extends javax.swing.JPanel {
         static final int GRID_GAP = 25;
         static final int CARD_PADDING = 18;
     }
-
+    
     private static final class Fonts {
-
         static final java.awt.Font POSITION = new java.awt.Font("Nunito ExtraBold", 1, 14);
         static final java.awt.Font HINT_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 13);
         static final java.awt.Font HINT_KEY = new java.awt.Font("Consolas", 1, 11);
         static final java.awt.Font HINT_DESC = new java.awt.Font("Nunito SemiBold", 0, 11);
     }
-
+    
+    // DAO instance
+    private ProductDAO productDAO;
+    
     // Keyboard Navigation
     private RoundedPanel currentFocusedCard = null;
     private List<RoundedPanel> productCardsList = new ArrayList<>();
     private int currentCardIndex = -1;
     private int currentColumns = 3;
-
+    
     // UI Components
     private JPanel positionIndicator;
     private JLabel positionLabel;
     private Timer positionTimer;
     private JPanel keyboardHintsPanel;
     private boolean hintsVisible = false;
-
+    
     public ProductPanel() {
         initComponents();
-
+        
+        // Initialize DAO
+        productDAO = new ProductDAO();
+        
         // Configure scroll pane
         jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
         jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         jScrollPane1.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
-
+        
         init();
         createPositionIndicator();
         createKeyboardHintsPanel();
@@ -107,30 +86,30 @@ public class ProductPanel extends javax.swing.JPanel {
         loadProducts(); // Will load ACTIVE products by default
         setupEventListeners();
         radioButtonListener();
-
+        
         SwingUtilities.invokeLater(() -> {
             this.requestFocusInWindow();
             showKeyboardHints();
         });
     }
-
+    
     private void init() {
         jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
                 "track: #F5F5F5; thumb: #1CB5BB; width: 8");
-
+        
         productSearchBar.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search By Product Name Or Barcode");
         productSearchBar.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
-
+        
         // Set tooltips with keyboard shortcuts
         activeRadioBtn.setToolTipText("Filter active products (Alt+1)");
         inactiveRadioBtn.setToolTipText("Filter inactive products (Alt+2)");
         productSearchBar.setToolTipText("Search products (Ctrl+F or /) - Press ? for help");
-
+        
         // Setup buttons with new styling
         setupButtons();
     }
-
+    
     private void createPositionIndicator() {
         positionIndicator = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         positionIndicator.setBackground(new Color(31, 41, 55, 230));
@@ -139,13 +118,13 @@ public class ProductPanel extends javax.swing.JPanel {
                 BorderFactory.createEmptyBorder(8, 15, 8, 15)
         ));
         positionIndicator.setVisible(false);
-
+        
         positionLabel = new JLabel();
         positionLabel.setFont(Fonts.POSITION);
         positionLabel.setForeground(Color.WHITE);
-
+        
         positionIndicator.add(positionLabel);
-
+        
         setLayout(new javax.swing.OverlayLayout(this) {
             @Override
             public void layoutContainer(java.awt.Container target) {
@@ -153,10 +132,10 @@ public class ProductPanel extends javax.swing.JPanel {
                 layoutOverlays();
             }
         });
-
+        
         add(positionIndicator, Integer.valueOf(1000));
     }
-
+    
     private void layoutOverlays() {
         if (positionIndicator != null && positionIndicator.isVisible()) {
             Dimension size = positionIndicator.getPreferredSize();
@@ -164,7 +143,7 @@ public class ProductPanel extends javax.swing.JPanel {
             int y = 80;
             positionIndicator.setBounds(x, y, size.width, size.height);
         }
-
+        
         if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
             Dimension size = keyboardHintsPanel.getPreferredSize();
             int x = getWidth() - size.width - 20;
@@ -172,21 +151,21 @@ public class ProductPanel extends javax.swing.JPanel {
             keyboardHintsPanel.setBounds(x, y, size.width, size.height);
         }
     }
-
+    
     private void showPositionIndicator(String text) {
         if (text == null || text.isEmpty()) {
             return;
         }
-
+        
         positionLabel.setText(text);
         positionIndicator.setVisible(true);
         revalidate();
         repaint();
-
+        
         if (positionTimer != null && positionTimer.isRunning()) {
             positionTimer.stop();
         }
-
+        
         positionTimer = new Timer(2000, e -> {
             positionIndicator.setVisible(false);
             revalidate();
@@ -195,7 +174,7 @@ public class ProductPanel extends javax.swing.JPanel {
         positionTimer.setRepeats(false);
         positionTimer.start();
     }
-
+    
     private void createKeyboardHintsPanel() {
         keyboardHintsPanel = new JPanel();
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
@@ -205,15 +184,14 @@ public class ProductPanel extends javax.swing.JPanel {
                 BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
         keyboardHintsPanel.setVisible(false);
-
+        
         JLabel title = new JLabel("⌨️ KEYBOARD SHORTCUTS");
         title.setFont(Fonts.HINT_TITLE);
         title.setForeground(Colors.TEAL_PRIMARY);
         title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(title);
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-
-        // UPDATED: Added hints for Add Product shortcuts
+        
         addHintRow("← → ↑ ↓", "Navigate cards", "#FFFFFF");
         addHintRow("E", "Edit Product", "#1CB5BB");
         addHintRow("D", "Deactivate Product", "#F87171");
@@ -226,45 +204,45 @@ public class ProductPanel extends javax.swing.JPanel {
         addHintRow("Alt+2", "Inactive Products", "#FB923C");
         addHintRow("Esc", "Clear/Back", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
-
+        
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-
+        
         JLabel closeHint = new JLabel("Press ? to hide");
         closeHint.setFont(new java.awt.Font("Nunito SemiBold", 2, 10));
         closeHint.setForeground(Color.decode("#9CA3AF"));
         closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
         keyboardHintsPanel.add(closeHint);
-
+        
         add(keyboardHintsPanel, Integer.valueOf(1001));
     }
-
+    
     private void addHintRow(String key, String description, String keyColor) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 2));
         row.setOpaque(false);
         row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(300, 25));
-
+        
         JLabel keyLabel = new JLabel(key);
         keyLabel.setFont(Fonts.HINT_KEY);
         keyLabel.setForeground(Color.decode(keyColor));
         keyLabel.setPreferredSize(new Dimension(90, 20));
-
+        
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(Fonts.HINT_DESC);
         descLabel.setForeground(Color.decode("#D1D5DB"));
-
+        
         row.add(keyLabel);
         row.add(descLabel);
         keyboardHintsPanel.add(row);
     }
-
+    
     private void showKeyboardHints() {
         if (!hintsVisible) {
             keyboardHintsPanel.setVisible(true);
             hintsVisible = true;
             revalidate();
             repaint();
-
+            
             Timer hideTimer = new Timer(5000, e -> {
                 keyboardHintsPanel.setVisible(false);
                 hintsVisible = false;
@@ -280,55 +258,53 @@ public class ProductPanel extends javax.swing.JPanel {
             repaint();
         }
     }
-
+    
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
-
+        
         int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
         int arrowCondition = JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT;
-
+        
         // Arrow navigation
         registerKeyAction("LEFT", KeyEvent.VK_LEFT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_LEFT));
         registerKeyAction("RIGHT", KeyEvent.VK_RIGHT, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_RIGHT));
         registerKeyAction("UP", KeyEvent.VK_UP, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_UP));
         registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, arrowCondition, () -> navigateCards(KeyEvent.VK_DOWN));
-
+        
         // Actions
         registerKeyAction("E", KeyEvent.VK_E, 0, condition, this::editSelectedCard);
         registerKeyAction("D", KeyEvent.VK_D, 0, condition, this::deactivateSelectedCard);
         registerKeyAction("R", KeyEvent.VK_R, 0, condition, this::activateSelectedCard);
-
+        
         // Enter to start navigation
         registerKeyAction("ENTER", KeyEvent.VK_ENTER, 0, condition, this::handleEnterKey);
-
+        
         // Search
         registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, this::focusSearch);
         registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, this::handleSlashKey);
-
+        
         // Escape
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
-
+        
         // Report and Refresh
         registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::generateProductReport);
         registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::generateProductReport);
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshProducts);
-
+        
         // ADDED: Add Product shortcuts
-        // Ctrl+N = New Product (semantic: N for New)
-        // Alt+A = Add Product (semantic: A for Add)
         registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddProductDialog);
         registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddProductDialog);
-
+        
         // Quick filters - Alt+1 = Active, Alt+2 = Inactive
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(activeRadioBtn));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(inactiveRadioBtn));
-
+        
         // Help
         registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, this::showKeyboardHints);
-
+        
         setupSearchFieldShortcuts();
     }
-
+    
     private void setupSearchFieldShortcuts() {
         productSearchBar.getInputMap(JComponent.WHEN_FOCUSED).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
@@ -338,7 +314,7 @@ public class ProductPanel extends javax.swing.JPanel {
                 clearSearchAndFilters();
             }
         });
-
+        
         productSearchBar.getInputMap(JComponent.WHEN_FOCUSED).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
         productSearchBar.getActionMap().put("startNavigation", new AbstractAction() {
@@ -348,7 +324,7 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         });
     }
-
+    
     private void registerKeyAction(String actionName, int keyCode, int modifiers, int condition, Runnable action) {
         KeyStroke keyStroke = KeyStroke.getKeyStroke(keyCode, modifiers);
         this.getInputMap(condition).put(keyStroke, actionName);
@@ -362,7 +338,7 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         });
     }
-
+    
     private boolean shouldIgnoreKeyAction(int keyCode, int modifiers) {
         return productSearchBar.hasFocus()
                 && keyCode != KeyEvent.VK_ESCAPE
@@ -370,26 +346,26 @@ public class ProductPanel extends javax.swing.JPanel {
                 && modifiers == 0
                 && keyCode != KeyEvent.VK_SLASH;
     }
-
+    
     private void handleEnterKey() {
         if (currentCardIndex == -1 && !productCardsList.isEmpty()) {
             navigateCards(KeyEvent.VK_RIGHT);
         }
     }
-
+    
     private void handleSlashKey() {
         if (!productSearchBar.hasFocus()) {
             focusSearch();
         }
     }
-
+    
     private void clearSearchAndFilters() {
         productSearchBar.setText("");
         buttonGroup1.clearSelection();
         SearchFilters();
         ProductPanel.this.requestFocusInWindow();
     }
-
+    
     private void startNavigationFromSearch() {
         if (!productCardsList.isEmpty()) {
             ProductPanel.this.requestFocusInWindow();
@@ -401,13 +377,13 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         }
     }
-
+    
     private void focusSearch() {
         productSearchBar.requestFocus();
         productSearchBar.selectAll();
         showPositionIndicator("🔍 Search mode - Type to filter products (Press ↓ to navigate results)");
     }
-
+    
     private void handleEscape() {
         if (currentCardIndex >= 0) {
             deselectCurrentCard();
@@ -422,13 +398,13 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         this.requestFocusInWindow();
     }
-
+    
     private void refreshProducts() {
         SearchFilters();
         showPositionIndicator("✅ Products refreshed");
         this.requestFocusInWindow();
     }
-
+    
     private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
         if (radioBtn.isSelected()) {
             buttonGroup1.clearSelection();
@@ -440,21 +416,18 @@ public class ProductPanel extends javax.swing.JPanel {
         SearchFilters();
         this.requestFocusInWindow();
     }
-
-    /**
-     * ADDED: Opens Add Product dialog
-     */
+    
     private void openAddProductDialog() {
         addProductDialog.doClick();
         showPositionIndicator("➕ Opening Add Product dialog");
     }
-
+    
     private void navigateCards(int direction) {
         if (productCardsList.isEmpty()) {
             showPositionIndicator("No products available");
             return;
         }
-
+        
         if (currentCardIndex < 0) {
             currentCardIndex = 0;
             selectCurrentCard();
@@ -462,10 +435,10 @@ public class ProductPanel extends javax.swing.JPanel {
             updatePositionIndicator();
             return;
         }
-
+        
         int oldIndex = currentCardIndex;
         int newIndex = calculateNewIndex(direction, currentCardIndex, productCardsList.size());
-
+        
         if (newIndex != oldIndex) {
             deselectCard(oldIndex);
             currentCardIndex = newIndex;
@@ -476,7 +449,7 @@ public class ProductPanel extends javax.swing.JPanel {
             showBoundaryMessage(direction);
         }
     }
-
+    
     private void showBoundaryMessage(int direction) {
         String message;
         switch (direction) {
@@ -497,12 +470,12 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         showPositionIndicator(message);
     }
-
+    
     private int calculateNewIndex(int direction, int currentIndex, int totalCards) {
         int currentRow = currentIndex / currentColumns;
         int currentCol = currentIndex % currentColumns;
         int totalRows = (int) Math.ceil((double) totalCards / currentColumns);
-
+        
         switch (direction) {
             case KeyEvent.VK_LEFT:
                 if (currentCol > 0) {
@@ -511,19 +484,19 @@ public class ProductPanel extends javax.swing.JPanel {
                     return Math.min((currentRow * currentColumns) - 1, totalCards - 1);
                 }
                 return currentIndex;
-
+                
             case KeyEvent.VK_RIGHT:
                 if (currentIndex < totalCards - 1) {
                     return currentIndex + 1;
                 }
                 return currentIndex;
-
+                
             case KeyEvent.VK_UP:
                 if (currentRow > 0) {
                     return Math.max(0, currentIndex - currentColumns);
                 }
                 return currentIndex;
-
+                
             case KeyEvent.VK_DOWN:
                 int targetIndex = currentIndex + currentColumns;
                 if (targetIndex < totalCards) {
@@ -536,40 +509,40 @@ public class ProductPanel extends javax.swing.JPanel {
                     }
                 }
                 return currentIndex;
-
+                
             default:
                 return currentIndex;
         }
     }
-
+    
     private void updatePositionIndicator() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
             return;
         }
-
+        
         int row = (currentCardIndex / currentColumns) + 1;
         int col = (currentCardIndex % currentColumns) + 1;
         int totalRows = (int) Math.ceil((double) productCardsList.size() / currentColumns);
-
+        
         RoundedPanel currentCard = productCardsList.get(currentCardIndex);
         Integer pStatusId = (Integer) currentCard.getClientProperty("pStatusId");
-
+        
         String actionKey = "D: Deactivate";
         if (pStatusId != null && pStatusId == 2) {
             actionKey = "R: Activate";
         }
-
+        
         String text = String.format("Card %d/%d (Row %d/%d, Col %d) | E: Edit | %s",
                 currentCardIndex + 1, productCardsList.size(), row, totalRows, col, actionKey);
-
+        
         showPositionIndicator(text);
     }
-
+    
     private void selectCurrentCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
             return;
         }
-
+        
         RoundedPanel card = productCardsList.get(currentCardIndex);
         card.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedBorder(Colors.TEAL_PRIMARY, 4, 15),
@@ -578,15 +551,15 @@ public class ProductPanel extends javax.swing.JPanel {
         card.setBackground(card.getBackground().brighter());
         currentFocusedCard = card;
     }
-
+    
     private void deselectCard(int index) {
         if (index < 0 || index >= productCardsList.size()) {
             return;
         }
-
+        
         RoundedPanel card = productCardsList.get(index);
         card.setBorder(BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, 18, 18, 18));
-
+        
         Integer pStatusId = (Integer) card.getClientProperty("pStatusId");
         if (pStatusId != null && pStatusId == 2) {
             card.setBackground(Colors.CARD_INACTIVE);
@@ -594,7 +567,7 @@ public class ProductPanel extends javax.swing.JPanel {
             card.setBackground(Colors.CARD_WHITE);
         }
     }
-
+    
     private void deselectCurrentCard() {
         if (currentFocusedCard != null) {
             deselectCard(currentCardIndex);
@@ -602,24 +575,24 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         currentCardIndex = -1;
     }
-
+    
     private void scrollToCardSmooth(int index) {
         if (index < 0 || index >= productCardsList.size()) {
             return;
         }
-
+        
         SwingUtilities.invokeLater(() -> {
             try {
                 RoundedPanel card = productCardsList.get(index);
                 Point cardLocation = card.getLocation();
                 Dimension cardSize = card.getSize();
                 Rectangle viewRect = jScrollPane1.getViewport().getViewRect();
-
+                
                 int cardTop = cardLocation.y;
                 int cardBottom = cardLocation.y + cardSize.height;
                 int viewTop = viewRect.y;
                 int viewBottom = viewRect.y + viewRect.height;
-
+                
                 int targetY;
                 if (cardTop < viewTop) {
                     targetY = Math.max(0, cardTop - 50);
@@ -628,20 +601,20 @@ public class ProductPanel extends javax.swing.JPanel {
                 } else {
                     return; // Card is already visible
                 }
-
+                
                 animateScroll(viewRect.x, viewRect.y, targetY);
             } catch (Exception e) {
                 System.err.println("Error scrolling to card: " + e.getMessage());
             }
         });
     }
-
+    
     private void animateScroll(int x, int startY, int endY) {
         final int steps = 10;
         final int delay = 15;
         Timer scrollTimer = new Timer(delay, null);
         final int[] step = {0};
-
+        
         scrollTimer.addActionListener(e -> {
             step[0]++;
             if (step[0] <= steps) {
@@ -655,33 +628,33 @@ public class ProductPanel extends javax.swing.JPanel {
         });
         scrollTimer.start();
     }
-
+    
     private void editSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
             showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
-
+        
         RoundedPanel card = productCardsList.get(currentCardIndex);
         Integer productId = (Integer) card.getClientProperty("productId");
-
+        
         if (productId != null) {
             editProduct(productId);
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
-
+    
     private void deactivateSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
             showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
-
+        
         RoundedPanel card = productCardsList.get(currentCardIndex);
         Integer productId = (Integer) card.getClientProperty("productId");
         String productName = (String) card.getClientProperty("productName");
         Integer pStatusId = (Integer) card.getClientProperty("pStatusId");
-
+        
         if (productId != null && productName != null) {
             if (pStatusId != null && pStatusId == 2) {
                 showPositionIndicator("Product is inactive - Use R to activate");
@@ -691,18 +664,18 @@ public class ProductPanel extends javax.swing.JPanel {
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
-
+    
     private void activateSelectedCard() {
         if (currentCardIndex < 0 || currentCardIndex >= productCardsList.size()) {
             showPositionIndicator("Select a card first (use arrow keys)");
             return;
         }
-
+        
         RoundedPanel card = productCardsList.get(currentCardIndex);
         Integer productId = (Integer) card.getClientProperty("productId");
         String productName = (String) card.getClientProperty("productName");
         Integer pStatusId = (Integer) card.getClientProperty("pStatusId");
-
+        
         if (productId != null && productName != null) {
             if (pStatusId != null && pStatusId == 2) {
                 activateProduct(productId, productName);
@@ -712,19 +685,18 @@ public class ProductPanel extends javax.swing.JPanel {
             SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
         }
     }
-
+    
     class RoundedBorder extends javax.swing.border.AbstractBorder {
-
         private final Color color;
         private final int thickness;
         private final int arc;
-
+        
         public RoundedBorder(Color color, int thickness, int arc) {
             this.color = color;
             this.thickness = thickness;
             this.arc = arc;
         }
-
+        
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2d = (Graphics2D) g.create();
@@ -732,19 +704,19 @@ public class ProductPanel extends javax.swing.JPanel {
                     java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setColor(color);
             g2d.setStroke(new java.awt.BasicStroke(thickness));
-
+            
             int offset = thickness / 2;
             g2d.drawRoundRect(x + offset, y + offset,
                     width - thickness, height - thickness, arc, arc);
             g2d.dispose();
         }
-
+        
         @Override
         public Insets getBorderInsets(Component c) {
             int inset = thickness + 2;
             return new Insets(inset, inset, inset, inset);
         }
-
+        
         @Override
         public Insets getBorderInsets(Component c, Insets insets) {
             int inset = thickness + 2;
@@ -752,7 +724,7 @@ public class ProductPanel extends javax.swing.JPanel {
             return insets;
         }
     }
-
+    
     // ============================================================================
     // EVENT LISTENERS
     // ============================================================================
@@ -762,20 +734,20 @@ public class ProductPanel extends javax.swing.JPanel {
             public void changedUpdate(javax.swing.event.DocumentEvent e) {
                 SearchFilters();
             }
-
+            
             public void removeUpdate(javax.swing.event.DocumentEvent e) {
                 SearchFilters();
             }
-
+            
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 SearchFilters();
             }
         });
-
+        
         // Radio buttons - trigger search on selection
         activeRadioBtn.addActionListener(e -> SearchFilters());
         inactiveRadioBtn.addActionListener(e -> SearchFilters());
-
+        
         // Resize listener
         jScrollPane1.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
@@ -783,7 +755,7 @@ public class ProductPanel extends javax.swing.JPanel {
                 updateLayoutIfNeeded();
             }
         });
-
+        
         this.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentShown(java.awt.event.ComponentEvent e) {
@@ -791,35 +763,34 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         });
     }
-
+    
     private void updateLayoutIfNeeded() {
         int scrollPaneWidth = jScrollPane1.getWidth();
         int newColumns = calculateColumns(scrollPaneWidth);
-
+        
         if (newColumns != currentColumns) {
             currentColumns = newColumns;
             SearchFilters();
         }
     }
-
+    
     /**
-     * Search with filters Default: Show ONLY active products (even if no radio
-     * button selected)
+     * Search with filters Default: Show ONLY active products (even if no radio button selected)
      */
     private void SearchFilters() {
         String searchText = productSearchBar.getText().trim();
-
+        
         String status = "Active"; // DEFAULT to Active
-
+        
         if (inactiveRadioBtn.isSelected()) {
             status = "Inactive";
         } else if (activeRadioBtn.isSelected()) {
             status = "Active";
         }
-
+        
         loadProducts(searchText, status);
     }
-
+    
     private void radioButtonListener() {
         // Allow deselecting radio buttons by clicking again
         activeRadioBtn.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -831,7 +802,7 @@ public class ProductPanel extends javax.swing.JPanel {
                 }
             }
         });
-
+        
         inactiveRadioBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mousePressed(java.awt.event.MouseEvent evt) {
                 if (inactiveRadioBtn.isSelected()) {
@@ -842,100 +813,77 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         });
     }
-
+    
     private void loadProducts() {
         loadProducts("", "Active");
     }
-
+    
     /**
-     * Load products with proper Active/Inactive filtering
+     * Load products with proper Active/Inactive filtering using DAO
      */
     private void loadProducts(String searchText, String status) {
         try {
-            String query = "SELECT DISTINCT "
-                    + "product.product_id, "
-                    + "product.product_name, "
-                    + "brand.brand_name, "
-                    + "category.category_name, "
-                    + "product.barcode, "
-                    + "product.p_status_id "
-                    + "FROM product "
-                    + "JOIN category ON category.category_id = product.category_id "
-                    + "JOIN brand ON brand.brand_id = product.brand_id "
-                    + "WHERE 1=1 ";
-
-            if ("Inactive".equals(status)) {
-                query += "AND product.p_status_id = 2 ";
-            } else {
-                query += "AND product.p_status_id = 1 ";
-            }
-
-            if (searchText != null && !searchText.trim().isEmpty()
-                    && !searchText.equals("Search By Product Name Or Barcode")) {
-                String escapedSearch = escapeSQL(searchText);
-                query += "AND (product.product_name LIKE '%" + escapedSearch + "%' "
-                        + "OR product.barcode LIKE '%" + escapedSearch + "%') ";
-            }
-
-            query += "ORDER BY product.product_name";
-
-            ResultSet rs = MySQL.executeSearch(query);
-
+            List<ProductDTO> products = productDAO.getProductsForDisplay(
+                searchText.isEmpty() ? null : searchText, 
+                status
+            );
+            
             clearProductCards();
-
+            
             List<RoundedPanel> productCards = new ArrayList<>();
-            int productCount = 0;
-
-            while (rs.next()) {
-                productCount++;
-
+            
+            for (ProductDTO product : products) {
+                // Get supplier name
+                String supplierName = productDAO.getSupplierForProduct(product.getProductId());
+                
                 RoundedPanel productCard = createProductCard(
-                        rs.getInt("product_id"),
-                        rs.getString("product_name"),
-                        rs.getString("brand_name"),
-                        rs.getString("category_name"),
-                        rs.getString("barcode"),
-                        rs.getInt("p_status_id")
+                    product.getProductId(),
+                    product.getProductName(),
+                    product.getBrandName(),
+                    product.getCategoryName(),
+                    product.getBarcode(),
+                    product.getPStatusId(),
+                    supplierName
                 );
-
+                
                 productCards.add(productCard);
                 productCardsList.add(productCard);
             }
-
-            if (productCount == 0) {
+            
+            if (products.isEmpty()) {
                 showEmptyState(status, searchText);
             } else {
                 displayProductCards(productCards);
             }
-
+            
             jPanel2.revalidate();
             jPanel2.repaint();
-
+            
         } catch (Exception e) {
             e.printStackTrace();
             javax.swing.JOptionPane.showMessageDialog(this,
-                    "Error loading products: " + e.getMessage(),
-                    "Database Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
+                "Error loading products: " + e.getMessage(),
+                "Database Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
         }
     }
-
+    
     private void clearProductCards() {
         for (RoundedPanel card : productCardsList) {
             removeAllListeners(card);
         }
-
+        
         productCardsList.clear();
         jPanel2.removeAll();
         currentCardIndex = -1;
         currentFocusedCard = null;
     }
-
+    
     private void removeAllListeners(Component component) {
         for (java.awt.event.MouseListener ml : component.getMouseListeners()) {
             component.removeMouseListener(ml);
         }
-
+        
         for (Component child : getAllComponents(component)) {
             if (child instanceof JButton) {
                 JButton btn = (JButton) child;
@@ -945,7 +893,7 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         }
     }
-
+    
     private List<Component> getAllComponents(Component container) {
         List<Component> list = new ArrayList<>();
         if (container instanceof java.awt.Container) {
@@ -958,15 +906,15 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         return list;
     }
-
+    
     private void showEmptyState(String status, String searchText) {
         jPanel2.setLayout(new java.awt.BorderLayout());
         jPanel2.setBackground(Color.decode("#F8FAFC"));
-
+        
         javax.swing.JPanel messagePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
         messagePanel.setBackground(Color.decode("#F8FAFC"));
         messagePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(40, 0, 0, 0));
-
+        
         String message = "No products available";
         if ("Active".equals(status)) {
             message = "No active products available";
@@ -976,52 +924,52 @@ public class ProductPanel extends javax.swing.JPanel {
                 && !searchText.equals("Search By Product Name Or Barcode")) {
             message = "No products found matching: " + searchText;
         }
-
+        
         javax.swing.JLabel noProducts = new javax.swing.JLabel(message);
         noProducts.setFont(new java.awt.Font("Nunito SemiBold", 0, 18));
         noProducts.setForeground(Color.decode("#6B7280"));
         noProducts.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-
+        
         messagePanel.add(noProducts);
         jPanel2.add(messagePanel, java.awt.BorderLayout.NORTH);
     }
-
+    
     private void displayProductCards(List<RoundedPanel> productCards) {
         currentColumns = calculateColumns(jPanel2.getWidth());
         final javax.swing.JPanel gridPanel = new javax.swing.JPanel();
         gridPanel.setBackground(Color.decode("#F8FAFC"));
         gridPanel.setLayout(new java.awt.GridLayout(0, currentColumns, 25, 25));
-
+        
         for (RoundedPanel card : productCards) {
             gridPanel.add(card);
         }
-
+        
         jPanel2.setLayout(new java.awt.BorderLayout());
-
+        
         javax.swing.JPanel mainContainer = new javax.swing.JPanel();
         mainContainer.setLayout(new javax.swing.BoxLayout(mainContainer, javax.swing.BoxLayout.Y_AXIS));
         mainContainer.setBackground(Color.decode("#F8FAFC"));
-
+        
         javax.swing.JPanel paddingPanel = new javax.swing.JPanel(new java.awt.BorderLayout());
         paddingPanel.setBackground(Color.decode("#F8FAFC"));
         paddingPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(25, 25, 25, 25));
         paddingPanel.add(gridPanel, java.awt.BorderLayout.NORTH);
-
+        
         mainContainer.add(paddingPanel);
         jPanel2.add(mainContainer, java.awt.BorderLayout.NORTH);
-
+        
         setupGridResizeListener(gridPanel, currentColumns);
     }
-
+    
     private void setupGridResizeListener(final javax.swing.JPanel gridPanel, int initialColumns) {
         jPanel2.addComponentListener(new java.awt.event.ComponentAdapter() {
             private int lastColumns = initialColumns;
-
+            
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
                 int panelWidth = jPanel2.getWidth();
                 int newColumns = calculateColumns(panelWidth);
-
+                
                 if (newColumns != lastColumns) {
                     lastColumns = newColumns;
                     currentColumns = newColumns;
@@ -1032,7 +980,7 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         });
     }
-
+    
     private String escapeSQL(String input) {
         if (input == null) {
             return "";
@@ -1042,10 +990,10 @@ public class ProductPanel extends javax.swing.JPanel {
                 .replace("%", "\\%")
                 .replace("_", "\\_");
     }
-
+    
     private int calculateColumns(int panelWidth) {
         int availableWidth = panelWidth - 50;
-
+        
         if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 3) {
             return 3;
         } else if (availableWidth >= Dimensions.CARD_WIDTH_WITH_GAP * 2) {
@@ -1054,43 +1002,44 @@ public class ProductPanel extends javax.swing.JPanel {
             return 1;
         }
     }
-
+    
     private lk.com.pos.privateclasses.RoundedPanel createProductCard(
             int productId, String productName, String brandName,
-            String categoryName, String barcode, int pStatusId) {
-
+            String categoryName, String barcode, int pStatusId,
+            String supplierName) {
+        
         RoundedPanel card = new RoundedPanel();
         card.setLayout(new java.awt.BorderLayout());
         card.setPreferredSize(Dimensions.CARD_SIZE);
         card.setMaximumSize(Dimensions.CARD_MAX_SIZE);
         card.setMinimumSize(Dimensions.CARD_MIN_SIZE);
-
+        
         if (pStatusId == 2) {
             card.setBackground(Colors.CARD_INACTIVE);
         } else {
             card.setBackground(Colors.CARD_WHITE);
         }
-
+        
         card.setBorderThickness(0);
         card.setBorder(javax.swing.BorderFactory.createEmptyBorder(Dimensions.CARD_PADDING, 18, 18, 18));
-
+        
         // Store data as client properties
         card.putClientProperty("productId", productId);
         card.putClientProperty("productName", productName);
         card.putClientProperty("pStatusId", pStatusId);
-
+        
         addCardMouseListeners(card, pStatusId);
-
+        
         javax.swing.JPanel contentPanel = new javax.swing.JPanel();
         contentPanel.setLayout(new javax.swing.BoxLayout(contentPanel, javax.swing.BoxLayout.Y_AXIS));
         contentPanel.setBackground(card.getBackground());
         contentPanel.setOpaque(false);
-
+        
         // Header
         javax.swing.JPanel headerPanel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 0));
         headerPanel.setOpaque(false);
         headerPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 40));
-
+        
         javax.swing.JLabel nameLabel = new javax.swing.JLabel(productName);
         nameLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
         if (pStatusId == 2) {
@@ -1100,28 +1049,26 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         nameLabel.setToolTipText(productName);
         headerPanel.add(nameLabel, java.awt.BorderLayout.CENTER);
-
+        
         // Action buttons
         javax.swing.JPanel actionPanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
         actionPanel.setOpaque(false);
-
+        
         javax.swing.JButton editButton = createEditButton(productId, pStatusId, productName);
         javax.swing.JButton deleteButton = createDeleteButton(productId, pStatusId, productName);
-
+        
         actionPanel.add(editButton);
         actionPanel.add(deleteButton);
         headerPanel.add(actionPanel, java.awt.BorderLayout.EAST);
-
+        
         contentPanel.add(headerPanel);
         contentPanel.add(javax.swing.Box.createVerticalStrut(8));
-
+        
         // Supplier and Status Badge
         javax.swing.JPanel supplierStatusPanel = new javax.swing.JPanel(new java.awt.BorderLayout(10, 0));
         supplierStatusPanel.setOpaque(false);
         supplierStatusPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 30));
-
-        String supplierName = getSupplierForProduct(productId);
-
+        
         javax.swing.JLabel supplierLabel = new javax.swing.JLabel("Supplier: " + supplierName);
         supplierLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
         if (pStatusId == 2) {
@@ -1131,10 +1078,10 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         supplierLabel.setToolTipText("Supplier: " + supplierName);
         supplierStatusPanel.add(supplierLabel, java.awt.BorderLayout.WEST);
-
+        
         javax.swing.JPanel badgePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0));
         badgePanel.setOpaque(false);
-
+        
         if (pStatusId == 2) {
             javax.swing.JLabel inactiveBadge = new javax.swing.JLabel("Inactive");
             inactiveBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
@@ -1158,42 +1105,43 @@ public class ProductPanel extends javax.swing.JPanel {
             ));
             badgePanel.add(activeBadge);
         }
-
+        
         supplierStatusPanel.add(badgePanel, java.awt.BorderLayout.EAST);
         contentPanel.add(supplierStatusPanel);
         contentPanel.add(javax.swing.Box.createVerticalStrut(20));
-
+        
         // Details Header
         javax.swing.JPanel detailsHeaderPanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
         detailsHeaderPanel.setOpaque(false);
         detailsHeaderPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 20));
-
+        
         javax.swing.JLabel detailsHeader = new javax.swing.JLabel("PRODUCT DETAILS");
         detailsHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
         detailsHeader.setForeground(Color.decode("#94A3B8"));
         detailsHeaderPanel.add(detailsHeader);
-
+        
         contentPanel.add(detailsHeaderPanel);
         contentPanel.add(javax.swing.Box.createVerticalStrut(15));
-
-        // Details Grid
+        
+        // Details Grid - Fixed to 3 items (2x2 grid with 3 items)
         javax.swing.JPanel detailsGrid = new javax.swing.JPanel(new java.awt.GridLayout(2, 2, 20, 15));
         detailsGrid.setOpaque(false);
         detailsGrid.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 120));
-
+        
         detailsGrid.add(createDetailPanel("Brand", brandName,
                 pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#8B5CF6")));
         detailsGrid.add(createDetailPanel("Category", categoryName,
                 pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#EC4899")));
         detailsGrid.add(createDetailPanel("Barcode", barcode,
                 pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#EF4444")));
-
+        // 4th cell is empty - no price to display
+        
         contentPanel.add(detailsGrid);
-
+        
         card.add(contentPanel, java.awt.BorderLayout.CENTER);
         return card;
     }
-
+    
     private void addCardMouseListeners(RoundedPanel card, int pStatusId) {
         card.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -1207,7 +1155,7 @@ public class ProductPanel extends javax.swing.JPanel {
                 }
                 card.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
-
+            
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 if (card != currentFocusedCard) {
@@ -1215,25 +1163,25 @@ public class ProductPanel extends javax.swing.JPanel {
                 }
                 card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             }
-
+            
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 handleCardClick(card);
             }
         });
     }
-
+    
     private void handleCardClick(RoundedPanel card) {
         if (currentFocusedCard != null && currentFocusedCard != card) {
             deselectCurrentCard();
         }
-
+        
         currentCardIndex = productCardsList.indexOf(card);
         selectCurrentCard();
         updatePositionIndicator();
         ProductPanel.this.requestFocusInWindow();
     }
-
+    
     private JButton createEditButton(int productId, int pStatusId, String productName) {
         javax.swing.JButton editButton = new javax.swing.JButton();
         editButton.setPreferredSize(new java.awt.Dimension(30, 30));
@@ -1250,7 +1198,7 @@ public class ProductPanel extends javax.swing.JPanel {
         }
         editButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#BFDBFE"), 1));
         editButton.setFocusable(false);
-
+        
         if (pStatusId == 2) {
             editButton.setBackground(Color.decode("#D1FAE5"));
             editButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#10B981"), 1));
@@ -1273,16 +1221,16 @@ public class ProductPanel extends javax.swing.JPanel {
                 ProductPanel.this.requestFocusInWindow();
             });
         }
-
+        
         return editButton;
     }
-
+    
     private JButton createDeleteButton(int productId, int pStatusId, String productName) {
         javax.swing.JButton deleteButton = new javax.swing.JButton();
         deleteButton.setPreferredSize(new java.awt.Dimension(30, 30));
         deleteButton.setMinimumSize(new java.awt.Dimension(30, 30));
         deleteButton.setMaximumSize(new java.awt.Dimension(30, 30));
-
+        
         if (pStatusId == 2) {
             deleteButton.setVisible(false);
         } else {
@@ -1294,7 +1242,7 @@ public class ProductPanel extends javax.swing.JPanel {
                 ProductPanel.this.requestFocusInWindow();
             });
         }
-
+        
         try {
             FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 16, 16);
             deleteButton.setIcon(deleteIcon);
@@ -1302,90 +1250,74 @@ public class ProductPanel extends javax.swing.JPanel {
             deleteButton.setText("×");
             deleteButton.setForeground(Color.decode("#EF4444"));
         }
-
+        
         deleteButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         deleteButton.setFocusable(false);
-
+        
         return deleteButton;
     }
-
+    
     private javax.swing.JPanel createDetailPanel(String title, String value, Color accentColor) {
         javax.swing.JPanel panel = new javax.swing.JPanel();
         panel.setLayout(new javax.swing.BoxLayout(panel, javax.swing.BoxLayout.Y_AXIS));
         panel.setOpaque(false);
-
+        
         javax.swing.JLabel titleLabel = new javax.swing.JLabel(title);
         titleLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 13));
         titleLabel.setForeground(accentColor);
         titleLabel.setAlignmentX(javax.swing.JComponent.LEFT_ALIGNMENT);
-
+        
         String displayValue = value;
         if (value != null && value.length() > 25) {
             displayValue = "<html><div style='width:140px;'>" + value + "</div></html>";
         }
-
+        
         javax.swing.JLabel valueLabel = new javax.swing.JLabel(displayValue);
         valueLabel.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
         valueLabel.setForeground(Color.decode("#1E293B"));
         valueLabel.setToolTipText(value);
         valueLabel.setAlignmentX(javax.swing.JComponent.LEFT_ALIGNMENT);
-
+        
         panel.add(titleLabel);
         panel.add(javax.swing.Box.createVerticalStrut(5));
         panel.add(valueLabel);
-
+        
         return panel;
     }
-
-    private String getSupplierForProduct(int productId) {
-        try {
-            String query = "SELECT suppliers.suppliers_name FROM stock "
-                    + "JOIN suppliers ON suppliers.suppliers_id = stock.suppliers_id "
-                    + "WHERE stock.product_id = " + productId + " LIMIT 1";
-            ResultSet rs = MySQL.executeSearch(query);
-
-            if (rs.next()) {
-                return rs.getString("suppliers_name");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return "N/A";
-    }
-
+    
     private void setupButtons() {
         setupAddProductButton();
         setupExportButton();
-
+        
         // Remove text from buttons
         addProductDialog.setText("");
         productReportBtn.setText("");
     }
-
+    
     private void setupAddProductButton() {
         addProductDialog.setPreferredSize(new Dimension(47, 47));
         addProductDialog.setMinimumSize(new Dimension(47, 47));
         addProductDialog.setMaximumSize(new Dimension(47, 47));
-
+        
         // Set initial state - transparent background with border
         addProductDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent
         addProductDialog.setForeground(Colors.TEAL_PRIMARY);
-
+        
         // Remove text
         addProductDialog.setText("");
-
+        
         // Set border with teal color
         addProductDialog.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-
+        
         // Set cursor
         addProductDialog.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
+        
         // Remove focus painting
         addProductDialog.setFocusPainted(false);
-
+        
         // Set icon with teal color
         try {
             FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
@@ -1395,10 +1327,10 @@ public class ProductPanel extends javax.swing.JPanel {
         } catch (Exception e) {
             System.err.println("Error loading add icon: " + e.getMessage());
         }
-
+        
         // Set tooltip
         addProductDialog.setToolTipText("Add New Product");
-
+        
         // Add hover effects
         addProductDialog.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -1408,7 +1340,7 @@ public class ProductPanel extends javax.swing.JPanel {
                         BorderFactory.createLineBorder(Colors.TEAL_HOVER, 2),
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
-
+                
                 // Change icon to white on hover
                 try {
                     FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
@@ -1417,11 +1349,11 @@ public class ProductPanel extends javax.swing.JPanel {
                 } catch (Exception e) {
                     System.err.println("Error loading add icon: " + e.getMessage());
                 }
-
+                
                 // Update tooltip to show it's clickable
                 addProductDialog.setToolTipText("Add New Product (Ctrl+N or Alt+A)");
             }
-
+            
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 addProductDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent
@@ -1429,7 +1361,7 @@ public class ProductPanel extends javax.swing.JPanel {
                         BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
-
+                
                 // Change icon back to teal
                 try {
                     FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
@@ -1438,47 +1370,47 @@ public class ProductPanel extends javax.swing.JPanel {
                 } catch (Exception e) {
                     System.err.println("Error loading add icon: " + e.getMessage());
                 }
-
+                
                 // Reset tooltip
                 addProductDialog.setToolTipText("Add New Product");
             }
-
+            
             @Override
             public void mousePressed(java.awt.event.MouseEvent evt) {
                 addProductDialog.setBackground(Colors.TEAL_PRIMARY.darker());
             }
-
+            
             @Override
             public void mouseReleased(java.awt.event.MouseEvent evt) {
                 addProductDialog.setBackground(Colors.TEAL_PRIMARY);
             }
         });
     }
-
+    
     private void setupExportButton() {
         productReportBtn.setPreferredSize(new Dimension(47, 47));
         productReportBtn.setMinimumSize(new Dimension(47, 47));
         productReportBtn.setMaximumSize(new Dimension(47, 47));
-
+        
         // Set initial state - transparent background with border
         productReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
         productReportBtn.setForeground(Color.decode("#10B981"));
-
+        
         // Remove text
         productReportBtn.setText("");
-
+        
         // Set border with green color
         productReportBtn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-
+        
         // Set cursor
         productReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
+        
         // Remove focus painting
         productReportBtn.setFocusPainted(false);
-
+        
         // Set icon with green color
         try {
             FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
@@ -1488,10 +1420,10 @@ public class ProductPanel extends javax.swing.JPanel {
         } catch (Exception e) {
             System.err.println("Error loading print icon: " + e.getMessage());
         }
-
+        
         // Set tooltip
         productReportBtn.setToolTipText("Export Product Report");
-
+        
         // Add hover effects
         productReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -1501,7 +1433,7 @@ public class ProductPanel extends javax.swing.JPanel {
                         BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
-
+                
                 // Change icon to white on hover
                 try {
                     FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
@@ -1510,11 +1442,11 @@ public class ProductPanel extends javax.swing.JPanel {
                 } catch (Exception e) {
                     System.err.println("Error loading print icon: " + e.getMessage());
                 }
-
+                
                 // Update tooltip to show it's clickable
                 productReportBtn.setToolTipText("Export Product Report (Ctrl+R or Ctrl+P)");
             }
-
+            
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 productReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
@@ -1522,7 +1454,7 @@ public class ProductPanel extends javax.swing.JPanel {
                         BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
                         BorderFactory.createEmptyBorder(10, 10, 10, 10)
                 ));
-
+                
                 // Change icon back to green
                 try {
                     FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
@@ -1531,30 +1463,29 @@ public class ProductPanel extends javax.swing.JPanel {
                 } catch (Exception e) {
                     System.err.println("Error loading print icon: " + e.getMessage());
                 }
-
+                
                 // Reset tooltip
                 productReportBtn.setToolTipText("Export Product Report");
             }
-
+            
             @Override
             public void mousePressed(java.awt.event.MouseEvent evt) {
                 productReportBtn.setBackground(Color.decode("#059669"));
             }
-
+            
             @Override
             public void mouseReleased(java.awt.event.MouseEvent evt) {
                 productReportBtn.setBackground(Color.decode("#10B981"));
             }
         });
     }
-
+    
     private void editProduct(int productId) {
         try {
-            String query = "SELECT stock_id FROM stock WHERE product_id = " + productId + " LIMIT 1";
-            ResultSet rs = MySQL.executeSearch(query);
-
-            if (rs.next()) {
-                int stockId = rs.getInt("stock_id");
+            // Use DAO to check if stock exists
+            int stockId = productDAO.getStockIdForProduct(productId);
+            
+            if (stockId > 0) {
                 UpdateProduct updateProduct = new UpdateProduct(null, true, productId);
                 updateProduct.setLocationRelativeTo(null);
                 updateProduct.setVisible(true);
@@ -1569,7 +1500,7 @@ public class ProductPanel extends javax.swing.JPanel {
             e.printStackTrace();
         }
     }
-
+    
     private void deactivateProduct(int productId, String productName) {
         int confirm = javax.swing.JOptionPane.showConfirmDialog(
                 this,
@@ -1579,19 +1510,25 @@ public class ProductPanel extends javax.swing.JPanel {
                 javax.swing.JOptionPane.YES_NO_OPTION,
                 javax.swing.JOptionPane.WARNING_MESSAGE
         );
-
+        
         if (confirm == javax.swing.JOptionPane.YES_OPTION) {
             try {
-                String updateQuery = "UPDATE product SET p_status_id = 2 WHERE product_id = " + productId;
-                MySQL.executeIUD(updateQuery);
-
-                javax.swing.JOptionPane.showMessageDialog(this,
-                        "Product '" + productName + "' has been deactivated successfully!\n"
-                        + "You can view it in the 'Inactive Products' filter.",
-                        "Success",
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
-
-                SearchFilters();
+                int rowsAffected = productDAO.updateProductStatus(productId, 2);
+                
+                if (rowsAffected > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                            "Product '" + productName + "' has been deactivated successfully!\n"
+                            + "You can view it in the 'Inactive Products' filter.",
+                            "Success",
+                            javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    
+                    SearchFilters();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                            "Failed to deactivate product.",
+                            "Error",
+                            javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 javax.swing.JOptionPane.showMessageDialog(this,
@@ -1601,7 +1538,7 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         }
     }
-
+    
     private void activateProduct(int productId, String productName) {
         int confirm = javax.swing.JOptionPane.showConfirmDialog(
                 this,
@@ -1611,18 +1548,24 @@ public class ProductPanel extends javax.swing.JPanel {
                 javax.swing.JOptionPane.YES_NO_OPTION,
                 javax.swing.JOptionPane.QUESTION_MESSAGE
         );
-
+        
         if (confirm == javax.swing.JOptionPane.YES_OPTION) {
             try {
-                String updateQuery = "UPDATE product SET p_status_id = 1 WHERE product_id = " + productId;
-                MySQL.executeIUD(updateQuery);
-
-                javax.swing.JOptionPane.showMessageDialog(this,
-                        "Product '" + productName + "' has been activated successfully!",
-                        "Success",
-                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
-
-                SearchFilters();
+                int rowsAffected = productDAO.updateProductStatus(productId, 1);
+                
+                if (rowsAffected > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                            "Product '" + productName + "' has been activated successfully!",
+                            "Success",
+                            javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    
+                    SearchFilters();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                            "Failed to activate product.",
+                            "Error",
+                            javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
                 javax.swing.JOptionPane.showMessageDialog(this,
@@ -1632,7 +1575,7 @@ public class ProductPanel extends javax.swing.JPanel {
             }
         }
     }
-
+    
     private void generateProductReport() {
         // TODO: Implement your actual report generation logic here.
         // This could involve fetching data and using a library like JasperReports.

@@ -12,7 +12,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Component;
 import java.awt.event.KeyEvent;
-import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -28,7 +27,8 @@ import javax.swing.Timer;
 import javax.swing.AbstractAction;
 import javax.swing.SwingWorker;
 import javax.swing.JOptionPane;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.dao.ProductStockDAO;
+import lk.com.pos.dto.ProductStockDTO;
 import lk.com.pos.dialog.AddNewStock;
 import lk.com.pos.dialog.PrintProductLabel;
 import lk.com.pos.dialog.UpdateProduct;
@@ -70,18 +70,14 @@ public class StockPanel extends javax.swing.JPanel {
     private int cardHeight = 480;
     private int gridGap = 25;
 
-    // Data class to hold product information
-    private static class ProductCardData {
-        int productId, stockId, pStatusId, qty;
-        String productName, supplierName, brandName, categoryName;
-        String expiryDate, batchNo, barcode;
-        double purchasePrice, lastPrice, sellingPrice;
-        int batchIndex, totalBatches;
-        int priorityScore; // ADDED: For smart sorting
-    }
+    // DAO instance
+    private ProductStockDAO productStockDAO;
 
     public StockPanel() {
         initComponents();
+        
+        // Initialize DAO
+        productStockDAO = new ProductStockDAO();
 
         jScrollPane1.setBorder(BorderFactory.createEmptyBorder());
         jScrollPane1.setVerticalScrollBarPolicy(javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -1212,16 +1208,23 @@ public class StockPanel extends javax.swing.JPanel {
     private void loadProduct(String productSearch, String status) {
         showLoading(true);
         
-        SwingWorker<List<ProductCardData>, Void> worker = new SwingWorker<>() {
+        SwingWorker<List<ProductStockDTO>, Void> worker = new SwingWorker<>() {
             @Override
-            protected List<ProductCardData> doInBackground() throws Exception {
-                return fetchProductsFromDatabase(productSearch, status);
+            protected List<ProductStockDTO> doInBackground() throws Exception {
+                try {
+                    // Get batch counts first
+                    productBatchCount = productStockDAO.getBatchCounts();
+                    // Get product stock data
+                    return productStockDAO.getProductStock(productSearch, status, productBatchCount);
+                } catch (Exception e) {
+                    throw new Exception("Error loading products: " + e.getMessage());
+                }
             }
             
             @Override
             protected void done() {
                 try {
-                    List<ProductCardData> products = get();
+                    List<ProductStockDTO> products = get();
                     displayProducts(products);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -1240,128 +1243,7 @@ public class StockPanel extends javax.swing.JPanel {
         worker.execute();
     }
 
-    // ============ UPDATED: Smart Sorting & Responsive Query ============
-    private List<ProductCardData> fetchProductsFromDatabase(String productSearch, String status) throws Exception {
-        List<ProductCardData> products = new ArrayList<>();
-        
-        try {
-            // STEP 1: Count batches per product
-            String countQuery = "SELECT product_id, COUNT(*) as batch_count "
-                    + "FROM stock WHERE qty > 0 GROUP BY product_id";
-            
-            productBatchCount.clear();
-            ResultSet countRs = MySQL.executeSearch(countQuery);
-            while (countRs.next()) {
-                productBatchCount.put(countRs.getInt("product_id"), countRs.getInt("batch_count"));
-            }
-            
-            // STEP 2: Build main query with SMART ORDERING
-            StringBuilder query = new StringBuilder(
-                "SELECT product.product_id, product.product_name, suppliers.suppliers_name, "
-                + "brand.brand_name, category.category_name, "
-                + "stock.qty, stock.expriy_date, stock.batch_no, product.barcode, "
-                + "stock.purchase_price, stock.last_price, stock.selling_price, "
-                + "stock.stock_id, product.p_status_id, "
-                // ADDED: Priority calculation for smart sorting
-                + "CASE "
-                + "  WHEN stock.expriy_date < CURDATE() THEN 1 "  // Expired = Priority 1 (highest)
-                + "  WHEN stock.qty < 10 THEN 2 "                  // Low stock = Priority 2
-                + "  WHEN stock.expriy_date <= DATE_ADD(CURDATE(), INTERVAL 3 MONTH) THEN 3 "  // Expiring soon = Priority 3
-                + "  ELSE 4 "                                      // Normal = Priority 4
-                + "END as priority "
-                + "FROM product "
-                + "JOIN stock ON stock.product_id = product.product_id "
-                + "JOIN category ON category.category_id = product.category_id "
-                + "JOIN brand ON brand.brand_id = product.brand_id "
-                + "JOIN suppliers ON suppliers.suppliers_id = stock.suppliers_id "
-                + "JOIN p_status ON p_status.p_status_id = product.p_status_id "
-                + "WHERE stock.qty > 0 "
-            );
-
-            // Status filter
-            if ("Inactive".equals(status)) {
-                query.append("AND product.p_status_id = 2 ");
-            } else {
-                query.append("AND product.p_status_id = 1 ");
-            }
-
-            // Search filter with SQL injection protection
-            if (productSearch != null && !productSearch.trim().isEmpty()
-                    && !productSearch.equals("Search By Product Name Or Barcode")) {
-                String escapedSearch = productSearch.replace("'", "''")
-                                                   .replace("\\", "\\\\")
-                                                   .replace("%", "\\%")
-                                                   .replace("_", "\\_");
-                query.append("AND (product.product_name LIKE '%")
-                     .append(escapedSearch)
-                     .append("%' OR product.barcode LIKE '%")
-                     .append(escapedSearch)
-                     .append("%') ");
-            }
-
-            // Status-specific filters
-            if ("Low Stock".equals(status)) {
-                query.append("AND stock.qty < 10 ");
-            }
-
-            if ("Expiring Soon".equals(status)) {
-                java.time.LocalDate threeMonthsLater = java.time.LocalDate.now().plusMonths(3);
-                query.append("AND stock.expriy_date <= '").append(threeMonthsLater).append("' ")
-                     .append("AND stock.expriy_date >= CURDATE() ");
-            }
-
-            if ("Expired".equals(status)) {
-                query.append("AND stock.expriy_date < CURDATE() ");
-            }
-
-            // ============ UPDATED: SMART ORDERING ============
-            // Order by: 1) Priority (critical items first), 2) Product name, 3) Expiry date
-            query.append("ORDER BY priority ASC, product.product_name ASC, stock.expriy_date ASC");
-
-            ResultSet rs = MySQL.executeSearch(query.toString());
-
-            Map<Integer, Integer> currentBatchIndex = new HashMap<>();
-
-            while (rs.next()) {
-                ProductCardData data = new ProductCardData();
-                
-                data.productId = rs.getInt("product_id");
-                data.stockId = rs.getInt("stock_id");
-                data.pStatusId = rs.getInt("p_status_id");
-                data.qty = rs.getInt("qty");
-                
-                data.productName = rs.getString("product_name");
-                data.supplierName = rs.getString("suppliers_name");
-                data.brandName = rs.getString("brand_name");
-                data.categoryName = rs.getString("category_name");
-                data.expiryDate = rs.getString("expriy_date");
-                data.batchNo = rs.getString("batch_no");
-                data.barcode = rs.getString("barcode");
-                
-                data.purchasePrice = rs.getDouble("purchase_price");
-                data.lastPrice = rs.getDouble("last_price");
-                data.sellingPrice = rs.getDouble("selling_price");
-                
-                // Get priority score for potential client-side sorting
-                data.priorityScore = rs.getInt("priority");
-                
-                int batchIdx = currentBatchIndex.getOrDefault(data.productId, 0) + 1;
-                currentBatchIndex.put(data.productId, batchIdx);
-                data.batchIndex = batchIdx;
-                data.totalBatches = productBatchCount.getOrDefault(data.productId, 1);
-                
-                products.add(data);
-            }
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new Exception("Database error: " + e.getMessage());
-        }
-        
-        return products;
-    }
-
-    private void displayProducts(List<ProductCardData> products) {
+    private void displayProducts(List<ProductStockDTO> products) {
         clearProductCards();
         
         productBatchIndex.clear();
@@ -1379,17 +1261,11 @@ public class StockPanel extends javax.swing.JPanel {
         final JPanel gridPanel = createGridPanel();
         
         for (int i = 0; i < products.size(); i++) {
-            ProductCardData data = products.get(i);
-            lk.com.pos.privateclasses.RoundedPanel card = createProductCard(
-                data.productId, data.productName, data.supplierName,
-                data.brandName, data.categoryName, data.qty,
-                data.expiryDate, data.batchNo, data.barcode,
-                data.purchasePrice, data.lastPrice, data.sellingPrice,
-                data.stockId, data.pStatusId, data.batchIndex, data.totalBatches
-            );
+            ProductStockDTO data = products.get(i);
+            lk.com.pos.privateclasses.RoundedPanel card = createProductCard(data);
             gridPanel.add(card);
             productCardsList.add(card);
-            productBatchIndex.put(i, data.batchIndex);
+            productBatchIndex.put(i, data.getBatchIndex());
         }
 
         jPanel2.setLayout(new java.awt.BorderLayout());
@@ -1516,13 +1392,7 @@ public class StockPanel extends javax.swing.JPanel {
         }
     }
 
-    private lk.com.pos.privateclasses.RoundedPanel createProductCard(
-            int productId, String productName, String supplierName,
-            String brandName, String categoryName, int qty,
-            String expiryDate, String batchNo, String barcode,
-            double purchasePrice, double lastPrice, double sellingPrice,
-            int stockId, int pStatusId, int batchIndex, int totalBatches) {
-
+    private lk.com.pos.privateclasses.RoundedPanel createProductCard(ProductStockDTO data) {
         lk.com.pos.privateclasses.RoundedPanel card = new lk.com.pos.privateclasses.RoundedPanel();
         card.setLayout(new java.awt.BorderLayout());
         
@@ -1532,16 +1402,16 @@ public class StockPanel extends javax.swing.JPanel {
         card.setMinimumSize(new java.awt.Dimension(cardWidth - 70, cardHeight - 50));
         
         // Store all properties in the card
-        card.putClientProperty("productId", productId);
-        card.putClientProperty("productName", productName);
-        card.putClientProperty("stockId", stockId);
-        card.putClientProperty("pStatusId", pStatusId);
-        card.putClientProperty("barcode", barcode);
-        card.putClientProperty("batchIndex", batchIndex);
-        card.putClientProperty("totalBatches", totalBatches);
-        card.putClientProperty("sellingPrice", sellingPrice);
+        card.putClientProperty("productId", data.getProductId());
+        card.putClientProperty("productName", data.getProductName());
+        card.putClientProperty("stockId", data.getStockId());
+        card.putClientProperty("pStatusId", data.getPStatusId());
+        card.putClientProperty("barcode", data.getBarcode());
+        card.putClientProperty("batchIndex", data.getBatchIndex());
+        card.putClientProperty("totalBatches", data.getTotalBatches());
+        card.putClientProperty("sellingPrice", data.getSellingPrice());
         
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             card.setBackground(Color.decode("#F8F9FA"));
         } else {
             card.setBackground(java.awt.Color.WHITE);
@@ -1558,7 +1428,7 @@ public class StockPanel extends javax.swing.JPanel {
                 if (card != currentFocusedCard) {
                     card.setBorder(BorderFactory.createCompoundBorder(
                         new RoundedBorder(
-                            pStatusId == 2 ? Color.decode("#9CA3AF") : TEAL_BORDER_HOVER, 2, 15),
+                            data.getPStatusId() == 2 ? Color.decode("#9CA3AF") : TEAL_BORDER_HOVER, 2, 15),
                         BorderFactory.createEmptyBorder(16, 16, 16, 16)
                     ));
                 }
@@ -1596,14 +1466,14 @@ public class StockPanel extends javax.swing.JPanel {
         headerPanel.setOpaque(false);
         headerPanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 40));
 
-        javax.swing.JLabel nameLabel = new javax.swing.JLabel(productName);
+        javax.swing.JLabel nameLabel = new javax.swing.JLabel(data.getProductName());
         nameLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             nameLabel.setForeground(Color.decode("#6B7280"));
         } else {
             nameLabel.setForeground(Color.decode("#1E293B"));
         }
-        nameLabel.setToolTipText(productName);
+        nameLabel.setToolTipText(data.getProductName());
         headerPanel.add(nameLabel, java.awt.BorderLayout.CENTER);
 
         javax.swing.JPanel actionPanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
@@ -1629,7 +1499,7 @@ public class StockPanel extends javax.swing.JPanel {
         
         editButton.setToolTipText("Edit Product (E)");
         editButton.addActionListener(e -> {
-            editProduct(productId, stockId);
+            editProduct(data.getProductId(), data.getStockId());
             StockPanel.this.requestFocusInWindow();
         });
 
@@ -1639,7 +1509,7 @@ public class StockPanel extends javax.swing.JPanel {
         actionButton.setMinimumSize(new java.awt.Dimension(30, 30));
         actionButton.setMaximumSize(new java.awt.Dimension(30, 30));
         
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             actionButton.setBackground(Color.decode("#D1FAE5"));
             actionButton.setBorder(javax.swing.BorderFactory.createLineBorder(Color.decode("#10B981"), 1));
             actionButton.setToolTipText("Reactivate Product (R)");
@@ -1651,7 +1521,7 @@ public class StockPanel extends javax.swing.JPanel {
                 actionButton.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
             }
             actionButton.addActionListener(e -> {
-                reactivateProduct(productId, productName);
+                reactivateProduct(data.getProductId(), data.getProductName());
                 StockPanel.this.requestFocusInWindow();
             });
         } else {
@@ -1666,7 +1536,7 @@ public class StockPanel extends javax.swing.JPanel {
                 actionButton.setFont(new java.awt.Font("Nunito ExtraBold", 1, 20));
             }
             actionButton.addActionListener(e -> {
-                deleteProduct(productId, productName, stockId);
+                deleteProduct(data.getProductId(), data.getProductName(), data.getStockId());
                 StockPanel.this.requestFocusInWindow();
             });
         }
@@ -1685,22 +1555,22 @@ public class StockPanel extends javax.swing.JPanel {
         supplierBadgePanel.setOpaque(false);
         supplierBadgePanel.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 30));
 
-        javax.swing.JLabel supplierLabel = new javax.swing.JLabel(supplierName);
+        javax.swing.JLabel supplierLabel = new javax.swing.JLabel(data.getSupplierName());
         supplierLabel.setFont(new java.awt.Font("Nunito SemiBold", 0, 14));
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             supplierLabel.setForeground(Color.decode("#9CA3AF"));
         } else {
             supplierLabel.setForeground(Color.decode("#6366F1"));
         }
-        supplierLabel.setToolTipText("Supplier: " + supplierName);
+        supplierLabel.setToolTipText("Supplier: " + data.getSupplierName());
         supplierBadgePanel.add(supplierLabel, java.awt.BorderLayout.WEST);
 
         javax.swing.JPanel badgePanel = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 5, 0));
         badgePanel.setOpaque(false);
 
         // Batch indicator badge
-        if (totalBatches > 1 && pStatusId == 1) {
-            javax.swing.JLabel batchBadge = new javax.swing.JLabel(String.format("Batch %d/%d", batchIndex, totalBatches));
+        if (data.getTotalBatches() > 1 && data.getPStatusId() == 1) {
+            javax.swing.JLabel batchBadge = new javax.swing.JLabel(String.format("Batch %d/%d", data.getBatchIndex(), data.getTotalBatches()));
             batchBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
             batchBadge.setForeground(Color.WHITE);
             batchBadge.setBackground(Color.decode("#8B5CF6"));
@@ -1710,11 +1580,11 @@ public class StockPanel extends javax.swing.JPanel {
                     javax.swing.BorderFactory.createLineBorder(Color.decode("#A78BFA"), 1),
                     javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8)
             ));
-            batchBadge.setToolTipText("This product has " + totalBatches + " batches. Press Ctrl+←/→ to navigate between them.");
+            batchBadge.setToolTipText("This product has " + data.getTotalBatches() + " batches. Press Ctrl+←/→ to navigate between them.");
             badgePanel.add(batchBadge);
         }
 
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             javax.swing.JLabel inactiveBadge = new javax.swing.JLabel("Inactive");
             inactiveBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
             inactiveBadge.setForeground(Color.WHITE);
@@ -1728,53 +1598,36 @@ public class StockPanel extends javax.swing.JPanel {
             badgePanel.add(inactiveBadge);
         }
 
-        if (pStatusId == 1) {
-            boolean isExpired = false;
-            try {
-                java.time.LocalDate expiry = java.time.LocalDate.parse(expiryDate);
-                java.time.LocalDate now = java.time.LocalDate.now();
-
-                if (expiry.isBefore(now)) {
-                    isExpired = true;
-                    javax.swing.JLabel expiredBadge = new javax.swing.JLabel("Expired");
-                    expiredBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
-                    expiredBadge.setForeground(Color.decode("#7C2D12"));
-                    expiredBadge.setBackground(Color.decode("#FED7AA"));
-                    expiredBadge.setOpaque(true);
-                    expiredBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-                    expiredBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                            javax.swing.BorderFactory.createLineBorder(Color.decode("#FB923C"), 1),
-                            javax.swing.BorderFactory.createEmptyBorder(4, 10, 4, 10)
-                    ));
-                    badgePanel.add(expiredBadge);
-                }
-            } catch (Exception e) {
+        if (data.getPStatusId() == 1) {
+            boolean isExpired = data.isExpired();
+            
+            if (isExpired) {
+                javax.swing.JLabel expiredBadge = new javax.swing.JLabel("Expired");
+                expiredBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
+                expiredBadge.setForeground(Color.decode("#7C2D12"));
+                expiredBadge.setBackground(Color.decode("#FED7AA"));
+                expiredBadge.setOpaque(true);
+                expiredBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                expiredBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                        javax.swing.BorderFactory.createLineBorder(Color.decode("#FB923C"), 1),
+                        javax.swing.BorderFactory.createEmptyBorder(4, 10, 4, 10)
+                ));
+                badgePanel.add(expiredBadge);
+            } else if (data.isExpiringSoon()) {
+                javax.swing.JLabel expiringBadge = new javax.swing.JLabel("Expiring Soon");
+                expiringBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
+                expiringBadge.setForeground(Color.decode("#92400E"));
+                expiringBadge.setBackground(Color.decode("#FEF3C7"));
+                expiringBadge.setOpaque(true);
+                expiringBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                expiringBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                        javax.swing.BorderFactory.createLineBorder(Color.decode("#FDE047"), 1),
+                        javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8)
+                ));
+                badgePanel.add(expiringBadge);
             }
 
-            if (!isExpired) {
-                try {
-                    java.time.LocalDate expiry = java.time.LocalDate.parse(expiryDate);
-                    java.time.LocalDate now = java.time.LocalDate.now();
-                    long monthsUntilExpiry = java.time.temporal.ChronoUnit.MONTHS.between(now, expiry);
-
-                    if (monthsUntilExpiry <= 3 && monthsUntilExpiry >= 0) {
-                        javax.swing.JLabel expiringBadge = new javax.swing.JLabel("Expiring Soon");
-                        expiringBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
-                        expiringBadge.setForeground(Color.decode("#92400E"));
-                        expiringBadge.setBackground(Color.decode("#FEF3C7"));
-                        expiringBadge.setOpaque(true);
-                        expiringBadge.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-                        expiringBadge.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                                javax.swing.BorderFactory.createLineBorder(Color.decode("#FDE047"), 1),
-                                javax.swing.BorderFactory.createEmptyBorder(3, 8, 3, 8)
-                        ));
-                        badgePanel.add(expiringBadge);
-                    }
-                } catch (Exception e) {
-                }
-            }
-
-            if (qty < 10) {
+            if (data.isLowStock()) {
                 javax.swing.JLabel lowStockBadge = new javax.swing.JLabel("Low Stock");
                 lowStockBadge.setFont(new java.awt.Font("Nunito ExtraBold", 1, 10));
                 lowStockBadge.setForeground(java.awt.Color.WHITE);
@@ -1800,7 +1653,7 @@ public class StockPanel extends javax.swing.JPanel {
 
         javax.swing.JLabel detailsHeader = new javax.swing.JLabel("PRODUCT DETAILS");
         detailsHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             detailsHeader.setForeground(Color.decode("#9CA3AF"));
         } else {
             detailsHeader.setForeground(Color.decode("#94A3B8"));
@@ -1814,19 +1667,20 @@ public class StockPanel extends javax.swing.JPanel {
         detailsGrid.setOpaque(false);
         detailsGrid.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 180));
 
-        detailsGrid.add(createDetailPanel("Brand", brandName, 
-            pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#8B5CF6")));
-        detailsGrid.add(createDetailPanel("Category", categoryName, 
-            pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#EC4899")));
+        detailsGrid.add(createDetailPanel("Brand", data.getBrandName(), 
+            data.getPStatusId() == 2 ? Color.decode("#9CA3AF") : Color.decode("#8B5CF6")));
+        detailsGrid.add(createDetailPanel("Category", data.getCategoryName(), 
+            data.getPStatusId() == 2 ? Color.decode("#9CA3AF") : Color.decode("#EC4899")));
 
-        detailsGrid.add(createDetailPanel("Quantity", qty + " units", 
-            pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#10B981")));
-        detailsGrid.add(createDetailPanel("Expiry Date", expiryDate, 
-            pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#F59E0B")));
+        detailsGrid.add(createDetailPanel("Quantity", data.getQty() + " units", 
+            data.getPStatusId() == 2 ? Color.decode("#9CA3AF") : Color.decode("#10B981")));
+        detailsGrid.add(createDetailPanel("Expiry Date", data.getExpiryDate(), 
+            data.getPStatusId() == 2 ? Color.decode("#9CA3AF") : Color.decode("#F59E0B")));
 
-        detailsGrid.add(createDetailPanel("Batch No", batchNo, 
-            pStatusId == 2 ? Color.decode("#9CA3AF") : Color.decode("#06B6D4")));
-        detailsGrid.add(createBarcodePanel(barcode, pStatusId, productName, sellingPrice));
+        detailsGrid.add(createDetailPanel("Batch No", data.getBatchNo(), 
+            data.getPStatusId() == 2 ? Color.decode("#9CA3AF") : Color.decode("#06B6D4")));
+        detailsGrid.add(createBarcodePanel(data.getBarcode(), data.getPStatusId(), 
+            data.getProductName(), data.getSellingPrice()));
 
         contentPanel.add(detailsGrid);
         contentPanel.add(javax.swing.Box.createVerticalStrut(20));
@@ -1837,7 +1691,7 @@ public class StockPanel extends javax.swing.JPanel {
 
         javax.swing.JLabel priceHeader = new javax.swing.JLabel("PRICING");
         priceHeader.setFont(new java.awt.Font("Nunito ExtraBold", 1, 11));
-        if (pStatusId == 2) {
+        if (data.getPStatusId() == 2) {
             priceHeader.setForeground(Color.decode("#9CA3AF"));
         } else {
             priceHeader.setForeground(Color.decode("#94A3B8"));
@@ -1853,23 +1707,23 @@ public class StockPanel extends javax.swing.JPanel {
 
         lk.com.pos.privateclasses.RoundedPanel purchasePanel = createPricePanel(
                 "Purchase",
-                purchasePrice,
-                pStatusId == 2 ? Color.decode("#F3F4F6") : Color.decode("#DBEAFE"),
-                pStatusId == 2 ? Color.decode("#6B7280") : Color.decode("#1E40AF")
+                data.getPurchasePrice(),
+                data.getPStatusId() == 2 ? Color.decode("#F3F4F6") : Color.decode("#DBEAFE"),
+                data.getPStatusId() == 2 ? Color.decode("#6B7280") : Color.decode("#1E40AF")
         );
 
         lk.com.pos.privateclasses.RoundedPanel lastPricePanel = createPricePanel(
                 "Last Price",
-                lastPrice,
-                pStatusId == 2 ? Color.decode("#F3F4F6") : Color.decode("#F3E8FF"),
-                pStatusId == 2 ? Color.decode("#6B7280") : Color.decode("#7C3AED")
+                data.getLastPrice(),
+                data.getPStatusId() == 2 ? Color.decode("#F3F4F6") : Color.decode("#F3E8FF"),
+                data.getPStatusId() == 2 ? Color.decode("#6B7280") : Color.decode("#7C3AED")
         );
 
         lk.com.pos.privateclasses.RoundedPanel sellingPanel = createPricePanel(
                 "Selling",
-                sellingPrice,
-                pStatusId == 2 ? Color.decode("#F3F4F6") : Color.decode("#D1FAE5"),
-                pStatusId == 2 ? Color.decode("#6B7280") : Color.decode("#059669")
+                data.getSellingPrice(),
+                data.getPStatusId() == 2 ? Color.decode("#F3F4F6") : Color.decode("#D1FAE5"),
+                data.getPStatusId() == 2 ? Color.decode("#6B7280") : Color.decode("#059669")
         );
 
         pricePanel.add(purchasePanel);
@@ -2049,30 +1903,25 @@ public class StockPanel extends javax.swing.JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                String checkSalesQuery = "SELECT COUNT(*) as sale_count FROM sale_item WHERE stock_id = " + stockId;
-                ResultSet rs = MySQL.executeSearch(checkSalesQuery);
+                boolean hasSales = productStockDAO.hasSalesHistory(stockId);
                 
-                boolean hasSales = false;
-                if (rs.next()) {
-                    hasSales = rs.getInt("sale_count") > 0;
+                boolean success = productStockDAO.updateProductStatus(productId, 2);
+
+                if (success) {
+                    String message = "Product '" + productName + "' has been deactivated successfully!\n" +
+                                    "You can view it in the 'Inactive Products' section.";
+                    
+                    if (hasSales) {
+                        message += "\n\nNote: This product batch has sales history and cannot be permanently deleted.";
+                    }
+
+                    JOptionPane.showMessageDialog(this,
+                            message,
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+
+                    SearchFilters();
                 }
-
-                String updateQuery = "UPDATE product SET p_status_id = 2 WHERE product_id = " + productId;
-                MySQL.executeIUD(updateQuery);
-
-                String message = "Product '" + productName + "' has been deactivated successfully!\n" +
-                                "You can view it in the 'Inactive Products' section.";
-                
-                if (hasSales) {
-                    message += "\n\nNote: This product batch has sales history and cannot be permanently deleted.";
-                }
-
-                JOptionPane.showMessageDialog(this,
-                        message,
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
-
-                SearchFilters();
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -2098,15 +1947,16 @@ public class StockPanel extends javax.swing.JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                String updateQuery = "UPDATE product SET p_status_id = 1 WHERE product_id = " + productId;
-                MySQL.executeIUD(updateQuery);
+                boolean success = productStockDAO.updateProductStatus(productId, 1);
 
-                JOptionPane.showMessageDialog(this,
-                        "Product '" + productName + "' has been reactivated successfully!",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE);
+                if (success) {
+                    JOptionPane.showMessageDialog(this,
+                            "Product '" + productName + "' has been reactivated successfully!",
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
 
-                SearchFilters();
+                    SearchFilters();
+                }
 
             } catch (Exception e) {
                 e.printStackTrace();

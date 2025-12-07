@@ -2,7 +2,10 @@ package lk.com.pos.panel;
 
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDate;
@@ -15,7 +18,8 @@ import org.jfree.chart.plot.*;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.connection.DB.ResultSetHandler;
 
 /**
  * Enhanced Financial Dashboard Panel for Pharmacy POS System
@@ -459,18 +463,23 @@ public class DashboardPanel extends javax.swing.JPanel {
             String dateCondition = getDateCondition("s.datetime");
             String groupBy = getGroupByClause();
             
-            // Sales data
+            // Sales data using DB.executeQuerySafe
             String salesQuery = "SELECT " + groupBy + " as period, COALESCE(SUM(s.total), 0) as total " +
                                "FROM sales s WHERE " + dateCondition + " GROUP BY period ORDER BY period";
             
-            ResultSet salesRs = MySQL.executeSearch(salesQuery);
-            while (salesRs.next()) {
-                String label = formatChartLabel(salesRs.getString(1));
-                double amount = salesRs.getDouble(2);
-                dataset.addValue(amount, "Sales", label);
-            }
+            DB.executeQuerySafe(salesQuery, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    while (rs.next()) {
+                        String label = formatChartLabel(rs.getString(1));
+                        double amount = rs.getDouble(2);
+                        dataset.addValue(amount, "Sales", label);
+                    }
+                    return null;
+                }
+            });
             
-            // Returns data - Calculate from return_item using total_return_amount
+            // Returns data using DB.executeQuerySafe
             String returnGroupBy = getReturnGroupByClause();
             String returnQuery = "SELECT " + returnGroupBy + " as period, " +
                                 "COALESCE(SUM(ri.total_return_amount), 0) as total " +
@@ -479,12 +488,17 @@ public class DashboardPanel extends javax.swing.JPanel {
                                 "WHERE " + dateCondition.replace("s.datetime", "r.return_date") + 
                                 " GROUP BY period ORDER BY period";
             
-            ResultSet returnRs = MySQL.executeSearch(returnQuery);
-            while (returnRs.next()) {
-                String label = formatChartLabel(returnRs.getString(1));
-                double amount = returnRs.getDouble(2);
-                dataset.addValue(amount, "Returns", label);
-            }
+            DB.executeQuerySafe(returnQuery, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    while (rs.next()) {
+                        String label = formatChartLabel(rs.getString(1));
+                        double amount = rs.getDouble(2);
+                        dataset.addValue(amount, "Returns", label);
+                    }
+                    return null;
+                }
+            });
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -539,14 +553,19 @@ public class DashboardPanel extends javax.swing.JPanel {
                           "FROM expenses e INNER JOIN expenses_type et ON e.expenses_type_id = et.expenses_type_id " +
                           "WHERE " + dateCondition + " GROUP BY et.expenses_type ORDER BY total DESC LIMIT 8";
             
-            ResultSet rs = MySQL.executeSearch(query);
-            while (rs.next()) {
-                String type = rs.getString(1);
-                double amount = rs.getDouble(2);
-                if (amount > 0) {
-                    dataset.setValue(type, amount);
+            DB.executeQuerySafe(query, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    while (rs.next()) {
+                        String type = rs.getString(1);
+                        double amount = rs.getDouble(2);
+                        if (amount > 0) {
+                            dataset.setValue(type, amount);
+                        }
+                    }
+                    return null;
                 }
-            }
+            });
             
             // If no data, add placeholder
             if (dataset.getItemCount() == 0) {
@@ -661,36 +680,42 @@ public class DashboardPanel extends javax.swing.JPanel {
                           "WHERE " + dateCondition + " " +
                           "GROUP BY p.product_id ORDER BY units DESC LIMIT 5";
             
-            ResultSet rs = MySQL.executeSearch(query);
-            int rank = 1;
-            boolean hasData = false;
-            
-            while (rs.next()) {
-                hasData = true;
-                String product = rs.getString(1);
-                double units = rs.getDouble(2);
-                double revenue = rs.getDouble(3);
-                
-                if (rank > 1) listPanel.add(Box.createVerticalStrut(8));
-                
-                listPanel.add(createListItem(
-                    String.valueOf(rank), 
-                    product, 
-                    "Revenue: Rs. " + currencyFormat.format(revenue),
-                    (int)units + " units",
-                    PRIMARY
-                ));
-                
-                rank++;
-            }
-            
-            if (!hasData) {
-                JLabel noDataLabel = new JLabel("No sales data available");
-                noDataLabel.setFont(NUNITO_REGULAR.deriveFont(13f));
-                noDataLabel.setForeground(TEXT_SECONDARY);
-                noDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
-                listPanel.add(noDataLabel);
-            }
+            DB.executeQuerySafe(query, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    int rank = 1;
+                    boolean hasData = false;
+                    
+                    while (rs.next()) {
+                        hasData = true;
+                        String product = rs.getString(1);
+                        double units = rs.getDouble(2);
+                        double revenue = rs.getDouble(3);
+                        
+                        if (rank > 1) listPanel.add(Box.createVerticalStrut(8));
+                        
+                        listPanel.add(createListItem(
+                            String.valueOf(rank), 
+                            product, 
+                            "Revenue: Rs. " + currencyFormat.format(revenue),
+                            (int)units + " units",
+                            PRIMARY
+                        ));
+                        
+                        rank++;
+                    }
+                    
+                    if (!hasData) {
+                        JLabel noDataLabel = new JLabel("No sales data available");
+                        noDataLabel.setFont(NUNITO_REGULAR.deriveFont(13f));
+                        noDataLabel.setForeground(TEXT_SECONDARY);
+                        noDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                        listPanel.add(noDataLabel);
+                    }
+                    
+                    return null;
+                }
+            });
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -739,35 +764,41 @@ public class DashboardPanel extends javax.swing.JPanel {
                           "WHERE s.qty < 10 AND s.qty > 0 " +
                           "ORDER BY s.qty ASC LIMIT 5";
             
-            ResultSet rs = MySQL.executeSearch(query);
-            boolean hasData = false;
-            
-            while (rs.next()) {
-                hasData = true;
-                String product = rs.getString(1);
-                double qty = rs.getDouble(2);
-                String batch = rs.getString(3);
-                
-                if (hasData) listPanel.add(Box.createVerticalStrut(8));
-                
-                listPanel.add(createListItem(
-                    "📦", 
-                    product, 
-                    "Batch: " + (batch != null ? batch : "N/A"),
-                    (int)qty + " left",
-                    WARNING_ORANGE
-                ));
-                
-                hasData = true;
-            }
-            
-            if (!hasData) {
-                JLabel noDataLabel = new JLabel("All items well stocked!");
-                noDataLabel.setFont(NUNITO_REGULAR.deriveFont(13f));
-                noDataLabel.setForeground(SUCCESS_GREEN);
-                noDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
-                listPanel.add(noDataLabel);
-            }
+            DB.executeQuerySafe(query, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    boolean hasData = false;
+                    
+                    while (rs.next()) {
+                        hasData = true;
+                        String product = rs.getString(1);
+                        double qty = rs.getDouble(2);
+                        String batch = rs.getString(3);
+                        
+                        if (hasData) listPanel.add(Box.createVerticalStrut(8));
+                        
+                        listPanel.add(createListItem(
+                            "📦", 
+                            product, 
+                            "Batch: " + (batch != null ? batch : "N/A"),
+                            (int)qty + " left",
+                            WARNING_ORANGE
+                        ));
+                        
+                        hasData = true;
+                    }
+                    
+                    if (!hasData) {
+                        JLabel noDataLabel = new JLabel("All items well stocked!");
+                        noDataLabel.setFont(NUNITO_REGULAR.deriveFont(13f));
+                        noDataLabel.setForeground(SUCCESS_GREEN);
+                        noDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                        listPanel.add(noDataLabel);
+                    }
+                    
+                    return null;
+                }
+            });
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -815,36 +846,42 @@ public class DashboardPanel extends javax.swing.JPanel {
                           "WHERE s.qty > 0 " +
                           "ORDER BY s.stock_id DESC LIMIT 5";
             
-            ResultSet rs = MySQL.executeSearch(query);
-            boolean hasData = false;
-            
-            while (rs.next()) {
-                hasData = true;
-                String product = rs.getString(1);
-                String mfgDate = rs.getString(2);
-                double qty = rs.getDouble(3);
-                String batch = rs.getString(4);
-                
-                if (hasData) listPanel.add(Box.createVerticalStrut(8));
-                
-                listPanel.add(createListItem(
-                    "📦", 
-                    product, 
-                    "Batch: " + (batch != null ? batch : "N/A"),
-                    (int)qty + " units",
-                    PRIMARY
-                ));
-                
-                hasData = true;
-            }
-            
-            if (!hasData) {
-                JLabel noDataLabel = new JLabel("No stock available");
-                noDataLabel.setFont(NUNITO_REGULAR.deriveFont(13f));
-                noDataLabel.setForeground(TEXT_SECONDARY);
-                noDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
-                listPanel.add(noDataLabel);
-            }
+            DB.executeQuerySafe(query, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    boolean hasData = false;
+                    
+                    while (rs.next()) {
+                        hasData = true;
+                        String product = rs.getString(1);
+                        String mfgDate = rs.getString(2);
+                        double qty = rs.getDouble(3);
+                        String batch = rs.getString(4);
+                        
+                        if (hasData) listPanel.add(Box.createVerticalStrut(8));
+                        
+                        listPanel.add(createListItem(
+                            "📦", 
+                            product, 
+                            "Batch: " + (batch != null ? batch : "N/A"),
+                            (int)qty + " units",
+                            PRIMARY
+                        ));
+                        
+                        hasData = true;
+                    }
+                    
+                    if (!hasData) {
+                        JLabel noDataLabel = new JLabel("No stock available");
+                        noDataLabel.setFont(NUNITO_REGULAR.deriveFont(13f));
+                        noDataLabel.setForeground(TEXT_SECONDARY);
+                        noDataLabel.setHorizontalAlignment(SwingConstants.CENTER);
+                        listPanel.add(noDataLabel);
+                    }
+                    
+                    return null;
+                }
+            });
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -935,20 +972,32 @@ public class DashboardPanel extends javax.swing.JPanel {
             
             // Total Sales
             String salesQuery = "SELECT COALESCE(SUM(total), 0), COUNT(*) FROM sales s WHERE " + dateCondition;
-            ResultSet salesRs = MySQL.executeSearch(salesQuery);
-            if (salesRs.next()) {
-                totalSales = salesRs.getDouble(1);
-                transactionCount = salesRs.getInt(2);
-            }
+            
+            DB.executeQuerySafe(salesQuery, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    if (rs.next()) {
+                        totalSales = rs.getDouble(1);
+                        transactionCount = rs.getInt(2);
+                    }
+                    return null;
+                }
+            });
             
             // Total Returns - Calculate from return_item table using total_return_amount
             String returnQuery = "SELECT COALESCE(SUM(ri.total_return_amount), 0) FROM return_item ri " +
                                 "INNER JOIN `return` r ON ri.return_id = r.return_id " +
                                 "WHERE " + dateCondition.replace("s.datetime", "r.return_date");
-            ResultSet returnRs = MySQL.executeSearch(returnQuery);
-            if (returnRs.next()) {
-                totalReturn = returnRs.getDouble(1);
-            }
+            
+            DB.executeQuerySafe(returnQuery, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    if (rs.next()) {
+                        totalReturn = rs.getDouble(1);
+                    }
+                    return null;
+                }
+            });
             
             // Net Sales
             netSales = totalSales - totalReturn;
@@ -960,10 +1009,15 @@ public class DashboardPanel extends javax.swing.JPanel {
                                 "WHERE " + dateCondition + " AND c.credit_status = 'UNPAID'";
             
             try {
-                ResultSet creditRs = MySQL.executeSearch(creditQuery);
-                if (creditRs.next()) {
-                    paymentDue = creditRs.getDouble(1);
-                }
+                DB.executeQuerySafe(creditQuery, new ResultSetHandler<Void>() {
+                    @Override
+                    public Void handle(ResultSet rs) throws SQLException {
+                        if (rs.next()) {
+                            paymentDue = rs.getDouble(1);
+                        }
+                        return null;
+                    }
+                });
             } catch (Exception e) {
                 // If credit_status doesn't exist, try alternative
                 paymentDue = 0;
@@ -972,13 +1026,18 @@ public class DashboardPanel extends javax.swing.JPanel {
             // Expenses
             String expenseQuery = "SELECT COALESCE(SUM(amount), 0) FROM expenses e WHERE " + 
                                  dateCondition.replace("s.datetime", "e.date");
-            ResultSet expenseRs = MySQL.executeSearch(expenseQuery);
-            if (expenseRs.next()) {
-                totalExpenses = expenseRs.getDouble(1);
-            }
+            
+            DB.executeQuerySafe(expenseQuery, new ResultSetHandler<Void>() {
+                @Override
+                public Void handle(ResultSet rs) throws SQLException {
+                    if (rs.next()) {
+                        totalExpenses = rs.getDouble(1);
+                    }
+                    return null;
+                }
+            });
             
             // Purchase & Purchase Due - Set to 0 if tables don't exist
-            // You can add GRN tables later if needed
             totalPurchase = 0;
             purchaseDue = 0;
             

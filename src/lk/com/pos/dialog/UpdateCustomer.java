@@ -1,10 +1,6 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JDialog.java to edit this template
- */
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -279,26 +275,23 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
     private void loadCustomerData() {
         try {
-            Connection conn = MySQL.getConnection();
             String sql = "SELECT * FROM credit_customer WHERE customer_id = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
+            
+            DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    name.setText(rs.getString("customer_name"));
+                    phoneNo.setText(rs.getString("customer_phone_no"));
+                    address.setText(rs.getString("customer_address"));
+                    nic.setText(rs.getString("nic"));
 
-            if (rs.next()) {
-                name.setText(rs.getString("customer_name"));
-                phoneNo.setText(rs.getString("customer_phone_no"));
-                address.setText(rs.getString("customer_address"));
-                nic.setText(rs.getString("nic"));
+                    // NIC field is now ENABLED and can be edited
+                    nic.setEnabled(true);
+                    nic.setBackground(Color.WHITE);
+                    nic.setToolTipText("Type NIC number and press ENTER to move to buttons");
+                }
+                return null;
+            }, customerId);
 
-                // NIC field is now ENABLED and can be edited
-                nic.setEnabled(true);
-                nic.setBackground(Color.WHITE);
-                nic.setToolTipText("Type NIC number and press ENTER to move to buttons");
-            }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             // Exception handling without print statements
         }
@@ -317,19 +310,17 @@ public class UpdateCustomer extends javax.swing.JDialog {
 
     private boolean isCustomerNameExists(String customerName) {
         try {
-            Connection conn = MySQL.getConnection();
             String sql = "SELECT COUNT(*) FROM credit_customer WHERE customer_name = ? AND customer_id != ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, customerName);
-            pst.setInt(2, customerId);
-            ResultSet rs = pst.executeQuery();
+            
+            Integer count = DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+                return 0;
+            }, customerName, customerId);
 
-            if (rs.next() && rs.getInt(1) > 0) {
-                return true;
-            }
+            return count > 0;
 
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             // Exception handling without print statements
         }
@@ -534,12 +525,6 @@ public class UpdateCustomer extends javax.swing.JDialog {
         isUpdating = true;
 
         Connection conn = null;
-        PreparedStatement pstUpdate = null;
-        PreparedStatement pstGetOldData = null;
-        PreparedStatement pstCheckMessage = null;
-        PreparedStatement pstInsertMessage = null;
-        PreparedStatement pstInsertNotification = null;
-        ResultSet rs = null;
 
         try {
             String customerName = name.getText().trim();
@@ -567,120 +552,126 @@ public class UpdateCustomer extends javax.swing.JDialog {
                 return;
             }
 
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
             conn.setAutoCommit(false); // Start transaction
 
             // 1. Get old customer data for notification message
             String getOldDataSql = "SELECT customer_name, customer_phone_no, customer_address, nic FROM credit_customer WHERE customer_id = ?";
-            pstGetOldData = conn.prepareStatement(getOldDataSql);
-            pstGetOldData.setInt(1, customerId);
-            rs = pstGetOldData.executeQuery();
+            
+            try (PreparedStatement pstGetOldData = conn.prepareStatement(getOldDataSql)) {
+                pstGetOldData.setInt(1, customerId);
+                try (ResultSet rs = pstGetOldData.executeQuery()) {
+                    
+                    String oldName = "";
+                    String oldPhone = "";
+                    String oldAddress = "";
+                    String oldNic = "";
 
-            String oldName = "";
-            String oldPhone = "";
-            String oldAddress = "";
-            String oldNic = "";
-
-            if (rs.next()) {
-                oldName = rs.getString("customer_name");
-                oldPhone = rs.getString("customer_phone_no");
-                oldAddress = rs.getString("customer_address");
-                oldNic = rs.getString("nic");
-            }
-            rs.close();
-            pstGetOldData.close();
-
-            // 2. Update the customer
-            String updateSql = "UPDATE credit_customer SET customer_name = ?, customer_phone_no = ?, customer_address = ?, nic = ? WHERE customer_id = ?";
-            pstUpdate = conn.prepareStatement(updateSql);
-            pstUpdate.setString(1, customerName);
-            pstUpdate.setString(2, mobile);
-            pstUpdate.setString(3, customerAddress);
-            pstUpdate.setString(4, nicNumber);
-            pstUpdate.setInt(5, customerId);
-
-            int rowsAffected = pstUpdate.executeUpdate();
-
-            if (rowsAffected > 0) {
-                // 3. Create notification message with changes
-                StringBuilder messageBuilder = new StringBuilder();
-                messageBuilder.append("Customer updated: ").append(oldName);
-
-                // Add changed fields to the message
-                boolean hasChanges = false;
-                if (!oldName.equals(customerName)) {
-                    messageBuilder.append(" [Name: ").append(oldName).append(" → ").append(customerName).append("]");
-                    hasChanges = true;
-                }
-                if (!oldPhone.equals(mobile)) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
+                    if (rs.next()) {
+                        oldName = rs.getString("customer_name");
+                        oldPhone = rs.getString("customer_phone_no");
+                        oldAddress = rs.getString("customer_address");
+                        oldNic = rs.getString("nic");
                     }
-                    messageBuilder.append("[Phone: ").append(oldPhone).append(" → ").append(mobile).append("]");
-                    hasChanges = true;
-                }
-                if (!oldAddress.equals(customerAddress)) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
+
+                    // 2. Update the customer
+                    String updateSql = "UPDATE credit_customer SET customer_name = ?, customer_phone_no = ?, customer_address = ?, nic = ? WHERE customer_id = ?";
+                    try (PreparedStatement pstUpdate = conn.prepareStatement(updateSql)) {
+                        pstUpdate.setString(1, customerName);
+                        pstUpdate.setString(2, mobile);
+                        pstUpdate.setString(3, customerAddress);
+                        pstUpdate.setString(4, nicNumber);
+                        pstUpdate.setInt(5, customerId);
+
+                        int rowsAffected = pstUpdate.executeUpdate();
+
+                        if (rowsAffected > 0) {
+                            // 3. Create notification message with changes
+                            StringBuilder messageBuilder = new StringBuilder();
+                            messageBuilder.append("Customer updated: ").append(oldName);
+
+                            // Add changed fields to the message
+                            boolean hasChanges = false;
+                            if (!oldName.equals(customerName)) {
+                                messageBuilder.append(" [Name: ").append(oldName).append(" → ").append(customerName).append("]");
+                                hasChanges = true;
+                            }
+                            if (!oldPhone.equals(mobile)) {
+                                if (hasChanges) {
+                                    messageBuilder.append(", ");
+                                }
+                                messageBuilder.append("[Phone: ").append(oldPhone).append(" → ").append(mobile).append("]");
+                                hasChanges = true;
+                            }
+                            if (!oldAddress.equals(customerAddress)) {
+                                if (hasChanges) {
+                                    messageBuilder.append(", ");
+                                }
+                                messageBuilder.append("[Address: ").append(oldAddress).append(" → ").append(customerAddress).append("]");
+                                hasChanges = true;
+                            }
+                            if (!oldNic.equals(nicNumber)) {
+                                if (hasChanges) {
+                                    messageBuilder.append(", ");
+                                }
+                                messageBuilder.append("[NIC: ").append(oldNic).append(" → ").append(nicNumber).append("]");
+                                hasChanges = true;
+                            }
+
+                            // If no specific changes detected, just show general update message
+                            if (!hasChanges) {
+                                messageBuilder.append(" - Details updated");
+                            }
+
+                            String messageText = messageBuilder.toString();
+
+                            // 4. Check if message already exists in massage table
+                            String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                            try (PreparedStatement pstCheckMessage = conn.prepareStatement(checkMessageSql)) {
+                                pstCheckMessage.setString(1, messageText);
+                                try (ResultSet rsMessage = pstCheckMessage.executeQuery()) {
+                                    
+                                    int messageId;
+
+                                    if (rsMessage.next()) {
+                                        // Message already exists, get the existing massage_id
+                                        messageId = rsMessage.getInt("massage_id");
+                                    } else {
+                                        // Message doesn't exist, insert new message
+                                        String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                                        try (PreparedStatement pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                                            pstInsertMessage.setString(1, messageText);
+                                            pstInsertMessage.executeUpdate();
+
+                                            // Get the generated message ID
+                                            try (ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys()) {
+                                                if (generatedKeys.next()) {
+                                                    messageId = generatedKeys.getInt(1);
+                                                } else {
+                                                    throw new Exception("Failed to get generated message ID");
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 5. Insert notification (msg_type_id 20 for "Edit Customer")
+                                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 20, ?)";
+                                    try (PreparedStatement pstInsertNotification = conn.prepareStatement(notificationSql)) {
+                                        pstInsertNotification.setInt(1, messageId);
+                                        pstInsertNotification.executeUpdate();
+                                    }
+
+                                    // Commit transaction
+                                    conn.commit();
+
+                                    this.dispose(); // Close the dialog after successful update
+                                }
+                            }
+                        } else {
+                            conn.rollback();
+                        }
                     }
-                    messageBuilder.append("[Address: ").append(oldAddress).append(" → ").append(customerAddress).append("]");
-                    hasChanges = true;
                 }
-                if (!oldNic.equals(nicNumber)) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
-                    }
-                    messageBuilder.append("[NIC: ").append(oldNic).append(" → ").append(nicNumber).append("]");
-                    hasChanges = true;
-                }
-
-                // If no specific changes detected, just show general update message
-                if (!hasChanges) {
-                    messageBuilder.append(" - Details updated");
-                }
-
-                String messageText = messageBuilder.toString();
-
-                // 4. Check if message already exists in massage table
-                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstCheckMessage = conn.prepareStatement(checkMessageSql);
-                pstCheckMessage.setString(1, messageText);
-                rs = pstCheckMessage.executeQuery();
-
-                int messageId;
-
-                if (rs.next()) {
-                    // Message already exists, get the existing massage_id
-                    messageId = rs.getInt("massage_id");
-                } else {
-                    // Message doesn't exist, insert new message
-                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                    pstInsertMessage.setString(1, messageText);
-                    pstInsertMessage.executeUpdate();
-
-                    // Get the generated message ID
-                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        messageId = generatedKeys.getInt(1);
-                    } else {
-                        throw new Exception("Failed to get generated message ID");
-                    }
-                    generatedKeys.close();
-                }
-
-                // 5. Insert notification (msg_type_id 20 for "Edit Customer")
-                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 20, ?)";
-                pstInsertNotification = conn.prepareStatement(notificationSql);
-                pstInsertNotification.setInt(1, messageId);
-                pstInsertNotification.executeUpdate();
-
-                // Commit transaction
-                conn.commit();
-
-                this.dispose(); // Close the dialog after successful update
-            } else {
-                conn.rollback();
             }
 
         } catch (Exception e) {
@@ -694,32 +685,7 @@ public class UpdateCustomer extends javax.swing.JDialog {
             // Exception handling without print statements
         } finally {
             // Close all resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pstUpdate != null) {
-                    pstUpdate.close();
-                }
-                if (pstGetOldData != null) {
-                    pstGetOldData.close();
-                }
-                if (pstCheckMessage != null) {
-                    pstCheckMessage.close();
-                }
-                if (pstInsertMessage != null) {
-                    pstInsertMessage.close();
-                }
-                if (pstInsertNotification != null) {
-                    pstInsertNotification.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Exception handling without print statements
-            }
+            DB.closeQuietly(conn);
             // Always reset the flag
             isUpdating = false;
         }

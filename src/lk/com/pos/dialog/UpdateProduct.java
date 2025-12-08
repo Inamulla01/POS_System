@@ -1,5 +1,6 @@
 package lk.com.pos.dialog;
 
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -9,14 +10,17 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
-import lk.com.pos.connection.MySQL;
 import java.awt.event.KeyEvent;
+import java.awt.print.PageFormat;
+import java.awt.print.Printable;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
 import java.sql.ResultSet;
 import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.text.AttributeSet;
@@ -24,13 +28,6 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.PlainDocument;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
-
-// Add barcode printing imports
-import java.awt.print.PrinterJob;
-import java.awt.print.PrinterException;
-import java.awt.print.PageFormat;
-import java.awt.print.Printable;
-import javax.swing.JComboBox;
 
 /**
  *
@@ -64,43 +61,46 @@ public class UpdateProduct extends javax.swing.JDialog {
                     + "FROM product p "
                     + "LEFT JOIN category c ON p.category_id = c.category_id "
                     + "LEFT JOIN brand b ON p.brand_id = b.brand_id "
-                    + "WHERE p.product_id = " + productId;
+                    + "WHERE p.product_id = ?";
 
-            ResultSet rs = MySQL.executeSearch(query);
-            if (rs.next()) {
-                // Load product name
-                productInput.setText(rs.getString("product_name"));
+            DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    // Load product name
+                    productInput.setText(rs.getString("product_name"));
 
-                // Load category
-                String categoryName = rs.getString("category_name");
-                if (categoryName != null) {
-                    for (int i = 0; i < categoryCombo.getItemCount(); i++) {
-                        if (categoryCombo.getItemAt(i).equals(categoryName)) {
-                            categoryCombo.setSelectedIndex(i);
-                            break;
+                    // Load category
+                    String categoryName = rs.getString("category_name");
+                    if (categoryName != null) {
+                        for (int i = 0; i < categoryCombo.getItemCount(); i++) {
+                            if (categoryCombo.getItemAt(i).equals(categoryName)) {
+                                categoryCombo.setSelectedIndex(i);
+                                break;
+                            }
                         }
                     }
-                }
 
-                // Load brand
-                String brandName = rs.getString("brand_name");
-                if (brandName != null) {
-                    for (int i = 0; i < brandCombo.getItemCount(); i++) {
-                        if (brandCombo.getItemAt(i).equals(brandName)) {
-                            brandCombo.setSelectedIndex(i);
-                            break;
+                    // Load brand
+                    String brandName = rs.getString("brand_name");
+                    if (brandName != null) {
+                        for (int i = 0; i < brandCombo.getItemCount(); i++) {
+                            if (brandCombo.getItemAt(i).equals(brandName)) {
+                                brandCombo.setSelectedIndex(i);
+                                break;
+                            }
                         }
                     }
-                }
 
-                // Load barcode
-                originalBarcode = rs.getString("barcode");
-                barcodeInput.setText(originalBarcode);
-            } else {
-                this.dispose();
-            }
+                    // Load barcode
+                    originalBarcode = rs.getString("barcode");
+                    barcodeInput.setText(originalBarcode);
+                } else {
+                    dispose();
+                }
+                return null;
+            }, productId);
+
         } catch (Exception e) {
-            this.dispose();
+            dispose();
         }
     }
 
@@ -733,12 +733,15 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void loadCategoryCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM category");
-            Vector<String> categories = new Vector<>();
-            categories.add("Select Category");
-            while (rs.next()) {
-                categories.add(rs.getString("category_name"));
-            }
+            Vector<String> categories = DB.executeQuerySafe("SELECT * FROM category", rs -> {
+                Vector<String> categoryList = new Vector<>();
+                categoryList.add("Select Category");
+                while (rs.next()) {
+                    categoryList.add(rs.getString("category_name"));
+                }
+                return categoryList;
+            });
+            
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
             categoryCombo.setModel(dcm);
         } catch (Exception e) {
@@ -748,12 +751,15 @@ public class UpdateProduct extends javax.swing.JDialog {
 
     private void loadBrandCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM brand");
-            Vector<String> brands = new Vector<>();
-            brands.add("Select Brand");
-            while (rs.next()) {
-                brands.add(rs.getString("brand_name"));
-            }
+            Vector<String> brands = DB.executeQuerySafe("SELECT * FROM brand", rs -> {
+                Vector<String> brandList = new Vector<>();
+                brandList.add("Select Brand");
+                while (rs.next()) {
+                    brandList.add(rs.getString("brand_name"));
+                }
+                return brandList;
+            });
+            
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
             brandCombo.setModel(dcm);
         } catch (Exception e) {
@@ -863,21 +869,30 @@ public class UpdateProduct extends javax.swing.JDialog {
                 productName = productName.substring(0, 35);
             }
 
-            int brandId = 0;
-            ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
-                    + brandCombo.getSelectedItem().toString() + "'");
-            if (brandRs.next()) {
-                brandId = brandRs.getInt("brand_id");
+            // Get brand ID
+            String brandSql = "SELECT brand_id FROM brand WHERE brand_name = ?";
+            Integer brandId = DB.executeQuerySafe(brandSql, rs -> {
+                if (rs.next()) {
+                    return rs.getInt("brand_id");
+                }
+                return null;
+            }, brandCombo.getSelectedItem().toString());
+
+            if (brandId == null) {
+                brandCombo.requestFocus();
+                return;
             }
 
             // Check if product with same name and brand already exists (excluding current product)
-            ResultSet productCheckRs = MySQL.executeSearch(
-                    "SELECT product_id FROM product WHERE product_name = '" + productName
-                    + "' AND brand_id = " + brandId
-                    + " AND product_id != " + productId
-            );
+            String productCheckSql = "SELECT product_id FROM product WHERE product_name = ? AND brand_id = ? AND product_id != ?";
+            Integer existingProductId = DB.executeQuerySafe(productCheckSql, rs -> {
+                if (rs.next()) {
+                    return rs.getInt("product_id");
+                }
+                return null;
+            }, productName, brandId, productId);
 
-            if (productCheckRs.next()) {
+            if (existingProductId != null) {
                 productInput.requestFocus();
                 productInput.selectAll();
                 return;
@@ -886,32 +901,42 @@ public class UpdateProduct extends javax.swing.JDialog {
             // Check if barcode already exists for another product
             String currentBarcode = barcodeInput.getText().trim();
             if (!currentBarcode.equals(originalBarcode)) {
-                ResultSet barcodeCheckRs = MySQL.executeSearch("SELECT product_id FROM product WHERE barcode = '"
-                        + currentBarcode + "' AND product_id != " + productId);
-                if (barcodeCheckRs.next()) {
+                String barcodeCheckSql = "SELECT product_id FROM product WHERE barcode = ? AND product_id != ?";
+                Integer existingBarcodeProductId = DB.executeQuerySafe(barcodeCheckSql, rs -> {
+                    if (rs.next()) {
+                        return rs.getInt("product_id");
+                    }
+                    return null;
+                }, currentBarcode, productId);
+                
+                if (existingBarcodeProductId != null) {
                     barcodeInput.requestFocus();
                     barcodeInput.selectAll();
                     return;
                 }
             }
 
-            int categoryId = 0;
-            ResultSet catRs = MySQL.executeSearch("SELECT category_id FROM category WHERE category_name = '"
-                    + categoryCombo.getSelectedItem().toString() + "'");
-            if (catRs.next()) {
-                categoryId = catRs.getInt("category_id");
+            // Get category ID
+            String categorySql = "SELECT category_id FROM category WHERE category_name = ?";
+            Integer categoryId = DB.executeQuerySafe(categorySql, rs -> {
+                if (rs.next()) {
+                    return rs.getInt("category_id");
+                }
+                return null;
+            }, categoryCombo.getSelectedItem().toString());
+
+            if (categoryId == null) {
+                categoryCombo.requestFocus();
+                return;
             }
 
-            String query = "UPDATE product SET "
-                    + "product_name = '" + productName + "', "
-                    + "brand_id = " + brandId + ", "
-                    + "category_id = " + categoryId + ", "
-                    + "barcode = '" + currentBarcode + "' "
-                    + "WHERE product_id = " + productId;
+            // Update product
+            String updateSql = "UPDATE product SET product_name = ?, brand_id = ?, category_id = ?, barcode = ? WHERE product_id = ?";
+            int rowsAffected = DB.executeUpdate(updateSql, productName, brandId, categoryId, currentBarcode, productId);
 
-            MySQL.executeIUD(query);
-
-            this.dispose();
+            if (rowsAffected > 0) {
+                this.dispose();
+            }
 
         } catch (Exception e) {
             // Exception handling without print statements

@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import lk.com.pos.session.Session;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import raven.toast.Notifications;
@@ -63,30 +63,31 @@ public class UpdateLossStock extends javax.swing.JDialog {
                     + "JOIN stock s ON sl.stock_id = s.stock_id "
                     + "JOIN product p ON s.product_id = p.product_id "
                     + "JOIN return_reason rr ON sl.return_reason_id = rr.return_reason_id "
-                    + "WHERE sl.stock_loss_id = " + stockLossId;
+                    + "WHERE sl.stock_loss_id = ?";
 
-            ResultSet rs = MySQL.executeSearch(query);
+            DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    // Store original values
+                    originalStockId = rs.getInt("stock_id");
+                    originalQty = rs.getInt("qty");
+                    originalReasonId = rs.getInt("return_reason_id");
 
-            if (rs.next()) {
-                // Store original values
-                originalStockId = rs.getInt("stock_id");
-                originalQty = rs.getInt("qty");
-                originalReasonId = rs.getInt("return_reason_id");
+                    // Set quantity
+                    qty.setText(String.valueOf(originalQty));
 
-                // Set quantity
-                qty.setText(String.valueOf(originalQty));
+                    // Select the stock in combo box
+                    selectStockInComboBox(originalStockId);
 
-                // Select the stock in combo box
-                selectStockInComboBox(originalStockId);
+                    // Select the reason in combo box
+                    selectReasonInComboBox(originalReasonId);
 
-                // Select the reason in combo box
-                selectReasonInComboBox(originalReasonId);
-
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Stock loss record not found!");
-                dispose();
-            }
+                } else {
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                            "Stock loss record not found!");
+                    dispose();
+                }
+                return null;
+            }, stockLossId);
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
@@ -100,34 +101,37 @@ public class UpdateLossStock extends javax.swing.JDialog {
             String query = "SELECT s.batch_no, p.product_name, s.qty "
                     + "FROM stock s "
                     + "JOIN product p ON s.product_id = p.product_id "
-                    + "WHERE s.stock_id = " + stockId;
+                    + "WHERE s.stock_id = ?";
 
-            ResultSet rs = MySQL.executeSearch(query);
-            if (rs.next()) {
-                String batchNo = rs.getString("batch_no");
-                String productName = rs.getString("product_name");
-                int availableQty = rs.getInt("qty");
+            DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    String batchNo = rs.getString("batch_no");
+                    String productName = rs.getString("product_name");
+                    int availableQty = rs.getInt("qty");
 
-                String stockDisplay = batchNo + " - " + productName + " (Available: " + availableQty + ")";
+                    String stockDisplay = batchNo + " - " + productName + " (Available: " + availableQty + ")";
 
-                // Now find this exact string in the combo box
-                for (int i = 0; i < stockCombo.getItemCount(); i++) {
-                    String item = stockCombo.getItemAt(i);
-                    if (item.equals(stockDisplay)) {
-                        stockCombo.setSelectedIndex(i);
-                        return;
+                    // Now find this exact string in the combo box
+                    for (int i = 0; i < stockCombo.getItemCount(); i++) {
+                        String item = stockCombo.getItemAt(i);
+                        if (item.equals(stockDisplay)) {
+                            stockCombo.setSelectedIndex(i);
+                            return null;
+                        }
+                    }
+
+                    // If not found, try partial match
+                    for (int i = 0; i < stockCombo.getItemCount(); i++) {
+                        String item = stockCombo.getItemAt(i);
+                        if (item.contains(batchNo) && item.contains(productName)) {
+                            stockCombo.setSelectedIndex(i);
+                            return null;
+                        }
                     }
                 }
+                return null;
+            }, stockId);
 
-                // If not found, try partial match
-                for (int i = 0; i < stockCombo.getItemCount(); i++) {
-                    String item = stockCombo.getItemAt(i);
-                    if (item.contains(batchNo) && item.contains(productName)) {
-                        stockCombo.setSelectedIndex(i);
-                        return;
-                    }
-                }
-            }
         } catch (Exception e) {
         }
     }
@@ -135,21 +139,24 @@ public class UpdateLossStock extends javax.swing.JDialog {
     private void selectReasonInComboBox(int reasonId) {
         try {
             // First get the reason text for the given reasonId
-            String query = "SELECT reason FROM return_reason WHERE return_reason_id = " + reasonId;
-            ResultSet rs = MySQL.executeSearch(query);
+            String query = "SELECT reason FROM return_reason WHERE return_reason_id = ?";
+            
+            DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    String reasonText = rs.getString("reason");
 
-            if (rs.next()) {
-                String reasonText = rs.getString("reason");
-
-                // Now find this exact reason in the combo box
-                for (int i = 0; i < reasonCombo.getItemCount(); i++) {
-                    String item = reasonCombo.getItemAt(i);
-                    if (item.equals(reasonText)) {
-                        reasonCombo.setSelectedIndex(i);
-                        return;
+                    // Now find this exact reason in the combo box
+                    for (int i = 0; i < reasonCombo.getItemCount(); i++) {
+                        String item = reasonCombo.getItemAt(i);
+                        if (item.equals(reasonText)) {
+                            reasonCombo.setSelectedIndex(i);
+                            return null;
+                        }
                     }
                 }
-            }
+                return null;
+            }, reasonId);
+
         } catch (Exception e) {
         }
     }
@@ -699,15 +706,7 @@ public class UpdateLossStock extends javax.swing.JDialog {
 
         } catch (Exception e) {
         } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-            }
+            DB.closeQuietly(pstMassage, pstNotification);
         }
     }
 
@@ -715,16 +714,16 @@ public class UpdateLossStock extends javax.swing.JDialog {
         String query = "SELECT p.product_name, s.batch_no, s.selling_price "
                 + "FROM stock s "
                 + "JOIN product p ON s.product_id = p.product_id "
-                + "WHERE s.stock_id = " + stockId;
-        ResultSet rs = MySQL.executeSearch(query);
-
-        if (rs.next()) {
-            return rs.getString("product_name") + "|"
-                    + rs.getString("batch_no") + "|"
-                    + rs.getDouble("selling_price");
-        }
-
-        throw new SQLException("Product details not found for stock ID: " + stockId);
+                + "WHERE s.stock_id = ?";
+                
+        return DB.executeQuerySafe(query, rs -> {
+            if (rs.next()) {
+                return rs.getString("product_name") + "|"
+                        + rs.getString("batch_no") + "|"
+                        + rs.getDouble("selling_price");
+            }
+            throw new SQLException("Product details not found for stock ID: " + stockId);
+        }, stockId);
     }
 
     // ---------------- EXISTING BUSINESS LOGIC ----------------
@@ -736,16 +735,18 @@ public class UpdateLossStock extends javax.swing.JDialog {
                     + "WHERE s.qty > 0 AND s.p_status_id = 1 "
                     + "ORDER BY s.batch_no, p.product_name";
 
-            ResultSet rs = MySQL.executeSearch(query);
-            Vector<String> stocks = new Vector<>();
-            stocks.add("Select Stock");
+            Vector<String> stocks = DB.executeQuerySafe(query, rs -> {
+                Vector<String> stockList = new Vector<>();
+                stockList.add("Select Stock");
 
-            while (rs.next()) {
-                String batchNo = rs.getString("batch_no");
-                String productName = rs.getString("product_name");
-                int qty = rs.getInt("qty");
-                stocks.add(batchNo + " - " + productName + " (Available: " + qty + ")");
-            }
+                while (rs.next()) {
+                    String batchNo = rs.getString("batch_no");
+                    String productName = rs.getString("product_name");
+                    int qty = rs.getInt("qty");
+                    stockList.add(batchNo + " - " + productName + " (Available: " + qty + ")");
+                }
+                return stockList;
+            });
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(stocks);
             stockCombo.setModel(dcm);
@@ -759,18 +760,21 @@ public class UpdateLossStock extends javax.swing.JDialog {
     private void loadLossReasons() {
         try {
             String query = "SELECT return_reason_id, reason FROM return_reason";
-            ResultSet rs = MySQL.executeSearch(query);
-            Vector<String> reasons = new Vector<>();
-            reasons.add("Select Reason");
+            
+            Vector<String> reasons = DB.executeQuerySafe(query, rs -> {
+                Vector<String> reasonList = new Vector<>();
+                reasonList.add("Select Reason");
 
-            while (rs.next()) {
-                String reason = rs.getString("reason").toLowerCase();
-                if (reason.contains("expired") || reason.contains("damaged")
-                        || reason.contains("defective") || reason.contains("malfunction")
-                        || reason.contains("other")) {
-                    reasons.add(rs.getString("reason"));
+                while (rs.next()) {
+                    String reason = rs.getString("reason").toLowerCase();
+                    if (reason.contains("expired") || reason.contains("damaged")
+                            || reason.contains("defective") || reason.contains("malfunction")
+                            || reason.contains("other")) {
+                        reasonList.add(rs.getString("reason"));
+                    }
                 }
-            }
+                return reasonList;
+            });
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(reasons);
             reasonCombo.setModel(dcm);
@@ -879,28 +883,23 @@ public class UpdateLossStock extends javax.swing.JDialog {
             double sellingPrice = Double.parseDouble(details[2]);
 
             // Get database connection
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
 
             // Start transaction
             conn.setAutoCommit(false);
 
             try {
                 // Revert the original stock loss (add back the original quantity to stock)
-                String revertStockQuery = "UPDATE stock SET qty = qty + " + originalQty + " WHERE stock_id = " + originalStockId;
-                MySQL.executeIUD(revertStockQuery);
+                String revertStockQuery = "UPDATE stock SET qty = qty + ? WHERE stock_id = ?";
+                DB.executeUpdate(revertStockQuery, originalQty, originalStockId);
 
                 // Apply the new stock loss (subtract the new quantity from stock)
-                String applyStockQuery = "UPDATE stock SET qty = qty - " + newQty + " WHERE stock_id = " + newStockId;
-                MySQL.executeIUD(applyStockQuery);
+                String applyStockQuery = "UPDATE stock SET qty = qty - ? WHERE stock_id = ?";
+                DB.executeUpdate(applyStockQuery, newQty, newStockId);
 
                 // Update the stock_loss record
-                String updateLossQuery = "UPDATE stock_loss SET qty = " + newQty + ", "
-                        + "stock_id = " + newStockId + ", "
-                        + "return_reason_id = " + reasonId + ", "
-                        + "user_id = " + userId + ", "
-                        + "stock_loss_date = NOW() "
-                        + "WHERE stock_loss_id = " + stockLossId;
-                MySQL.executeIUD(updateLossQuery);
+                String updateLossQuery = "UPDATE stock_loss SET qty = ?, stock_id = ?, return_reason_id = ?, user_id = ?, stock_loss_date = NOW() WHERE stock_loss_id = ?";
+                DB.executeUpdate(updateLossQuery, newQty, newStockId, reasonId, userId, stockLossId);
 
                 // Create notification for stock loss update
                 createStockLossNotification(productName, batchNo, selectedReason, newQty, sellingPrice, conn);
@@ -948,20 +947,21 @@ public class UpdateLossStock extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error: " + e.getMessage());
         } finally {
-            try {
-                if (conn != null) {
-                    conn.close();
-                }
-            } catch (SQLException e) {
-            }
+            DB.closeQuietly(conn);
         }
     }
 
     private boolean isValidUser(int userId) {
         try {
-            String query = "SELECT user_id FROM user WHERE user_id = " + userId;
-            ResultSet rs = MySQL.executeSearch(query);
-            return rs.next();
+            String query = "SELECT user_id FROM user WHERE user_id = ?";
+            Integer result = DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    return rs.getInt("user_id");
+                }
+                return null;
+            }, userId);
+
+            return result != null;
         } catch (SQLException e) {
             return false;
         }
@@ -973,11 +973,17 @@ public class UpdateLossStock extends javax.swing.JDialog {
         }
 
         String batchNo = stockText.split(" - ")[0];
-        String query = "SELECT stock_id FROM stock WHERE batch_no = '" + batchNo + "'";
-        ResultSet rs = MySQL.executeSearch(query);
+        String query = "SELECT stock_id FROM stock WHERE batch_no = ?";
+        
+        Integer stockId = DB.executeQuerySafe(query, rs -> {
+            if (rs.next()) {
+                return rs.getInt("stock_id");
+            }
+            return null;
+        }, batchNo);
 
-        if (rs.next()) {
-            return rs.getInt("stock_id");
+        if (stockId != null) {
+            return stockId;
         }
 
         throw new SQLException("Stock not found");
@@ -998,15 +1004,22 @@ public class UpdateLossStock extends javax.swing.JDialog {
             return -1;
         }
 
-        String query = "SELECT return_reason_id FROM return_reason WHERE reason = '" + reason + "'";
-        ResultSet rs = MySQL.executeSearch(query);
+        String query = "SELECT return_reason_id FROM return_reason WHERE reason = ?";
+        
+        Integer reasonId = DB.executeQuerySafe(query, rs -> {
+            if (rs.next()) {
+                return rs.getInt("return_reason_id");
+            }
+            return null;
+        }, reason);
 
-        if (rs.next()) {
-            return rs.getInt("return_reason_id");
+        if (reasonId != null) {
+            return reasonId;
         }
 
         return -1;
     }
+
 
 
     @SuppressWarnings("unchecked")

@@ -33,7 +33,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.connection.DB.ResultSetHandler;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -633,24 +634,32 @@ public class UpdateIncome extends javax.swing.JDialog {
     }
 
     private void loadIncomeTypeCombo() {
-        Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet rs = null;
-
         try {
             incomeTypeIdMap.clear();
 
             String sql = "SELECT income_type_id, income_type FROM income_type ORDER BY income_type";
-            conn = MySQL.getConnection();
-            pst = conn.prepareStatement(sql);
-            rs = pst.executeQuery();
+
+            // Using the new DB class with executeQuerySafe
+            List<Map<String, Object>> results = DB.executeQuerySafe(sql, new ResultSetHandler<List<Map<String, Object>>>() {
+                @Override
+                public List<Map<String, Object>> handle(ResultSet rs) throws SQLException {
+                    List<Map<String, Object>> list = new ArrayList<>();
+                    while (rs.next()) {
+                        Map<String, Object> row = new HashMap<>();
+                        row.put("income_type_id", rs.getInt("income_type_id"));
+                        row.put("income_type", rs.getString("income_type"));
+                        list.add(row);
+                    }
+                    return list;
+                }
+            });
 
             Vector<String> incomeTypes = new Vector<>();
             incomeTypes.add("Select Income Type");
 
-            while (rs.next()) {
-                int incomeTypeId = rs.getInt("income_type_id");
-                String incomeType = rs.getString("income_type");
+            for (Map<String, Object> row : results) {
+                int incomeTypeId = (Integer) row.get("income_type_id");
+                String incomeType = (String) row.get("income_type");
 
                 incomeTypes.add(incomeType);
                 incomeTypeIdMap.put(incomeType, incomeTypeId);
@@ -660,18 +669,6 @@ public class UpdateIncome extends javax.swing.JDialog {
 
         } catch (Exception e) {
             // Exception handling without print statements
-        } finally {
-            // Close resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException e) {
-                // Exception handling without print statements
-            }
         }
     }
 
@@ -681,79 +678,67 @@ public class UpdateIncome extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet rs = null;
-
         try {
             String sql = "SELECT i.amount, i.date, i.time, i.description, i.income_type_id, i.status_id, it.income_type "
                     + "FROM income i "
                     + "JOIN income_type it ON i.income_type_id = it.income_type_id "
                     + "WHERE i.income_id = ?";
 
-            conn = MySQL.getConnection();
-            pst = conn.prepareStatement(sql);
-            pst.setInt(1, incomeId);
-            rs = pst.executeQuery();
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                
+                pst.setInt(1, incomeId);
+                
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        // Load data into form fields
+                        double amount = rs.getDouble("amount");
+                        java.sql.Date date = rs.getDate("date");
+                        java.sql.Time time = rs.getTime("time");
+                        String description = rs.getString("description");
+                        int incomeTypeId = rs.getInt("income_type_id");
+                        int statusId = rs.getInt("status_id");
+                        String incomeType = rs.getString("income_type");
 
-            if (rs.next()) {
-                // Load data into form fields
-                double amount = rs.getDouble("amount");
-                java.sql.Date date = rs.getDate("date");
-                java.sql.Time time = rs.getTime("time");
-                String description = rs.getString("description");
-                int incomeTypeId = rs.getInt("income_type_id");
-                int statusId = rs.getInt("status_id");
-                String incomeType = rs.getString("income_type");
+                        // Set form fields
+                        txtAmount.setText(String.valueOf(amount));
+                        paymentDate.setDate(date);
 
-                // Set form fields
-                txtAmount.setText(String.valueOf(amount));
-                paymentDate.setDate(date);
+                        // Set time
+                        if (time != null) {
+                            timePicker1.setTime(time.toLocalTime());
+                        }
 
-                // Set time
-                if (time != null) {
-                    timePicker1.setTime(time.toLocalTime());
-                }
+                        // Set description
+                        if (description != null) {
+                            jTextArea1.setText(description);
+                        }
 
-                // Set description
-                if (description != null) {
-                    jTextArea1.setText(description);
-                }
+                        // Set income type
+                        for (int i = 0; i < comboIncomeType.getItemCount(); i++) {
+                            if (comboIncomeType.getItemAt(i).equals(incomeType)) {
+                                comboIncomeType.setSelectedIndex(i);
+                                break;
+                            }
+                        }
 
-                // Set income type
-                for (int i = 0; i < comboIncomeType.getItemCount(); i++) {
-                    if (comboIncomeType.getItemAt(i).equals(incomeType)) {
-                        comboIncomeType.setSelectedIndex(i);
-                        break;
+                        // Set status
+                        if (statusId == 1) {
+                            jRadioButton1.setSelected(true);
+                        } else {
+                            jRadioButton2.setSelected(true);
+                        }
+
+                    } else {
+                        dispose();
                     }
                 }
-
-                // Set status
-                if (statusId == 1) {
-                    jRadioButton1.setSelected(true);
-                } else {
-                    jRadioButton2.setSelected(true);
-                }
-
-            } else {
-                dispose();
             }
 
         } catch (Exception e) {
             // Exception handling without print statements
             dispose();
-        } finally {
-            // Close resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException e) {
-                // Exception handling without print statements
-            }
         }
     }
 
@@ -801,9 +786,6 @@ public class UpdateIncome extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-
         try {
             isSaving = true;
 
@@ -815,43 +797,36 @@ public class UpdateIncome extends javax.swing.JDialog {
             String description = jTextArea1.getText().trim();
             int statusId = jRadioButton1.isSelected() ? 1 : 2; // 1=Paid, 2=Unpaid
 
-            conn = MySQL.getConnection();
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection()) {
+                String query = "UPDATE income SET amount = ?, date = ?, time = ?, description = ?, income_type_id = ?, status_id = ? WHERE income_id = ?";
 
-            // Since your MySQL class doesn't support transactions directly, we'll use auto-commit
-            String query = "UPDATE income SET amount = ?, date = ?, time = ?, description = ?, income_type_id = ?, status_id = ? WHERE income_id = ?";
+                try (PreparedStatement pst = conn.prepareStatement(query)) {
+                    pst.setDouble(1, amount);
+                    pst.setDate(2, date);
+                    pst.setTime(3, time);
+                    pst.setString(4, description.isEmpty() ? null : description);
+                    pst.setInt(5, incomeTypeId);
+                    pst.setInt(6, statusId);
+                    pst.setInt(7, incomeId);
 
-            pst = conn.prepareStatement(query);
-            pst.setDouble(1, amount);
-            pst.setDate(2, date);
-            pst.setTime(3, time);
-            pst.setString(4, description.isEmpty() ? null : description);
-            pst.setInt(5, incomeTypeId);
-            pst.setInt(6, statusId);
-            pst.setInt(7, incomeId);
+                    int rowsAffected = pst.executeUpdate();
 
-            int rowsAffected = pst.executeUpdate();
-
-            if (rowsAffected > 0) {
-                createIncomeNotification(selectedIncomeType, amount);
-                dispose();
+                    if (rowsAffected > 0) {
+                        createIncomeNotification(selectedIncomeType, amount);
+                        dispose();
+                    }
+                }
             }
 
         } catch (Exception e) {
             // Exception handling without print statements
         } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-            } catch (Exception e) {
-                // Exception handling without print statements
-            }
             isSaving = false;
         }
     }
 
     private void createIncomeNotification(String incomeType, double amount) {
-        Connection conn = null;
         PreparedStatement pstMassage = null;
         PreparedStatement pstNotification = null;
         ResultSet rs = null;
@@ -859,61 +834,50 @@ public class UpdateIncome extends javax.swing.JDialog {
         try {
             String messageText = String.format("Income updated | Type: %s | Amount: Rs %.2f", incomeType, amount);
 
-            conn = MySQL.getConnection();
-
-            // Check if message already exists
-            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
-            pstMassage.setString(1, messageText);
-            rs = pstMassage.executeQuery();
-
-            int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection()) {
+                // Check if message already exists
+                String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+                pstMassage = conn.prepareStatement(checkSql);
                 pstMassage.setString(1, messageText);
                 rs = pstMassage.executeQuery();
-                rs.next();
-                massageId = rs.getInt(1);
-            } else {
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
 
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
+                int massageId;
+                if (rs.next() && rs.getInt(1) > 0) {
+                    String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                    pstMassage.close();
+                    pstMassage = conn.prepareStatement(getSql);
+                    pstMassage.setString(1, messageText);
+                    rs = pstMassage.executeQuery();
+                    rs.next();
                     massageId = rs.getInt(1);
                 } else {
-                    throw new Exception("Failed to get generated massage ID");
-                }
-            }
+                    pstMassage.close();
+                    String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                    pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                    pstMassage.setString(1, messageText);
+                    pstMassage.executeUpdate();
 
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 29); // Income message type
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
+                    rs = pstMassage.getGeneratedKeys();
+                    if (rs.next()) {
+                        massageId = rs.getInt(1);
+                    } else {
+                        throw new Exception("Failed to get generated massage ID");
+                    }
+                }
+
+                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+                pstNotification = conn.prepareStatement(notificationSql);
+                pstNotification.setInt(1, 1);
+                pstNotification.setInt(2, 29); // Income message type
+                pstNotification.setInt(3, massageId);
+                pstNotification.executeUpdate();
+            }
 
         } catch (Exception e) {
             // Exception handling without print statements
         } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Exception handling without print statements
-            }
+            DB.closeQuietly(rs, pstMassage, pstNotification);
         }
     }
 
@@ -922,6 +886,7 @@ public class UpdateIncome extends javax.swing.JDialog {
         loadIncomeData();
         comboIncomeType.requestFocus();
     }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents

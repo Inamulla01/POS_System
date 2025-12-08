@@ -9,9 +9,12 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import java.awt.event.KeyEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
@@ -24,7 +27,6 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.PlainDocument;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
-import raven.toast.Notifications;
 
 // Add barcode printing imports
 import java.awt.print.PrinterJob;
@@ -75,101 +77,107 @@ public class UpdateProductStock extends javax.swing.JDialog {
                     + "FROM product p "
                     + "LEFT JOIN category c ON p.category_id = c.category_id "
                     + "LEFT JOIN brand b ON p.brand_id = b.brand_id "
-                    + "WHERE p.product_id = " + productId;
+                    + "WHERE p.product_id = ?";
 
-            ResultSet productRs = MySQL.executeSearch(productQuery);
-            if (productRs.next()) {
-                productInput.setText(productRs.getString("product_name"));
-                originalBarcode = productRs.getString("barcode");
-                barcodeInput.setText(originalBarcode);
+            DB.executeQuerySafe(productQuery, (ResultSet productRs) -> {
+                if (productRs.next()) {
+                    productInput.setText(productRs.getString("product_name"));
+                    originalBarcode = productRs.getString("barcode");
+                    barcodeInput.setText(originalBarcode);
 
-                // Set category
-                String categoryName = productRs.getString("category_name");
-                for (int i = 0; i < categoryCombo.getItemCount(); i++) {
-                    if (categoryCombo.getItemAt(i).equals(categoryName)) {
-                        categoryCombo.setSelectedIndex(i);
-                        break;
-                    }
-                }
-
-                // Set brand
-                String brandName = productRs.getString("brand_name");
-                for (int i = 0; i < brandCombo.getItemCount(); i++) {
-                    if (brandCombo.getItemAt(i).equals(brandName)) {
-                        brandCombo.setSelectedIndex(i);
-                        break;
-                    }
-                }
-
-                // Disable barcode field - CANNOT BE CHANGED
-                barcodeInput.setEnabled(false);
-                barcodeInput.setBackground(new Color(240, 240, 240));
-                barcodeInput.setToolTipText("Barcode cannot be changed for existing products");
-            } else {
-                this.dispose();
-                return;
-            }
-
-            // Load specific stock data using stockId
-            String stockQuery = "SELECT * FROM stock WHERE stock_id = " + stockId + " AND product_id = " + productId;
-            ResultSet stockRs = MySQL.executeSearch(stockQuery);
-            if (stockRs.next()) {
-                originalBatchNo = stockRs.getString("batch_no");
-                batchNoInput.setText(originalBatchNo);
-
-                // REMOVED: Batch number field is now ENABLED and can be changed
-                batchNoInput.setEnabled(true);
-                batchNoInput.setBackground(Color.WHITE);
-                batchNoInput.setToolTipText("<html>Batch number - you can type your own or press <b>F6</b> to generate new one</html>");
-
-                purchasePrice.setText(String.valueOf(stockRs.getDouble("purchase_price")));
-                lastPrice.setText(String.valueOf(stockRs.getDouble("last_price")));
-                sellingPrice.setText(String.valueOf(stockRs.getDouble("selling_price")));
-                quantityInput.setText(String.valueOf(stockRs.getInt("qty")));
-
-                // Set supplier
-                int supplierId = stockRs.getInt("suppliers_id");
-                if (supplierId > 0) {
-                    ResultSet supplierRs = MySQL.executeSearch("SELECT suppliers_name FROM suppliers WHERE suppliers_id = " + supplierId);
-                    if (supplierRs.next()) {
-                        String supplierName = supplierRs.getString("suppliers_name");
-                        for (int i = 0; i < SupplierCombo.getItemCount(); i++) {
-                            if (SupplierCombo.getItemAt(i).equals(supplierName)) {
-                                SupplierCombo.setSelectedIndex(i);
-                                break;
-                            }
+                    // Set category
+                    String categoryName = productRs.getString("category_name");
+                    for (int i = 0; i < categoryCombo.getItemCount(); i++) {
+                        if (categoryCombo.getItemAt(i).equals(categoryName)) {
+                            categoryCombo.setSelectedIndex(i);
+                            break;
                         }
                     }
-                }
 
-                // Set dates - FIXED: Use java.sql.Date directly
-                java.sql.Date mfgDate = stockRs.getDate("manufacture_date");
-                java.sql.Date expDate = stockRs.getDate("expriy_date");
+                    // Set brand
+                    String brandName = productRs.getString("brand_name");
+                    for (int i = 0; i < brandCombo.getItemCount(); i++) {
+                        if (brandCombo.getItemAt(i).equals(brandName)) {
+                            brandCombo.setSelectedIndex(i);
+                            break;
+                        }
+                    }
 
-                if (mfgDate != null) {
-                    // Convert java.sql.Date to java.util.Date for JDateChooser
-                    manufactureDate.setDate(new java.util.Date(mfgDate.getTime()));
+                    // Disable barcode field - CANNOT BE CHANGED
+                    barcodeInput.setEnabled(false);
+                    barcodeInput.setBackground(new Color(240, 240, 240));
+                    barcodeInput.setToolTipText("Barcode cannot be changed for existing products");
                 } else {
-                    manufactureDate.setDate(null);
+                    dispose();
+                    return null;
                 }
+                return null;
+            }, productId);
 
-                if (expDate != null) {
-                    // Convert java.sql.Date to java.util.Date for JDateChooser
-                    expriyDate.setDate(new java.util.Date(expDate.getTime()));
+            // Load specific stock data using stockId
+            String stockQuery = "SELECT * FROM stock WHERE stock_id = ? AND product_id = ?";
+            DB.executeQuerySafe(stockQuery, (ResultSet stockRs) -> {
+                if (stockRs.next()) {
+                    originalBatchNo = stockRs.getString("batch_no");
+                    batchNoInput.setText(originalBatchNo);
+
+                    // REMOVED: Batch number field is now ENABLED and can be changed
+                    batchNoInput.setEnabled(true);
+                    batchNoInput.setBackground(Color.WHITE);
+                    batchNoInput.setToolTipText("<html>Batch number - you can type your own or press <b>F6</b> to generate new one</html>");
+
+                    purchasePrice.setText(String.valueOf(stockRs.getDouble("purchase_price")));
+                    lastPrice.setText(String.valueOf(stockRs.getDouble("last_price")));
+                    sellingPrice.setText(String.valueOf(stockRs.getDouble("selling_price")));
+                    quantityInput.setText(String.valueOf(stockRs.getInt("qty")));
+
+                    // Set supplier
+                    int supplierId = stockRs.getInt("suppliers_id");
+                    if (supplierId > 0) {
+                        DB.executeQuerySafe("SELECT suppliers_name FROM suppliers WHERE suppliers_id = ?", (ResultSet supplierRs) -> {
+                            if (supplierRs.next()) {
+                                String supplierName = supplierRs.getString("suppliers_name");
+                                for (int i = 0; i < SupplierCombo.getItemCount(); i++) {
+                                    if (SupplierCombo.getItemAt(i).equals(supplierName)) {
+                                        SupplierCombo.setSelectedIndex(i);
+                                        break;
+                                    }
+                                }
+                            }
+                            return null;
+                        }, supplierId);
+                    }
+
+                    // Set dates - FIXED: Use java.sql.Date directly
+                    java.sql.Date mfgDate = stockRs.getDate("manufacture_date");
+                    java.sql.Date expDate = stockRs.getDate("expriy_date");
+
+                    if (mfgDate != null) {
+                        // Convert java.sql.Date to java.util.Date for JDateChooser
+                        manufactureDate.setDate(new java.util.Date(mfgDate.getTime()));
+                    } else {
+                        manufactureDate.setDate(null);
+                    }
+
+                    if (expDate != null) {
+                        // Convert java.sql.Date to java.util.Date for JDateChooser
+                        expriyDate.setDate(new java.util.Date(expDate.getTime()));
+                    } else {
+                        expriyDate.setDate(null);
+                    }
+
+                    // Force UI refresh
+                    manufactureDate.repaint();
+                    expriyDate.repaint();
+
                 } else {
-                    expriyDate.setDate(null);
+                    dispose();
                 }
-
-                // Force UI refresh
-                manufactureDate.repaint();
-                expriyDate.repaint();
-
-            } else {
-                this.dispose();
-            }
+                return null;
+            }, stockId, productId);
 
         } catch (Exception e) {
-            this.dispose();
+            dispose();
         }
     }
 
@@ -308,7 +316,7 @@ public class UpdateProductStock extends javax.swing.JDialog {
                 JComponent.WHEN_IN_FOCUSED_WINDOW
         );
 
-// Change from F3 to F6 for generating batch number
+        // Change from F3 to F6 for generating batch number
         getRootPane().registerKeyboardAction(
                 new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent e) {
@@ -380,8 +388,11 @@ public class UpdateProductStock extends javax.swing.JDialog {
 
     private boolean isBatchNumberExists(String batchNo) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT batch_no FROM stock WHERE batch_no = '" + batchNo + "' AND stock_id != " + stockId);
-            return rs.next();
+            return DB.executeQuerySafe(
+                "SELECT batch_no FROM stock WHERE batch_no = ? AND stock_id != ?", 
+                (ResultSet rs) -> rs.next(),
+                batchNo, stockId
+            );
         } catch (Exception e) {
             return false;
         }
@@ -1148,42 +1159,48 @@ public class UpdateProductStock extends javax.swing.JDialog {
     // ---------------- DATABASE OPERATIONS ----------------
     private void loadCategoryCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM category");
-            Vector<String> categories = new Vector<>();
-            categories.add("Select Category");
-            while (rs.next()) {
-                categories.add(rs.getString("category_name"));
-            }
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
-            categoryCombo.setModel(dcm);
+            DB.executeQuerySafe("SELECT * FROM category", (ResultSet rs) -> {
+                Vector<String> categories = new Vector<>();
+                categories.add("Select Category");
+                while (rs.next()) {
+                    categories.add(rs.getString("category_name"));
+                }
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
+                categoryCombo.setModel(dcm);
+                return null;
+            });
         } catch (Exception e) {
         }
     }
 
     private void loadBrandCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM brand");
-            Vector<String> brands = new Vector<>();
-            brands.add("Select Brand");
-            while (rs.next()) {
-                brands.add(rs.getString("brand_name"));
-            }
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
-            brandCombo.setModel(dcm);
+            DB.executeQuerySafe("SELECT * FROM brand", (ResultSet rs) -> {
+                Vector<String> brands = new Vector<>();
+                brands.add("Select Brand");
+                while (rs.next()) {
+                    brands.add(rs.getString("brand_name"));
+                }
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
+                brandCombo.setModel(dcm);
+                return null;
+            });
         } catch (Exception e) {
         }
     }
 
     private void loadSupplierCombo() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM suppliers");
-            Vector<String> suppliers = new Vector<>();
-            suppliers.add("Select Supplier");
-            while (rs.next()) {
-                suppliers.add(rs.getString("suppliers_name"));
-            }
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(suppliers);
-            SupplierCombo.setModel(dcm);
+            DB.executeQuerySafe("SELECT * FROM suppliers", (ResultSet rs) -> {
+                Vector<String> suppliers = new Vector<>();
+                suppliers.add("Select Supplier");
+                while (rs.next()) {
+                    suppliers.add(rs.getString("suppliers_name"));
+                }
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(suppliers);
+                SupplierCombo.setModel(dcm);
+                return null;
+            });
         } catch (Exception e) {
         }
     }
@@ -1290,39 +1307,23 @@ public class UpdateProductStock extends javax.swing.JDialog {
             return;
         }
 
-        // Database connection and prepared statements
-        java.sql.Connection conn = null;
-        java.sql.PreparedStatement pstUpdateProduct = null;
-        java.sql.PreparedStatement pstUpdateStock = null;
-        java.sql.PreparedStatement pstGetOldData = null;
-        java.sql.PreparedStatement pstCheckMessage = null;
-        java.sql.PreparedStatement pstInsertMessage = null;
-        java.sql.PreparedStatement pstInsertNotification = null;
-        java.sql.ResultSet rs = null;
+        // Get current data for notification message
+        String productName = productInput.getText().trim();
 
-        try {
-            // Get current data for notification message
-            String productName = productInput.getText().trim();
+        // Ensure the product name doesn't exceed 35 characters
+        if (productName.length() > 35) {
+            productName = productName.substring(0, 35);
+        }
 
-            // Ensure the product name doesn't exceed 35 characters
-            if (productName.length() > 35) {
-                productName = productName.substring(0, 35);
-            }
+        String batchNoValue = batchNoInput.getText().trim();
 
-            String batchNoValue = batchNoInput.getText().trim();
+        try (Connection conn = DB.getConnection()) {
+            conn.setAutoCommit(false); // Start transaction
 
             // Get old data for comparison
             String getOldDataSql = "SELECT p.product_name, p.barcode, s.batch_no, s.purchase_price, s.selling_price, s.qty "
                     + "FROM product p JOIN stock s ON p.product_id = s.product_id "
                     + "WHERE p.product_id = ? AND s.stock_id = ?";
-
-            conn = MySQL.getConnection();
-            conn.setAutoCommit(false); // Start transaction
-
-            pstGetOldData = conn.prepareStatement(getOldDataSql);
-            pstGetOldData.setInt(1, productId);
-            pstGetOldData.setInt(2, stockId);
-            rs = pstGetOldData.executeQuery();
 
             String oldProductName = "";
             String oldBarcode = "";
@@ -1331,66 +1332,82 @@ public class UpdateProductStock extends javax.swing.JDialog {
             double oldSellingPrice = 0;
             int oldQuantity = 0;
 
-            if (rs.next()) {
-                oldProductName = rs.getString("product_name");
-                oldBarcode = rs.getString("barcode");
-                oldBatchNo = rs.getString("batch_no");
-                oldPurchasePrice = rs.getDouble("purchase_price");
-                oldSellingPrice = rs.getDouble("selling_price");
-                oldQuantity = rs.getInt("qty");
+            try (PreparedStatement pstGetOldData = conn.prepareStatement(getOldDataSql)) {
+                pstGetOldData.setInt(1, productId);
+                pstGetOldData.setInt(2, stockId);
+                try (ResultSet rs = pstGetOldData.executeQuery()) {
+                    if (rs.next()) {
+                        oldProductName = rs.getString("product_name");
+                        oldBarcode = rs.getString("barcode");
+                        oldBatchNo = rs.getString("batch_no");
+                        oldPurchasePrice = rs.getDouble("purchase_price");
+                        oldSellingPrice = rs.getDouble("selling_price");
+                        oldQuantity = rs.getInt("qty");
+                    }
+                }
             }
-            rs.close();
-            pstGetOldData.close();
 
             // Update product table
             int brandId = 0;
-            ResultSet brandRs = MySQL.executeSearch("SELECT brand_id FROM brand WHERE brand_name = '"
-                    + brandCombo.getSelectedItem().toString() + "'");
-            if (brandRs.next()) {
-                brandId = brandRs.getInt("brand_id");
+            try (PreparedStatement pst = conn.prepareStatement("SELECT brand_id FROM brand WHERE brand_name = ?")) {
+                pst.setString(1, brandCombo.getSelectedItem().toString());
+                try (ResultSet brandRs = pst.executeQuery()) {
+                    if (brandRs.next()) {
+                        brandId = brandRs.getInt("brand_id");
+                    }
+                }
             }
 
             // Check if product with same name and brand already exists (excluding current product)
-            ResultSet productCheckRs = MySQL.executeSearch(
-                    "SELECT product_id FROM product WHERE product_name = '" + productName
-                    + "' AND brand_id = " + brandId
-                    + " AND product_id != " + productId
-            );
-
-            if (productCheckRs.next()) {
-                productInput.requestFocus();
-                productInput.selectAll();
-                return;
+            try (PreparedStatement pst = conn.prepareStatement(
+                    "SELECT product_id FROM product WHERE product_name = ? AND brand_id = ? AND product_id != ?")) {
+                pst.setString(1, productName);
+                pst.setInt(2, brandId);
+                pst.setInt(3, productId);
+                try (ResultSet productCheckRs = pst.executeQuery()) {
+                    if (productCheckRs.next()) {
+                        productInput.requestFocus();
+                        productInput.selectAll();
+                        return;
+                    }
+                }
             }
 
             int categoryId = 0;
-            ResultSet catRs = MySQL.executeSearch("SELECT category_id FROM category WHERE category_name = '"
-                    + categoryCombo.getSelectedItem().toString() + "'");
-            if (catRs.next()) {
-                categoryId = catRs.getInt("category_id");
+            try (PreparedStatement pst = conn.prepareStatement("SELECT category_id FROM category WHERE category_name = ?")) {
+                pst.setString(1, categoryCombo.getSelectedItem().toString());
+                try (ResultSet catRs = pst.executeQuery()) {
+                    if (catRs.next()) {
+                        categoryId = catRs.getInt("category_id");
+                    }
+                }
             }
 
+            // Update product
             String productUpdateQuery = "UPDATE product SET "
                     + "product_name = ?, "
                     + "brand_id = ?, "
                     + "category_id = ? "
                     + "WHERE product_id = ?";
 
-            pstUpdateProduct = conn.prepareStatement(productUpdateQuery);
-            pstUpdateProduct.setString(1, productName);
-            pstUpdateProduct.setInt(2, brandId);
-            pstUpdateProduct.setInt(3, categoryId);
-            pstUpdateProduct.setInt(4, productId);
-
-            pstUpdateProduct.executeUpdate();
+            try (PreparedStatement pstUpdateProduct = conn.prepareStatement(productUpdateQuery)) {
+                pstUpdateProduct.setString(1, productName);
+                pstUpdateProduct.setInt(2, brandId);
+                pstUpdateProduct.setInt(3, categoryId);
+                pstUpdateProduct.setInt(4, productId);
+                pstUpdateProduct.executeUpdate();
+            }
 
             // Update stock table
             int supplierId = 0;
             if (SupplierCombo.getSelectedIndex() > 0) {
-                ResultSet supplierRs = MySQL.executeSearch("SELECT suppliers_id FROM suppliers WHERE suppliers_name = '"
-                        + SupplierCombo.getSelectedItem().toString() + "'");
-                if (supplierRs.next()) {
-                    supplierId = supplierRs.getInt("suppliers_id");
+                try (PreparedStatement pst = conn.prepareStatement("SELECT suppliers_id FROM suppliers WHERE suppliers_name = ?")) {
+                    pst.setString(1, SupplierCombo.getSelectedItem().toString());
+                    try (ResultSet supplierRs = pst.executeQuery()) {
+                        if (supplierRs.next()) {
+                            supplierId = supplierRs.getInt("suppliers_id");
+                        }
+                    }
                 }
             }
 
@@ -1401,21 +1418,31 @@ public class UpdateProductStock extends javax.swing.JDialog {
 
             // Check if batch number already exists (excluding current stock)
             if (!batchNoValue.equals(originalBatchNo)) {
-                ResultSet batchCheckRs = MySQL.executeSearch(
-                        "SELECT stock_id FROM stock WHERE batch_no = '" + batchNoValue
-                        + "' AND stock_id != " + stockId
-                );
-                if (batchCheckRs.next()) {
-                    batchNoInput.requestFocus();
-                    batchNoInput.selectAll();
-                    return;
+                try (PreparedStatement pst = conn.prepareStatement(
+                        "SELECT stock_id FROM stock WHERE batch_no = ? AND stock_id != ?")) {
+                    pst.setString(1, batchNoValue);
+                    pst.setInt(2, stockId);
+                    try (ResultSet batchCheckRs = pst.executeQuery()) {
+                        if (batchCheckRs.next()) {
+                            batchNoInput.requestFocus();
+                            batchNoInput.selectAll();
+                            return;
+                        }
+                    }
                 }
             }
 
             // Format dates for SQL
             SimpleDateFormat sqlDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String mfgDateStr = manufactureDate.getDate() != null ? "'" + sqlDateFormat.format(manufactureDate.getDate()) + "'" : "NULL";
-            String expDateStr = expriyDate.getDate() != null ? "'" + sqlDateFormat.format(expriyDate.getDate()) + "'" : "NULL";
+            java.sql.Date mfgDate = null;
+            java.sql.Date expDate = null;
+
+            if (manufactureDate.getDate() != null) {
+                mfgDate = new java.sql.Date(manufactureDate.getDate().getTime());
+            }
+            if (expriyDate.getDate() != null) {
+                expDate = new java.sql.Date(expriyDate.getDate().getTime());
+            }
 
             String stockUpdateQuery = "UPDATE stock SET "
                     + "batch_no = ?, "
@@ -1424,157 +1451,128 @@ public class UpdateProductStock extends javax.swing.JDialog {
                     + "selling_price = ?, "
                     + "qty = ?, "
                     + "suppliers_id = ?, "
-                    + "manufacture_date = " + mfgDateStr + ", "
-                    + "expriy_date = " + expDateStr + " "
+                    + "manufacture_date = ?, "
+                    + "expriy_date = ? "
                     + "WHERE stock_id = ? AND product_id = ?";
 
-            pstUpdateStock = conn.prepareStatement(stockUpdateQuery);
-            pstUpdateStock.setString(1, batchNoValue);
-            pstUpdateStock.setDouble(2, purchasePriceValue);
-            pstUpdateStock.setDouble(3, lastPriceValue);
-            pstUpdateStock.setDouble(4, sellingPriceValue);
-            pstUpdateStock.setInt(5, quantityValue);
-            pstUpdateStock.setInt(6, supplierId > 0 ? supplierId : 0);
-            pstUpdateStock.setInt(7, stockId);
-            pstUpdateStock.setInt(8, productId);
-
-            int stockRowsAffected = pstUpdateStock.executeUpdate();
-
-            if (stockRowsAffected > 0) {
-                // Create notification message with changes
-                StringBuilder messageBuilder = new StringBuilder();
-                messageBuilder.append("Product/Stock updated: ").append(oldProductName);
-
-                // Track if any changes were made
-                boolean hasChanges = false;
-
-                // Check product changes
-                if (!oldProductName.equals(productName)) {
-                    messageBuilder.append(" [Product: ").append(oldProductName).append(" → ").append(productName).append("]");
-                    hasChanges = true;
-                }
-
-                // Check stock changes
-                if (!oldBatchNo.equals(batchNoValue)) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
-                    }
-                    messageBuilder.append("[Batch: ").append(oldBatchNo).append(" → ").append(batchNoValue).append("]");
-                    hasChanges = true;
-                }
-
-                if (oldPurchasePrice != purchasePriceValue) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
-                    }
-                    messageBuilder.append("[Purchase: ").append(String.format("%.2f", oldPurchasePrice))
-                            .append(" → ").append(String.format("%.2f", purchasePriceValue)).append("]");
-                    hasChanges = true;
-                }
-
-                if (oldSellingPrice != sellingPriceValue) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
-                    }
-                    messageBuilder.append("[Selling: ").append(String.format("%.2f", oldSellingPrice))
-                            .append(" → ").append(String.format("%.2f", sellingPriceValue)).append("]");
-                    hasChanges = true;
-                }
-
-                if (oldQuantity != quantityValue) {
-                    if (hasChanges) {
-                        messageBuilder.append(", ");
-                    }
-                    messageBuilder.append("[Qty: ").append(oldQuantity).append(" → ").append(quantityValue).append("]");
-                    hasChanges = true;
-                }
-
-                // If no specific changes detected, show general update message
-                if (!hasChanges) {
-                    messageBuilder.append(" - Details updated");
-                }
-
-                String messageText = messageBuilder.toString();
-
-                // Check if message already exists in massage table
-                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstCheckMessage = conn.prepareStatement(checkMessageSql);
-                pstCheckMessage.setString(1, messageText);
-                rs = pstCheckMessage.executeQuery();
-
-                int messageId;
-
-                if (rs.next()) {
-                    // Message already exists, get the existing massage_id
-                    messageId = rs.getInt("massage_id");
+            try (PreparedStatement pstUpdateStock = conn.prepareStatement(stockUpdateQuery)) {
+                pstUpdateStock.setString(1, batchNoValue);
+                pstUpdateStock.setDouble(2, purchasePriceValue);
+                pstUpdateStock.setDouble(3, lastPriceValue);
+                pstUpdateStock.setDouble(4, sellingPriceValue);
+                pstUpdateStock.setInt(5, quantityValue);
+                if (supplierId > 0) {
+                    pstUpdateStock.setInt(6, supplierId);
                 } else {
-                    // Message doesn't exist, insert new message
-                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                    pstInsertMessage = conn.prepareStatement(insertMessageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
-                    pstInsertMessage.setString(1, messageText);
-                    pstInsertMessage.executeUpdate();
-
-                    // Get the generated message ID
-                    java.sql.ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        messageId = generatedKeys.getInt(1);
-                    } else {
-                        throw new java.sql.SQLException("Failed to get generated message ID");
-                    }
-                    generatedKeys.close();
+                    pstUpdateStock.setNull(6, java.sql.Types.INTEGER);
                 }
+                pstUpdateStock.setDate(7, mfgDate);
+                pstUpdateStock.setDate(8, expDate);
+                pstUpdateStock.setInt(9, stockId);
+                pstUpdateStock.setInt(10, productId);
 
-                // Insert notification (msg_type_id 14 for "Edit Product/Stock")
-                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 14, ?)";
-                pstInsertNotification = conn.prepareStatement(notificationSql);
-                pstInsertNotification.setInt(1, messageId);
-                pstInsertNotification.executeUpdate();
+                int stockRowsAffected = pstUpdateStock.executeUpdate();
 
-                // Commit transaction
-                conn.commit();
+                if (stockRowsAffected > 0) {
+                    // Create notification message with changes
+                    StringBuilder messageBuilder = new StringBuilder();
+                    messageBuilder.append("Product/Stock updated: ").append(oldProductName);
 
-                this.dispose();
-            } else {
-                conn.rollback();
-            }
+                    // Track if any changes were made
+                    boolean hasChanges = false;
 
-        } catch (Exception e) {
-            try {
-                if (conn != null) {
+                    // Check product changes
+                    if (!oldProductName.equals(productName)) {
+                        messageBuilder.append(" [Product: ").append(oldProductName).append(" → ").append(productName).append("]");
+                        hasChanges = true;
+                    }
+
+                    // Check stock changes
+                    if (!oldBatchNo.equals(batchNoValue)) {
+                        if (hasChanges) {
+                            messageBuilder.append(", ");
+                        }
+                        messageBuilder.append("[Batch: ").append(oldBatchNo).append(" → ").append(batchNoValue).append("]");
+                        hasChanges = true;
+                    }
+
+                    if (oldPurchasePrice != purchasePriceValue) {
+                        if (hasChanges) {
+                            messageBuilder.append(", ");
+                        }
+                        messageBuilder.append("[Purchase: ").append(String.format("%.2f", oldPurchasePrice))
+                                .append(" → ").append(String.format("%.2f", purchasePriceValue)).append("]");
+                        hasChanges = true;
+                    }
+
+                    if (oldSellingPrice != sellingPriceValue) {
+                        if (hasChanges) {
+                            messageBuilder.append(", ");
+                        }
+                        messageBuilder.append("[Selling: ").append(String.format("%.2f", oldSellingPrice))
+                                .append(" → ").append(String.format("%.2f", sellingPriceValue)).append("]");
+                        hasChanges = true;
+                    }
+
+                    if (oldQuantity != quantityValue) {
+                        if (hasChanges) {
+                            messageBuilder.append(", ");
+                        }
+                        messageBuilder.append("[Qty: ").append(oldQuantity).append(" → ").append(quantityValue).append("]");
+                        hasChanges = true;
+                    }
+
+                    // If no specific changes detected, show general update message
+                    if (!hasChanges) {
+                        messageBuilder.append(" - Details updated");
+                    }
+
+                    String messageText = messageBuilder.toString();
+
+                    // Check if message already exists in massage table
+                    int messageId;
+                    try (PreparedStatement pstCheckMessage = conn.prepareStatement("SELECT massage_id FROM massage WHERE massage = ?")) {
+                        pstCheckMessage.setString(1, messageText);
+                        try (ResultSet rs = pstCheckMessage.executeQuery()) {
+                            if (rs.next()) {
+                                // Message already exists, get the existing massage_id
+                                messageId = rs.getInt("massage_id");
+                            } else {
+                                // Message doesn't exist, insert new message
+                                String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                                try (PreparedStatement pstInsertMessage = conn.prepareStatement(insertMessageSql, Statement.RETURN_GENERATED_KEYS)) {
+                                    pstInsertMessage.setString(1, messageText);
+                                    pstInsertMessage.executeUpdate();
+
+                                    // Get the generated message ID
+                                    try (ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys()) {
+                                        if (generatedKeys.next()) {
+                                            messageId = generatedKeys.getInt(1);
+                                        } else {
+                                            throw new java.sql.SQLException("Failed to get generated message ID");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Insert notification (msg_type_id 14 for "Edit Product/Stock")
+                    try (PreparedStatement pstInsertNotification = conn.prepareStatement(
+                            "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 14, ?)")) {
+                        pstInsertNotification.setInt(1, messageId);
+                        pstInsertNotification.executeUpdate();
+                    }
+
+                    // Commit transaction
+                    conn.commit();
+                    dispose();
+                } else {
                     conn.rollback();
                 }
-            } catch (java.sql.SQLException ex) {
             }
-        } finally {
-            // Close all resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pstUpdateProduct != null) {
-                    pstUpdateProduct.close();
-                }
-                if (pstUpdateStock != null) {
-                    pstUpdateStock.close();
-                }
-                if (pstGetOldData != null) {
-                    pstGetOldData.close();
-                }
-                if (pstCheckMessage != null) {
-                    pstCheckMessage.close();
-                }
-                if (pstInsertMessage != null) {
-                    pstInsertMessage.close();
-                }
-                if (pstInsertNotification != null) {
-                    pstInsertNotification.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (java.sql.SQLException e) {
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

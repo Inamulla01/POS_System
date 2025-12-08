@@ -23,7 +23,7 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -641,25 +641,30 @@ public class UpdateCredit extends javax.swing.JDialog {
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
-            ResultSet rs = MySQL.executeSearch(sql);
-            Vector<String> customers = new Vector<>();
-            customers.add("Select Customer");
+            Vector<String> customers = DB.executeQuerySafe(
+                sql,
+                rs -> {
+                    Vector<String> customerList = new Vector<>();
+                    customerList.add("Select Customer");
+                    
+                    while (rs.next()) {
+                        int customerId = rs.getInt("customer_id");
+                        String customerName = rs.getString("customer_name");
+                        double totalCredit = rs.getDouble("total_credit");
+                        double paidAmount = rs.getDouble("paid_amount");
+                        double dueAmount = rs.getDouble("due_amount");
 
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double paidAmount = rs.getDouble("paid_amount");
-                double dueAmount = rs.getDouble("due_amount");
+                        // Updated display - customer name with total credit, paid amount, and due amount
+                        String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                                customerName, totalCredit, paidAmount, dueAmount);
+                        customerList.add(displayText);
 
-                // Updated display - customer name with total credit, paid amount, and due amount
-                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, totalCredit, paidAmount, dueAmount);
-                customers.add(displayText);
-
-                // Store mapping for later retrieval
-                customerIdMap.put(displayText, customerId);
-            }
+                        // Store mapping for later retrieval
+                        customerIdMap.put(displayText, customerId);
+                    }
+                    return customerList;
+                }
+            );
 
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(customers);
             SupplierCombo.setModel(dcm);
@@ -672,63 +677,57 @@ public class UpdateCredit extends javax.swing.JDialog {
 
     private void loadCreditData() {
         try {
-            Connection conn = MySQL.getConnection();
             String sql = "SELECT c.*, cc.customer_name FROM credit c "
                     + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
                     + "WHERE c.credit_id = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, creditId);
-            ResultSet rs = pst.executeQuery();
+            
+            DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    // Store credit_customer_id from the record
+                    int customerId = rs.getInt("credit_customer_id");
+                    String customerName = rs.getString("customer_name");
 
-            if (rs.next()) {
-                // Store credit_customer_id from the record
-                int customerId = rs.getInt("credit_customer_id");
-                String customerName = rs.getString("customer_name");
+                    // Get current total credit, paid amount, and due amount for this customer to create display text
+                    String creditQuery = "SELECT "
+                            + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                            + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
+                            + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as due_amount "
+                            + "FROM credit c "
+                            + "LEFT JOIN credit_pay cp ON c.credit_customer_id = cp.credit_customer_id "  // FIXED: Join on customer_id
+                            + "WHERE c.credit_customer_id = ?";
+                            
+                    DB.executeQuerySafe(creditQuery, creditRs -> {
+                        double totalCredit = 0;
+                        double paidAmount = 0;
+                        double dueAmount = 0;
 
-                // Get current total credit, paid amount, and due amount for this customer to create display text
-                String creditQuery = "SELECT "
-                        + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                        + "COALESCE(SUM(cp.credit_pay_amount), 0) as paid_amount, "
-                        + "(COALESCE(SUM(c.credit_amout), 0) - COALESCE(SUM(cp.credit_pay_amount), 0)) as due_amount "
-                        + "FROM credit c "
-                        + "LEFT JOIN credit_pay cp ON c.credit_customer_id = cp.credit_customer_id "  // FIXED: Join on customer_id
-                        + "WHERE c.credit_customer_id = ?";
-                PreparedStatement creditPst = conn.prepareStatement(creditQuery);
-                creditPst.setInt(1, customerId);
-                ResultSet creditRs = creditPst.executeQuery();
+                        if (creditRs.next()) {
+                            totalCredit = creditRs.getDouble("total_credit");
+                            paidAmount = creditRs.getDouble("paid_amount");
+                            dueAmount = creditRs.getDouble("due_amount");
+                        }
 
-                double totalCredit = 0;
-                double paidAmount = 0;
-                double dueAmount = 0;
+                        String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                                customerName, totalCredit, paidAmount, dueAmount);
+                        SupplierCombo.setSelectedItem(displayText);
+                        return null;
+                    }, customerId);
 
-                if (creditRs.next()) {
-                    totalCredit = creditRs.getDouble("total_credit");
-                    paidAmount = creditRs.getDouble("paid_amount");
-                    dueAmount = creditRs.getDouble("due_amount");
+                    // Set dates
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                    Date givenDate = rs.getDate("credit_given_date");
+                    Date finalDate = rs.getDate("credit_final_date");
+
+                    manufactureDate.setDate(givenDate);
+                    expriyDate.setDate(finalDate);
+
+                    // Set amount
+                    double amount = rs.getDouble("credit_amout");
+                    address.setText(String.valueOf(amount));
                 }
+                return null;
+            }, creditId);
 
-                String displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                        customerName, totalCredit, paidAmount, dueAmount);
-                SupplierCombo.setSelectedItem(displayText);
-
-                creditRs.close();
-                creditPst.close();
-
-                // Set dates
-                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-                Date givenDate = rs.getDate("credit_given_date");
-                Date finalDate = rs.getDate("credit_final_date");
-
-                manufactureDate.setDate(givenDate);
-                expriyDate.setDate(finalDate);
-
-                // Set amount
-                double amount = rs.getDouble("credit_amout");
-                address.setText(String.valueOf(amount));
-            }
-
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading credit data: " + e.getMessage());
@@ -794,8 +793,7 @@ public class UpdateCredit extends javax.swing.JDialog {
         }
         isUpdating = true;
 
-        java.sql.Connection conn = null;
-        java.sql.PreparedStatement pst = null;
+        Connection conn = null;
 
         try {
             if (!validateInputs()) {
@@ -818,7 +816,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             double amount = Double.parseDouble(address.getText().trim());
 
             // Get database connection
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
 
             // Start transaction
             conn.setAutoCommit(false);
@@ -828,52 +826,55 @@ public class UpdateCredit extends javax.swing.JDialog {
                     + "FROM credit c "
                     + "JOIN credit_customer cc ON c.credit_customer_id = cc.customer_id "
                     + "WHERE c.credit_id = ?";
-            java.sql.PreparedStatement pstOld = conn.prepareStatement(oldDataSql);
-            pstOld.setInt(1, creditId);
-            java.sql.ResultSet rs = pstOld.executeQuery();
+            
+            try (PreparedStatement pstOld = conn.prepareStatement(oldDataSql)) {
+                pstOld.setInt(1, creditId);
+                try (ResultSet rs = pstOld.executeQuery()) {
+                    
+                    String oldCustomerName = "";
+                    String oldGivenDate = "";
+                    String oldFinalDate = "";
+                    double oldAmount = 0.0;
 
-            String oldCustomerName = "";
-            String oldGivenDate = "";
-            String oldFinalDate = "";
-            double oldAmount = 0.0;
+                    if (rs.next()) {
+                        oldCustomerName = rs.getString("customer_name");
+                        oldGivenDate = rs.getString("credit_given_date");
+                        oldFinalDate = rs.getString("credit_final_date");
+                        oldAmount = rs.getDouble("credit_amout");
+                    }
 
-            if (rs.next()) {
-                oldCustomerName = rs.getString("customer_name");
-                oldGivenDate = rs.getString("credit_given_date");
-                oldFinalDate = rs.getString("credit_final_date");
-                oldAmount = rs.getDouble("credit_amout");
-            }
-            pstOld.close();
+                    // Extract new customer name from display text
+                    String newCustomerName = selectedDisplayText.split(" - ")[0].trim();
 
-            // Extract new customer name from display text
-            String newCustomerName = selectedDisplayText.split(" - ")[0].trim();
+                    // Update the credit record - only update customer, dates, and amount (NOT sales_id)
+                    String query = "UPDATE credit SET credit_given_date = ?, credit_final_date = ?, credit_amout = ?, credit_customer_id = ? "
+                            + "WHERE credit_id = ?";
 
-            // Update the credit record - only update customer, dates, and amount (NOT sales_id)
-            String query = "UPDATE credit SET credit_given_date = ?, credit_final_date = ?, credit_amout = ?, credit_customer_id = ? "
-                    + "WHERE credit_id = ?";
+                    try (PreparedStatement pst = conn.prepareStatement(query)) {
+                        pst.setString(1, givenDateStr);
+                        pst.setString(2, finalDateStr);
+                        pst.setDouble(3, amount);
+                        pst.setInt(4, customerId);
+                        pst.setInt(5, creditId);
 
-            pst = conn.prepareStatement(query);
-            pst.setString(1, givenDateStr);
-            pst.setString(2, finalDateStr);
-            pst.setDouble(3, amount);
-            pst.setInt(4, customerId);
-            pst.setInt(5, creditId);
+                        int rowsAffected = pst.executeUpdate();
 
-            int rowsAffected = pst.executeUpdate();
+                        if (rowsAffected > 0) {
+                            // Create notification for credit update
+                            createCreditUpdateNotification(oldCustomerName, newCustomerName, oldGivenDate, givenDateStr,
+                                    oldFinalDate, finalDateStr, oldAmount, amount, conn);
 
-            if (rowsAffected > 0) {
-                // Create notification for credit update
-                createCreditUpdateNotification(oldCustomerName, newCustomerName, oldGivenDate, givenDateStr,
-                        oldFinalDate, finalDateStr, oldAmount, amount, conn);
+                            // Commit transaction
+                            conn.commit();
 
-                // Commit transaction
-                conn.commit();
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit updated successfully!");
-                dispose(); // Close the dialog after successful update
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update credit!");
+                            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Credit updated successfully!");
+                            dispose(); // Close the dialog after successful update
+                        } else {
+                            conn.rollback();
+                            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update credit!");
+                        }
+                    }
+                }
             }
 
         } catch (Exception e) {
@@ -887,17 +888,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating credit: " + e.getMessage());
         } finally {
             // Close resources
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing failure
-            }
+            DB.closeQuietly(conn);
             // Always reset the flag
             isUpdating = false;
         }
@@ -907,9 +898,9 @@ public class UpdateCredit extends javax.swing.JDialog {
             String oldGivenDate, String newGivenDate,
             String oldFinalDate, String newFinalDate,
             double oldAmount, double newAmount,
-            java.sql.Connection conn) {
-        java.sql.PreparedStatement pstMassage = null;
-        java.sql.PreparedStatement pstNotification = null;
+            Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
 
         try {
             // Build detailed change message
@@ -945,7 +936,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
             pstMassage = conn.prepareStatement(checkSql);
             pstMassage.setString(1, messageText);
-            java.sql.ResultSet rs = pstMassage.executeQuery();
+            ResultSet rs = pstMassage.executeQuery();
 
             int massageId;
             if (rs.next() && rs.getInt(1) > 0) {
@@ -961,7 +952,7 @@ public class UpdateCredit extends javax.swing.JDialog {
                 // Insert new message
                 pstMassage.close();
                 String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
                 pstMassage.setString(1, messageText);
                 pstMassage.executeUpdate();
 
@@ -986,16 +977,7 @@ public class UpdateCredit extends javax.swing.JDialog {
             // Silent notification creation failure
         } finally {
             // Close resources
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing failure
-            }
+            DB.closeQuietly(pstMassage, pstNotification);
         }
     }
 

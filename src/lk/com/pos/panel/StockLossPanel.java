@@ -1661,31 +1661,32 @@ public class StockLossPanel extends javax.swing.JPanel {
     }
 
     /**
-     * Creates card content panel from DTO
-     */
-    private JPanel createCardContent(StockLossDTO data, String displayDate) {
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(Colors.CARD_WHITE);
-        contentPanel.setOpaque(false);
+ * Creates card content panel from DTO
+ */
+private JPanel createCardContent(StockLossDTO data, String displayDate) {
+    JPanel contentPanel = new JPanel();
+    contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+    contentPanel.setBackground(Colors.CARD_WHITE);
+    contentPanel.setOpaque(false);
 
-        contentPanel.add(createHeaderSection(data.getStockLossId(), data.getProductName()));
-        contentPanel.add(Box.createVerticalStrut(8));
-        contentPanel.add(createReasonBadgeSection(data.getReason()));
-        contentPanel.add(Box.createVerticalStrut(15));
-        contentPanel.add(createDetailsSectionHeader());
-        contentPanel.add(Box.createVerticalStrut(15));
-        contentPanel.add(createDetailsGrid(data.getBatchNo(), data.getInvoiceNo(), data.getSellingPrice(),
-                data.getQty(), data.getUserName(), displayDate));
-        contentPanel.add(Box.createVerticalStrut(20));
-        contentPanel.add(createLossAmountPanel(data.getLossAmount()));
+    // Header with product name and edit button
+    contentPanel.add(createHeaderSection(data.getStockLossId(), data.getProductName()));
+    contentPanel.add(Box.createVerticalStrut(15));
+    
+    // Loss details header with reason badge on the right
+    contentPanel.add(createDetailsSectionHeader(data.getReason()));
+    contentPanel.add(Box.createVerticalStrut(10));
+    
+    // Details grid (batch, invoice, price, qty, user, date)
+    contentPanel.add(createDetailsGrid(data.getBatchNo(), data.getInvoiceNo(), data.getSellingPrice(),
+            data.getQty(), data.getUserName(), displayDate));
+    contentPanel.add(Box.createVerticalStrut(20));
+    
+    // Loss amount at the bottom
+    contentPanel.add(createLossAmountPanel(data.getLossAmount()));
 
-        return contentPanel;
-    }
-
-    /**
-     * Creates header section
-     */
+    return contentPanel;
+}
     private JPanel createHeaderSection(int lossId, String productName) {
         JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setOpaque(false);
@@ -1795,25 +1796,24 @@ public class StockLossPanel extends javax.swing.JPanel {
         return badge;
     }
 
-    /**
-     * Creates details section header
-     */
-    private JPanel createDetailsSectionHeader() {
+    
+    private JPanel createDetailsSectionHeader(String reason) {
         JPanel detailsHeaderPanel = new JPanel(new BorderLayout());
         detailsHeaderPanel.setOpaque(false);
-        detailsHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        detailsHeaderPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 
         JLabel detailsHeader = new JLabel(Strings.SECTION_DETAILS);
         detailsHeader.setFont(Fonts.SECTION_TITLE);
         detailsHeader.setForeground(Colors.TEXT_MUTED);
         detailsHeaderPanel.add(detailsHeader, BorderLayout.WEST);
 
+        // Add reason badge on the right
+        JLabel reasonBadge = createReasonBadge(reason);
+        detailsHeaderPanel.add(reasonBadge, BorderLayout.EAST);
+
         return detailsHeaderPanel;
     }
 
-    /**
-     * Creates details grid
-     */
     private JPanel createDetailsGrid(String batchNo, String invoiceNo, double unitPrice,
             int quantityLost, String recordedBy, String displayDate) {
         JPanel detailsGrid = new JPanel(new GridLayout(3, 2, 20, 15));
@@ -2385,12 +2385,12 @@ public class StockLossPanel extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 83, Short.MAX_VALUE)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(sortByDays, 0, 151, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(sortByReason, 0, 157, Short.MAX_VALUE)
-                        .addGap(164, 164, 164)
+                        .addGap(41, 41, 41)
                         .addComponent(lostReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(addNewLostBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)))
@@ -2403,11 +2403,10 @@ public class StockLossPanel extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(addNewLostBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(lostReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(lostReportBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 437, Short.MAX_VALUE)
                 .addGap(14, 14, 14))

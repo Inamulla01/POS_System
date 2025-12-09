@@ -31,6 +31,14 @@ import java.awt.print.PrinterJob;
 import java.awt.print.PrinterException;
 import java.awt.print.PageFormat;
 import java.awt.print.Printable;
+import java.io.InputStream;
+import lk.com.pos.session.Session;
+import net.sf.jasperreports.engine.JREmptyDataSource;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperPrintManager;
+import net.sf.jasperreports.engine.JasperReport;
 
 public class AddCreditPay extends javax.swing.JDialog {
 
@@ -138,7 +146,7 @@ public class AddCreditPay extends javax.swing.JDialog {
         try {
             // Get the last credit payment barcode from database
             String sql = "SELECT credit_pay_barcode FROM credit_pay WHERE credit_pay_barcode LIKE 'CRDPAY%' ORDER BY LENGTH(credit_pay_barcode), credit_pay_barcode DESC LIMIT 1";
-            
+
             DB.executeQuerySafe(sql, rs -> {
                 int lastNumber = 0;
                 if (rs.next()) {
@@ -761,7 +769,7 @@ public class AddCreditPay extends javax.swing.JDialog {
         try {
             // Get the last credit payment barcode from database
             String sql = "SELECT credit_pay_barcode FROM credit_pay WHERE credit_pay_barcode LIKE 'CRDPAY%' ORDER BY LENGTH(credit_pay_barcode), credit_pay_barcode DESC LIMIT 1";
-            
+
             DB.executeQuerySafe(sql, rs -> {
                 int lastNumber = 0;
                 if (rs.next()) {
@@ -917,7 +925,7 @@ public class AddCreditPay extends javax.swing.JDialog {
     private void selectCustomerById(int customerId) {
         try {
             String sql = "SELECT customer_name FROM credit_customer WHERE customer_id = ?";
-            
+
             DB.executeQuerySafe(sql, rs -> {
                 if (rs.next()) {
                     String customerName = rs.getString("customer_name");
@@ -1263,7 +1271,7 @@ public class AddCreditPay extends javax.swing.JDialog {
                             }
                         }
 
-                        createCreditPaymentNotification(selectedCustomerId, amount, barcode, conn);
+                        printCreditReceipt(selectedCustomerId, amount, barcode, paymentDateStr);
 
                         conn.commit();
 
@@ -1288,6 +1296,110 @@ public class AddCreditPay extends javax.swing.JDialog {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving credit payment: " + e.getMessage());
         } finally {
             isSaving = false;
+        }
+    }
+
+    private void printCreditReceipt(int customerId, double amount, String barcode, String paymentDateStr) {
+        String openingHours = "OPEN DAILY 8.00 AM TO 11.00 PM";
+        double discountAllowed = 0.00; // Q2: default 0.00 for now
+
+        try (Connection conn = DB.getConnection()) {
+            // ---------- 1) Get customer info ----------
+            String sqlCustomer = "SELECT customer_name, nic FROM credit_customer WHERE customer_id = ?";
+            String customerName = "";
+            String customerNic = "";
+
+            try (PreparedStatement pst = conn.prepareStatement(sqlCustomer)) {
+                pst.setInt(1, customerId);
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        customerName = rs.getString("customer_name");
+                        customerNic = rs.getString("nic");
+                    }
+                }
+            }
+
+            // ---------- 2) Sum credit (total credit given) ----------
+            double totalCredit = 0.0;
+            String sqlTotalCredit = "SELECT COALESCE(SUM(credit_amout),0) AS total_credit FROM credit WHERE credit_customer_id = ?";
+            try (PreparedStatement pst = conn.prepareStatement(sqlTotalCredit)) {
+                pst.setInt(1, customerId);
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        totalCredit = rs.getDouble("total_credit");
+                    }
+                }
+            }
+
+            // ---------- 3) Sum paid so far (before this payment) ----------
+            double totalPaidBefore = 0.0;
+            String sqlPaidBefore = "SELECT COALESCE(SUM(credit_pay_amount),0) AS total_paid FROM credit_pay WHERE credit_customer_id = ?";
+            try (PreparedStatement pst = conn.prepareStatement(sqlPaidBefore)) {
+                pst.setInt(1, customerId);
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        totalPaidBefore = rs.getDouble("total_paid");
+                    }
+                }
+            }
+
+            // ---------- 4) Calculate balances ----------
+            double previousBalance = totalCredit - totalPaidBefore;    // Q1: credit - paid
+            double payReceived = amount;                              // amount passed to method
+            double newOutstanding = previousBalance - payReceived - discountAllowed;
+            if (newOutstanding < 0) {
+                newOutstanding = 0.0;
+            }
+
+            // ---------- DEBUG ----------
+            System.out.println("=== CREDIT RECEIPT DEBUG ===");
+            System.out.println("CustomerId: " + customerId);
+            System.out.println("Name: " + customerName);
+            System.out.println("NIC: " + customerNic);
+            System.out.println("TotalCredit: " + totalCredit);
+            System.out.println("TotalPaidBefore: " + totalPaidBefore);
+            System.out.println("PreviousBalance: " + previousBalance);
+            System.out.println("PayReceived: " + payReceived);
+            System.out.println("DiscountAllowed: " + discountAllowed);
+            System.out.println("NewOutstanding: " + newOutstanding);
+            System.out.println("Barcode/InvoiceNo: " + barcode);
+            System.out.println("PaymentDate: " + paymentDateStr);
+            System.out.println("============================");
+
+            // ---------- 5) Prepare Jasper params (names match your JRXML) ----------
+            Map<String, Object> params = new HashMap<>();
+            params.put("B_NAME", customerName);               // or your business name param — change if needed
+            params.put("B_DETAILS", "");                      // optional business details
+            params.put("CREDIT_PAYMENT_INVOICE_NO", barcode); // jrxml expects this param (barcode shown in code128)
+            params.put("STAFF", "INAAMUL HASAN"); // or static "INAAMUL HASAN"
+            params.put("CUSTOMER", customerName);
+            params.put("CUSTOMER_NIC", customerNic);
+            params.put("OPENING_HOURS", openingHours);
+
+            params.put("PREV_BALANCE", previousBalance);
+            params.put("PAY_RECEIVED", payReceived);
+            params.put("DISC_ALLOWED", discountAllowed);
+            params.put("NEW_OUTSTANDING", newOutstanding);
+            params.put("PAYMENT_TYPE", "CASH");
+            // If jrxml expects DATE as string:
+            params.put("paidDate", paymentDateStr);
+
+            // ---------- 6) Load JRXML from classpath and compile ----------
+            InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/credit_payment_invoice.jrxml");
+            if (jrxmlStream == null) {
+                System.err.println("ERROR: credit_payment_invoice.jrxml not found on classpath at /lk/com/pos/reports/");
+                return;
+            }
+
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+
+            // ---------- 7) Fill & print ----------
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params, new JREmptyDataSource());
+            JasperPrintManager.printReport(jasperPrint, true); // true = show print dialog
+
+        } catch (Exception ex) {
+            System.err.println("Error printing credit receipt: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
@@ -1382,6 +1494,7 @@ public class AddCreditPay extends javax.swing.JDialog {
         } catch (Exception e) {
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

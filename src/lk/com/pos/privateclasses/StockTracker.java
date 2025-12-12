@@ -1,6 +1,6 @@
 package lk.com.pos.privateclasses;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,7 +82,7 @@ public class StockTracker {
                       "FROM stock s " +
                       "WHERE s.product_id = ? AND s.batch_no = ? AND s.qty >= 0";
         
-        try (Connection conn = MySQL.getConnection();
+        try (Connection conn = DB.getConnection();
              PreparedStatement pst = conn.prepareStatement(query)) {
             
             pst.setInt(1, productId);
@@ -100,54 +100,73 @@ public class StockTracker {
                 return Math.max(0, stockQty - holdQty);
             }
         } catch (SQLException e) {
+            e.printStackTrace();
         }
         return 0;
     }
     
     public void refreshStockForKeys(java.util.Set<String> keys) {
-        if (keys.isEmpty()) return;
+    if (keys.isEmpty()) return;
+    
+    // ========================================
+    // PERFORMANCE: Batch database queries
+    // ========================================
+    StringBuilder queryBuilder = new StringBuilder();
+    queryBuilder.append("SELECT s.product_id, s.batch_no, s.qty as stock_quantity, ");
+    queryBuilder.append("COALESCE((SELECT SUM(si.qty) FROM sale_item si ");
+    queryBuilder.append("JOIN sales sa ON si.sales_id = sa.sales_id ");
+    queryBuilder.append("JOIN stock st ON si.stock_id = st.stock_id ");
+    queryBuilder.append("WHERE st.product_id = s.product_id AND st.batch_no = s.batch_no ");
+    queryBuilder.append("AND sa.status_id = 2), 0) as hold_quantity ");
+    queryBuilder.append("FROM stock s WHERE ");
+    
+    boolean first = true;
+    for (String key : keys) {
+        if (!first) queryBuilder.append(" OR ");
+        queryBuilder.append("(s.product_id = ? AND s.batch_no = ?)");
+        first = false;
+    }
+    
+    // ========================================
+    // SPEED: Single query for all keys
+    // ========================================
+    try (Connection conn = DB.getConnection();
+         PreparedStatement pst = conn.prepareStatement(queryBuilder.toString())) {
         
-        StringBuilder queryBuilder = new StringBuilder();
-        queryBuilder.append("SELECT s.product_id, s.batch_no, s.qty as stock_quantity, ");
-        queryBuilder.append("COALESCE((SELECT SUM(si.qty) FROM sale_item si ");
-        queryBuilder.append("JOIN sales sa ON si.sales_id = sa.sales_id ");
-        queryBuilder.append("JOIN stock st ON si.stock_id = st.stock_id ");
-        queryBuilder.append("WHERE st.product_id = s.product_id AND st.batch_no = s.batch_no ");
-        queryBuilder.append("AND sa.status_id = 2), 0) as hold_quantity ");
-        queryBuilder.append("FROM stock s WHERE ");
-        
-        boolean first = true;
+        int paramIndex = 1;
         for (String key : keys) {
-            if (!first) queryBuilder.append(" OR ");
-            queryBuilder.append("(s.product_id = ? AND s.batch_no = ?)");
-            first = false;
-        }
-        
-        try (Connection conn = MySQL.getConnection();
-             PreparedStatement pst = conn.prepareStatement(queryBuilder.toString())) {
-            
-            int paramIndex = 1;
-            for (String key : keys) {
-                String[] parts = key.split("_");
-                if (parts.length == 2) {
+            String[] parts = key.split("_", 2); // Split on first underscore only
+            if (parts.length == 2) {
+                try {
                     pst.setInt(paramIndex++, Integer.parseInt(parts[0]));
                     pst.setString(paramIndex++, parts[1]);
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid key format: " + key);
                 }
             }
-            
-            ResultSet rs = pst.executeQuery();
-            while (rs.next()) {
-                int productId = rs.getInt("product_id");
-                String batchNo = rs.getString("batch_no");
-                int stockQty = rs.getInt("stock_quantity");
-                int holdQty = rs.getInt("hold_quantity");
-                
-                String cacheKey = productId + "_" + batchNo;
-                stockCache.put(cacheKey, new StockCache(stockQty, holdQty));
-            }
-        } catch (SQLException e) {
         }
+        
+        ResultSet rs = pst.executeQuery();
+        
+        // Process all results at once
+        Map<String, StockCache> newCache = new java.util.HashMap<>();
+        while (rs.next()) {
+            int productId = rs.getInt("product_id");
+            String batchNo = rs.getString("batch_no");
+            int stockQty = rs.getInt("stock_quantity");
+            int holdQty = rs.getInt("hold_quantity");
+            
+            String cacheKey = productId + "_" + batchNo;
+            newCache.put(cacheKey, new StockCache(stockQty, holdQty));
+        }
+        
+        // Update cache all at once (atomic operation)
+        stockCache.putAll(newCache);
+        
+    } catch (SQLException e) {
+        e.printStackTrace();
     }
+}
     
     public int getCartQuantity(int productId, String batchNo) {
         String key = productId + "_" + batchNo;
@@ -156,25 +175,62 @@ public class StockTracker {
     }
     
     public void addToCart(int productId, String batchNo, int quantity) {
-        String key = productId + "_" + batchNo;
-        int currentQty = cartQuantities.getOrDefault(key, 0);
-        int newQty = currentQty + quantity;
-        cartQuantities.put(key, newQty);
-        updateCardDisplay(key, newQty);
+    String key = productId + "_" + batchNo;
+    
+    // Update in-memory counter
+    int currentQty = cartQuantities.getOrDefault(key, 0);
+    int newQty = currentQty + quantity;
+    cartQuantities.put(key, newQty);
+    
+    // Update UI card display immediately using cached stock
+    updateCardDisplayImmediate(key, newQty);
+}
+    
+    private void updateCardDisplayImmediate(String key, int cartQuantity) {
+    ProductCardReference cardRef = cardReferences.get(key);
+    if (cardRef == null) return;
+    
+    // Parse key to get product details
+    String[] parts = key.split("_", 2);
+    if (parts.length != 2) return;
+    
+    int productId = Integer.parseInt(parts[0]);
+    String batchNo = parts[1];
+    
+    // Use cached stock if available (fast path)
+    StockCache cached = stockCache.get(key);
+    int availableStock;
+    
+    if (cached != null && !cached.isExpired()) {
+        // Calculate available: total stock - hold quantity - cart quantity
+        availableStock = Math.max(0, cached.stockQuantity - cached.holdQuantity);
+    } else {
+        // Fallback: query DB (only if cache is expired)
+        availableStock = getAvailableStock(productId, batchNo);
     }
     
-    public void removeFromCart(int productId, String batchNo, int quantity) {
-        String key = productId + "_" + batchNo;
-        int currentQty = cartQuantities.getOrDefault(key, 0);
-        int newQty = Math.max(0, currentQty - quantity);
-        
-        if (newQty == 0) {
-            cartQuantities.remove(key);
-        } else {
-            cartQuantities.put(key, newQty);
-        }
-        updateCardDisplay(key, newQty);
+    // Update UI on EDT
+    if (SwingUtilities.isEventDispatchThread()) {
+        cardRef.updateStock(cartQuantity, availableStock);
+    } else {
+        SwingUtilities.invokeLater(() -> cardRef.updateStock(cartQuantity, availableStock));
     }
+}
+    
+    public void removeFromCart(int productId, String batchNo, int quantity) {
+    String key = productId + "_" + batchNo;
+    int currentQty = cartQuantities.getOrDefault(key, 0);
+    int newQty = Math.max(0, currentQty - quantity);
+    
+    if (newQty == 0) {
+        cartQuantities.remove(key);
+    } else {
+        cartQuantities.put(key, newQty);
+    }
+    
+    // CRITICAL: Update UI immediately when removing
+    updateCardDisplayImmediate(key, newQty);
+}
     
     public void clearCart() {
         cartQuantities.clear();
@@ -185,6 +241,19 @@ public class StockTracker {
             }
         });
     }
+    
+    public void setCartQuantity(int productId, String batchNo, int quantity) {
+    String key = productId + "_" + batchNo;
+    
+    if (quantity <= 0) {
+        cartQuantities.remove(key);
+    } else {
+        cartQuantities.put(key, quantity);
+    }
+    
+    // Update UI immediately
+    updateCardDisplayImmediate(key, Math.max(0, quantity));
+}
     
     private void updateCardDisplay(String key, int cartQuantity) {
         ProductCardReference cardRef = cardReferences.get(key);

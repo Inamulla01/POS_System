@@ -14,10 +14,14 @@ import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.event.ActionListener;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import javax.swing.BorderFactory;
@@ -74,11 +78,11 @@ import lk.com.pos.privateclasses.CartListener;
 import lk.com.pos.privateclasses.GradientButton;
 import lk.com.pos.privateclasses.Invoice;
 import lk.com.pos.session.Session;
-import raven.toast.Notifications;
 import lk.com.pos.privateclasses.EnhancedConfirmDialog.*;
 
 import lk.com.pos.privateclasses.StockTracker;
 import lk.com.pos.privateclasses.Notification;
+import lk.com.pos.utils.UserFriendlyMessages;
 
 public class PosCartPanel extends javax.swing.JPanel {
 
@@ -101,6 +105,8 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     private JLabel noProductsLabel;
     private CartListener cartListener;
+    
+    private boolean isAddingNewItem = false;
 
     private double appliedDiscountAmount = 0.0;
     private int appliedDiscountTypeId = -1;
@@ -187,9 +193,12 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         loadPaymentMethods();
         showNoProductsMessage();
+        disablePaymentComboArrowKeys();
 
         SwingUtilities.invokeLater(() -> {
             setupKeyboardShortcuts();
+            // Request initial focus
+            requestFocusInWindow();
         });
 
         discountBtn.setToolTipText("Apply discount (F10 or Alt+D)");
@@ -284,21 +293,26 @@ public class PosCartPanel extends javax.swing.JPanel {
         });
 
         jTextField3.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
-                    jTextField3.setText("");
-                    isPlaceholder[0] = false;
-                    updateCartPanel();
-                    requestFocusInWindow(); // FIXED: Proper focus transfer
-                } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
-                    if (!isPlaceholder[0] && !jTextField3.getText().trim().isEmpty()) {
-                        filterCartItems();
-                        evt.consume();
-                    }
-                }
+    @Override
+    public void keyPressed(java.awt.event.KeyEvent evt) {
+        if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+            jTextField3.setText("");
+            jTextField3.setForeground(new Color(128, 128, 128));
+            jTextField3.setText("Search by barcode or product name");
+            currentFocusedCartItemIndex = -1;
+            updateCartPanel();
+            requestFocusInWindow();
+            evt.consume();
+        } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+            if (!jTextField3.getForeground().equals(new Color(128, 128, 128)) 
+                && !jTextField3.getText().trim().isEmpty()) {
+                filterCartItems();
+                requestFocusInWindow();
+                evt.consume();
             }
-        });
+        }
+    }
+});
 
         // FIXED: Add mouse listener to handle clicks outside search bar
         jPanel2.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -335,8 +349,9 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         updateAmountReceivedVisibility();
 
-        // FIXED: Make panels focusable
+        // FIXED: Make panels focusable and enable keyboard input
         setFocusable(true);
+        setFocusTraversalKeysEnabled(false);
         jPanel2.setFocusable(true);
         jPanel10.setFocusable(true);
 
@@ -355,13 +370,38 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
     }
+    
+    private void disablePaymentComboArrowKeys() {
+        // Prevent arrow keys from changing payment method selection
+        paymentcombo.setFocusable(false);
+        
+        // Add custom key listener to payment combo that ignores arrow keys
+        paymentcombo.getEditor().getEditorComponent().addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                // Block arrow keys on payment combo
+                if (keyCode == KeyEvent.VK_UP || keyCode == KeyEvent.VK_DOWN || 
+                    keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_RIGHT) {
+                    e.consume();
+                }
+            }
+        });
+        
+        // Override the combo box input map to disable arrow key navigation
+        javax.swing.InputMap im = paymentcombo.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "none");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "none");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "none");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "none");
+    }
 
     private void performSearch() {
         String searchText = jTextField3.getText().trim();
         if (searchText.isEmpty() || jTextField3.getForeground().equals(new Color(128, 128, 128))) {
-            updateCartPanel(); // Show all items when search is empty
+            updateCartPanel();
         } else {
-            filterCartItems(); // Filter based on search text
+            filterCartItems();
         }
     }
 
@@ -369,22 +409,20 @@ public class PosCartPanel extends javax.swing.JPanel {
         try {
             CartProductDTO product = cartProductDAO.getProductByBarcode(barcode);
             if (product == null) {
-                Notifications.getInstance().show(
-                        Notifications.Type.WARNING,
-                        Notifications.Location.TOP_RIGHT,
-                        "Product not found: " + barcode
-                );
+                JOptionPane.showMessageDialog(this,
+                        "Product not found: " + barcode,
+                        "Product Not Found",
+                        JOptionPane.WARNING_MESSAGE);
                 jTextField3.selectAll();
                 return;
             }
 
             List<CartStockDTO> availableStocks = cartStockDAO.getAvailableStockByProduct(product.getProductId());
             if (availableStocks.isEmpty()) {
-                Notifications.getInstance().show(
-                        Notifications.Type.WARNING,
-                        Notifications.Location.TOP_RIGHT,
-                        "No available stock for: " + product.getProductName()
-                );
+                JOptionPane.showMessageDialog(this,
+                        "No available stock for: " + product.getProductName(),
+                        "Out of Stock",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -397,11 +435,6 @@ public class PosCartPanel extends javax.swing.JPanel {
             java.awt.Toolkit.getDefaultToolkit().beep();
             jTextField3.setText("");
 
-            Notifications.getInstance().show(
-                    Notifications.Type.SUCCESS,
-                    Notifications.Location.TOP_RIGHT,
-                    "Added: " + product.getProductName() + " (" + product.getBrandName() + ")"
-            );
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this,
                     "Error searching product: " + e.getMessage(),
@@ -411,44 +444,67 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private void filterCartItems() {
-        String searchText = jTextField3.getText().trim().toLowerCase();
-        if (searchText.isEmpty()) {
-            updateCartPanel();
-            return;
-        }
-
-        jPanel10.removeAll();
-        if (cartItems.isEmpty()) {
-            showNoProductsMessage();
-            return;
-        }
-
-        jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 18)));
-        boolean foundItems = false;
-
-        List<CartItem> reversedItems = new ArrayList<>(cartItems.values());
-        Collections.reverse(reversedItems);
-
-        for (CartItem item : reversedItems) {
-            String productName = item.getProductName().toLowerCase();
-            String brandName = item.getBrandName().toLowerCase();
-            String barcode = item.getBarcode() != null ? item.getBarcode().toLowerCase() : "";
-
-            if (productName.contains(searchText) || brandName.contains(searchText) || barcode.contains(searchText)) {
-                RoundedPanel cartCard = createCartItemPanel(item);
-                jPanel10.add(cartCard);
-                jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(18, 18)));
-                foundItems = true;
-            }
-        }
-
-        if (!foundItems) {
-            showNoSearchResults();
-        }
-
-        jPanel10.revalidate();
-        jPanel10.repaint();
+    String searchText = jTextField3.getText().trim().toLowerCase();
+    if (searchText.isEmpty()) {
+        updateCartPanel();
+        currentFocusedCartItemIndex = -1; // Clear focus when search is cleared
+        return;
     }
+
+    jPanel10.removeAll();
+    if (cartItems.isEmpty()) {
+        showNoProductsMessage();
+        return;
+    }
+
+    jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 18)));
+    boolean foundItems = false;
+    int firstMatchIndex = -1;
+    int displayIndex = 0;
+
+    List<CartItem> reversedItems = new ArrayList<>(cartItems.values());
+    Collections.reverse(reversedItems);
+
+    // Clear previous cart item panels
+    cartItemPanels.clear();
+
+    for (CartItem item : reversedItems) {
+        String productName = item.getProductName().toLowerCase();
+        String brandName = item.getBrandName().toLowerCase();
+        String barcode = item.getBarcode() != null ? item.getBarcode().toLowerCase() : "";
+
+        if (productName.contains(searchText) || brandName.contains(searchText) || barcode.contains(searchText)) {
+            RoundedPanel cartCard = createCartItemPanel(item);
+            jPanel10.add(cartCard);
+            jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(18, 18)));
+            cartItemPanels.add(cartCard);
+            
+            // Track first match
+            if (firstMatchIndex == -1) {
+                firstMatchIndex = displayIndex;
+            }
+            
+            foundItems = true;
+            displayIndex++;
+        }
+    }
+
+    if (!foundItems) {
+        showNoSearchResults();
+        currentFocusedCartItemIndex = -1;
+    } else {
+        // Automatically select the first matching item
+        final int focusIndex = firstMatchIndex;
+        SwingUtilities.invokeLater(() -> {
+            if (focusIndex >= 0 && focusIndex < cartItemPanels.size()) {
+                setFocusedCartItem(focusIndex);
+            }
+        });
+    }
+
+    jPanel10.revalidate();
+    jPanel10.repaint();
+}
 
     private void showNoSearchResults() {
         jPanel10.removeAll();
@@ -541,43 +597,49 @@ public class PosCartPanel extends javax.swing.JPanel {
     private Map<String, CartItem> cartItems = new LinkedHashMap<>();
 
     public void addToCart(int productId, String productName, String brandName,
-            String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) {
+    String batchNo, int qty, double sellingPrice, String barcode, double lastPrice) {
 
-        String cartKey = productId + "_" + batchNo;
+    String cartKey = productId + "_" + batchNo;
 
-        int availableStock = StockTracker.getInstance().getAvailableStock(productId, batchNo);
-        int currentCartQty = StockTracker.getInstance().getCartQuantity(productId, batchNo);
+    int availableStock = StockTracker.getInstance().getAvailableStock(productId, batchNo);
+    int currentCartQty = StockTracker.getInstance().getCartQuantity(productId, batchNo);
 
-        if (currentCartQty >= availableStock) {
+    if (currentCartQty >= availableStock) {
+        JOptionPane.showMessageDialog(this,
+                "Cannot add more. Available stock: " + availableStock,
+                "Stock Limit",
+                JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    if (cartItems.containsKey(cartKey)) {
+        // ✅ EXISTING ITEM - Update quantity AND focus on it
+        CartItem item = cartItems.get(cartKey);
+        if (currentCartQty < availableStock) {
+            cartItems.remove(cartKey);
+            item.setQuantity(item.getQuantity() + 1);
+            cartItems.put(cartKey, item);
+            isAddingNewItem = true; // ⚠️ FOCUS on this item
+            updateCartPanel();
+            StockTracker.getInstance().addToCart(productId, batchNo, 1);
+            
+        } else {
             JOptionPane.showMessageDialog(this,
                     "Cannot add more. Available stock: " + availableStock,
                     "Stock Limit",
                     JOptionPane.WARNING_MESSAGE);
-            return;
         }
-
-        if (cartItems.containsKey(cartKey)) {
-            CartItem item = cartItems.get(cartKey);
-            if (currentCartQty < availableStock) {
-                cartItems.remove(cartKey);
-                item.setQuantity(item.getQuantity() + 1);
-                cartItems.put(cartKey, item);
-                updateCartPanel();
-                StockTracker.getInstance().addToCart(productId, batchNo, 1);
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "Cannot add more. Available stock: " + availableStock,
-                        "Stock Limit",
-                        JOptionPane.WARNING_MESSAGE);
-            }
-        } else {
-            CartItem newItem = new CartItem(productId, productName, brandName,
-                    batchNo, qty, sellingPrice, barcode, lastPrice);
-            cartItems.put(cartKey, newItem);
-            updateCartPanel();
-            StockTracker.getInstance().addToCart(productId, batchNo, 1);
-        }
+    } else {
+        // ✅ NEW ITEM - Add and focus on it
+        CartItem newItem = new CartItem(productId, productName, brandName,
+                batchNo, qty, sellingPrice, barcode, lastPrice);
+        cartItems.put(cartKey, newItem);
+        isAddingNewItem = true; // ⚠️ FOCUS on new item
+        updateCartPanel();
+        StockTracker.getInstance().addToCart(productId, batchNo, 1);
+        
     }
+}
 
     private boolean validateAndAdjustLoadedItems() {
         boolean adjustmentsMade = false;
@@ -656,663 +718,766 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private void updateCartPanel() {
-        jPanel10.removeAll();
-        cartItemPanels.clear();
-        currentFocusedCartItemIndex = -1;
+    // Save focus state BEFORE clearing
+    int savedFocusIndex = currentFocusedCartItemIndex;
+    final String savedFocusedItemKey;
+    
+    if (savedFocusIndex >= 0 && savedFocusIndex < cartItemPanels.size()) {
+        List<String> cartKeys = new ArrayList<>(cartItems.keySet());
+        int actualIndex = cartKeys.size() - 1 - savedFocusIndex;
+        savedFocusedItemKey = (actualIndex >= 0 && actualIndex < cartKeys.size()) 
+            ? cartKeys.get(actualIndex) : null;
+    } else {
+        savedFocusedItemKey = null;
+    }
+    
+    // Clear efficiently
+    for (RoundedPanel panel : cartItemPanels) {
+        removeAllListeners(panel);
+    }
+    
+    jPanel10.removeAll();
+    cartItemPanels.clear();
+    currentFocusedCartItemIndex = -1;
 
-        if (cartItems.isEmpty()) {
-            showNoProductsMessage();
-            return;
-        }
-
-        jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 18)));
-
-        // Create a list of cart items in reverse order (last added first)
-        List<CartItem> reversedItems = new ArrayList<>(cartItems.values());
-        Collections.reverse(reversedItems);
-
-        for (CartItem item : reversedItems) {
-            RoundedPanel cartCard = createCartItemPanel(item);
-            jPanel10.add(cartCard);
-            jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(18, 18)));
-            cartItemPanels.add(cartCard);
-        }
-
-        cartCount.setText(String.format("Cart (%02d)", cartItems.size()));
-        jPanel10.revalidate();
-        jPanel10.repaint();
-        updateTotals();
-
-        // Auto-focus the first item (last added) when cart updates
-        if (!cartItemPanels.isEmpty()) {
-            SwingUtilities.invokeLater(() -> {
-                setFocusedCartItem(0);
-            });
-        }
+    if (cartItems.isEmpty()) {
+        showNoProductsMessage();
+        return;
     }
 
-    private void applyDiscountValue(JTextField discountField, CartItem item) {
-        try {
-            String text = discountField.getText().trim();
-            if (text.isEmpty()) {
-                // If empty, set discount to 0
-                item.setDiscountPrice(0);
-                discountField.setText("0.00");
-                discountField.setForeground(Color.BLACK);
-                discountField.setToolTipText(null);
-                updateCartPanel(); // Refresh the entire panel to update prices
+    jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(0, 18)));
+
+    // Create cards in reverse order
+    List<CartItem> reversedItems = new ArrayList<>(cartItems.values());
+    Collections.reverse(reversedItems);
+
+    for (CartItem item : reversedItems) {
+        RoundedPanel cartCard = createCartItemPanel(item);
+        jPanel10.add(cartCard);
+        jPanel10.add(javax.swing.Box.createRigidArea(new Dimension(18, 18)));
+        cartItemPanels.add(cartCard);
+    }
+
+    cartCount.setText(String.format("Cart (%02d)", cartItems.size()));
+    
+    jPanel10.revalidate();
+    jPanel10.repaint();
+    updateTotals();
+
+    // ✅ SMART FOCUS RESTORATION
+    SwingUtilities.invokeLater(() -> restoreFocusSmart(savedFocusedItemKey, savedFocusIndex));
+}
+    
+    private void restoreFocusSmart(String savedFocusedItemKey, int savedFocusIndex) {
+    // CASE 1: New item added via barcode scan → Focus on it
+    if (isAddingNewItem) {
+        if (!cartItemPanels.isEmpty()) {
+            setFocusedCartItem(0); // Focus first item (newest)
+            requestFocusInWindow();
+        }
+        isAddingNewItem = false;
+        return;
+    }
+    
+    // CASE 2: Existing item updated → Keep previous focus
+    if (savedFocusedItemKey != null) {
+        List<String> currentCartKeys = new ArrayList<>(cartItems.keySet());
+        int keyIndex = currentCartKeys.indexOf(savedFocusedItemKey);
+        
+        if (keyIndex >= 0) {
+            int displayIndex = currentCartKeys.size() - 1 - keyIndex;
+            if (displayIndex >= 0 && displayIndex < cartItemPanels.size()) {
+                setFocusedCartItem(displayIndex); // Keep same item focused
+                requestFocusInWindow();
                 return;
             }
+        }
+    }
+    
+    // CASE 3: No previous focus or item removed → Don't auto-focus
+    // This keeps the cart in "browsing mode" without forcing focus
+    requestFocusInWindow();
+}
 
-            double discountInput = Double.parseDouble(text);
-            double unitPrice = item.getUnitPrice();
-            double lastPrice = item.getLastPrice();
-            double finalPricePerUnit = unitPrice - discountInput;
-
-            if (discountInput < 0) {
-                // Reset to 0 if negative
-                discountField.setText("0.00");
-                item.setDiscountPrice(0);
-                discountField.setForeground(Color.BLACK);
-                discountField.setToolTipText(null);
-                updateCartPanel();
-                
-                JOptionPane.showMessageDialog(this, 
-                    "Discount cannot be negative", 
-                    "Invalid Discount", 
-                    JOptionPane.WARNING_MESSAGE);
-            } else if (discountInput > unitPrice) {
-                // Reset to maximum allowed (unit price)
-                discountField.setText(String.format("%.2f", unitPrice));
-                item.setDiscountPrice(unitPrice);
-                discountField.setForeground(Color.BLACK);
-                discountField.setToolTipText(null);
-                updateCartPanel();
-                
-                JOptionPane.showMessageDialog(this, 
-                    "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice), 
-                    "Invalid Discount", 
-                    JOptionPane.WARNING_MESSAGE);
-            } else if (finalPricePerUnit < lastPrice) {
-                // Reset to maximum allowed discount
-                double maxAllowedDiscount = unitPrice - lastPrice;
-                discountField.setText(String.format("%.2f", maxAllowedDiscount));
-                item.setDiscountPrice(maxAllowedDiscount);
-                discountField.setForeground(Color.BLACK);
-                discountField.setToolTipText(null);
-                updateCartPanel();
-                
-                String message = String.format(
-                    "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
-                    finalPricePerUnit, lastPrice, maxAllowedDiscount
-                );
-                JOptionPane.showMessageDialog(this, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
-            } else {
-                // Valid discount - apply it
-                item.setDiscountPrice(discountInput);
-                discountField.setText(String.format("%.2f", discountInput));
-                discountField.setForeground(Color.BLACK);
-                discountField.setToolTipText(null);
-                updateCartPanel(); // Refresh to update prices
+// Helper method for focus restoration
+private void restoreFocus(String savedFocusedItemKey, int savedFocusIndex) {
+    if (isAddingNewItem) {
+        if (!cartItemPanels.isEmpty()) {
+            setFocusedCartItem(0);
+            requestFocusInWindow();
+        }
+        isAddingNewItem = false;
+        return;
+    }
+    
+    if (savedFocusedItemKey != null) {
+        List<String> currentCartKeys = new ArrayList<>(cartItems.keySet());
+        int keyIndex = currentCartKeys.indexOf(savedFocusedItemKey);
+        
+        if (keyIndex >= 0) {
+            int displayIndex = currentCartKeys.size() - 1 - keyIndex;
+            if (displayIndex >= 0 && displayIndex < cartItemPanels.size()) {
+                setFocusedCartItem(displayIndex);
+                requestFocusInWindow();
+                return;
             }
-        } catch (NumberFormatException e) {
-            // Reset to current discount if invalid number
-            discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+        }
+    }
+    
+    if (!cartItemPanels.isEmpty() && savedFocusIndex == -1) {
+        setFocusedCartItem(0);
+    }
+    
+    requestFocusInWindow();
+}
+
+// Helper method to remove all listeners from a panel
+private void removeAllListeners(JPanel panel) {
+    if (panel == null) return;
+    
+    // Remove mouse listeners
+    for (MouseListener ml : panel.getMouseListeners()) {
+        panel.removeMouseListener(ml);
+    }
+    
+    // Recursively remove listeners from child components
+    for (Component comp : panel.getComponents()) {
+        if (comp instanceof JTextField) {
+            JTextField field = (JTextField) comp;
+            for (FocusListener fl : field.getFocusListeners()) {
+                field.removeFocusListener(fl);
+            }
+            for (KeyListener kl : field.getKeyListeners()) {
+                field.removeKeyListener(kl);
+            }
+        } else if (comp instanceof JButton) {
+            JButton btn = (JButton) comp;
+            for (ActionListener al : btn.getActionListeners()) {
+                btn.removeActionListener(al);
+            }
+        } else if (comp instanceof JPanel) {
+            removeAllListeners((JPanel) comp);
+        }
+    }
+}
+
+    // Add this after your field declarations, before methods
+private static class RoundBorder extends javax.swing.border.AbstractBorder {
+    private Color color;
+    private int thickness;
+    private int radius;
+
+    public RoundBorder(Color color, int thickness, int radius) {
+        this.color = color;
+        this.thickness = thickness;
+        this.radius = radius;
+    }
+
+    @Override
+    public void paintBorder(java.awt.Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+        java.awt.Graphics2D g2d = (java.awt.Graphics2D) g.create();
+        g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(color);
+        g2d.setStroke(new java.awt.BasicStroke(thickness));
+        int adjustment = thickness / 2;
+        g2d.drawRoundRect(x + adjustment, y + adjustment, width - thickness, height - thickness, radius, radius);
+        g2d.dispose();
+    }
+
+    @Override
+    public java.awt.Insets getBorderInsets(java.awt.Component c) {
+        return new java.awt.Insets(thickness + 1, thickness + 1, thickness + 1, thickness + 1);
+    }
+}
+    
+    private void applyDiscountValue(JTextField discountField, CartItem item) {
+    try {
+        String text = discountField.getText().trim();
+        if (text.isEmpty()) {
+            item.setDiscountPrice(0);
+            discountField.setText("0.00");
             discountField.setForeground(Color.BLACK);
             discountField.setToolTipText(null);
-            updateCartPanel();
-        }
-    }
-
-    private RoundedPanel createCartItemPanel(CartItem item) {
-        class RoundBorder extends javax.swing.border.AbstractBorder {
-            private Color color;
-            private int thickness;
-            private int radius;
-
-            public RoundBorder(Color color, int thickness, int radius) {
-                this.color = color;
-                this.thickness = thickness;
-                this.radius = radius;
-            }
-
-            @Override
-            public void paintBorder(java.awt.Component c, java.awt.Graphics g, int x, int y, int width, int height) {
-                java.awt.Graphics2D g2d = (java.awt.Graphics2D) g.create();
-                g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-                g2d.setColor(color);
-                g2d.setStroke(new java.awt.BasicStroke(thickness));
-                int adjustment = thickness / 2;
-                g2d.drawRoundRect(x + adjustment, y + adjustment, width - thickness, height - thickness, radius, radius);
-                g2d.dispose();
-            }
-
-            @Override
-            public java.awt.Insets getBorderInsets(java.awt.Component c) {
-                return new java.awt.Insets(thickness + 1, thickness + 1, thickness + 1, thickness + 1);
-            }
-        }
-
-        RoundedPanel card = new RoundedPanel(15);
-        card.setBackground(CARD_BG);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
-        card.setPreferredSize(new Dimension(400, 160));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                new RoundBorder(BORDER_COLOR, 1, 15),
-                BorderFactory.createEmptyBorder(15, 10, 15, 10)
-        ));
-        card.setLayout(new java.awt.BorderLayout(10, 10));
-
-        // Store the final reference for use in mouse listener
-        final RoundedPanel finalCard = card;
-
-        // Add hover effects to the card
-        card.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (currentFocusedCartItemIndex != cartItemPanels.indexOf(finalCard)) {
-                    finalCard.setBackground(new Color(245, 250, 250));
-                    finalCard.setBorder(BorderFactory.createCompoundBorder(
-                            new RoundBorder(TEAL_COLOR, 2, 15),
-                            BorderFactory.createEmptyBorder(15, 10, 15, 10)
-                    ));
-                    finalCard.repaint();
-                }
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                if (currentFocusedCartItemIndex != cartItemPanels.indexOf(finalCard)) {
-                    finalCard.setBackground(CARD_BG);
-                    finalCard.setBorder(BorderFactory.createCompoundBorder(
-                            new RoundBorder(BORDER_COLOR, 1, 15),
-                            BorderFactory.createEmptyBorder(15, 10, 15, 10)
-                    ));
-                    finalCard.repaint();
-                }
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int index = cartItemPanels.indexOf(finalCard);
-                if (index >= 0) {
-                    setFocusedCartItem(index);
-                }
-            }
-        });
-
-        JPanel topPanel = new JPanel(new java.awt.BorderLayout());
-        topPanel.setOpaque(false);
-
-        JLabel lblName = new JLabel(item.getProductName() + " (" + item.getBrandName() + ")");
-        lblName.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
-        lblName.setForeground(new Color(40, 40, 40));
-        topPanel.add(lblName, java.awt.BorderLayout.WEST);
-
-        JButton deleteBtn = new JButton();
-        FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
-        deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
-        deleteBtn.setIcon(deleteIcon);
-        deleteBtn.setBorder(BorderFactory.createEmptyBorder());
-        deleteBtn.setBackground(CARD_BG);
-        deleteBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        deleteBtn.addActionListener(e -> removeFromCart(item.getKey()));
-        topPanel.add(deleteBtn, java.awt.BorderLayout.EAST);
-
-        card.add(topPanel, java.awt.BorderLayout.NORTH);
-
-        JPanel middlePanel = new JPanel(new java.awt.BorderLayout(15, 0));
-        middlePanel.setOpaque(false);
-
-        JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 10));
-        qtyPanel.setOpaque(false);
-
-        JButton minusBtn = new JButton("-");
-        minusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
-        minusBtn.setPreferredSize(new Dimension(40, 35));
-        minusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        JTextField qtyField = new JTextField(String.valueOf(item.getQuantity()));
-        qtyField.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
-        qtyField.setHorizontalAlignment(JTextField.CENTER);
-        qtyField.setPreferredSize(new Dimension(60, 35));
-        qtyField.setToolTipText("Enter quantity (1-" + item.getAvailableQty() + ")");
-
-        // TAG THE QUANTITY FIELD FOR EASY ACCESS LATER
-        qtyField.putClientProperty("fieldType", "quantity");
-        qtyField.putClientProperty("cartItem", item);
-        qtyField.setName("quantityField_" + item.getKey());
-
-        ((AbstractDocument) qtyField.getDocument()).setDocumentFilter(new DocumentFilter() {
-            @Override
-            public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
-                    throws BadLocationException {
-                if (string == null) {
-                    return;
-                }
-                if (string.matches("[0-9]*")) {
-                    String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
-                    String newText = currentText.substring(0, offset) + string + currentText.substring(offset);
-                    if (newText.length() > 1 && newText.startsWith("0")) {
-                        return;
-                    }
-                    if (newText.length() <= 6) {
-                        super.insertString(fb, offset, string, attr);
-                    }
-                }
-            }
-
-            @Override
-            public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
-                    throws BadLocationException {
-                if (text == null) {
-                    super.replace(fb, offset, length, text, attrs);
-                    return;
-                }
-                if (text.matches("[0-9]*")) {
-                    String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
-                    String newText = currentText.substring(0, offset) + text + currentText.substring(offset + length);
-                    if (newText.length() > 1 && newText.startsWith("0")) {
-                        return;
-                    }
-                    if (newText.length() <= 6) {
-                        super.replace(fb, offset, length, text, attrs);
-                    }
-                }
-            }
-        });
-
-        qtyField.getDocument().addDocumentListener(new DocumentListener() {
-            private void validateAndUpdate() {
-                SwingUtilities.invokeLater(() -> {
-                    try {
-                        String text = qtyField.getText().trim();
-                        if (text.isEmpty()) {
-                            qtyField.setForeground(ERROR_COLOR);
-                            qtyField.setToolTipText("Quantity cannot be empty");
-                            return;
-                        }
-
-                        int newQty = Integer.parseInt(text);
-                        if (newQty <= 0) {
-                            qtyField.setForeground(ERROR_COLOR);
-                            qtyField.setToolTipText("Quantity must be at least 1");
-                            return;
-                        }
-                        if (newQty > item.getAvailableQty()) {
-                            qtyField.setForeground(ERROR_COLOR);
-                            qtyField.setToolTipText("Exceeds available stock: " + item.getAvailableQty());
-                            return;
-                        }
-
-                        qtyField.setForeground(SUCCESS_COLOR);
-                        qtyField.setToolTipText("Valid quantity (" + newQty + " available)");
-
-                        if (item.getQuantity() != newQty) {
-                            int difference = newQty - item.getQuantity();
-                            if (difference > 0) {
-                                StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), difference);
-                            } else if (difference < 0) {
-                                StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), Math.abs(difference));
-                            }
-                            item.setQuantity(newQty);
-                            updateCartPanel();
-                        }
-                    } catch (NumberFormatException e) {
-                        qtyField.setForeground(ERROR_COLOR);
-                        qtyField.setToolTipText("Invalid number format");
-                    }
-                });
-            }
-
-            public void changedUpdate(DocumentEvent e) {
-                validateAndUpdate();
-            }
-
-            public void removeUpdate(DocumentEvent e) {
-                validateAndUpdate();
-            }
-
-            public void insertUpdate(DocumentEvent e) {
-                validateAndUpdate();
-            }
-        });
-
-        qtyField.addFocusListener(new java.awt.event.FocusAdapter() {
-            @Override
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                SwingUtilities.invokeLater(() -> qtyField.selectAll());
-                qtyField.setToolTipText("Enter quantity (1-" + item.getAvailableQty() + ")");
-            }
-
-            @Override
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                String text = qtyField.getText().trim();
-                boolean isValid = false;
-                String errorMessage = null;
-
-                try {
-                    if (text.isEmpty()) {
-                        errorMessage = "Quantity cannot be empty. Reset to 1.";
-                        int difference = 1 - item.getQuantity();
-                        if (difference > 0) {
-                            StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), difference);
-                        } else if (difference < 0) {
-                            StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), Math.abs(difference));
-                        }
-                        item.setQuantity(1);
-                        qtyField.setText("1");
-                    } else {
-                        int newQty = Integer.parseInt(text);
-                        if (newQty <= 0) {
-                            errorMessage = "Quantity must be at least 1. Reset to 1.";
-                            int difference = 1 - item.getQuantity();
-                            if (difference > 0) {
-                                StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), difference);
-                            } else if (difference < 0) {
-                                StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), Math.abs(difference));
-                            }
-                            item.setQuantity(1);
-                            qtyField.setText("1");
-                        } else if (newQty > item.getAvailableQty()) {
-                            errorMessage = String.format("Quantity exceeds available stock (%d). Set to maximum available.", item.getAvailableQty());
-                            int difference = item.getAvailableQty() - item.getQuantity();
-                            if (difference > 0) {
-                                StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), difference);
-                            } else if (difference < 0) {
-                                StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), Math.abs(difference));
-                            }
-                            item.setQuantity(item.getAvailableQty());
-                            qtyField.setText(String.valueOf(item.getAvailableQty()));
-                        } else {
-                            isValid = true;
-                            int difference = newQty - item.getQuantity();
-                            if (difference != 0) {
-                                if (difference > 0) {
-                                    StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), difference);
-                                } else {
-                                    StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), Math.abs(difference));
-                                }
-                            }
-                            item.setQuantity(newQty);
-                            qtyField.setText(String.valueOf(newQty));
-                        }
-                    }
-                } catch (NumberFormatException e) {
-                    errorMessage = "Invalid number format. Reset to previous value.";
-                    qtyField.setText(String.valueOf(item.getQuantity()));
-                }
-
-                qtyField.setForeground(Color.BLACK);
-                qtyField.setToolTipText(null);
-
-                if (!isValid && errorMessage != null) {
-                    JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(qtyField), errorMessage, "Invalid Quantity", JOptionPane.WARNING_MESSAGE);
-                }
-                updateCartPanel();
-            }
-        });
-
-        qtyField.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
-                    qtyField.transferFocus();
-                } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
-                    qtyField.setText(String.valueOf(item.getQuantity()));
-                    qtyField.setForeground(Color.BLACK);
-                    qtyField.transferFocus();
-                }
-            }
-        });
-
-        minusBtn.addActionListener(e -> {
-            if (item.getQuantity() > 1) {
-                item.setQuantity(item.getQuantity() - 1);
-                qtyField.setText(String.valueOf(item.getQuantity()));
-                qtyField.setForeground(Color.BLACK);
-                qtyField.setToolTipText(null);
-                StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), 1);
-                updateCartPanel();
-            } else {
-                qtyField.setForeground(ERROR_COLOR);
-                javax.swing.Timer timer = new javax.swing.Timer(500, evt -> qtyField.setForeground(Color.BLACK));
-                timer.setRepeats(false);
-                timer.start();
-            }
-        });
-
-        qtyPanel.add(minusBtn);
-        qtyPanel.add(qtyField);
-
-        JButton plusBtn = new JButton("+");
-        plusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
-        plusBtn.setPreferredSize(new Dimension(40, 35));
-        plusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        plusBtn.addActionListener(e -> {
-            if (item.getQuantity() < item.getAvailableQty()) {
-                item.setQuantity(item.getQuantity() + 1);
-                qtyField.setText(String.valueOf(item.getQuantity()));
-                qtyField.setForeground(Color.BLACK);
-                qtyField.setToolTipText(null);
-                StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), 1);
-                updateCartPanel();
-            } else {
-                qtyField.setForeground(ERROR_COLOR);
-                JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(plusBtn),
-                        "Cannot add more. Available stock: " + item.getAvailableQty(), "Stock Limit", JOptionPane.WARNING_MESSAGE);
-                qtyField.setForeground(Color.BLACK);
-            }
-        });
-
-        qtyPanel.add(plusBtn);
-        middlePanel.add(qtyPanel, java.awt.BorderLayout.WEST);
-
-        JPanel discountContainer = new JPanel();
-        discountContainer.setLayout(new javax.swing.BoxLayout(discountContainer, javax.swing.BoxLayout.Y_AXIS));
-        discountContainer.setOpaque(false);
-
-        JLabel discountLabel = new JLabel("Discount (per unit)");
-        discountLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
-        discountLabel.setForeground(TEXT_GRAY);
-        discountLabel.setAlignmentX(java.awt.Component.RIGHT_ALIGNMENT);
-        discountContainer.add(discountLabel);
-
-        discountContainer.add(javax.swing.Box.createRigidArea(new Dimension(0, 3)));
-
-        double perUnitDiscount = item.getDiscountPrice();
-        JTextField discountField = new JTextField(String.format("%.2f", perUnitDiscount));
-        discountField.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
-        discountField.setHorizontalAlignment(JTextField.RIGHT);
-        discountField.setPreferredSize(new Dimension(110, 35));
-        discountField.setMaximumSize(new Dimension(110, 35));
-        discountField.setAlignmentX(java.awt.Component.RIGHT_ALIGNMENT);
-
-        // TAG THE DISCOUNT FIELD FOR EASY ACCESS LATER
-        discountField.putClientProperty("fieldType", "discount");
-        discountField.putClientProperty("cartItem", item);
-        discountField.setName("discountField_" + item.getKey());
-
-        ((AbstractDocument) discountField.getDocument()).setDocumentFilter(new NumericDocumentFilter());
-
-        // DocumentListener for real-time validation
-        discountField.getDocument().addDocumentListener(new DocumentListener() {
-            private void validateDiscount() {
-                try {
-                    String text = discountField.getText().trim();
-                    if (text.isEmpty()) {
-                        discountField.setForeground(Color.BLACK);
-                        discountField.setToolTipText(null);
-                        return;
-                    }
-
-                    double discountInput = Double.parseDouble(text);
-                    double unitPrice = item.getUnitPrice();
-                    double lastPrice = item.getLastPrice();
-                    double finalPricePerUnit = unitPrice - discountInput;
-
-                    if (discountInput < 0) {
-                        discountField.setForeground(ERROR_COLOR);
-                        discountField.setToolTipText("Discount cannot be negative");
-                    } else if (discountInput > unitPrice) {
-                        discountField.setForeground(ERROR_COLOR);
-                        discountField.setToolTipText("Max discount per unit: Rs." + String.format("%.2f", unitPrice));
-                    } else if (finalPricePerUnit < lastPrice) {
-                        discountField.setForeground(ERROR_COLOR);
-                        double maxAllowedDiscount = unitPrice - lastPrice;
-                        discountField.setToolTipText(String.format("Cannot go below last price! Purchase price (Rs.%.2f) < Last price (Rs.%.2f). Max discount: Rs.%.2f",
-                                finalPricePerUnit, lastPrice, maxAllowedDiscount));
-                    } else {
-                        discountField.setForeground(SUCCESS_COLOR);
-                        double totalDiscount = discountInput * item.getQuantity();
-                        discountField.setToolTipText(String.format("Total discount: Rs.%.2f (%.2f × %d)", totalDiscount, discountInput, item.getQuantity()));
-                    }
-                } catch (NumberFormatException e) {
-                    discountField.setForeground(ERROR_COLOR);
-                    discountField.setToolTipText("Invalid number");
-                }
-            }
-
-            public void changedUpdate(DocumentEvent e) {
-                validateDiscount();
-            }
-
-            public void removeUpdate(DocumentEvent e) {
-                validateDiscount();
-            }
-
-            public void insertUpdate(DocumentEvent e) {
-                validateDiscount();
-            }
-        });
-
-        // KeyListener for Enter key handling
-        discountField.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
-                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
-                    applyDiscountValue(discountField, item);
-                    evt.consume(); // Prevent any default behavior
-                } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
-                    discountField.setText(String.format("%.2f", item.getDiscountPrice()));
-                    discountField.setForeground(Color.BLACK);
-                    discountField.setToolTipText(null);
-                    evt.consume();
-                }
-            }
-        });
-
-        // FocusListener
-        discountField.addFocusListener(new java.awt.event.FocusAdapter() {
-            @Override
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                SwingUtilities.invokeLater(() -> {
-                    String currentText = discountField.getText().trim();
-                    if (currentText.equals("0.00") || currentText.equals("0")) {
-                        discountField.setText("");
-                    } else {
-                        discountField.selectAll();
-                    }
-                });
-            }
-
-            @Override
-            public void focusLost(java.awt.event.FocusEvent evt) {
-                applyDiscountValue(discountField, item);
-            }
-        });
-
-        discountContainer.add(discountField);
-        middlePanel.add(discountContainer, java.awt.BorderLayout.EAST);
-        card.add(middlePanel, java.awt.BorderLayout.CENTER);
-
-        JPanel bottomPanel = new JPanel(new java.awt.BorderLayout(10, 0));
-        bottomPanel.setOpaque(false);
-
-        JPanel calcPanel = new JPanel();
-        calcPanel.setLayout(new javax.swing.BoxLayout(calcPanel, javax.swing.BoxLayout.Y_AXIS));
-        calcPanel.setOpaque(false);
-
-        JLabel basePriceLabel = new JLabel(String.format("Rs.%.2f × %d = Rs.%.2f", 
-            item.getUnitPrice(), item.getQuantity(), item.getUnitPrice() * item.getQuantity()));
-        basePriceLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
-        basePriceLabel.setForeground(TEXT_GRAY);
-        basePriceLabel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-        calcPanel.add(basePriceLabel);
-
-        if (item.getDiscountPrice() > 0) {
-            double discountPerUnit = item.getDiscountPrice();
-            double totalDiscount = discountPerUnit * item.getQuantity();
-            JLabel discountInfo = new JLabel(String.format("Discount: Rs.%.2f × %d = -Rs.%.2f", 
-                discountPerUnit, item.getQuantity(), totalDiscount));
-            discountInfo.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
-            discountInfo.setForeground(ERROR_COLOR);
-            discountInfo.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-            calcPanel.add(discountInfo);
-        }
-
-        bottomPanel.add(calcPanel, java.awt.BorderLayout.CENTER);
-
-        JLabel lblPrice = new JLabel(String.format("Rs.%.2f", item.getTotalPrice()));
-        lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
-        lblPrice.setForeground(TEAL_COLOR);
-        lblPrice.setHorizontalAlignment(JLabel.RIGHT);
-        bottomPanel.add(lblPrice, java.awt.BorderLayout.EAST);
-
-        card.add(bottomPanel, java.awt.BorderLayout.SOUTH);
-
-        return card;
-    }
-
-    private void removeFromCart(String cartKey) {
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Remove this item from cart?",
-                "Confirm Removal",
-                JOptionPane.YES_NO_OPTION);
-
-        if (confirm == JOptionPane.YES_OPTION) {
-            CartItem removedItem = cartItems.get(cartKey);
-            if (removedItem != null) {
-                StockTracker.getInstance().removeFromCart(
-                        removedItem.getProductId(),
-                        removedItem.getBatchNo(),
-                        removedItem.getQuantity()
-                );
-            }
-            cartItems.remove(cartKey);
-            updateCartPanel();
-        }
-    }
-
-    void clearCart() {
-        if (cartItems.isEmpty()) {
+            updateCartPanelWithFocus();
             return;
         }
 
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to clear the cart?",
-                "Clear Cart",
-                JOptionPane.YES_NO_OPTION,
+        double discountInput = Double.parseDouble(text);
+        double unitPrice = item.getUnitPrice();
+        double lastPrice = item.getLastPrice();
+        double finalPricePerUnit = unitPrice - discountInput;
+
+        if (discountInput < 0) {
+            discountField.setText("0.00");
+            item.setDiscountPrice(0);
+            discountField.setForeground(Color.BLACK);
+            discountField.setToolTipText(null);
+            updateCartPanelWithFocus();
+            
+            JOptionPane.showMessageDialog(this, 
+                "Discount cannot be negative", 
+                "Invalid Discount", 
                 JOptionPane.WARNING_MESSAGE);
+        } else if (discountInput > unitPrice) {
+            discountField.setText(String.format("%.2f", unitPrice));
+            item.setDiscountPrice(unitPrice);
+            discountField.setForeground(Color.BLACK);
+            discountField.setToolTipText(null);
+            updateCartPanelWithFocus();
+            
+            JOptionPane.showMessageDialog(this, 
+                "Discount per unit cannot exceed Rs." + String.format("%.2f", unitPrice), 
+                "Invalid Discount", 
+                JOptionPane.WARNING_MESSAGE);
+        } else if (finalPricePerUnit < lastPrice) {
+            double maxAllowedDiscount = unitPrice - lastPrice;
+            discountField.setText(String.format("%.2f", maxAllowedDiscount));
+            item.setDiscountPrice(maxAllowedDiscount);
+            discountField.setForeground(Color.BLACK);
+            discountField.setToolTipText(null);
+            updateCartPanelWithFocus();
+            
+            String message = String.format(
+                "Final price (Rs.%.2f) cannot be below last price (Rs.%.2f).\nMaximum allowed discount: Rs.%.2f",
+                finalPricePerUnit, lastPrice, maxAllowedDiscount
+            );
+            JOptionPane.showMessageDialog(this, message, "Invalid Discount", JOptionPane.WARNING_MESSAGE);
+        } else {
+            item.setDiscountPrice(discountInput);
+            discountField.setText(String.format("%.2f", discountInput));
+            discountField.setForeground(Color.BLACK);
+            discountField.setToolTipText(null);
+            updateCartPanelWithFocus();
+        }
+    } catch (NumberFormatException e) {
+        discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+        discountField.setForeground(Color.BLACK);
+        discountField.setToolTipText(null);
+        updateCartPanelWithFocus();
+    }
+}
 
-        if (confirm == JOptionPane.YES_OPTION) {
-            for (CartItem item : cartItems.values()) {
-                StockTracker.getInstance().removeFromCart(
-                        item.getProductId(),
-                        item.getBatchNo(),
-                        item.getQuantity()
-                );
+// Helper method to update cart while preserving focus
+private void updateCartPanelWithFocus() {
+    int currentFocus = currentFocusedCartItemIndex;
+    updateCartPanel();
+    if (currentFocus >= 0 && currentFocus < cartItemPanels.size()) {
+        SwingUtilities.invokeLater(() -> setFocusedCartItem(currentFocus));
+    }
+}
+
+    private RoundedPanel createCartItemPanel(CartItem item) {
+    // RoundBorder class is NOW a static inner class at top of file
+    
+    RoundedPanel card = new RoundedPanel(15);
+    card.setBackground(CARD_BG);
+    card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+    card.setPreferredSize(new Dimension(400, 160));
+    card.setBorder(BorderFactory.createCompoundBorder(
+            new RoundBorder(BORDER_COLOR, 1, 15),
+            BorderFactory.createEmptyBorder(15, 10, 15, 10)
+    ));
+    card.setLayout(new java.awt.BorderLayout(10, 10));
+
+    // Store the final reference for use in mouse listener
+    final RoundedPanel finalCard = card;
+
+    // Add hover effects to the card
+    card.addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            if (currentFocusedCartItemIndex != cartItemPanels.indexOf(finalCard)) {
+                finalCard.setBackground(new Color(245, 250, 250));
+                finalCard.setBorder(BorderFactory.createCompoundBorder(
+                        new RoundBorder(TEAL_COLOR, 2, 15),
+                        BorderFactory.createEmptyBorder(15, 10, 15, 10)
+                ));
+                finalCard.repaint();
             }
+        }
 
-            cartItems.clear();
-            jTextField2.setText("");
-            appliedDiscountAmount = 0.0;
-            appliedDiscountTypeId = -1;
-            exchangeRefundAmount = 0.0;
-            updateCartPanel();
+        @Override
+        public void mouseExited(MouseEvent e) {
+            if (currentFocusedCartItemIndex != cartItemPanels.indexOf(finalCard)) {
+                finalCard.setBackground(CARD_BG);
+                finalCard.setBorder(BorderFactory.createCompoundBorder(
+                        new RoundBorder(BORDER_COLOR, 1, 15),
+                        BorderFactory.createEmptyBorder(15, 10, 15, 10)
+                ));
+                finalCard.repaint();
+            }
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            int index = cartItemPanels.indexOf(finalCard);
+            if (index >= 0) {
+                setFocusedCartItem(index);
+            }
+        }
+    });
+
+    JPanel topPanel = new JPanel(new java.awt.BorderLayout());
+    topPanel.setOpaque(false);
+
+    JLabel lblName = new JLabel(item.getProductName() + " (" + item.getBrandName() + ")");
+    lblName.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+    lblName.setForeground(new Color(40, 40, 40));
+    topPanel.add(lblName, java.awt.BorderLayout.WEST);
+
+    JButton deleteBtn = new JButton();
+    FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/redDelete.svg", 18, 18);
+    deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
+    deleteBtn.setIcon(deleteIcon);
+    deleteBtn.setBorder(BorderFactory.createEmptyBorder());
+    deleteBtn.setBackground(CARD_BG);
+    deleteBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    deleteBtn.addActionListener(e -> removeFromCart(item.getKey()));
+    topPanel.add(deleteBtn, java.awt.BorderLayout.EAST);
+
+    card.add(topPanel, java.awt.BorderLayout.NORTH);
+
+    JPanel middlePanel = new JPanel(new java.awt.BorderLayout(15, 0));
+    middlePanel.setOpaque(false);
+
+    JPanel qtyPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 10));
+    qtyPanel.setOpaque(false);
+
+    JButton minusBtn = new JButton("-");
+    minusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
+    minusBtn.setPreferredSize(new Dimension(40, 35));
+    minusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+    JTextField qtyField = new JTextField(String.valueOf(item.getQuantity()));
+    qtyField.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+    qtyField.setHorizontalAlignment(JTextField.CENTER);
+    qtyField.setPreferredSize(new Dimension(60, 35));
+    qtyField.setToolTipText("Enter quantity (1-" + item.getAvailableQty() + ")");
+
+    // TAG THE QUANTITY FIELD FOR EASY ACCESS LATER
+    qtyField.putClientProperty("fieldType", "quantity");
+    qtyField.putClientProperty("cartItem", item);
+    qtyField.setName("quantityField_" + item.getKey());
+
+    ((AbstractDocument) qtyField.getDocument()).setDocumentFilter(new DocumentFilter() {
+        @Override
+        public void insertString(FilterBypass fb, int offset, String string, AttributeSet attr)
+                throws BadLocationException {
+            if (string == null) {
+                return;
+            }
+            if (string.matches("[0-9]*")) {
+                String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                String newText = currentText.substring(0, offset) + string + currentText.substring(offset);
+                if (newText.length() > 1 && newText.startsWith("0")) {
+                    return;
+                }
+                if (newText.length() <= 6) {
+                    super.insertString(fb, offset, string, attr);
+                }
+            }
+        }
+
+        @Override
+        public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs)
+                throws BadLocationException {
+            if (text == null) {
+                super.replace(fb, offset, length, text, attrs);
+                return;
+            }
+            if (text.matches("[0-9]*")) {
+                String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
+                String newText = currentText.substring(0, offset) + text + currentText.substring(offset + length);
+                if (newText.length() > 1 && newText.startsWith("0")) {
+                    return;
+                }
+                if (newText.length() <= 6) {
+                    super.replace(fb, offset, length, text, attrs);
+                }
+            }
+        }
+    });
+
+    // SIMPLIFIED document listener - only visual validation
+    qtyField.getDocument().addDocumentListener(new DocumentListener() {
+        private void validateVisually() {
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    String text = qtyField.getText().trim();
+                    if (text.isEmpty()) {
+                        qtyField.setForeground(ERROR_COLOR);
+                        qtyField.setToolTipText("Quantity cannot be empty");
+                        return;
+                    }
+
+                    int newQty = Integer.parseInt(text);
+                    if (newQty <= 0) {
+                        qtyField.setForeground(ERROR_COLOR);
+                        qtyField.setToolTipText("Quantity must be at least 1");
+                        return;
+                    }
+                    if (newQty > item.getAvailableQty()) {
+                        qtyField.setForeground(ERROR_COLOR);
+                        qtyField.setToolTipText("Exceeds available stock: " + item.getAvailableQty());
+                        return;
+                    }
+
+                    qtyField.setForeground(SUCCESS_COLOR);
+                    qtyField.setToolTipText("Valid quantity - Press Enter to apply");
+                } catch (NumberFormatException e) {
+                    qtyField.setForeground(ERROR_COLOR);
+                    qtyField.setToolTipText("Invalid number format");
+                }
+            });
+        }
+
+        public void changedUpdate(DocumentEvent e) { validateVisually(); }
+        public void removeUpdate(DocumentEvent e) { validateVisually(); }
+        public void insertUpdate(DocumentEvent e) { validateVisually(); }
+    });
+
+    // SIMPLIFIED focus listener
+    qtyField.addFocusListener(new java.awt.event.FocusAdapter() {
+        @Override
+        public void focusGained(java.awt.event.FocusEvent evt) {
+            SwingUtilities.invokeLater(() -> qtyField.selectAll());
+            qtyField.setToolTipText("Enter quantity (1-" + item.getAvailableQty() + ") and press Enter");
+        }
+
+        @Override
+        public void focusLost(java.awt.event.FocusEvent evt) {
+            applyQuantityChange(qtyField, item, false);
+        }
+    });
+
+    qtyField.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                applyQuantityChange(qtyField, item, true);
+                requestFocusInWindow();
+                evt.consume();
+            } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                qtyField.setText(String.valueOf(item.getQuantity()));
+                qtyField.setForeground(Color.BLACK);
+                qtyField.setToolTipText(null);
+                requestFocusInWindow();
+                evt.consume();
+            }
+        }
+    });
+
+    minusBtn.addActionListener(e -> {
+    if (item.getQuantity() > 1) {
+        // Use updateCartItemQuantity which handles StockTracker
+        updateCartItemQuantity(item, item.getQuantity() - 1);
+        qtyField.setText(String.valueOf(item.getQuantity()));
+        qtyField.setForeground(Color.BLACK);
+        qtyField.setToolTipText(null);
+        
+    } else {
+        qtyField.setForeground(ERROR_COLOR);
+        javax.swing.Timer timer = new javax.swing.Timer(500, evt -> qtyField.setForeground(Color.BLACK));
+        timer.setRepeats(false);
+        timer.start();
+    }
+});
+
+    qtyPanel.add(minusBtn);
+    qtyPanel.add(qtyField);
+
+    JButton plusBtn = new JButton("+");
+    plusBtn.setFont(new Font("Nunito ExtraBold", Font.PLAIN, 16));
+    plusBtn.setPreferredSize(new Dimension(40, 35));
+    plusBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+    plusBtn.addActionListener(e -> {
+    if (item.getQuantity() < item.getAvailableQty()) {
+        // Use updateCartItemQuantity which handles StockTracker
+        updateCartItemQuantity(item, item.getQuantity() + 1);
+        qtyField.setText(String.valueOf(item.getQuantity()));
+        qtyField.setForeground(Color.BLACK);
+        qtyField.setToolTipText(null);
+        
+    } else {
+        qtyField.setForeground(ERROR_COLOR);
+        JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(plusBtn),
+                "Cannot add more. Available stock: " + item.getAvailableQty(), 
+                "Stock Limit", JOptionPane.WARNING_MESSAGE);
+        qtyField.setForeground(Color.BLACK);
+    }
+});
+
+    qtyPanel.add(plusBtn);
+    middlePanel.add(qtyPanel, java.awt.BorderLayout.WEST);
+
+    JPanel discountContainer = new JPanel();
+    discountContainer.setLayout(new javax.swing.BoxLayout(discountContainer, javax.swing.BoxLayout.Y_AXIS));
+    discountContainer.setOpaque(false);
+
+    JLabel discountLabel = new JLabel("Discount (per unit)");
+    discountLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
+    discountLabel.setForeground(TEXT_GRAY);
+    discountLabel.setAlignmentX(java.awt.Component.RIGHT_ALIGNMENT);
+    discountContainer.add(discountLabel);
+
+    discountContainer.add(javax.swing.Box.createRigidArea(new Dimension(0, 3)));
+
+    double perUnitDiscount = item.getDiscountPrice();
+    JTextField discountField = new JTextField(String.format("%.2f", perUnitDiscount));
+    discountField.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+    discountField.setHorizontalAlignment(JTextField.RIGHT);
+    discountField.setPreferredSize(new Dimension(110, 35));
+    discountField.setMaximumSize(new Dimension(110, 35));
+    discountField.setAlignmentX(java.awt.Component.RIGHT_ALIGNMENT);
+
+    // TAG THE DISCOUNT FIELD FOR EASY ACCESS LATER
+    discountField.putClientProperty("fieldType", "discount");
+    discountField.putClientProperty("cartItem", item);
+    discountField.setName("discountField_" + item.getKey());
+
+    ((AbstractDocument) discountField.getDocument()).setDocumentFilter(new NumericDocumentFilter());
+
+    // DocumentListener for real-time validation
+    discountField.getDocument().addDocumentListener(new DocumentListener() {
+        private void validateDiscount() {
+            try {
+                String text = discountField.getText().trim();
+                if (text.isEmpty()) {
+                    discountField.setForeground(Color.BLACK);
+                    discountField.setToolTipText(null);
+                    return;
+                }
+
+                double discountInput = Double.parseDouble(text);
+                double unitPrice = item.getUnitPrice();
+                double lastPrice = item.getLastPrice();
+                double finalPricePerUnit = unitPrice - discountInput;
+
+                if (discountInput < 0) {
+                    discountField.setForeground(ERROR_COLOR);
+                    discountField.setToolTipText("Discount cannot be negative");
+                } else if (discountInput > unitPrice) {
+                    discountField.setForeground(ERROR_COLOR);
+                    discountField.setToolTipText("Max discount per unit: Rs." + String.format("%.2f", unitPrice));
+                } else if (finalPricePerUnit < lastPrice) {
+                    discountField.setForeground(ERROR_COLOR);
+                    double maxAllowedDiscount = unitPrice - lastPrice;
+                    discountField.setToolTipText(String.format("Cannot go below last price! Purchase price (Rs.%.2f) < Last price (Rs.%.2f). Max discount: Rs.%.2f",
+                            finalPricePerUnit, lastPrice, maxAllowedDiscount));
+                } else {
+                    discountField.setForeground(SUCCESS_COLOR);
+                    double totalDiscount = discountInput * item.getQuantity();
+                    discountField.setToolTipText(String.format("Total discount: Rs.%.2f (%.2f × %d)", totalDiscount, discountInput, item.getQuantity()));
+                }
+            } catch (NumberFormatException e) {
+                discountField.setForeground(ERROR_COLOR);
+                discountField.setToolTipText("Invalid number");
+            }
+        }
+
+        public void changedUpdate(DocumentEvent e) { validateDiscount(); }
+        public void removeUpdate(DocumentEvent e) { validateDiscount(); }
+        public void insertUpdate(DocumentEvent e) { validateDiscount(); }
+    });
+
+    discountField.addKeyListener(new java.awt.event.KeyAdapter() {
+        @Override
+        public void keyPressed(java.awt.event.KeyEvent evt) {
+            if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                applyDiscountValue(discountField, item);
+                evt.consume();
+            } else if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE) {
+                discountField.setText(String.format("%.2f", item.getDiscountPrice()));
+                discountField.setForeground(Color.BLACK);
+                discountField.setToolTipText(null);
+                evt.consume();
+            }
+        }
+    });
+
+    discountField.addFocusListener(new java.awt.event.FocusAdapter() {
+        @Override
+        public void focusGained(java.awt.event.FocusEvent evt) {
+            SwingUtilities.invokeLater(() -> {
+                String currentText = discountField.getText().trim();
+                if (currentText.equals("0.00") || currentText.equals("0")) {
+                    discountField.setText("");
+                } else {
+                    discountField.selectAll();
+                }
+            });
+        }
+
+        @Override
+        public void focusLost(java.awt.event.FocusEvent evt) {
+            applyDiscountValue(discountField, item);
+        }
+    });
+
+    discountContainer.add(discountField);
+    middlePanel.add(discountContainer, java.awt.BorderLayout.EAST);
+    card.add(middlePanel, java.awt.BorderLayout.CENTER);
+
+    JPanel bottomPanel = new JPanel(new java.awt.BorderLayout(10, 0));
+    bottomPanel.setOpaque(false);
+
+    JPanel calcPanel = new JPanel();
+    calcPanel.setLayout(new javax.swing.BoxLayout(calcPanel, javax.swing.BoxLayout.Y_AXIS));
+    calcPanel.setOpaque(false);
+
+    JLabel basePriceLabel = new JLabel(String.format("Rs.%.2f × %d = Rs.%.2f", 
+        item.getUnitPrice(), item.getQuantity(), item.getUnitPrice() * item.getQuantity()));
+    basePriceLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+    basePriceLabel.setForeground(TEXT_GRAY);
+    basePriceLabel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+    calcPanel.add(basePriceLabel);
+
+    if (item.getDiscountPrice() > 0) {
+        double discountPerUnit = item.getDiscountPrice();
+        double totalDiscount = discountPerUnit * item.getQuantity();
+        JLabel discountInfo = new JLabel(String.format("Discount: Rs.%.2f × %d = -Rs.%.2f", 
+            discountPerUnit, item.getQuantity(), totalDiscount));
+        discountInfo.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+        discountInfo.setForeground(ERROR_COLOR);
+        discountInfo.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+        calcPanel.add(discountInfo);
+    }
+
+    bottomPanel.add(calcPanel, java.awt.BorderLayout.CENTER);
+
+    JLabel lblPrice = new JLabel(String.format("Rs.%.2f", item.getTotalPrice()));
+    lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+    lblPrice.setForeground(TEAL_COLOR);
+    lblPrice.setHorizontalAlignment(JLabel.RIGHT);
+    bottomPanel.add(lblPrice, java.awt.BorderLayout.EAST);
+
+    card.add(bottomPanel, java.awt.BorderLayout.SOUTH);
+
+    return card;
+}
+
+    private void applyQuantityChange(JTextField qtyField, CartItem item, boolean showMessages) {
+    String text = qtyField.getText().trim();
+    
+    try {
+        if (text.isEmpty()) {
+            if (showMessages) {
+                JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(qtyField),
+                    "Quantity cannot be empty. Reset to previous value.",
+                    "Invalid Quantity", JOptionPane.WARNING_MESSAGE);
+            }
+            qtyField.setText(String.valueOf(item.getQuantity()));
+            qtyField.setForeground(Color.BLACK);
+            return;
+        }
+
+        int newQty = Integer.parseInt(text);
+        
+        if (newQty <= 0) {
+            if (showMessages) {
+                JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(qtyField),
+                    "Quantity must be at least 1. Reset to previous value.",
+                    "Invalid Quantity", JOptionPane.WARNING_MESSAGE);
+            }
+            qtyField.setText(String.valueOf(item.getQuantity()));
+            qtyField.setForeground(Color.BLACK);
+            return;
+        }
+        
+        if (newQty > item.getAvailableQty()) {
+            if (showMessages) {
+                JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(qtyField),
+                    String.format("Quantity exceeds available stock (%d). Using maximum available.", 
+                        item.getAvailableQty()),
+                    "Stock Limit", JOptionPane.WARNING_MESSAGE);
+            }
+            newQty = item.getAvailableQty();
+        }
+
+        // Use the new updateCartItemQuantity method which handles StockTracker
+        if (newQty != item.getQuantity()) {
+            updateCartItemQuantity(item, newQty);
+        }
+        
+        qtyField.setText(String.valueOf(newQty));
+        qtyField.setForeground(Color.BLACK);
+        qtyField.setToolTipText(null);
+        
+    } catch (NumberFormatException e) {
+        if (showMessages) {
+            JOptionPane.showMessageDialog(SwingUtilities.getWindowAncestor(qtyField),
+                "Invalid number format. Reset to previous value.",
+                "Invalid Quantity", JOptionPane.WARNING_MESSAGE);
+        }
+        qtyField.setText(String.valueOf(item.getQuantity()));
+        qtyField.setForeground(Color.BLACK);
+    }
+}
+
+private CartItem getCurrentFocusedItem() {
+    if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
+        List<CartItem> itemsList = new ArrayList<>(cartItems.values());
+        int actualIndex = cartItems.size() - 1 - currentFocusedCartItemIndex;
+        if (actualIndex >= 0 && actualIndex < itemsList.size()) {
+            return itemsList.get(actualIndex);
         }
     }
+    return null;
+}
+
+    private void removeFromCart(String cartKey) {
+    int confirm = JOptionPane.showConfirmDialog(this,
+            "Remove this item from cart?",
+            "Confirm Removal",
+            JOptionPane.YES_NO_OPTION);
+
+    if (confirm == JOptionPane.YES_OPTION) {
+        CartItem removedItem = cartItems.get(cartKey);
+        if (removedItem != null) {
+            // CRITICAL: Notify StockTracker BEFORE removing
+            StockTracker.getInstance().removeFromCart(
+                    removedItem.getProductId(),
+                    removedItem.getBatchNo(),
+                    removedItem.getQuantity()
+            );
+        }
+        cartItems.remove(cartKey);
+        updateCartPanel();
+    }
+}
+
+    void clearCart() {
+    if (cartItems.isEmpty()) {
+        return; // Cart already empty, do nothing
+    }
+
+    // IMPORTANT: Show confirmation dialog
+    int confirm = JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to clear the cart?",
+            "Clear Cart",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+
+    if (confirm == JOptionPane.YES_OPTION) {
+        // Clear all items
+        for (CartItem item : cartItems.values()) {
+            StockTracker.getInstance().removeFromCart(
+                    item.getProductId(),
+                    item.getBatchNo(),
+                    item.getQuantity()
+            );
+        }
+
+        cartItems.clear();
+        jTextField2.setText("");
+        appliedDiscountAmount = 0.0;
+        appliedDiscountTypeId = -1;
+        exchangeRefundAmount = 0.0;
+        updateCartPanel();
+    }
+    // If user clicks "No", nothing happens
+}
 
     private void updateBalance() {
         try {
@@ -1510,14 +1675,13 @@ public class PosCartPanel extends javax.swing.JPanel {
         StockTracker.getInstance().clearCart();
     }
 
-    // Add these methods to your PosCartPanel class
     public void openCreditPayment() {
         creditPayActionPerformed(null);
     }
 
     public void selectCashPayment() {
         if (paymentcombo.getItemCount() > 1) {
-            paymentcombo.setSelectedIndex(1); // Cash Payment
+            paymentcombo.setSelectedIndex(1);
             SwingUtilities.invokeLater(() -> {
                 if (jTextField2.isVisible()) {
                     jTextField2.requestFocusInWindow();
@@ -1529,416 +1693,471 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     public void selectCardPayment() {
         if (paymentcombo.getItemCount() > 2) {
-            paymentcombo.setSelectedIndex(2); // Card Payment
+            paymentcombo.setSelectedIndex(2);
         }
     }
 
     public void selectCreditPayment() {
         if (paymentcombo.getItemCount() > 3) {
-            paymentcombo.setSelectedIndex(3); // Credit Payment
+            paymentcombo.setSelectedIndex(3);
         }
     }
 
     public void selectChequePayment() {
         if (paymentcombo.getItemCount() > 4) {
-            paymentcombo.setSelectedIndex(4); // Cheque Payment
+            paymentcombo.setSelectedIndex(4);
         }
     }
 
     public void deleteFocusedCartItem() {
-        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-            // Get the focused cart item and remove it
-            List<CartItem> itemsList = new ArrayList<>(cartItems.values());
-            // Since cartItems are stored in reverse order in display, we need to reverse the index
-            int actualIndex = cartItems.size() - 1 - currentFocusedCartItemIndex;
-            List<String> cartKeys = new ArrayList<>(cartItems.keySet());
-            if (actualIndex >= 0 && actualIndex < cartKeys.size()) {
-                String cartKey = cartKeys.get(actualIndex);
+    if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
+        // Get the list of cart keys
+        List<String> cartKeys = new ArrayList<>(cartItems.keySet());
+        
+        // Since items are displayed in reverse order (newest first),
+        // we need to convert the display index to the actual map index
+        int displayIndex = currentFocusedCartItemIndex;
+        int actualIndex = cartKeys.size() - 1 - displayIndex;
+        
+        if (actualIndex >= 0 && actualIndex < cartKeys.size()) {
+            String cartKey = cartKeys.get(actualIndex);
 
-                int confirm = JOptionPane.showConfirmDialog(this,
-                        "Remove this item from cart?",
-                        "Confirm Removal",
-                        JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Remove this item from cart?",
+                    "Confirm Removal",
+                    JOptionPane.YES_NO_OPTION);
 
-                if (confirm == JOptionPane.YES_OPTION) {
-                    CartItem removedItem = cartItems.get(cartKey);
-                    if (removedItem != null) {
-                        StockTracker.getInstance().removeFromCart(
-                                removedItem.getProductId(),
-                                removedItem.getBatchNo(),
-                                removedItem.getQuantity()
-                        );
-                    }
-                    cartItems.remove(cartKey);
-
-                    // Update the panel and maintain focus
-                    updateCartPanel();
-
-                    // Show notification
-                    Notifications.getInstance().show(
-                            Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            "Item removed from cart"
+            if (confirm == JOptionPane.YES_OPTION) {
+                CartItem removedItem = cartItems.get(cartKey);
+                if (removedItem != null) {
+                    // CRITICAL: Notify StockTracker BEFORE removing
+                    StockTracker.getInstance().removeFromCart(
+                            removedItem.getProductId(),
+                            removedItem.getBatchNo(),
+                            removedItem.getQuantity()
                     );
                 }
+                cartItems.remove(cartKey);
+                
+                // Update the cart panel
+                updateCartPanel();
             }
-        } else {
-            // If no item is focused, show message
-            JOptionPane.showMessageDialog(this,
-                    "No cart item is selected. Use Alt+Up/Down to navigate to an item first.",
-                    "No Item Selected",
-                    JOptionPane.INFORMATION_MESSAGE);
         }
+    } else {
+        JOptionPane.showMessageDialog(this,
+                "No cart item is selected. Use Alt+Up/Down to navigate to an item first.",
+                "No Item Selected",
+                JOptionPane.INFORMATION_MESSAGE);
     }
+}
 
     public void increaseFocusedItemQuantity() {
-        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-            // Increase quantity of focused item
-            List<CartItem> itemsList = new ArrayList<>(cartItems.values());
-            int actualIndex = cartItems.size() - 1 - currentFocusedCartItemIndex;
-            if (actualIndex >= 0 && actualIndex < itemsList.size()) {
-                CartItem item = itemsList.get(actualIndex);
-                if (item.getQuantity() < item.getAvailableQty()) {
-                    item.setQuantity(item.getQuantity() + 1);
-                    StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), 1);
-                    updateCartPanel();
-                    // Restore focus after update
-                    SwingUtilities.invokeLater(() -> {
-                        if (currentFocusedCartItemIndex < cartItemPanels.size()) {
-                            setFocusedCartItem(currentFocusedCartItemIndex);
-                        }
-                    });
-                } else {
-                    JOptionPane.showMessageDialog(PosCartPanel.this,
-                            "Cannot add more. Available stock: " + item.getAvailableQty(),
-                            "Stock Limit",
-                            JOptionPane.WARNING_MESSAGE);
-                }
+    if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
+        List<CartItem> itemsList = new ArrayList<>(cartItems.values());
+        int actualIndex = cartItems.size() - 1 - currentFocusedCartItemIndex;
+        if (actualIndex >= 0 && actualIndex < itemsList.size()) {
+            CartItem item = itemsList.get(actualIndex);
+            if (item.getQuantity() < item.getAvailableQty()) {
+                item.setQuantity(item.getQuantity() + 1);
+                StockTracker.getInstance().addToCart(item.getProductId(), item.getBatchNo(), 1);
+                updateCartPanelWithFocus();
+            } else {
+                JOptionPane.showMessageDialog(PosCartPanel.this,
+                        "Cannot add more. Available stock: " + item.getAvailableQty(),
+                        "Stock Limit",
+                        JOptionPane.WARNING_MESSAGE);
             }
         }
     }
+}
 
-    public void decreaseFocusedItemQuantity() {
-        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-            // Decrease quantity of focused item
-            List<CartItem> itemsList = new ArrayList<>(cartItems.values());
-            int actualIndex = cartItems.size() - 1 - currentFocusedCartItemIndex;
-            if (actualIndex >= 0 && actualIndex < itemsList.size()) {
-                CartItem item = itemsList.get(actualIndex);
-                if (item.getQuantity() > 1) {
-                    item.setQuantity(item.getQuantity() - 1);
-                    StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), 1);
-                    updateCartPanel();
-                    // Restore focus after update
-                    SwingUtilities.invokeLater(() -> {
-                        if (currentFocusedCartItemIndex < cartItemPanels.size()) {
-                            setFocusedCartItem(currentFocusedCartItemIndex);
-                        }
-                    });
-                } else {
-                    // Flash effect for minimum quantity
-                    RoundedPanel currentPanel = cartItemPanels.get(currentFocusedCartItemIndex);
-                    Color originalColor = currentPanel.getBackground();
-                    currentPanel.setBackground(new Color(255, 200, 200));
-                    Timer timer = new Timer(300, e -> {
-                        currentPanel.setBackground(originalColor);
-                        currentPanel.repaint();
-                    });
-                    timer.setRepeats(false);
-                    timer.start();
-                }
+public void decreaseFocusedItemQuantity() {
+    if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
+        List<CartItem> itemsList = new ArrayList<>(cartItems.values());
+        int actualIndex = cartItems.size() - 1 - currentFocusedCartItemIndex;
+        if (actualIndex >= 0 && actualIndex < itemsList.size()) {
+            CartItem item = itemsList.get(actualIndex);
+            if (item.getQuantity() > 1) {
+                item.setQuantity(item.getQuantity() - 1);
+                StockTracker.getInstance().removeFromCart(item.getProductId(), item.getBatchNo(), 1);
+                updateCartPanelWithFocus();
+            } else {
+                RoundedPanel currentPanel = cartItemPanels.get(currentFocusedCartItemIndex);
+                Color originalColor = currentPanel.getBackground();
+                currentPanel.setBackground(new Color(255, 200, 200));
+                Timer timer = new Timer(300, e -> {
+                    currentPanel.setBackground(originalColor);
+                    currentPanel.repaint();
+                });
+                timer.setRepeats(false);
+                timer.start();
             }
         }
     }
+}
+
+    
 
     private void setupKeyboardShortcuts() {
-        SwingUtilities.invokeLater(() -> {
-            if (getRootPane() != null) {
-                // Clear any existing mappings to avoid conflicts
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).clear();
-                getRootPane().getActionMap().clear();
+    SwingUtilities.invokeLater(() -> {
+        // Clear existing shortcuts
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).clear();
+        getActionMap().clear();
 
-                // Make sure the panel is focusable
-                setFocusable(true);
+        // Make sure the panel can receive focus
+        setFocusable(true);
+        requestFocusInWindow();
 
-                // ========================================
-                // CART-SPECIFIC SHORTCUTS (Alt + Keys)
-                // ========================================
-
-                // Product/Payment - Alt + P - OPEN CREDIT PAYMENT
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_P, KeyEvent.ALT_DOWN_MASK), "CreditPaymentAltP");
-                getRootPane().getActionMap().put("CreditPaymentAltP", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        creditPayActionPerformed(null);
-                    }
-                });
-
-                // Discount - Alt + D
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.ALT_DOWN_MASK), "DiscountAltD");
-                getRootPane().getActionMap().put("DiscountAltD", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        discountBtnActionPerformed(null);
-                    }
-                });
-
-                // Switch - Alt + S  
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.ALT_DOWN_MASK), "SwitchAltS");
-                getRootPane().getActionMap().put("SwitchAltS", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        switchBtnActionPerformed(e);
-                    }
-                });
-
-                // Exchange Credit - Alt + E
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_E, KeyEvent.ALT_DOWN_MASK), "ExchangeAltE");
-                getRootPane().getActionMap().put("ExchangeAltE", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        exchangeBtnActionPerformed(null);
-                    }
-                });
-
-                // Hold Bill - Alt + H
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_H, KeyEvent.ALT_DOWN_MASK), "HoldAltH");
-                getRootPane().getActionMap().put("HoldAltH", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        holdBtnActionPerformed(null);
-                    }
-                });
-
-                // Delete all items - Delete key
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "DeleteAllItems");
-                getRootPane().getActionMap().put("DeleteAllItems", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        if (!cartItems.isEmpty()) {
-                            clearCart();
-                        }
-                    }
-                });
-
-                // Delete Item - Alt + X
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_X, KeyEvent.ALT_DOWN_MASK), "DeleteItemAltX");
-                getRootPane().getActionMap().put("DeleteItemAltX", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        deleteFocusedCartItem();
-                    }
-                });
-
-                // ========================================
-                // QUANTITY SHORTCUTS - Context Aware
-                // These work differently based on focus context
-                // ========================================
-                
-                // Increase Quantity - + (Works on cart items when focused)
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, 0), "IncreaseQuantityPlus");
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0), "IncreaseQuantityAdd");
-                getRootPane().getActionMap().put("IncreaseQuantityPlus", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        // Only work on cart items when they have focus
-                        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-                            increaseFocusedItemQuantity();
-                        }
-                    }
-                });
-                getRootPane().getActionMap().put("IncreaseQuantityAdd", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-                            increaseFocusedItemQuantity();
-                        }
-                    }
-                });
-
-                // Decrease Quantity - - (Works on cart items when focused)
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, 0), "DecreaseQuantityMinus");
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0), "DecreaseQuantitySubtract");
-                getRootPane().getActionMap().put("DecreaseQuantityMinus", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-                            decreaseFocusedItemQuantity();
-                        }
-                    }
-                });
-                getRootPane().getActionMap().put("DecreaseQuantitySubtract", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
-                            decreaseFocusedItemQuantity();
-                        }
-                    }
-                });
-
-                // Focus Discount Field - Ctrl + D
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.CTRL_DOWN_MASK), "DiscountCtrlD");
-                getRootPane().getActionMap().put("DiscountCtrlD", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        discountBtnActionPerformed(null);
-                    }
-                });
-
-                // Complete Sale - Alt + Enter
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.ALT_DOWN_MASK), "CompleteSaleAltEnter");
-                getRootPane().getActionMap().put("CompleteSaleAltEnter", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        gradientButton1ActionPerformed(null);
-                    }
-                });
-
-                // Product Count - Ctrl + Q
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK), "ProductCountCtrlQ");
-                getRootPane().getActionMap().put("ProductCountCtrlQ", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        String message;
-                        if (cartItems.isEmpty()) {
-                            message = "No products in cart";
-                        } else {
-                            message = "Total Products in Cart: " + cartItems.size() + "\n";
-                            double totalValue = 0;
-                            for (CartItem item : cartItems.values()) {
-                                totalValue += item.getTotalPrice();
-                            }
-                            message += String.format("Total Cart Value: Rs.%.2f", totalValue);
-                        }
-                        JOptionPane.showMessageDialog(PosCartPanel.this,
-                                message,
-                                "Product Count",
-                                JOptionPane.INFORMATION_MESSAGE);
-                    }
-                });
-
-                // Focus Cart Search - Ctrl + F (Cart Panel Only)
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK), "FocusCartSearchCtrlF");
-                getRootPane().getActionMap().put("FocusCartSearchCtrlF", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        focusCartSearch();
-                    }
-                });
-
-                // Payment Method Selection - Alt+1, Alt+2, Alt+3, Alt+4
-                // Alt+1: Cash Payment
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK), "CashPaymentAlt1");
-                getRootPane().getActionMap().put("CashPaymentAlt1", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        selectCashPayment();
-                    }
-                });
-
-                // Alt+2: Card Payment
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK), "CardPaymentAlt2");
-                getRootPane().getActionMap().put("CardPaymentAlt2", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        selectCardPayment();
-                    }
-                });
-
-                // Alt+3: Credit Payment
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_3, KeyEvent.ALT_DOWN_MASK), "CreditPaymentAlt3");
-                getRootPane().getActionMap().put("CreditPaymentAlt3", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        selectCreditPayment();
-                    }
-                });
-
-                // Alt+4: Cheque Payment
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_4, KeyEvent.ALT_DOWN_MASK), "ChequePaymentAlt4");
-                getRootPane().getActionMap().put("ChequePaymentAlt4", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        selectChequePayment();
-                    }
-                });
-
-                // ========================================
-                // CART ITEM NAVIGATION - Alt + Arrow Keys ONLY
-                // ========================================
-                
-                // Alt + Up - Previous cart item
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.ALT_DOWN_MASK), "CartPrevAltUp");
-                getRootPane().getActionMap().put("CartPrevAltUp", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        if (hasCartItems()) {
-                            navigateCartItems(-1);
-                        }
-                    }
-                });
-
-                // Alt + Down - Next cart item
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK), "CartNextAltDown");
-                getRootPane().getActionMap().put("CartNextAltDown", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        if (hasCartItems()) {
-                            navigateCartItems(1);
-                        }
-                    }
-                });
-
-                // Alt + Q - Focus Quantity Field of Selected Cart Item
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.ALT_DOWN_MASK), "FocusQuantityAltQ");
-                getRootPane().getActionMap().put("FocusQuantityAltQ", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        focusSelectedItemQuantity();
-                    }
-                });
-
-                // Alt + R - Focus Discount Field of Selected Cart Item
-                getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_R, KeyEvent.ALT_DOWN_MASK), "FocusDiscountAltR");
-                getRootPane().getActionMap().put("FocusDiscountAltR", new javax.swing.AbstractAction() {
-                    @Override
-                    public void actionPerformed(java.awt.event.ActionEvent e) {
-                        focusSelectedItemDiscount();
-                    }
-                });
-
-                // Set enhanced tooltips for better user experience
-                setEnhancedComponentTooltips();
-
-                // Request focus to make shortcuts work
-                SwingUtilities.invokeLater(() -> {
-                    requestFocusInWindow();
-                });
+        // ========================================
+        // ITEM DISCOUNT SHORTCUTS (FIXED)
+        // ========================================
+        
+        // Alt + R - Edit discount of FOCUSED cart item
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_R, KeyEvent.ALT_DOWN_MASK), "ItemDiscountAltR");
+        getActionMap().put("ItemDiscountAltR", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                focusSelectedItemDiscount();
             }
         });
+
+        // Ctrl + D - Also edit discount of focused cart item (alternative)
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.CTRL_DOWN_MASK), "ItemDiscountCtrlD");
+        getActionMap().put("ItemDiscountCtrlD", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                focusSelectedItemDiscount();
+            }
+        });
+
+        // Alt + D - Apply discount to entire cart (global discount)
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.ALT_DOWN_MASK), "GlobalDiscountAltD");
+        getActionMap().put("GlobalDiscountAltD", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                discountBtnActionPerformed(null);
+            }
+        });
+
+        // Shift + D - Quick zero discount for focused item
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.SHIFT_DOWN_MASK), "ZeroDiscountShiftD");
+        getActionMap().put("ZeroDiscountShiftD", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                quickZeroDiscount();
+            }
+        });
+
+        // ========================================
+        // CART NAVIGATION (FIXED - NO LOOPING)
+        // ========================================
+        
+        // Alt + Up - Previous cart item (NO LOOPING)
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.ALT_DOWN_MASK), "CartPrevAltUp");
+        getActionMap().put("CartPrevAltUp", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (hasCartItems()) {
+                    navigateCartItems(-1);
+                }
+            }
+        });
+
+        // Alt + Down - Next cart item (NO LOOPING)
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK), "CartNextAltDown");
+        getActionMap().put("CartNextAltDown", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (hasCartItems()) {
+                    navigateCartItems(1);
+                }
+            }
+        });
+
+        // Alt + Q - Focus Quantity Field
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.ALT_DOWN_MASK), "FocusQuantityAltQ");
+        getActionMap().put("FocusQuantityAltQ", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                focusSelectedItemQuantity();
+            }
+        });
+
+        // ========================================
+        // OTHER CART SHORTCUTS
+        // ========================================
+        
+        // Alt + X - Delete focused item
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_X, KeyEvent.ALT_DOWN_MASK), "DeleteItemAltX");
+        getActionMap().put("DeleteItemAltX", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                deleteFocusedCartItem();
+            }
+        });
+
+        // ========================================
+        // DELETE KEY - ALWAYS CLEAR ALL CART ITEMS
+        // ========================================
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "DeleteAction");
+        getActionMap().put("DeleteAction", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                // ALWAYS clear entire cart (ignore any focused item)
+                clearCart();
+            }
+        });
+
+        // + / - keys for quantity (only when cart item focused)
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, 0), "IncreaseQty");
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0), "IncreaseQtyNum");
+        getActionMap().put("IncreaseQty", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (currentFocusedCartItemIndex >= 0) {
+                    increaseFocusedItemQuantity();
+                }
+            }
+        });
+        getActionMap().put("IncreaseQtyNum", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (currentFocusedCartItemIndex >= 0) {
+                    increaseFocusedItemQuantity();
+                }
+            }
+        });
+
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, 0), "DecreaseQty");
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0), "DecreaseQtyNum");
+        getActionMap().put("DecreaseQty", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (currentFocusedCartItemIndex >= 0) {
+                    decreaseFocusedItemQuantity();
+                }
+            }
+        });
+        getActionMap().put("DecreaseQtyNum", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (currentFocusedCartItemIndex >= 0) {
+                    decreaseFocusedItemQuantity();
+                }
+            }
+        });
+
+        // ========================================
+        // PAYMENT METHOD SHORTCUTS
+        // ========================================
+        
+        // F4 - Cash Payment
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0), "CashPaymentF4");
+        getActionMap().put("CashPaymentF4", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                selectCashPayment();
+            }
+        });
+
+        // F5 - Card Payment
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), "CardPaymentF5");
+        getActionMap().put("CardPaymentF5", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                selectCardPayment();
+            }
+        });
+
+        // F6 - Credit Payment
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0), "CreditPaymentF6");
+        getActionMap().put("CreditPaymentF6", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                selectCreditPayment();
+            }
+        });
+
+        // F7 - Cheque Payment
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0), "ChequePaymentF7");
+        getActionMap().put("ChequePaymentF7", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                selectChequePayment();
+            }
+        });
+
+        // ========================================
+        // OTHER TRANSACTION SHORTCUTS
+        // ========================================
+        
+        // Ctrl + F - Focus Cart Search
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK), "FocusCartSearchCtrlF");
+        getActionMap().put("FocusCartSearchCtrlF", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                focusCartSearch();
+            }
+        });
+
+        // Alt + Enter - Complete Sale
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.ALT_DOWN_MASK), "CompleteSaleAltEnter");
+        getActionMap().put("CompleteSaleAltEnter", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                gradientButton1ActionPerformed(null);
+            }
+        });
+
+        // Alt + P - Credit Payment
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_P, KeyEvent.ALT_DOWN_MASK), "CreditPayAltP");
+        getActionMap().put("CreditPayAltP", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                creditPayActionPerformed(null);
+            }
+        });
+
+        // Alt + S - Switch Invoice
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.ALT_DOWN_MASK), "SwitchAltS");
+        getActionMap().put("SwitchAltS", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                switchBtnActionPerformed(e);
+            }
+        });
+
+        // Alt + E - Exchange
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_E, KeyEvent.ALT_DOWN_MASK), "ExchangeAltE");
+        getActionMap().put("ExchangeAltE", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                exchangeBtnActionPerformed(null);
+            }
+        });
+
+        // Alt + H - Hold Bill
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_H, KeyEvent.ALT_DOWN_MASK), "HoldAltH");
+        getActionMap().put("HoldAltH", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                holdBtnActionPerformed(null);
+            }
+        });
+
+        // F9 - Complete Sale
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0), "CompleteSaleF9");
+        getActionMap().put("CompleteSaleF9", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                gradientButton1ActionPerformed(null);
+            }
+        });
+
+        // F10 - Discount
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F10, 0), "DiscountF10");
+        getActionMap().put("DiscountF10", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                discountBtnActionPerformed(null);
+            }
+        });
+
+        // F11 - Hold
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F11, 0), "HoldF11");
+        getActionMap().put("HoldF11", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                holdBtnActionPerformed(null);
+            }
+        });
+
+        // F12 - Switch
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_F12, 0), "SwitchF12");
+        getActionMap().put("SwitchF12", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                switchBtnActionPerformed(null);
+            }
+        });
+
+        // Escape - Clear focus or cancel
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "EscapeAction");
+        getActionMap().put("EscapeAction", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                // Clear focus from any text field
+                requestFocusInWindow();
+                // If a cart item is focused, clear its focus
+                if (currentFocusedCartItemIndex >= 0) {
+                    setFocusedCartItem(-1);
+                }
+            }
+        });
+
+        setEnhancedComponentTooltips();
+        
+        // Ensure focus is on the panel
+        SwingUtilities.invokeLater(() -> {
+            requestFocusInWindow();
+        });
+    });
+}
+    
+    private void quickZeroDiscount() {
+        if (currentFocusedCartItemIndex < 0 || currentFocusedCartItemIndex >= cartItemPanels.size()) {
+            JOptionPane.showMessageDialog(this,
+                "Please select a cart item first using Alt+Up/Down",
+                "No Item Selected",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        RoundedPanel focusedPanel = cartItemPanels.get(currentFocusedCartItemIndex);
+        JTextField discountField = findFieldByType(focusedPanel, "discount");
+        
+        if (discountField != null) {
+            CartItem item = (CartItem) discountField.getClientProperty("cartItem");
+            if (item != null) {
+                item.setDiscountPrice(0.0);
+                discountField.setText("0.00");
+                discountField.setForeground(Color.BLACK);
+                updateCartPanel();
+                
+                JOptionPane.showMessageDialog(this,
+                    "Discount removed from " + item.getProductName(),
+                    "Discount Removed",
+                    JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
     }
 
     private void setupCashFieldFocus() {
@@ -1998,26 +2217,22 @@ public class PosCartPanel extends javax.swing.JPanel {
                         optionPane.setValue(JOptionPane.YES_OPTION);
                         break;
                     default:
-                        return; // Don't consume if not our key
+                        return;
                 }
                 e.consume();
             }
         };
         
-        // Add to dialog, root pane, and content pane
         dialog.addKeyListener(keyListener);
         dialog.getRootPane().addKeyListener(keyListener);
         dialog.getContentPane().addKeyListener(keyListener);
         
-        // Make components focusable for keyboard events
         dialog.setFocusable(true);
         dialog.getRootPane().setFocusable(true);
         dialog.getContentPane().setFocusable(true);
         
-        // Add button mnemonics
         addButtonMnemonics(optionPane);
         
-        // Handle window events
         dialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -2032,7 +2247,6 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
         });
         
-        // Property change listener
         optionPane.addPropertyChangeListener(evt -> {
             if (dialog.isVisible() && 
                 JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName()) &&
@@ -2109,7 +2323,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                     }
                 }
                 
-                // Fix button click issue
                 button.setFocusable(true);
                 
             } else if (comp instanceof Container) {
@@ -2125,12 +2338,17 @@ public class PosCartPanel extends javax.swing.JPanel {
             if (qtyField != null) {
                 qtyField.requestFocusInWindow();
                 qtyField.selectAll();
+                
+                CartItem item = (CartItem) qtyField.getClientProperty("cartItem");
+                if (item != null) {
+                    qtyField.setToolTipText("Edit quantity for: " + item.getProductName());
+                }
             }
         } else {
             JOptionPane.showMessageDialog(this,
-                    "No cart item is selected. Use Alt+Up/Down to navigate to an item first.",
-                    "No Item Selected",
-                    JOptionPane.INFORMATION_MESSAGE);
+                "Please select a cart item first using Alt+Up/Down",
+                "No Item Selected",
+                JOptionPane.WARNING_MESSAGE);
         }
     }
 
@@ -2139,14 +2357,19 @@ public class PosCartPanel extends javax.swing.JPanel {
             RoundedPanel focusedPanel = cartItemPanels.get(currentFocusedCartItemIndex);
             JTextField discountField = findFieldByType(focusedPanel, "discount");
             if (discountField != null) {
+                CartItem item = (CartItem) discountField.getClientProperty("cartItem");
                 discountField.requestFocusInWindow();
                 discountField.selectAll();
+                
+                if (item != null) {
+                    discountField.setToolTipText("Edit discount for: " + item.getProductName());
+                }
             }
         } else {
             JOptionPane.showMessageDialog(this,
-                    "No cart item is selected. Use Alt+Up/Down to navigate to an item first.",
-                    "No Item Selected",
-                    JOptionPane.INFORMATION_MESSAGE);
+                "Please select a cart item first using Alt+Up/Down",
+                "No Item Selected",
+                JOptionPane.WARNING_MESSAGE);
         }
     }
 
@@ -2169,78 +2392,69 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     public void navigateCartItems(int direction) {
-        if (cartItemPanels.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "No cart items available to navigate.",
-                    "Empty Cart",
-                    JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        int newIndex;
-        if (currentFocusedCartItemIndex == -1) {
-            // No item currently focused, start at first item
-            newIndex = (direction > 0) ? 0 : cartItemPanels.size() - 1;
-        } else {
-            newIndex = currentFocusedCartItemIndex + direction;
-            // Wrap around
-            if (newIndex < 0) {
-                newIndex = cartItemPanels.size() - 1;
-            }
-            if (newIndex >= cartItemPanels.size()) {
-                newIndex = 0;
-            }
-        }
-
-        setFocusedCartItem(newIndex);
-
-        // Show visual feedback
-        Notifications.getInstance().show(
-                Notifications.Type.INFO,
-                Notifications.Location.TOP_RIGHT,
-                String.format("Cart item %d of %d selected", newIndex + 1, cartItemPanels.size())
-        );
+    if (cartItemPanels.isEmpty()) {
+        JOptionPane.showMessageDialog(this,
+                "No cart items available to navigate.",
+                "Empty Cart",
+                JOptionPane.INFORMATION_MESSAGE);
+        return;
     }
 
+    int newIndex;
+    if (currentFocusedCartItemIndex == -1) {
+        // No item currently focused, start at first item
+        newIndex = (direction > 0) ? 0 : cartItemPanels.size() - 1;
+    } else {
+        newIndex = currentFocusedCartItemIndex + direction;
+        // NO LOOPING - stop at the ends
+        if (newIndex < 0) {
+            newIndex = 0;
+            return;
+        }
+        if (newIndex >= cartItemPanels.size()) {
+            newIndex = cartItemPanels.size() - 1;
+            return;
+        }
+    }
+
+    setFocusedCartItem(newIndex);
+}
+
     private void setEnhancedComponentTooltips() {
-        // Set enhanced tooltips for better user experience
-        discountBtn.setToolTipText("<html>Apply discount to entire cart<br><b>Shortcut: F10 or Alt + D or Ctrl + D</b></html>");
+        discountBtn.setToolTipText("<html>Apply discount to entire cart<br><b>Shortcut: F10 or Alt + D</b></html>");
         exchangeBtn.setToolTipText("<html>Process exchange/return<br><b>Shortcut: Ctrl+E or Alt + E</b></html>");
         switchBtn.setToolTipText("<html>Switch invoice<br><b>Shortcut: F12 or Alt + S</b></html>");
         holdBtn.setToolTipText("<html>Hold bill<br><b>Shortcut: F11 or Alt + H</b></html>");
-        clearCartBtn.setToolTipText("<html>Clear all items<br><b>Shortcut: Delete or F8</b></html>");
+        clearCartBtn.setToolTipText("<html>Clear all items<br><b>Shortcut: Delete</b></html>");
         gradientButton1.setToolTipText("<html>Complete sale<br><b>Shortcut: F9 or Alt + Enter</b></html>");
         creditPay.setToolTipText("<html>Credit Payment<br><b>Shortcut: F6 or Alt + P</b></html>");
 
-        // Payment method tooltip
         paymentcombo.setToolTipText("<html>Select payment method<br>"
                 + "<b>Shortcuts:</b><br>"
-                + "F4/Alt+1 - Cash Payment<br>"
-                + "F5/Alt+2 - Card Payment<br>"
-                + "F6/Alt+3 - Credit Payment<br>"
-                + "F7/Alt+4 - Cheque Payment</html>");
+                + "F4 - Cash Payment<br>"
+                + "F5 - Card Payment<br>"
+                + "F6 - Credit Payment<br>"
+                + "F7 - Cheque Payment</html>");
 
-        // Search bar tooltip
         if (jTextField3 != null) {
             jTextField3.setToolTipText("<html>Search cart items<br><b>Shortcut: Ctrl+F</b></html>");
         }
 
-        // Amount received field tooltip
         if (jTextField2 != null) {
-            jTextField2.setToolTipText("<html>Enter amount received<br><i>Auto-focused when Cash Payment selected with F4/Alt+1</i></html>");
+            jTextField2.setToolTipText("<html>Enter amount received<br><i>Auto-focused when Cash Payment selected with F4</i></html>");
         }
 
-        // Cart navigation tooltip
         if (cartCount != null) {
-            cartCount.setToolTipText("<html><b>Cart Navigation Shortcuts:</b><br>"
-                    + "<b>Alt+Up/Down</b> - Navigate cart items<br>"
-                    + "<b>Alt+X</b> - Delete focused item<br>"
-                    + "<b>Alt+Q</b> - Edit quantity of focused item<br>"
-                    + "<b>Alt+R</b> - Edit discount of focused item<br>"
-                    + "<b>+/-</b> - Increase/decrease quantity (when cart item focused)<br>"
-                    + "<b>Ctrl+F</b> - Search cart<br>"
-                    + "<br><b>Note:</b> Plain arrow keys are for product panel navigation</html>");
-        }
+    cartCount.setToolTipText("<html><b>Cart Navigation Shortcuts:</b><br>"
+            + "<b>Alt+↑/↓</b> - Navigate cart items<br>"
+            + "<b>Alt+X</b> - Delete focused item<br>"
+            + "<b>Alt+Q</b> - Edit quantity of focused item<br>"
+            + "<b>Alt+R or Ctrl+D</b> - Edit discount of focused item<br>"
+            + "<b>Shift+D</b> - Remove discount from focused item<br>"
+            + "<b>+/-</b> - Increase/decrease quantity (when item focused)<br>"
+            + "<b>Ctrl+F</b> - Search cart<br>"
+            + "<b>ESC</b> - Clear focus</html>");
+}
     }
 
     public void requestCartFocus() {
@@ -2255,7 +2469,6 @@ public class PosCartPanel extends javax.swing.JPanel {
     @Override
     public void addNotify() {
         super.addNotify();
-        // Request focus when component is added to container
         SwingUtilities.invokeLater(() -> {
             requestFocusInWindow();
         });
@@ -2273,48 +2486,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         return cartItems.size();
     }
 
-    private void setupCartItemNavigation() {
-        // Ctrl + Up for previous cart item
-        getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.CTRL_DOWN_MASK), "CartPrevCtrlUp");
-        getRootPane().getActionMap().put("CartPrevCtrlUp", new javax.swing.AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                navigateCartItems(-1);
-            }
-        });
-
-        // Ctrl + Down for next cart item  
-        getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.CTRL_DOWN_MASK), "CartNextCtrlDown");
-        getRootPane().getActionMap().put("CartNextCtrlDown", new javax.swing.AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                navigateCartItems(1);
-            }
-        });
-
-        // Alt + Up for previous cart item (alternative)
-        getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.ALT_DOWN_MASK), "CartPrevAltUp");
-        getRootPane().getActionMap().put("CartPrevAltUp", new javax.swing.AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                navigateCartItems(-1);
-            }
-        });
-
-        // Alt + Down for next cart item (alternative)
-        getRootPane().getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, KeyEvent.ALT_DOWN_MASK), "CartNextAltDown");
-        getRootPane().getActionMap().put("CartNextAltDown", new javax.swing.AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                navigateCartItems(1);
-            }
-        });
-    }
-
     private void focusCartSearch() {
         jTextField3.requestFocusInWindow();
         if (jTextField3.getForeground().equals(new Color(128, 128, 128))) {
@@ -2325,7 +2496,17 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private void setFocusedCartItem(int index) {
-        if (index < 0 || index >= cartItemPanels.size()) {
+        if (index < 0) {
+            // Clear all focus
+            if (currentFocusedCartItemIndex >= 0 && currentFocusedCartItemIndex < cartItemPanels.size()) {
+                RoundedPanel prevPanel = cartItemPanels.get(currentFocusedCartItemIndex);
+                resetCartItemAppearance(prevPanel);
+            }
+            currentFocusedCartItemIndex = -1;
+            return;
+        }
+        
+        if (index >= cartItemPanels.size()) {
             return;
         }
 
@@ -2343,8 +2524,11 @@ public class PosCartPanel extends javax.swing.JPanel {
         // Ensure visible in scroll pane
         SwingUtilities.invokeLater(() -> {
             java.awt.Rectangle visibleRect = currentPanel.getBounds();
-            visibleRect.height += 20; // Add some padding
+            visibleRect.height += 20;
             jPanel10.scrollRectToVisible(visibleRect);
+            
+            // Ensure panel has focus for keyboard shortcuts
+            requestFocusInWindow();
         });
     }
 
@@ -2368,28 +2552,27 @@ public class PosCartPanel extends javax.swing.JPanel {
 
     private void handleHoldSale() {
         if (cartItems.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Cart is empty. Add products before placing on hold.", "Empty Cart", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, 
+                "Cart is empty. Add products before placing on hold.", 
+                "Empty Cart", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        String selectedPayment = (String) paymentcombo.getSelectedItem();
-        if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
-            paymentcombo.setSelectedItem("Cash Payment");
-        }
-
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Place this sale on hold?\nYou can switch back to this invoice later.",
+                "Place this sale on hold?\nYou can switch back to this invoice later.\n\n" +
+                "Note: Payment method is optional for hold sales.",
                 "Hold Sale", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 
         if (confirm != JOptionPane.YES_OPTION) {
             return;
         }
 
-        int salesId = saveSale(2);
+        int salesId = saveSale(2);  // statusId 2 = Hold
         if (salesId != -1) {
-            Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                    Notifications.Location.TOP_RIGHT,
-                    "Sale placed on hold! Invoice: " + getLastInvoiceNumber(salesId));
+            JOptionPane.showMessageDialog(this,
+                "Sale placed on hold! Invoice: " + getLastInvoiceNumber(salesId),
+                "Sale On Hold",
+                JOptionPane.INFORMATION_MESSAGE);
             resetCart();
             if (cartListener != null) {
                 cartListener.onCartUpdated(0, 0);
@@ -2414,14 +2597,7 @@ public class PosCartPanel extends javax.swing.JPanel {
             String selectedPayment = (String) paymentcombo.getSelectedItem();
             Integer paymentMethodId = null;
 
-            if (statusId == 2) {
-                if (selectedPayment != null && !selectedPayment.equals("Select Payment Method")) {
-                    paymentMethodId = getPaymentMethodId(selectedPayment);
-                    if (paymentMethodId == -1) {
-                        paymentMethodId = null;
-                    }
-                }
-            } else {
+            if (statusId == 1) {
                 if (selectedPayment == null || selectedPayment.equals("Select Payment Method")) {
                     JOptionPane.showMessageDialog(this, 
                         "Please select a payment method for completed sales.", 
@@ -2435,11 +2611,17 @@ public class PosCartPanel extends javax.swing.JPanel {
                         "Payment Method Error", JOptionPane.ERROR_MESSAGE);
                     return -1;
                 }
+            } else if (statusId == 2) {
+                if (selectedPayment != null && !selectedPayment.equals("Select Payment Method")) {
+                    paymentMethodId = getPaymentMethodId(selectedPayment);
+                    if (paymentMethodId == -1) {
+                        paymentMethodId = null;
+                    }
+                }
             }
 
             double total = getTotal();
 
-            // Create CartSaleDTO
             CartSaleDTO saleDTO = new CartSaleDTO();
             saleDTO.setInvoiceNo(cartSaleDAO.generateInvoiceNumber());
             saleDTO.setTotal(total);
@@ -2447,7 +2629,6 @@ public class PosCartPanel extends javax.swing.JPanel {
             saleDTO.setPaymentMethodId(paymentMethodId);
             saleDTO.setStatusId(statusId);
 
-            // Create discount record if needed
             Integer discountId = null;
             if (appliedDiscountTypeId > 0 && appliedDiscountAmount > 0) {
                 discountId = createDiscountRecord(appliedDiscountTypeId, appliedDiscountAmount);
@@ -2456,7 +2637,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                 }
             }
 
-            // Save sale
             int salesId = cartSaleDAO.saveSale(saleDTO);
             if (salesId <= 0) {
                 throw new Exception("Failed to save sale record");
@@ -2464,7 +2644,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
             lastGeneratedSalesId = salesId;
 
-            // Prepare sale items
             List<CartSaleItemDTO> saleItems = new ArrayList<>();
             for (CartItem cartItem : cartItems.values()) {
                 int stockId = cartStockDAO.getStockId(cartItem.getProductId(), cartItem.getBatchNo());
@@ -2473,7 +2652,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                 }
 
                 CartSaleItemDTO saleItem = new CartSaleItemDTO(
-                    0, // saleItemId will be generated by database
+                    0,
                     cartItem.getQuantity(),
                     cartItem.getUnitPrice(),
                     cartItem.getDiscountPrice(),
@@ -2484,12 +2663,10 @@ public class PosCartPanel extends javax.swing.JPanel {
                 saleItems.add(saleItem);
             }
 
-            // Save sale items
             if (!cartSaleDAO.saveSaleItems(saleItems)) {
                 throw new Exception("Failed to save sale items");
             }
 
-            // Update stock quantities
             for (CartItem cartItem : cartItems.values()) {
                 int stockId = cartStockDAO.getStockId(cartItem.getProductId(), cartItem.getBatchNo());
                 if (stockId == -1) {
@@ -2501,12 +2678,10 @@ public class PosCartPanel extends javax.swing.JPanel {
                 }
             }
 
-            // Create exchange refund record if needed
             if (exchangeRefundAmount > 0) {
                 createExchangeRefundRecord(salesId, exchangeRefundAmount);
             }
 
-            // Check and create stock notifications
             checkAndCreateStockNotifications();
 
             return salesId;
@@ -2555,7 +2730,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                     continue;
                 }
 
-                // Get current stock quantity
                 CartStockDTO stock = cartStockDAO.getAvailableStock(item.getProductId(), item.getBatchNo());
                 if (stock != null) {
                     int currentQty = stock.getQty();
@@ -2564,14 +2738,13 @@ public class PosCartPanel extends javax.swing.JPanel {
                 }
             }
         } catch (Exception e) {
-            // Log but don't fail the transaction
-            System.err.println("Error creating stock notifications: " + e.getMessage());
+            // Silent error handling for notifications
         }
     }
 
     private void displayRecentNotifications() {
         try {
-            ResultSet rs = Notification.getUnreadNotifications();
+            ResultSet rs = (ResultSet) Notification.getUnreadNotifications();
             StringBuilder notifications = new StringBuilder();
             int count = 0;
 
@@ -2583,15 +2756,15 @@ public class PosCartPanel extends javax.swing.JPanel {
             }
 
             if (count > 0) {
-                Notifications.getInstance().show(
-                        Notifications.Type.WARNING,
-                        Notifications.Location.TOP_RIGHT,
-                        "Stock Alerts:\n" + notifications.toString()
-                );
+                JOptionPane.showMessageDialog(this,
+                    "Stock Alerts:\n" + notifications.toString(),
+                    "Stock Notifications",
+                    JOptionPane.WARNING_MESSAGE);
             }
 
             rs.close();
         } catch (Exception e) {
+            // Silent error handling for notifications
         }
     }
 
@@ -2602,7 +2775,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                 return sale.getInvoiceNo();
             }
         } catch (Exception e) {
-            System.err.println("Error getting invoice number: " + e.getMessage());
+            // Silent error handling
         }
         return "Unknown";
     }
@@ -2616,9 +2789,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         int response = JOptionPane.showConfirmDialog(this, message, "Switch Invoice", JOptionPane.YES_NO_OPTION);
         if (response == JOptionPane.YES_OPTION) {
             openInvoicePanel(invoice);
-            Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                    Notifications.Location.TOP_RIGHT,
-                    "Successfully switched to invoice: " + invoice.getInvoiceNo());
+            JOptionPane.showMessageDialog(this,
+                "Successfully switched to invoice: " + invoice.getInvoiceNo(),
+                "Invoice Switched",
+                JOptionPane.INFORMATION_MESSAGE);
 
             updateInvoiceNumberDisplay(invoice.getInvoiceNo());
         }
@@ -2675,11 +2849,8 @@ public class PosCartPanel extends javax.swing.JPanel {
             cartItems.clear();
 
             for (CartSaleItemDTO saleItem : saleItems) {
-                // Get stock details
                 int stockId = saleItem.getStockId();
                 
-                // We need to get product details from stock
-                // This requires additional query - we'll use existing method
                 CartStockDTO stock = getStockById(stockId);
                 if (stock == null) {
                     hasAdjustments = true;
@@ -2689,7 +2860,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                     continue;
                 }
 
-                // Get product details
                 CartProductDTO product = cartProductDAO.getProductByBarcode(getProductBarcode(stock.getProductId()));
                 if (product == null) {
                     hasAdjustments = true;
@@ -2751,11 +2921,8 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
     }
 
-    // Helper methods for loading invoice items
     private CartStockDTO getStockById(int stockId) throws SQLException {
-        // This method needs to be implemented in CartStockDAO
-        // For now, we'll use a workaround
-        String query = "SELECT s.stock_id, s.product_id, s.batch_no, s.qty, s.selling_price, s.cost_price " +
+        String query = "SELECT s.stock_id, s.product_id, s.batch_no, s.qty, s.selling_price " +
                       "FROM stock s WHERE s.stock_id = ?";
         
         try (Connection conn = lk.com.pos.connection.MySQL.getConnection();
@@ -2770,7 +2937,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                         rs.getString("batch_no"),
                         rs.getInt("qty"),
                         rs.getDouble("selling_price"),
-                        rs.getDouble("cost_price")
+                        0.0
                     );
                 }
             }
@@ -2852,10 +3019,10 @@ public class PosCartPanel extends javax.swing.JPanel {
         } else if (selectedPayment.toLowerCase().contains("cheque")) {
             openChequePaymentDialog(salesId);
         } else {
-            Notifications.getInstance().show(
-                    Notifications.Type.SUCCESS,
-                    Notifications.Location.TOP_RIGHT,
-                    "Sale completed successfully! Sale ID: " + salesId);
+            JOptionPane.showMessageDialog(this,
+                "Sale completed successfully! Sale ID: " + salesId,
+                "Sale Complete",
+                JOptionPane.INFORMATION_MESSAGE);
 
             SwingUtilities.invokeLater(() -> {
                 displayRecentNotifications();
@@ -2997,10 +3164,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                         JOptionPane.INFORMATION_MESSAGE);
             }
 
-            Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                    Notifications.Location.TOP_RIGHT,
-                    "Hold sale completed! Invoice: " + holdInvoice.getInvoiceNo());
-
             resetCartAndSelectedInvoice();
         }
     }
@@ -3019,15 +3182,12 @@ public class PosCartPanel extends javax.swing.JPanel {
 
             double total = getTotal();
 
-            // Update sale status and payment method
             if (!cartSaleDAO.updateSaleStatus(holdInvoice.getSalesId(), 1, paymentMethodId)) {
                 throw new Exception("Failed to update sales record");
             }
 
-            // Delete existing sale items
             deleteSaleItems(holdInvoice.getSalesId());
 
-            // Prepare and save new sale items
             List<CartSaleItemDTO> saleItems = new ArrayList<>();
             for (CartItem cartItem : cartItems.values()) {
                 int stockId = cartStockDAO.getStockId(cartItem.getProductId(), cartItem.getBatchNo());
@@ -3051,7 +3211,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                 throw new Exception("Failed to save sale items");
             }
 
-            // Update stock quantities
             for (CartItem cartItem : cartItems.values()) {
                 int stockId = cartStockDAO.getStockId(cartItem.getProductId(), cartItem.getBatchNo());
                 if (stockId == -1) {
@@ -3063,7 +3222,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                 }
             }
 
-            // Update discount if applied
             if (appliedDiscountAmount > 0 && appliedDiscountTypeId > 0) {
                 int discountId = createDiscountRecord(appliedDiscountTypeId, appliedDiscountAmount);
                 if (discountId > 0) {
@@ -3153,10 +3311,6 @@ public class PosCartPanel extends javax.swing.JPanel {
                     JOptionPane.showMessageDialog(this, successMessage,
                             "Payment Successful", JOptionPane.INFORMATION_MESSAGE);
 
-                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            "Cash payment completed! Invoice: " + selectedInvoice.getInvoiceNo());
-
                     SwingUtilities.invokeLater(() -> {
                         displayRecentNotifications();
                     });
@@ -3172,10 +3326,6 @@ public class PosCartPanel extends javax.swing.JPanel {
 
                     JOptionPane.showMessageDialog(this, successMessage,
                             "Payment Successful", JOptionPane.INFORMATION_MESSAGE);
-
-                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            "Cash payment completed! Sale ID: " + salesId);
 
                     SwingUtilities.invokeLater(() -> {
                         displayRecentNotifications();
@@ -3256,7 +3406,6 @@ public class PosCartPanel extends javax.swing.JPanel {
             
             double itemTotal = 0;
             for (CartSaleItemDTO saleItem : saleItems) {
-                // Get product details
                 int stockId = saleItem.getStockId();
                 CartStockDTO stock = getStockById(stockId);
                 if (stock == null) continue;
@@ -3294,13 +3443,15 @@ public class PosCartPanel extends javax.swing.JPanel {
             if (dialog.isCreditSaved()) {
                 double paidAmount = dialog.getPaidAmount();
                 if (paidAmount > 0) {
-                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            String.format("Credit sale completed! Sale ID: %d, Payment: Rs.%.2f", salesId, paidAmount));
+                    JOptionPane.showMessageDialog(this,
+                        String.format("Credit sale completed! Sale ID: %d, Payment: Rs.%.2f", salesId, paidAmount),
+                        "Sale Complete",
+                        JOptionPane.INFORMATION_MESSAGE);
                 } else {
-                    Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            "Credit sale completed! Sale ID: " + salesId);
+                    JOptionPane.showMessageDialog(this,
+                        "Credit sale completed! Sale ID: " + salesId,
+                        "Sale Complete",
+                        JOptionPane.INFORMATION_MESSAGE);
                 }
 
                 SwingUtilities.invokeLater(() -> {
@@ -3343,9 +3494,10 @@ public class PosCartPanel extends javax.swing.JPanel {
 
             Integer cardPaymentId = dialog.getGeneratedCardPaymentId();
             if (cardPaymentId != null && cardPaymentId > 0) {
-                Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                        Notifications.Location.TOP_RIGHT,
-                        String.format("Card payment completed! Sale ID: %d, Card Payment ID: %d", salesId, cardPaymentId));
+                JOptionPane.showMessageDialog(this,
+                    String.format("Card payment completed! Sale ID: %d, Card Payment ID: %d", salesId, cardPaymentId),
+                    "Sale Complete",
+                    JOptionPane.INFORMATION_MESSAGE);
 
                 SwingUtilities.invokeLater(() -> {
                     displayRecentNotifications();
@@ -3389,10 +3541,11 @@ public class PosCartPanel extends javax.swing.JPanel {
             if (dialog.isChequeSaved()) {
                 String chequeNo = dialog.getChequeNo();
                 double chequeAmount = dialog.getChequeAmount();
-                Notifications.getInstance().show(Notifications.Type.SUCCESS,
-                        Notifications.Location.TOP_RIGHT,
-                        String.format("Cheque payment completed! Sale ID: %d, Cheque: %s, Amount: Rs.%.2f",
-                                salesId, chequeNo, chequeAmount));
+                JOptionPane.showMessageDialog(this,
+                    String.format("Cheque payment completed! Sale ID: %d, Cheque: %s, Amount: Rs.%.2f",
+                            salesId, chequeNo, chequeAmount),
+                    "Sale Complete",
+                    JOptionPane.INFORMATION_MESSAGE);
 
                 SwingUtilities.invokeLater(() -> {
                     displayRecentNotifications();
@@ -3696,6 +3849,54 @@ public class PosCartPanel extends javax.swing.JPanel {
         }
         dialog.setLocation(x, y);
     }
+    
+    private void updateCartItemQuantity(CartItem item, int newQuantity) {
+    if (item == null) return;
+    
+    int oldQuantity = item.getQuantity();
+    int difference = newQuantity - oldQuantity;
+    
+    // Validate new quantity
+    if (newQuantity <= 0) {
+        JOptionPane.showMessageDialog(this,
+            "Quantity must be at least 1.",
+            "Invalid Quantity",
+            JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    
+    if (newQuantity > item.getAvailableQty()) {
+        JOptionPane.showMessageDialog(this,
+            String.format("Cannot exceed available stock: %d", item.getAvailableQty()),
+            "Stock Limit",
+            JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    
+    // Update item quantity
+    item.setQuantity(newQuantity);
+    
+    // CRITICAL: Notify StockTracker of the change
+    if (difference > 0) {
+        // Quantity increased - add to tracker
+        StockTracker.getInstance().addToCart(
+            item.getProductId(), 
+            item.getBatchNo(), 
+            difference
+        );
+    } else if (difference < 0) {
+        // Quantity decreased - remove from tracker
+        StockTracker.getInstance().removeFromCart(
+            item.getProductId(), 
+            item.getBatchNo(), 
+            Math.abs(difference)
+        );
+    }
+    
+    // Update UI
+    updateCartPanel();
+    updateTotals();
+}
 
     private void setupEnhancedKeyboardNavigation(JScrollPane scrollPane) {
         java.awt.event.KeyListener keyListener = new java.awt.event.KeyAdapter() {
@@ -3718,16 +3919,12 @@ public class PosCartPanel extends javax.swing.JPanel {
             case java.awt.event.KeyEvent.VK_DOWN:
                 if (currentFocusedIndex < invoiceCardsList.size() - 1) {
                     setFocusedCard(currentFocusedIndex + 1, scrollPane);
-                } else {
-                    setFocusedCard(0, scrollPane);
                 }
                 evt.consume();
                 break;
             case java.awt.event.KeyEvent.VK_UP:
                 if (currentFocusedIndex > 0) {
                     setFocusedCard(currentFocusedIndex - 1, scrollPane);
-                } else {
-                    setFocusedCard(invoiceCardsList.size() - 1, scrollPane);
                 }
                 evt.consume();
                 break;
@@ -4130,7 +4327,7 @@ public class PosCartPanel extends javax.swing.JPanel {
                         }
                     }
                 } catch (Exception e) {
-                    System.out.println("getTotalAmount method not available, using refund amount from database");
+                    // Silent error handling
                 }
 
                 if (totalRefundAmount <= 0 && refundAmount > 0) {
@@ -4141,31 +4338,26 @@ public class PosCartPanel extends javax.swing.JPanel {
                     this.exchangeRefundAmount = totalRefundAmount;
                     updateTotals();
 
-                    Notifications.getInstance().show(
-                            Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            String.format("Exchange processed! Refund credit: Rs.%.2f (Return ID: %d)",
-                                    totalRefundAmount, returnId)
-                    );
+                    JOptionPane.showMessageDialog(this,
+                        String.format("Exchange processed! Refund credit: Rs.%.2f (Return ID: %d)",
+                                totalRefundAmount, returnId),
+                        "Exchange Complete",
+                        JOptionPane.INFORMATION_MESSAGE);
                 } else {
                     this.exchangeRefundAmount = 0.0;
                     updateTotals();
-                    Notifications.getInstance().show(
-                            Notifications.Type.SUCCESS,
-                            Notifications.Location.TOP_RIGHT,
-                            "Exchange processed! Return ID: " + returnId
-                    );
+                    JOptionPane.showMessageDialog(this,
+                        "Exchange processed! Return ID: " + returnId,
+                        "Exchange Complete",
+                        JOptionPane.INFORMATION_MESSAGE);
                 }
             } catch (Exception e) {
-                System.err.println("Error processing exchange refund: " + e.getMessage());
-                e.printStackTrace();
                 this.exchangeRefundAmount = 0.0;
                 updateTotals();
-                Notifications.getInstance().show(
-                        Notifications.Type.ERROR,
-                        Notifications.Location.TOP_RIGHT,
-                        "Exchange processed but error calculating refund. Return ID: " + returnId
-                );
+                JOptionPane.showMessageDialog(this,
+                    "Exchange processed but error calculating refund. Return ID: " + returnId,
+                    "Exchange Complete",
+                    JOptionPane.INFORMATION_MESSAGE);
             }
         }
     }
@@ -4189,7 +4381,7 @@ public class PosCartPanel extends javax.swing.JPanel {
             );
 
             if (result != JOptionPane.YES_OPTION) {
-                return; // User chose not to proceed
+                return;
             }
         }
 
@@ -4215,23 +4407,53 @@ public class PosCartPanel extends javax.swing.JPanel {
             this.appliedDiscountAmount = discountAmount;
             this.appliedDiscountTypeId = discountTypeId;
             updateTotals();
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, String.format("Discount of Rs.%.2f applied successfully!", discountAmount));
+            JOptionPane.showMessageDialog(this,
+                String.format("Discount of Rs.%.2f applied successfully!", discountAmount),
+                "Discount Applied",
+                JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
-    void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {
-        // Item-level discounts
-        double totalItemDiscounts = 0.0;
-        for (CartItem item : cartItems.values()) {
-            double itemDiscount = item.getDiscountPrice() * item.getQuantity();
-            if (itemDiscount > 0) {
-                System.out.println("  - " + item.getProductName() + ": Rs." + String.format("%.2f", itemDiscount));
-                totalItemDiscounts += itemDiscount;
-            }
-        }
+// ========================================
+// PREVENT ACCIDENTAL DOUBLE-CLICKS (IMPROVED)
+// ========================================
+private volatile boolean isProcessingCheckout = false;
+private long lastCheckoutAttempt = 0;
 
-        handleCompleteSale();
+void gradientButton1ActionPerformed(java.awt.event.ActionEvent evt) {
+    // Debounce: prevent clicks within 1 second
+    long now = System.currentTimeMillis();
+    if (now - lastCheckoutAttempt < 1000) {
+        return; // Ignore rapid clicks
     }
+    lastCheckoutAttempt = now;
+    
+    if (isProcessingCheckout) {
+        JOptionPane.showMessageDialog(this,
+            "Please wait, processing checkout...",
+            "Processing",
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
+    }
+    
+    isProcessingCheckout = true;
+    gradientButton1.setEnabled(false);
+    
+    // Process in background to keep UI responsive
+    SwingUtilities.invokeLater(() -> {
+        try {
+            handleCompleteSale();
+        } finally {
+            // Re-enable after 1 second
+            javax.swing.Timer timer = new javax.swing.Timer(1000, e -> {
+                isProcessingCheckout = false;
+                gradientButton1.setEnabled(true);
+            });
+            timer.setRepeats(false);
+            timer.start();
+        }
+    });
+}
 
     void holdBtnActionPerformed(java.awt.event.ActionEvent evt) {
         handleHoldSale();

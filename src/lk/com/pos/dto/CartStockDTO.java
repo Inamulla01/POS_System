@@ -1,25 +1,31 @@
 package lk.com.pos.dto;
 
-import java.io.Serializable;
-
-public class CartStockDTO implements Serializable {
+public class CartStockDTO {
     private int stockId;
     private int productId;
     private String batchNo;
     private int qty;
     private double sellingPrice;
-    private double costPrice;
+    private double lastPrice; // Renamed from costPrice to match database column
     
-    public CartStockDTO() {}
-    
-    public CartStockDTO(int stockId, int productId, String batchNo, 
-                       int qty, double sellingPrice, double costPrice) {
+    // Constructor without last_price
+    public CartStockDTO(int stockId, int productId, String batchNo, int qty, double sellingPrice) {
         this.stockId = stockId;
         this.productId = productId;
         this.batchNo = batchNo;
         this.qty = qty;
         this.sellingPrice = sellingPrice;
-        this.costPrice = costPrice;
+        this.lastPrice = 0.0; // Default value
+    }
+    
+    // Constructor with last_price
+    public CartStockDTO(int stockId, int productId, String batchNo, int qty, double sellingPrice, double lastPrice) {
+        this.stockId = stockId;
+        this.productId = productId;
+        this.batchNo = batchNo;
+        this.qty = qty;
+        this.sellingPrice = sellingPrice;
+        this.lastPrice = lastPrice;
     }
     
     // Getters and Setters
@@ -38,6 +44,13 @@ public class CartStockDTO implements Serializable {
     public double getSellingPrice() { return sellingPrice; }
     public void setSellingPrice(double sellingPrice) { this.sellingPrice = sellingPrice; }
     
-    public double getCostPrice() { return costPrice; }
-    public void setCostPrice(double costPrice) { this.costPrice = costPrice; }
+    public double getLastPrice() { return lastPrice; }
+    public void setLastPrice(double lastPrice) { this.lastPrice = lastPrice; }
+    
+    // Backward compatibility methods (if other code uses getCostPrice)
+    @Deprecated
+    public double getCostPrice() { return lastPrice; }
+    
+    @Deprecated
+    public void setCostPrice(double costPrice) { this.lastPrice = costPrice; }
 }

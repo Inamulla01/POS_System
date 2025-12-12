@@ -26,7 +26,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import lk.com.pos.privateclasses.StockTracker;
 import lk.com.pos.privateclasses.ProductCardReference;
-import raven.toast.Notifications;
 
 class WrapLayout extends FlowLayout {
 
@@ -153,6 +152,49 @@ class RoundBorder extends javax.swing.border.AbstractBorder {
 
 public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
+    private javax.swing.Timer feedbackTimer;
+    private java.util.Set<String> pendingUpdates = new java.util.HashSet<>();
+    private javax.swing.Timer cartUpdateTimer;
+    private javax.swing.Timer refreshTimer;
+    private volatile boolean isLoadingProducts = false;
+
+    private static final Color TEAL_COLOR = new Color(28, 181, 187);
+    private static final Color LIGHT_GRAY_BG = new Color(245, 245, 245);
+    private static final Color BORDER_COLOR = new Color(230, 230, 230);
+    private static final Color TEXT_GRAY = new Color(102, 102, 102);
+    private static final Color CARD_BG = new Color(255, 255, 255);
+    private static final Color CARD_HOVER = new Color(240, 250, 250);
+    private static final Color SINGLE_RESULT_HIGHLIGHT = new Color(220, 240, 255);
+
+    private static final javax.swing.border.Border NORMAL_BORDER = BorderFactory.createCompoundBorder(
+            new RoundBorder(BORDER_COLOR, 1, 20),
+            BorderFactory.createEmptyBorder(16, 18, 16, 18)
+    );
+
+    private static final javax.swing.border.Border HOVER_BORDER = BorderFactory.createCompoundBorder(
+            new RoundBorder(TEAL_COLOR, 2, 20),
+            BorderFactory.createEmptyBorder(16, 18, 16, 18)
+    );
+
+    private static final javax.swing.border.Border SELECTED_BORDER = BorderFactory.createCompoundBorder(
+            new RoundBorder(TEAL_COLOR, 3, 20),
+            BorderFactory.createEmptyBorder(16, 18, 16, 18)
+    );
+
+    private static final javax.swing.border.Border SINGLE_RESULT_HIGHLIGHT_BORDER = BorderFactory.createCompoundBorder(
+            new RoundBorder(new Color(100, 180, 255), 2, 20),
+            BorderFactory.createEmptyBorder(16, 18, 16, 18)
+    );
+
+    private PosCartPanel posCartPanel;
+    private List<RoundedPanel> productCards = new ArrayList<>();
+    private int currentCardIndex = -1;
+    private int columnsPerRow = 2;
+    private javax.swing.Timer searchTimer;
+    private boolean hasSingleSearchResult = false;
+    private boolean isInitialLoadComplete = false;
+    private PosPanelDAO posPanelDAO;
+
     @Override
     public void onCartUpdated(double total, int itemCount) {
         if (!productSearchBar.hasFocus() && isShowing()) {
@@ -184,27 +226,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             clearSearch();
         });
     }
-
-    private javax.swing.Timer cartUpdateTimer;
-    private javax.swing.Timer refreshTimer;
-    private volatile boolean isLoadingProducts = false;
-
-    private static final Color TEAL_COLOR = new Color(28, 181, 187);
-    private static final Color LIGHT_GRAY_BG = new Color(245, 245, 245);
-    private static final Color BORDER_COLOR = new Color(230, 230, 230);
-    private static final Color TEXT_GRAY = new Color(102, 102, 102);
-    private static final Color CARD_BG = new Color(255, 255, 255);
-    private static final Color CARD_HOVER = new Color(240, 250, 250);
-    private static final Color SINGLE_RESULT_HIGHLIGHT = new Color(220, 240, 255);
-
-    private PosCartPanel posCartPanel;
-    private List<RoundedPanel> productCards = new ArrayList<>();
-    private int currentCardIndex = -1;
-    private int columnsPerRow = 2;
-    private javax.swing.Timer searchTimer;
-    private boolean hasSingleSearchResult = false;
-    private boolean isInitialLoadComplete = false;
-    private PosPanelDAO posPanelDAO;
 
     public PosPanelDone() {
         initComponents();
@@ -259,6 +280,24 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
         setupSearchBarPlaceholder();
 
+        javax.swing.Timer memoryCleanupTimer = new javax.swing.Timer(300000, e -> {
+            System.gc();
+
+            if (StockTracker.getInstance() != null) {
+                StockTracker.getInstance().clearCache();
+            }
+
+            Runtime runtime = Runtime.getRuntime();
+            long maxMemory = runtime.maxMemory() / (1024 * 1024);
+            long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+
+            if (usedMemory > maxMemory * 0.9) {
+                productCards.clear();
+                System.gc();
+            }
+        });
+        memoryCleanupTimer.start();
+
         addHierarchyListener(new java.awt.event.HierarchyListener() {
             @Override
             public void hierarchyChanged(java.awt.event.HierarchyEvent e) {
@@ -280,7 +319,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                 "track: #F5F5F5;"
                 + "thumb: #1CB5BB;"
                 + "width: 8");
-                
+
         addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -293,10 +332,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         javax.swing.InputMap inputMap = getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
         javax.swing.ActionMap actionMap = getActionMap();
 
-        inputMap.clear();
-        actionMap.clear();
-
-        // F1 - Show Help (Centralized)
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), "ShowHelp");
         actionMap.put("ShowHelp", new javax.swing.AbstractAction() {
             @Override
@@ -305,7 +340,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // F2 - Focus Product Search
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "FocusSearch");
         actionMap.put("FocusSearch", new javax.swing.AbstractAction() {
             @Override
@@ -316,29 +350,81 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                     productSearchBar.setForeground(java.awt.Color.BLACK);
                 }
                 productSearchBar.selectAll();
-                showQuickFeedback("🔍 Search Mode");
             }
         });
 
-        // F3 - Focus Cart
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "ProductNavDown");
+        actionMap.put("ProductNavDown", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!productSearchBar.hasFocus() && !productCards.isEmpty() && isInitialLoadComplete) {
+                    navigateDown();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "ProductNavUp");
+        actionMap.put("ProductNavUp", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!productSearchBar.hasFocus() && !productCards.isEmpty() && isInitialLoadComplete) {
+                    navigateUp();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "ProductNavLeft");
+        actionMap.put("ProductNavLeft", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!productSearchBar.hasFocus() && !productCards.isEmpty() && isInitialLoadComplete) {
+                    navigateLeft();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "ProductNavRight");
+        actionMap.put("ProductNavRight", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!productSearchBar.hasFocus() && !productCards.isEmpty() && isInitialLoadComplete) {
+                    navigateRight();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "ProductNavEnter");
+        actionMap.put("ProductNavEnter", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!productSearchBar.hasFocus() && currentCardIndex >= 0 && currentCardIndex < productCards.size()) {
+                    addSelectedProductToCart();
+                }
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "ProductNavSpace");
+        actionMap.put("ProductNavSpace", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!productSearchBar.hasFocus() && currentCardIndex >= 0 && currentCardIndex < productCards.size()) {
+                    addSelectedProductToCart();
+                }
+            }
+        });
+
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0), "FocusCart");
         actionMap.put("FocusCart", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (posCartPanel != null && posCartPanel.hasCartItems()) {
                     posCartPanel.requestCartFocus();
-                    posCartPanel.navigateCartItems(0);
-                    showQuickFeedback("🛒 Cart Mode");
-                } else {
-                    showQuickFeedback("Cart is empty");
                 }
             }
         });
 
-        // F4-F7 - Payment Methods (Centralized)
         setupPaymentShortcuts(inputMap, actionMap);
-        
-        // F8 - Clear Cart
+
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0), "ClearCart");
         actionMap.put("ClearCart", new javax.swing.AbstractAction() {
             @Override
@@ -349,7 +435,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // F9 - Complete Sale
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F9, 0), "CompleteSale");
         actionMap.put("CompleteSale", new javax.swing.AbstractAction() {
             @Override
@@ -360,7 +445,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // F10 - Discount
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F10, 0), "Discount");
         actionMap.put("Discount", new javax.swing.AbstractAction() {
             @Override
@@ -371,7 +455,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // F11 - Hold Bill
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F11, 0), "HoldBill");
         actionMap.put("HoldBill", new javax.swing.AbstractAction() {
             @Override
@@ -382,7 +465,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // F12 - Switch Invoice
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F12, 0), "SwitchInvoice");
         actionMap.put("SwitchInvoice", new javax.swing.AbstractAction() {
             @Override
@@ -393,7 +475,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Ctrl+E - Exchange (Centralized)
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_E, KeyEvent.CTRL_DOWN_MASK), "Exchange");
         actionMap.put("Exchange", new javax.swing.AbstractAction() {
             @Override
@@ -404,133 +485,111 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Context-aware shortcuts (+ and -)
         setupContextAwareShortcuts(inputMap, actionMap);
-
-        // KEEP EXISTING ALT+ SHORTCUTS (for backward compatibility)
         setupAltShortcuts(inputMap, actionMap);
 
         setFocusable(true);
     }
 
     private void setupPaymentShortcuts(javax.swing.InputMap inputMap, javax.swing.ActionMap actionMap) {
-        // F4 - Cash Payment
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0), "CashPayment");
         actionMap.put("CashPayment", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (posCartPanel != null) {
                     posCartPanel.selectCashPayment();
-                    showQuickFeedback("💵 Cash Payment Selected");
                 }
             }
         });
 
-        // F5 - Card Payment
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), "CardPayment");
         actionMap.put("CardPayment", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (posCartPanel != null) {
                     posCartPanel.selectCardPayment();
-                    showQuickFeedback("💳 Card Payment Selected");
                 }
             }
         });
 
-        // F6 - Credit Payment
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0), "CreditPayment");
         actionMap.put("CreditPayment", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (posCartPanel != null) {
                     posCartPanel.selectCreditPayment();
-                    showQuickFeedback("📝 Credit Payment Selected");
                 }
             }
         });
 
-        // F7 - Cheque Payment
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0), "ChequePayment");
         actionMap.put("ChequePayment", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (posCartPanel != null) {
                     posCartPanel.selectChequePayment();
-                    showQuickFeedback("🏦 Cheque Payment Selected");
                 }
             }
         });
     }
 
     private void setupContextAwareShortcuts(javax.swing.InputMap inputMap, javax.swing.ActionMap actionMap) {
-        // + key - Context aware (product or cart)
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, 0), "IncreasePlus");
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0), "IncreaseAdd");
-        
+
         AbstractAction increaseAction = new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (productSearchBar.hasFocus()) {
-                    return; // Don't interfere with search
+                    return;
                 }
-                
-                // If cart has focus and items, increase cart item qty
-                if (posCartPanel != null && posCartPanel.hasCartItems() && 
-                    posCartPanel.getFocusedCartItemIndex() >= 0) {
+
+                if (posCartPanel != null && posCartPanel.hasCartItems()
+                        && posCartPanel.getFocusedCartItemIndex() >= 0) {
                     posCartPanel.increaseFocusedItemQuantity();
-                }
-                // Otherwise, add selected product
-                else if (currentCardIndex >= 0 && currentCardIndex < productCards.size()) {
+                } else if (currentCardIndex >= 0 && currentCardIndex < productCards.size()) {
                     addSelectedProductToCart();
                 }
             }
         };
-        
+
         actionMap.put("IncreasePlus", increaseAction);
         actionMap.put("IncreaseAdd", increaseAction);
 
-        // - key - Only for cart items
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, 0), "DecreaseMinus");
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0), "DecreaseSubtract");
-        
+
         AbstractAction decreaseAction = new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                if (posCartPanel != null && posCartPanel.hasCartItems() && 
-                    posCartPanel.getFocusedCartItemIndex() >= 0) {
+                if (posCartPanel != null && posCartPanel.hasCartItems()
+                        && posCartPanel.getFocusedCartItemIndex() >= 0) {
                     posCartPanel.decreaseFocusedItemQuantity();
                 }
             }
         };
-        
+
         actionMap.put("DecreaseMinus", decreaseAction);
         actionMap.put("DecreaseSubtract", decreaseAction);
 
-        // Delete key - Context aware
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "Delete");
-        actionMap.put("Delete", new javax.swing.AbstractAction() {
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "DeleteAction");
+        actionMap.put("DeleteAction", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                if (posCartPanel != null && posCartPanel.hasCartItems() && 
-                    posCartPanel.getFocusedCartItemIndex() >= 0) {
-                    posCartPanel.deleteFocusedCartItem();
-                } else if (!posCartPanel.hasCartItems()) {
-                    // Cart is empty, do nothing
-                } else {
-                    // No specific item selected, offer to clear cart
-                    posCartPanel.clearCart();
+                if (posCartPanel != null && posCartPanel.hasCartItems()) {
+                    if (posCartPanel.getFocusedCartItemIndex() >= 0) {
+                        posCartPanel.deleteFocusedCartItem();
+                    }
                 }
             }
         });
 
-        // Space bar - Add product (like Enter)
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "AddProduct");
         actionMap.put("AddProduct", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                if (!productSearchBar.hasFocus() && currentCardIndex >= 0 && 
-                    currentCardIndex < productCards.size()) {
+                if (!productSearchBar.hasFocus() && currentCardIndex >= 0
+                        && currentCardIndex < productCards.size()) {
                     addSelectedProductToCart();
                 }
             }
@@ -538,9 +597,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void setupAltShortcuts(javax.swing.InputMap inputMap, javax.swing.ActionMap actionMap) {
-        // KEEP ALL EXISTING ALT+ SHORTCUTS FOR BACKWARD COMPATIBILITY
-        
-        // Product/Payment - Alt + P - OPEN CREDIT PAYMENT
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_P, KeyEvent.ALT_DOWN_MASK), "CreditPaymentAltP");
         actionMap.put("CreditPaymentAltP", new javax.swing.AbstractAction() {
             @Override
@@ -551,7 +607,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Discount - Alt + D
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, KeyEvent.ALT_DOWN_MASK), "DiscountAltD");
         actionMap.put("DiscountAltD", new javax.swing.AbstractAction() {
             @Override
@@ -562,7 +617,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Switch - Alt + S
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.ALT_DOWN_MASK), "SwitchAltS");
         actionMap.put("SwitchAltS", new javax.swing.AbstractAction() {
             @Override
@@ -573,7 +627,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Exchange Credit - Alt + E
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_E, KeyEvent.ALT_DOWN_MASK), "ExchangeAltE");
         actionMap.put("ExchangeAltE", new javax.swing.AbstractAction() {
             @Override
@@ -584,7 +637,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Hold Bill - Alt + H
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_H, KeyEvent.ALT_DOWN_MASK), "HoldAltH");
         actionMap.put("HoldAltH", new javax.swing.AbstractAction() {
             @Override
@@ -595,7 +647,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Delete Selected Cart Item - Alt + X
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_X, KeyEvent.ALT_DOWN_MASK), "DeleteItemAltX");
         actionMap.put("DeleteItemAltX", new javax.swing.AbstractAction() {
             @Override
@@ -606,7 +657,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Complete Sale - Alt + Enter
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.ALT_DOWN_MASK), "CompleteSaleAltEnter");
         actionMap.put("CompleteSaleAltEnter", new javax.swing.AbstractAction() {
             @Override
@@ -617,7 +667,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Product Count - Ctrl + Q
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK), "ProductCountCtrlQ");
         actionMap.put("ProductCountCtrlQ", new javax.swing.AbstractAction() {
             @Override
@@ -634,7 +683,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Focus Product Search Bar - Alt + F (Product Panel Only)
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.ALT_DOWN_MASK), "FocusProductSearchAltF");
         actionMap.put("FocusProductSearchAltF", new javax.swing.AbstractAction() {
             @Override
@@ -648,7 +696,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Payment Method Selection - Alt+1, Alt+2, Alt+3, Alt+4
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK), "CashPaymentAlt1");
         actionMap.put("CashPaymentAlt1", new javax.swing.AbstractAction() {
             @Override
@@ -689,7 +736,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Cart Item Navigation - Alt + Arrow Keys
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, KeyEvent.ALT_DOWN_MASK), "CartPrevAltUp");
         actionMap.put("CartPrevAltUp", new javax.swing.AbstractAction() {
             @Override
@@ -710,7 +756,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Alt + Q - Focus Quantity Field of Selected Cart Item
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.ALT_DOWN_MASK), "FocusQuantityAltQ");
         actionMap.put("FocusQuantityAltQ", new javax.swing.AbstractAction() {
             @Override
@@ -721,7 +766,6 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Alt + R - Focus Discount Field of Selected Cart Item
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, KeyEvent.ALT_DOWN_MASK), "FocusDiscountAltR");
         actionMap.put("FocusDiscountAltR", new javax.swing.AbstractAction() {
             @Override
@@ -732,27 +776,13 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             }
         });
 
-        // Alt + T - Refresh Products
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_T, KeyEvent.ALT_DOWN_MASK), "RefreshProductsAltT");
         actionMap.put("RefreshProductsAltT", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 manualReload();
-                Notifications.getInstance().show(
-                    Notifications.Type.INFO,
-                    Notifications.Location.TOP_RIGHT,
-                    "Products refreshed"
-                );
             }
         });
-    }
-
-    private void showQuickFeedback(String message) {
-        Notifications.getInstance().show(
-            Notifications.Type.INFO,
-            Notifications.Location.TOP_RIGHT,
-            message
-        );
     }
 
     private void setupSearchBarPlaceholder() {
@@ -930,31 +960,20 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     private void handleKeyPress(KeyEvent e) {
         int keyCode = e.getKeyCode();
 
-        // F1 - Help is handled globally
-        if (keyCode == KeyEvent.VK_F1) {
-            return;
-        }
-
-        // Don't interfere with search bar
         if (productSearchBar.hasFocus()) {
             return;
         }
 
-        // Navigation shortcuts
-        if (!productCards.isEmpty() && isInitialLoadComplete) {
+        if (!productCards.isEmpty() && isInitialLoadComplete && !e.isAltDown()) {
             switch (keyCode) {
                 case KeyEvent.VK_DOWN:
-                    if (!e.isAltDown()) {
-                        navigateDown();
-                        e.consume();
-                    }
+                    navigateDown();
+                    e.consume();
                     break;
 
                 case KeyEvent.VK_UP:
-                    if (!e.isAltDown()) {
-                        navigateUp();
-                        e.consume();
-                    }
+                    navigateUp();
+                    e.consume();
                     break;
 
                 case KeyEvent.VK_RIGHT:
@@ -975,35 +994,35 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                     break;
 
                 case KeyEvent.VK_HOME:
-                    if (!productCards.isEmpty()) {
-                        selectCardByIndex(0);
-                        e.consume();
-                    }
+                    selectCardByIndex(0);
+                    e.consume();
                     break;
 
                 case KeyEvent.VK_END:
-                    if (!productCards.isEmpty()) {
-                        selectCardByIndex(productCards.size() - 1);
-                        e.consume();
-                    }
+                    selectCardByIndex(productCards.size() - 1);
+                    e.consume();
                     break;
 
                 case KeyEvent.VK_PAGE_DOWN:
-                    if (!productCards.isEmpty()) {
+                    if (productCards.size() > 0) {
                         int newIndex = Math.min(currentCardIndex + 5, productCards.size() - 1);
-                        selectCardByIndex(newIndex);
-                        e.consume();
+                        if (newIndex >= 0 && newIndex < productCards.size()) {
+                            selectCardByIndex(newIndex);
+                            e.consume();
+                        }
                     }
                     break;
 
                 case KeyEvent.VK_PAGE_UP:
-                    if (!productCards.isEmpty()) {
-                        int newIndex = Math.max(currentCardIndex - 5, 0);
-                        selectCardByIndex(newIndex);
-                        e.consume();
+                    if (productCards.size() > 0) {
+                        int prevIndex = Math.max(currentCardIndex - 5, 0);
+                        if (prevIndex >= 0 && prevIndex < productCards.size()) {
+                            selectCardByIndex(prevIndex);
+                            e.consume();
+                        }
                     }
                     break;
-                    
+
                 case KeyEvent.VK_ESCAPE:
                     clearSearch();
                     clearCardSelection();
@@ -1024,10 +1043,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         } else {
             newIndex = currentCardIndex + columnsPerRow;
             if (newIndex >= productCards.size()) {
-                newIndex = newIndex % columnsPerRow;
-                if (newIndex >= productCards.size()) {
-                    newIndex = 0;
-                }
+                return;
             }
         }
 
@@ -1042,18 +1058,11 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
         int newIndex;
         if (currentCardIndex == -1) {
-            newIndex = productCards.size() - 1;
+            newIndex = 0;
         } else {
             newIndex = currentCardIndex - columnsPerRow;
             if (newIndex < 0) {
-                int column = currentCardIndex % columnsPerRow;
-                newIndex = productCards.size() - columnsPerRow + column;
-                if (newIndex >= productCards.size()) {
-                    newIndex = productCards.size() - 1;
-                }
-                if (newIndex < 0) {
-                    newIndex = productCards.size() - 1;
-                }
+                return;
             }
         }
 
@@ -1072,7 +1081,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         } else {
             newIndex = currentCardIndex + 1;
             if (newIndex >= productCards.size()) {
-                newIndex = 0;
+                return;
             }
         }
 
@@ -1087,11 +1096,11 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
         int newIndex;
         if (currentCardIndex == -1) {
-            newIndex = productCards.size() - 1;
+            newIndex = 0;
         } else {
             newIndex = currentCardIndex - 1;
             if (newIndex < 0) {
-                newIndex = productCards.size() - 1;
+                return;
             }
         }
 
@@ -1119,37 +1128,30 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private void setCardSelection(RoundedPanel card, boolean selected) {
-        if (selected) {
-            card.setBackground(new Color(200, 245, 245));
-            card.setBorder(BorderFactory.createCompoundBorder(
-                    new RoundBorder(TEAL_COLOR, 3, 20),
-                    BorderFactory.createEmptyBorder(16, 18, 16, 18)
-            ));
+    if (selected) {
+        card.setBackground(new Color(200, 245, 245));
+        card.setBorder(SELECTED_BORDER);
+        card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    } else {
+        if (hasSingleSearchResult && productCards.size() == 1) {
+            card.setBackground(SINGLE_RESULT_HIGHLIGHT);
+            card.setBorder(SINGLE_RESULT_HIGHLIGHT_BORDER);
         } else {
-            if (hasSingleSearchResult && productCards.size() == 1) {
-                card.setBackground(SINGLE_RESULT_HIGHLIGHT);
-                card.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(new Color(100, 180, 255), 2, 20),
-                        BorderFactory.createEmptyBorder(16, 18, 16, 18)
-                ));
-            } else {
-                card.setBackground(CARD_BG);
-                card.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(BORDER_COLOR, 1, 20),
-                        BorderFactory.createEmptyBorder(16, 18, 16, 18)
-                ));
-            }
+            card.setBackground(CARD_BG);
+            card.setBorder(NORMAL_BORDER);
         }
-        card.repaint();
+        card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
     }
+    card.repaint();
+}
 
     private void clearCardSelection() {
-        if (currentCardIndex >= 0 && currentCardIndex < productCards.size()) {
-            RoundedPanel currentCard = productCards.get(currentCardIndex);
-            setCardSelection(currentCard, false);
-        }
-        currentCardIndex = -1;
+    if (currentCardIndex >= 0 && currentCardIndex < productCards.size()) {
+        RoundedPanel currentCard = productCards.get(currentCardIndex);
+        setCardSelection(currentCard, false);
     }
+    currentCardIndex = -1;
+}
 
     private void ensureCardVisible(int index) {
         if (index < 0 || index >= productCards.size()) {
@@ -1261,13 +1263,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                     });
 
                 } catch (Exception e) {
-                    SwingUtilities.invokeLater(() -> {
-                        Notifications.getInstance().show(
-                            Notifications.Type.ERROR,
-                            Notifications.Location.TOP_RIGHT,
-                            "Error loading products: " + e.getMessage()
-                        );
-                    });
+                    // Error handling removed as per requirements
                 }
             }
         };
@@ -1279,28 +1275,27 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
 
         try {
             List<PosPanelDTO> allProducts = posPanelDAO.searchProducts(productSearch);
-            
+
             for (PosPanelDTO dto : allProducts) {
                 int availableStock = StockTracker.getInstance()
-                    .getAvailableStock(dto.getProductId(), dto.getBatchNo());
-                
+                        .getAvailableStock(dto.getProductId(), dto.getBatchNo());
+
                 if (availableStock > 0) {
-                    // Create new DTO with available stock
                     PosPanelDTO productWithAvailableStock = new PosPanelDTO(
-                        dto.getProductId(),
-                        dto.getProductName(),
-                        dto.getBrandName(),
-                        dto.getBatchNo(),
-                        availableStock,
-                        dto.getSellingPrice(),
-                        dto.getBarcode(),
-                        dto.getLastPrice()
+                            dto.getProductId(),
+                            dto.getProductName(),
+                            dto.getBrandName(),
+                            dto.getBatchNo(),
+                            availableStock,
+                            dto.getSellingPrice(),
+                            dto.getBarcode(),
+                            dto.getLastPrice()
                     );
                     products.add(productWithAvailableStock);
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            // Exception handling removed as per requirements
         }
 
         return products;
@@ -1309,9 +1304,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     private void updateProductCards(List<PosPanelDTO> products, boolean isSearchResult) {
         jPanel7.removeAll();
         productCards.clear();
-
         currentCardIndex = -1;
-
         hasSingleSearchResult = isSearchResult && products.size() == 1;
 
         if (products.isEmpty()) {
@@ -1331,30 +1324,63 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
             messagePanel.add(noProductLabel);
             jPanel7.add(messagePanel);
         } else {
-            for (PosPanelDTO product : products) {
-                RoundedPanel productCard = createProductCard(
-                        product.getProductId(), product.getProductName(), product.getBrandName(),
-                        product.getBatchNo(), product.getQty(), product.getSellingPrice(),
-                        product.getBarcode(), product.getLastPrice()
-                );
+            javax.swing.SwingWorker<List<RoundedPanel>, Void> worker
+                    = new javax.swing.SwingWorker<List<RoundedPanel>, Void>() {
 
-                jPanel7.add(productCard);
-                productCards.add(productCard);
-            }
+                @Override
+                protected List<RoundedPanel> doInBackground() {
+                    List<RoundedPanel> cards = new ArrayList<>();
 
-            if (hasSingleSearchResult && productCards.size() == 1) {
-                RoundedPanel singleCard = productCards.get(0);
-                singleCard.setBackground(SINGLE_RESULT_HIGHLIGHT);
-                singleCard.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(new Color(100, 180, 255), 2, 20),
-                        BorderFactory.createEmptyBorder(16, 18, 16, 18)
-                ));
-                singleCard.repaint();
+                    for (PosPanelDTO product : products) {
+                        RoundedPanel card = createProductCard(
+                                product.getProductId(),
+                                product.getProductName(),
+                                product.getBrandName(),
+                                product.getBatchNo(),
+                                product.getQty(),
+                                product.getSellingPrice(),
+                                product.getBarcode(),
+                                product.getLastPrice()
+                        );
+                        cards.add(card);
+                    }
+                    return cards;
+                }
 
-                SwingUtilities.invokeLater(() -> {
-                    selectCardByIndex(0);
-                });
-            }
+                @Override
+                protected void done() {
+                    try {
+                        List<RoundedPanel> cards = get();
+
+                        for (RoundedPanel card : cards) {
+                            jPanel7.add(card);
+                            productCards.add(card);
+                        }
+
+                        if (hasSingleSearchResult && !productCards.isEmpty()) {
+                            RoundedPanel singleCard = productCards.get(0);
+                            singleCard.setBackground(SINGLE_RESULT_HIGHLIGHT);
+                            singleCard.setBorder(SINGLE_RESULT_HIGHLIGHT_BORDER);
+                            singleCard.repaint();
+                            SwingUtilities.invokeLater(() -> selectCardByIndex(0));
+                        }
+
+                        jPanel7.revalidate();
+                        jPanel7.repaint();
+                        calculateColumnsPerRow();
+
+                        if (!productSearchBar.hasFocus()) {
+                            SwingUtilities.invokeLater(() -> requestFocusInWindow());
+                        }
+
+                    } catch (Exception e) {
+                        // Exception handling removed as per requirements
+                    }
+                }
+            };
+
+            worker.execute();
+            return;
         }
 
         jPanel7.revalidate();
@@ -1362,9 +1388,7 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         calculateColumnsPerRow();
 
         if (!productSearchBar.hasFocus()) {
-            SwingUtilities.invokeLater(() -> {
-                requestFocusInWindow();
-            });
+            SwingUtilities.invokeLater(() -> requestFocusInWindow());
         }
     }
 
@@ -1386,50 +1410,28 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
                     PosPanelDTO product = get();
                     if (product != null) {
                         int availableStock = StockTracker.getInstance()
-                            .getAvailableStock(product.getProductId(), product.getBatchNo());
-                        
+                                .getAvailableStock(product.getProductId(), product.getBatchNo());
+
                         if (availableStock > 0) {
                             addToCart(
-                                product.getProductId(),
-                                product.getProductName(),
-                                product.getBrandName(),
-                                product.getBatchNo(),
-                                availableStock,
-                                product.getSellingPrice(),
-                                product.getBarcode(),
-                                product.getLastPrice()
+                                    product.getProductId(),
+                                    product.getProductName(),
+                                    product.getBrandName(),
+                                    product.getBatchNo(),
+                                    availableStock,
+                                    product.getSellingPrice(),
+                                    product.getBarcode(),
+                                    product.getLastPrice()
                             );
-                            
-                            Notifications.getInstance().show(
-                                Notifications.Type.SUCCESS,
-                                Notifications.Location.TOP_RIGHT,
-                                product.getProductName() + " added to cart"
-                            );
-                            
+
                             productSearchBar.setText("");
                             productSearchBar.setForeground(java.awt.Color.GRAY);
                             productSearchBar.setText("Search products by name or barcode...");
-                            
-                        } else {
-                            Notifications.getInstance().show(
-                                Notifications.Type.ERROR,
-                                Notifications.Location.TOP_RIGHT,
-                                "Out of stock: " + product.getProductName()
-                            );
+
                         }
-                    } else {
-                        Notifications.getInstance().show(
-                            Notifications.Type.ERROR,
-                            Notifications.Location.TOP_RIGHT,
-                            "Product not found for barcode: " + searchText
-                        );
                     }
                 } catch (Exception e) {
-                    Notifications.getInstance().show(
-                        Notifications.Type.ERROR,
-                        Notifications.Location.TOP_RIGHT,
-                        "Error searching barcode: " + e.getMessage()
-                    );
+                    // Error handling removed as per requirements
                 }
             }
         };
@@ -1437,248 +1439,350 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
     }
 
     private RoundedPanel createProductCard(int productId, String productName,
-    String brandName, String batchNo, int initialStock, double sellingPrice,
-    String barcode, double lastPrice) {
+        String brandName, String batchNo, int initialStock, double sellingPrice,
+        String barcode, double lastPrice) {
 
-        int viewportWidth = jScrollPane2.getViewport().getWidth();
+    int viewportWidth = jScrollPane2.getViewport().getWidth();
 
+    if (viewportWidth < 100) {
+        viewportWidth = jScrollPane2.getWidth();
         if (viewportWidth < 100) {
-            viewportWidth = jScrollPane2.getWidth();
-            if (viewportWidth < 100) {
-                viewportWidth = selectProductPanel.getWidth() - 40;
-            }
+            viewportWidth = selectProductPanel.getWidth() - 40;
         }
-
-        int cardWidth = calculateCardWidth(viewportWidth);
-
-        RoundedPanel card = new RoundedPanel(20);
-        card.setBackground(CARD_BG);
-        card.setPreferredSize(new Dimension(cardWidth, 145));
-        card.setMinimumSize(new Dimension(280, 145));
-        card.setMaximumSize(new Dimension(cardWidth, 145));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                new RoundBorder(BORDER_COLOR, 1, 20),
-                BorderFactory.createEmptyBorder(16, 18, 16, 18)
-        ));
-        card.setLayout(new java.awt.BorderLayout(0, 10));
-
-        card.putClientProperty("productId", productId);
-        card.putClientProperty("productName", productName);
-        card.putClientProperty("brandName", brandName);
-        card.putClientProperty("batchNo", batchNo);
-        card.putClientProperty("sellingPrice", sellingPrice);
-        card.putClientProperty("barcode", barcode);
-        card.putClientProperty("lastPrice", lastPrice);
-
-        JPanel topPanel = new JPanel(new java.awt.BorderLayout());
-        topPanel.setOpaque(false);
-
-        JLabel lblProductName = new JLabel(productName);
-        lblProductName.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
-        lblProductName.setForeground(new Color(40, 40, 40));
-        topPanel.add(lblProductName, java.awt.BorderLayout.WEST);
-
-        card.add(topPanel, java.awt.BorderLayout.NORTH);
-
-        JPanel middlePanel = new JPanel(new java.awt.BorderLayout(12, 0));
-        middlePanel.setOpaque(false);
-
-        JLabel lblBrand = new JLabel("Brand: " + brandName);
-        lblBrand.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
-        lblBrand.setForeground(TEXT_GRAY);
-        middlePanel.add(lblBrand, java.awt.BorderLayout.WEST);
-
-        JLabel lblPrice = new JLabel(String.format("Rs.%.2f", sellingPrice));
-        lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
-        lblPrice.setForeground(TEAL_COLOR);
-        lblPrice.setHorizontalAlignment(JLabel.RIGHT);
-        middlePanel.add(lblPrice, java.awt.BorderLayout.EAST);
-
-        card.add(middlePanel, java.awt.BorderLayout.CENTER);
-
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 10, 0));
-        bottomPanel.setOpaque(false);
-
-        int displayStock = StockTracker.getInstance().getAvailableStock(productId, batchNo);
-
-        JPanel stockBadge = new JPanel();
-        stockBadge.setLayout(new FlowLayout(FlowLayout.LEADING, 0, 0));
-        stockBadge.setOpaque(true);
-
-        if (displayStock <= 0) {
-            stockBadge.setBackground(new Color(255, 230, 230));
-        } else if (displayStock < 10) {
-            stockBadge.setBackground(new Color(255, 243, 224));
-        } else {
-            stockBadge.setBackground(new Color(230, 245, 230));
-        }
-
-        JLabel lblStock = new JLabel("Stock: " + displayStock);
-        lblStock.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-
-        if (displayStock <= 0) {
-            lblStock.setForeground(new Color(220, 53, 69));
-        } else if (displayStock < 10) {
-            lblStock.setForeground(new Color(255, 152, 0));
-        } else {
-            lblStock.setForeground(new Color(34, 139, 34));
-        }
-
-        lblStock.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
-        stockBadge.add(lblStock);
-        bottomPanel.add(stockBadge);
-
-        ProductCardReference cardRef = new ProductCardReference(
-                productId, batchNo, lblStock, stockBadge
-        );
-        StockTracker.getInstance().registerCard(productId, batchNo, cardRef);
-
-        JPanel batchBadge = new JPanel();
-        batchBadge.setLayout(new FlowLayout(FlowLayout.LEADING, 0, 0));
-        batchBadge.setOpaque(true);
-        batchBadge.setBackground(new Color(240, 240, 250));
-
-        JLabel lblBatch = new JLabel(batchNo);
-        lblBatch.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
-        lblBatch.setForeground(new Color(70, 70, 100));
-        lblBatch.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
-
-        batchBadge.add(lblBatch);
-        bottomPanel.add(batchBadge);
-
-        card.add(bottomPanel, java.awt.BorderLayout.SOUTH);
-
-        card.addMouseListener(new MouseAdapter() {
-            private Color originalBg = CARD_BG;
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                card.setBackground(CARD_HOVER);
-                card.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                card.setBorder(BorderFactory.createCompoundBorder(
-                        new RoundBorder(TEAL_COLOR, 2, 20),
-                        BorderFactory.createEmptyBorder(16, 18, 16, 18)
-                ));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                if (hasSingleSearchResult && productCards.size() == 1) {
-                    card.setBackground(SINGLE_RESULT_HIGHLIGHT);
-                    card.setBorder(BorderFactory.createCompoundBorder(
-                            new RoundBorder(new Color(100, 180, 255), 2, 20),
-                            BorderFactory.createEmptyBorder(16, 18, 16, 18)
-                    ));
-                } else {
-                    card.setBackground(originalBg);
-                    card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-                    card.setBorder(BorderFactory.createCompoundBorder(
-                            new RoundBorder(BORDER_COLOR, 1, 20),
-                            BorderFactory.createEmptyBorder(16, 18, 16, 18)
-                    ));
-                }
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int currentAvailable = StockTracker.getInstance().getAvailableStock(productId, batchNo);
-
-                if (currentAvailable > 0) {
-                    addToCart(productId, productName, brandName, batchNo,
-                            currentAvailable, sellingPrice, barcode, lastPrice);
-                    
-                    Color originalColor = card.getBackground();
-                    card.setBackground(new Color(144, 238, 144));
-                    
-                    javax.swing.Timer flashTimer = new javax.swing.Timer(200, evt -> {
-                        card.setBackground(originalColor);
-                    });
-                    flashTimer.setRepeats(false);
-                    flashTimer.start();
-                    
-                } else {
-                    Color originalColor = card.getBackground();
-                    card.setBackground(new Color(255, 200, 200));
-                    
-                    javax.swing.Timer flashTimer = new javax.swing.Timer(200, evt -> {
-                        card.setBackground(originalColor);
-                    });
-                    flashTimer.setRepeats(false);
-                    flashTimer.start();
-                    
-                    JOptionPane.showMessageDialog(
-                            PosPanelDone.this,
-                            "No stock available!\n\n"
-                            + "This product is either:\n"
-                            + "• Out of stock in the database\n"
-                            + "• All units are already in your cart\n"
-                            + "• Units are on hold in other pending sales",
-                            "Out of Stock",
-                            JOptionPane.WARNING_MESSAGE
-                    );
-                }
-            }
-        });
-
-        return card;
     }
+
+    int cardWidth = calculateCardWidth(viewportWidth);
+
+    RoundedPanel card = new RoundedPanel(20);
+    card.setBackground(CARD_BG);
+    card.setPreferredSize(new Dimension(cardWidth, 145));
+    card.setMinimumSize(new Dimension(280, 145));
+    card.setMaximumSize(new Dimension(cardWidth, 145));
+    card.setBorder(NORMAL_BORDER);
+    card.setLayout(new java.awt.BorderLayout(0, 10));
+
+    card.putClientProperty("productId", productId);
+    card.putClientProperty("productName", productName);
+    card.putClientProperty("brandName", brandName);
+    card.putClientProperty("batchNo", batchNo);
+    card.putClientProperty("sellingPrice", sellingPrice);
+    card.putClientProperty("barcode", barcode);
+    card.putClientProperty("lastPrice", lastPrice);
+
+    JPanel topPanel = new JPanel(new java.awt.BorderLayout());
+    topPanel.setOpaque(false);
+
+    JLabel lblProductName = new JLabel(productName);
+    lblProductName.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+    lblProductName.setForeground(new Color(40, 40, 40));
+    topPanel.add(lblProductName, java.awt.BorderLayout.WEST);
+
+    card.add(topPanel, java.awt.BorderLayout.NORTH);
+
+    JPanel middlePanel = new JPanel(new java.awt.BorderLayout(12, 0));
+    middlePanel.setOpaque(false);
+
+    JLabel lblBrand = new JLabel("Brand: " + brandName);
+    lblBrand.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
+    lblBrand.setForeground(TEXT_GRAY);
+    middlePanel.add(lblBrand, java.awt.BorderLayout.WEST);
+
+    JLabel lblPrice = new JLabel(String.format("Rs.%.2f", sellingPrice));
+    lblPrice.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+    lblPrice.setForeground(TEAL_COLOR);
+    lblPrice.setHorizontalAlignment(JLabel.RIGHT);
+    middlePanel.add(lblPrice, java.awt.BorderLayout.EAST);
+
+    card.add(middlePanel, java.awt.BorderLayout.CENTER);
+
+    JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 10, 0));
+    bottomPanel.setOpaque(false);
+
+    int displayStock = StockTracker.getInstance().getAvailableStock(productId, batchNo);
+
+    JPanel stockBadge = new JPanel();
+    stockBadge.setLayout(new FlowLayout(FlowLayout.LEADING, 0, 0));
+    stockBadge.setOpaque(true);
+
+    if (displayStock <= 0) {
+        stockBadge.setBackground(new Color(255, 230, 230));
+    } else if (displayStock < 10) {
+        stockBadge.setBackground(new Color(255, 243, 224));
+    } else {
+        stockBadge.setBackground(new Color(230, 245, 230));
+    }
+
+    JLabel lblStock = new JLabel("Stock: " + displayStock);
+    lblStock.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+
+    if (displayStock <= 0) {
+        lblStock.setForeground(new Color(220, 53, 69));
+    } else if (displayStock < 10) {
+        lblStock.setForeground(new Color(255, 152, 0));
+    } else {
+        lblStock.setForeground(new Color(34, 139, 34));
+    }
+
+    lblStock.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
+    stockBadge.add(lblStock);
+    bottomPanel.add(stockBadge);
+
+    ProductCardReference cardRef = new ProductCardReference(
+            productId, batchNo, lblStock, stockBadge
+    );
+    StockTracker.getInstance().registerCard(productId, batchNo, cardRef);
+
+    JPanel batchBadge = new JPanel();
+    batchBadge.setLayout(new FlowLayout(FlowLayout.LEADING, 0, 0));
+    batchBadge.setOpaque(true);
+    batchBadge.setBackground(new Color(240, 240, 250));
+
+    JLabel lblBatch = new JLabel(batchNo);
+    lblBatch.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
+    lblBatch.setForeground(new Color(70, 70, 100));
+    lblBatch.setBorder(BorderFactory.createEmptyBorder(5, 14, 5, 14));
+
+    batchBadge.add(lblBatch);
+    bottomPanel.add(batchBadge);
+
+    card.add(bottomPanel, java.awt.BorderLayout.SOUTH);
+
+    card.addMouseListener(new MouseAdapter() {
+        private boolean isProcessing = false;
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            if (!isProcessing) {
+                if (productCards.indexOf(card) != currentCardIndex) {
+                    card.setBackground(CARD_HOVER);
+                    card.setBorder(HOVER_BORDER);
+                    card.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                }
+            }
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            if (!isProcessing) {
+                if (productCards.indexOf(card) != currentCardIndex) {
+                    if (hasSingleSearchResult && productCards.size() == 1) {
+                        card.setBackground(SINGLE_RESULT_HIGHLIGHT);
+                        card.setBorder(SINGLE_RESULT_HIGHLIGHT_BORDER);
+                    } else {
+                        card.setBackground(CARD_BG);
+                        card.setBorder(NORMAL_BORDER);
+                    }
+                    card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+                }
+            }
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            if (!isProcessing) {
+                card.setBackground(new Color(144, 238, 144));
+            }
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            if (isProcessing) {
+                return;
+            }
+            isProcessing = true;
+
+            int currentAvailable = StockTracker.getInstance().getAvailableStock(productId, batchNo);
+
+            if (currentAvailable > 0) {
+                addToCart(productId, productName, brandName, batchNo,
+                        currentAvailable, sellingPrice, barcode, lastPrice);
+
+                clearCardSelection();
+
+                javax.swing.Timer resetTimer = new javax.swing.Timer(150, evt -> {
+                    card.setBackground(CARD_BG);
+                    card.setBorder(NORMAL_BORDER);
+                    card.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+                    isProcessing = false;
+                });
+                resetTimer.setRepeats(false);
+                resetTimer.start();
+
+            } else {
+                card.setBackground(new Color(255, 200, 200));
+
+                javax.swing.Timer resetTimer = new javax.swing.Timer(150, evt -> {
+                    card.setBackground(CARD_BG);
+                    card.setBorder(NORMAL_BORDER);
+                    isProcessing = false;
+                });
+                resetTimer.setRepeats(false);
+                resetTimer.start();
+            }
+        }
+    });
+
+    return card;
+}
 
     private void addSelectedProductToCart() {
-        if (currentCardIndex < 0 || currentCardIndex >= productCards.size()) {
-            return;
-        }
-
-        RoundedPanel selectedCard = productCards.get(currentCardIndex);
-
-        int productId = (int) selectedCard.getClientProperty("productId");
-        String productName = (String) selectedCard.getClientProperty("productName");
-        String brandName = (String) selectedCard.getClientProperty("brandName");
-        String batchNo = (String) selectedCard.getClientProperty("batchNo");
-        double sellingPrice = (double) selectedCard.getClientProperty("sellingPrice");
-        String barcode = (String) selectedCard.getClientProperty("barcode");
-        double lastPrice = (double) selectedCard.getClientProperty("lastPrice");
-
-        int currentAvailable = StockTracker.getInstance().getAvailableStock(productId, batchNo);
-
-        if (currentAvailable > 0) {
-            addToCart(productId, productName, brandName, batchNo, 
-                    currentAvailable, sellingPrice, barcode, lastPrice);
-
-            selectedCard.setBackground(new Color(144, 238, 144));
-
-            javax.swing.Timer flashTimer = new javax.swing.Timer(200, evt -> {
-                setCardSelection(selectedCard, false);
-                currentCardIndex = -1;
-            });
-            flashTimer.setRepeats(false);
-            flashTimer.start();
-
-        } else {
-            selectedCard.setBackground(new Color(255, 200, 200));
-
-            javax.swing.Timer flashTimer = new javax.swing.Timer(200, evt -> {
-                setCardSelection(selectedCard, true);
-            });
-            flashTimer.setRepeats(false);
-            flashTimer.start();
-
-            JOptionPane.showMessageDialog(
-                    PosPanelDone.this,
-                    "No stock available!\n\n"
-                    + "This product is either:\n"
-                    + "• Out of stock in the database\n"
-                    + "• All units are already in your cart\n"
-                    + "• Units are on hold in other pending sales",
-                    "Out of Stock",
-                    JOptionPane.WARNING_MESSAGE
-            );
-        }
+    if (currentCardIndex < 0 || currentCardIndex >= productCards.size()) {
+        return;
     }
-    
+
+    RoundedPanel selectedCard = productCards.get(currentCardIndex);
+
+    int productId = (int) selectedCard.getClientProperty("productId");
+    String productName = (String) selectedCard.getClientProperty("productName");
+    String brandName = (String) selectedCard.getClientProperty("brandName");
+    String batchNo = (String) selectedCard.getClientProperty("batchNo");
+    double sellingPrice = (double) selectedCard.getClientProperty("sellingPrice");
+    String barcode = (String) selectedCard.getClientProperty("barcode");
+    double lastPrice = (double) selectedCard.getClientProperty("lastPrice");
+
+    int currentAvailable = StockTracker.getInstance().getAvailableStock(productId, batchNo);
+
+    if (currentAvailable > 0) {
+        selectedCard.setBackground(new Color(144, 238, 144));
+
+        addToCart(productId, productName, brandName, batchNo,
+                currentAvailable, sellingPrice, barcode, lastPrice);
+
+        int previousIndex = currentCardIndex;
+        clearCardSelection();
+
+        javax.swing.Timer flashTimer = new javax.swing.Timer(150, evt -> {
+            selectedCard.setBackground(CARD_BG);
+            selectedCard.setBorder(NORMAL_BORDER);
+        });
+        flashTimer.setRepeats(false);
+        flashTimer.start();
+
+    } else {
+        selectedCard.setBackground(new Color(255, 200, 200));
+
+        javax.swing.Timer flashTimer = new javax.swing.Timer(150, evt -> {
+            selectedCard.setBackground(CARD_BG);
+        });
+        flashTimer.setRepeats(false);
+        flashTimer.start();
+    }
+}
+
     private void addToCart(int productId, String productName, String brandName,
             String batchNo, int originalStock, double sellingPrice, String barcode, double lastPrice) {
 
-        posCartPanel.addToCart(productId, productName, brandName, batchNo, originalStock, sellingPrice, barcode, lastPrice);
+        posCartPanel.addToCart(productId, productName, brandName, batchNo,
+                originalStock, sellingPrice, barcode, lastPrice);
+
+        scheduleLazyStockRefresh(productId, batchNo);
+    }
+
+    private java.util.Set<String> pendingRefreshKeys = new java.util.HashSet<>();
+    private javax.swing.Timer lazyRefreshTimer;
+
+    private void scheduleLazyStockRefresh(int productId, String batchNo) {
+        String key = productId + "_" + batchNo;
+
+        synchronized (pendingRefreshKeys) {
+            pendingRefreshKeys.add(key);
+        }
+
+        if (lazyRefreshTimer != null && lazyRefreshTimer.isRunning()) {
+            lazyRefreshTimer.restart();
+        } else {
+            lazyRefreshTimer = new javax.swing.Timer(800, e -> {
+                performLazyStockRefresh();
+            });
+            lazyRefreshTimer.setRepeats(false);
+            lazyRefreshTimer.start();
+        }
+    }
+
+    private void performLazyStockRefresh() {
+        java.util.Set<String> keysToRefresh;
+        synchronized (pendingRefreshKeys) {
+            if (pendingRefreshKeys.isEmpty()) {
+                return;
+            }
+            keysToRefresh = new java.util.HashSet<>(pendingRefreshKeys);
+            pendingRefreshKeys.clear();
+        }
+
+        new Thread(() -> {
+            StockTracker.getInstance().refreshStockForKeys(keysToRefresh);
+
+            SwingUtilities.invokeLater(() -> {
+                for (String key : keysToRefresh) {
+                    ProductCardReference cardRef = StockTracker.getInstance().getCardReference(key);
+                    if (cardRef != null) {
+                        String[] parts = key.split("_", 2);
+                        int prodId = Integer.parseInt(parts[0]);
+                        String batch = parts[1];
+                        int available = StockTracker.getInstance().getAvailableStock(prodId, batch);
+                        int cartQty = StockTracker.getInstance().getCartQuantity(prodId, batch);
+                        cardRef.updateStock(cartQty, available);
+                    }
+                }
+            });
+        }, "StockRefreshThread").start();
+    }
+
+    private void scheduleStockRefresh(int productId, String batchNo) {
+        String key = productId + "_" + batchNo;
+
+        synchronized (pendingUpdates) {
+            if (pendingUpdates.contains(key)) {
+                return;
+            }
+            pendingUpdates.add(key);
+        }
+
+        if (feedbackTimer != null && feedbackTimer.isRunning()) {
+            feedbackTimer.restart();
+        } else {
+            feedbackTimer = new javax.swing.Timer(500, e -> {
+                performBatchedStockRefresh();
+            });
+            feedbackTimer.setRepeats(false);
+            feedbackTimer.start();
+        }
+    }
+
+    private void performBatchedStockRefresh() {
+        java.util.Set<String> keysToRefresh;
+        synchronized (pendingUpdates) {
+            keysToRefresh = new java.util.HashSet<>(pendingUpdates);
+            pendingUpdates.clear();
+        }
+
+        if (keysToRefresh.isEmpty()) {
+            return;
+        }
+
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                StockTracker.getInstance().refreshStockForKeys(keysToRefresh);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                for (String key : keysToRefresh) {
+                    ProductCardReference cardRef = StockTracker.getInstance().getCardReference(key);
+                    if (cardRef != null) {
+                        String[] parts = key.split("_");
+                        int prodId = Integer.parseInt(parts[0]);
+                        String batch = parts[1];
+                        int available = StockTracker.getInstance().getAvailableStock(prodId, batch);
+                        int cartQty = StockTracker.getInstance().getCartQuantity(prodId, batch);
+                        cardRef.updateStock(cartQty, available);
+                    }
+                }
+            }
+        };
+        worker.execute();
     }
 
     public void manualReload() {
@@ -1696,7 +1800,11 @@ public class PosPanelDone extends javax.swing.JPanel implements CartListener {
         if (refreshTimer != null && refreshTimer.isRunning()) {
             refreshTimer.stop();
         }
+        if (feedbackTimer != null && feedbackTimer.isRunning()) {
+            feedbackTimer.stop();
+        }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

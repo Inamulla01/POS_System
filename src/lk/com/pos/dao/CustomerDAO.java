@@ -51,30 +51,51 @@ public class CustomerDAO {
         
         String finalQuery = queryBuilder.toString();
         log.info("Executing query: " + finalQuery);
+        log.info("Filters - Search: '" + searchText + "', MissedDue: " + missedDueDateOnly + ", NoDue: " + noDueOnly + ", DueAmount: " + dueAmountOnly);
         
-        return DB.executeQuerySafe(finalQuery, rs -> {
-            List<CustomerDTO> customers = new ArrayList<>();
+        List<CustomerDTO> customers = DB.executeQuerySafe(finalQuery, rs -> {
+            List<CustomerDTO> customerList = new ArrayList<>();
+            int count = 0;
             while (rs.next()) {
                 CustomerDTO customer = mapResultSetToCustomerDTO(rs);
-                customers.add(customer);
+                customerList.add(customer);
+                count++;
+                
+                // Debug log for first 5 customers
+                if (count <= 5) {
+                    log.info("DEBUG Customer " + count + ": ID=" + customer.getCustomerId() 
+                            + ", Name=" + customer.getCustomerName() 
+                            + ", Credit=" + customer.getTotalCreditAmount() 
+                            + ", Paid=" + customer.getTotalPaid() 
+                            + ", Outstanding=" + customer.getOutstanding()
+                            + ", DueDate=" + customer.getLatestDueDate());
+                }
             }
-            return customers;
+            log.info("Total customers found: " + count);
+            return customerList;
         }, parameters.toArray());
+        
+        log.info("Returning " + customers.size() + " customers");
+        return customers;
     }
 
     /**
-     * Build customer subquery
+     * Build customer subquery with corrected payment aggregation
      */
     private String buildCustomerSubquery() {
         return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, "
                 + "cc.customer_address, cc.nic, cc.date_time, s.status_name, "
                 + "MAX(c.credit_final_date) as latest_due_date, "
                 + "IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, "
-                + "IFNULL(SUM(cp.credit_pay_amount), 0) AS total_paid "
+                + "IFNULL(cp.total_paid, 0) AS total_paid "
                 + "FROM credit_customer cc "
                 + "JOIN status s ON s.status_id = cc.status_id "
                 + "LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id "
-                + "LEFT JOIN credit_pay cp ON cp.credit_customer_id = cc.customer_id ";
+                + "LEFT JOIN ("
+                + "    SELECT credit_customer_id, SUM(credit_pay_amount) as total_paid "
+                + "    FROM credit_pay "
+                + "    GROUP BY credit_customer_id"
+                + ") cp ON cp.credit_customer_id = cc.customer_id ";
     }
 
     /**
@@ -89,12 +110,16 @@ public class CustomerDAO {
      */
     private String buildStatusFilter(boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
         if (missedDueDateOnly) {
+            log.info("Applying filter: Missed Due Date (latest_due_date < CURDATE() AND outstanding > 0)");
             return " AND latest_due_date < CURDATE() AND total_credit_amount > total_paid ";
         } else if (noDueOnly) {
+            log.info("Applying filter: No Due (total_credit_amount <= total_paid)");
             return " AND total_credit_amount <= total_paid ";
         } else if (dueAmountOnly) {
+            log.info("Applying filter: Due Amount (total_credit_amount > total_paid)");
             return " AND total_credit_amount > total_paid ";
         }
+        log.info("No filter applied - showing all customers");
         return "";
     }
 
@@ -153,6 +178,7 @@ public class CustomerDAO {
      * Get all customers
      */
     public List<CustomerDTO> getAllCustomers() throws SQLException {
+        log.info("Getting all customers (no filters)");
         return searchCustomers("", false, false, false);
     }
 
@@ -160,6 +186,7 @@ public class CustomerDAO {
      * Get customers with due amounts
      */
     public List<CustomerDTO> getCustomersWithDueAmount() throws SQLException {
+        log.info("Getting customers with due amounts");
         return searchCustomers("", false, false, true);
     }
 
@@ -167,6 +194,7 @@ public class CustomerDAO {
      * Get customers with missed due dates
      */
     public List<CustomerDTO> getCustomersWithMissedDueDate() throws SQLException {
+        log.info("Getting customers with missed due dates");
         return searchCustomers("", true, false, false);
     }
 
@@ -174,6 +202,7 @@ public class CustomerDAO {
      * Get customers with no due
      */
     public List<CustomerDTO> getCustomersWithNoDue() throws SQLException {
+        log.info("Getting customers with no due");
         return searchCustomers("", false, true, false);
     }
 
@@ -192,12 +221,21 @@ public class CustomerDAO {
      * Get total outstanding amount across all customers
      */
     public double getTotalOutstanding() throws SQLException {
-        String query = "SELECT SUM(outstanding) as total_outstanding FROM (" +
-                      "SELECT (SUM(c.credit_amout) - IFNULL(SUM(cp.credit_pay_amount), 0)) as outstanding " +
-                      "FROM credit c " +
-                      "LEFT JOIN credit_pay cp ON c.credit_id = cp.credit_id " +
-                      "GROUP BY c.credit_customer_id" +
-                      ") AS outstanding_table";
+        String query = "SELECT IFNULL(SUM(total_credit_amount - total_paid), 0) as total_outstanding "
+                + "FROM ("
+                + "    SELECT cc.customer_id, "
+                + "           IFNULL(SUM(c.credit_amout), 0) AS total_credit_amount, "
+                + "           IFNULL(cp.total_paid, 0) AS total_paid "
+                + "    FROM credit_customer cc "
+                + "    LEFT JOIN credit c ON c.credit_customer_id = cc.customer_id "
+                + "    LEFT JOIN ("
+                + "        SELECT credit_customer_id, SUM(credit_pay_amount) as total_paid "
+                + "        FROM credit_pay "
+                + "        GROUP BY credit_customer_id"
+                + "    ) cp ON cp.credit_customer_id = cc.customer_id "
+                + "    WHERE cc.status_id = 1 "
+                + "    GROUP BY cc.customer_id"
+                + ") AS customer_totals";
         
         return DB.executeQuerySafe(query, rs -> {
             return rs.next() ? rs.getDouble("total_outstanding") : 0.0;

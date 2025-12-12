@@ -42,6 +42,8 @@ import raven.toast.Notifications;
 import lk.com.pos.privateclasses.NotificationScheduler;
 import lk.com.pos.privateclasses.SystemRefreshListener;
 import lk.com.pos.session.Session;
+import java.sql.*;
+import lk.com.pos.connection.DB;
 
 public class HomeScreen extends JFrame {
 
@@ -237,6 +239,55 @@ public class HomeScreen extends JFrame {
         }).start();
 
     }
+    
+    private void performStartupCheck() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                // Check database connection
+                Connection conn = DB.getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM sales");
+                
+                if (rs.next()) {
+                    int totalSales = rs.getInt(1);
+                    
+                    // Check if approaching limits
+                    if (totalSales > 2_000_000_000) {
+                        JOptionPane.showMessageDialog(
+                            this,
+                            "⚠️ CRITICAL: System near capacity!\n" +
+                            "Total sales: " + totalSales + "\n" +
+                            "Please contact IT immediately.",
+                            "System Warning",
+                            JOptionPane.WARNING_MESSAGE
+                        );
+                    }
+                }
+                
+                rs.close();
+                stmt.close();
+                conn.close();
+                
+                System.out.println("✓ System startup check passed");
+                
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(
+                    this,
+                    "Cannot connect to database.\n" +
+                    "Please check:\n" +
+                    "• Database server is running\n" +
+                    "• Network connection\n" +
+                    "• Contact IT support\n\n" +
+                    "Error: " + e.getMessage(),
+                    "Database Connection Error",
+                    JOptionPane.ERROR_MESSAGE
+                );
+                
+                System.err.println("❌ Startup check failed: " + e.getMessage());
+            }
+        });
+    }
+
 
     private void startNotificationScheduler() {
         notificationScheduler = new NotificationScheduler();

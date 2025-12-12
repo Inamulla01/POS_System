@@ -1,8 +1,9 @@
 package lk.com.pos.panel;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.privateclasses.RoundedPanel;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;  // Changed from MySQL to DB
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import javax.swing.border.EmptyBorder;
@@ -46,6 +47,20 @@ public class NotificationPanel extends javax.swing.JPanel {
         startAutoReload();
         setupButtonListeners();
         filterNotifications("ALL"); // Set ALL as default active filter
+        
+        // Add custom scroll bar style
+        setupScrollBarStyle();
+    }
+
+    private void setupScrollBarStyle() {
+        jScrollPane1.getVerticalScrollBar().putClientProperty(FlatClientProperties.STYLE,
+                "track: #F5F5F5;"
+                + "thumb: #1CB5BB;"
+                + "width: 8");
+        
+        // Enable fast scrolling
+        jScrollPane1.getVerticalScrollBar().setUnitIncrement(16);
+        jScrollPane1.getVerticalScrollBar().setBlockIncrement(64);
     }
 
 private void initializeMessageTypeMappings() {
@@ -476,15 +491,12 @@ private void initializeMessageTypeMappings() {
     }
 
     private void loadNotifications() {
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-
-        try {
-            conn = MySQL.getConnection();
-            String sql = buildQuery();
-            stmt = conn.prepareStatement(sql);
-            rs = stmt.executeQuery();
+        String sql = buildQuery();
+        
+        // Use try-with-resources for automatic resource management
+        try (Connection conn = DB.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
 
             jPanel6.removeAll();
             jPanel6.setLayout(new BoxLayout(jPanel6, BoxLayout.Y_AXIS));
@@ -527,17 +539,6 @@ private void initializeMessageTypeMappings() {
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading notifications: " + e.getMessage());
             e.printStackTrace();
-        } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (stmt != null) {
-                    stmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -785,39 +786,21 @@ private void initializeMessageTypeMappings() {
     }
 
     private void markAsRead(int notificationId) {
-        Connection conn = null;
-        PreparedStatement stmt = null;
-
-        try {
-            conn = MySQL.getConnection();
-            // FIXED: Set is_read to 0 to mark as read (since 1 is unread, 0 is read)
-            String sql = "UPDATE notifocation SET is_read = 0 WHERE id = ?";
-            stmt = conn.prepareStatement(sql);
+        String sql = "UPDATE notifocation SET is_read = 0 WHERE id = ?";
+        try (Connection conn = DB.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, notificationId);
             stmt.executeUpdate();
             loadNotifications();
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                if (stmt != null) {
-                    stmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
     private void markAllAsRead() {
-        Connection conn = null;
-        PreparedStatement stmt = null;
-
-        try {
-            conn = MySQL.getConnection();
-            // FIXED: Set is_read to 0 where it's currently 1 (unread)
-            String sql = "UPDATE notifocation SET is_read = 0 WHERE is_read = 1";
-            stmt = conn.prepareStatement(sql);
+        String sql = "UPDATE notifocation SET is_read = 0 WHERE is_read = 1";
+        try (Connection conn = DB.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             int updated = stmt.executeUpdate();
             loadNotifications();
             if (updated > 0) {
@@ -826,14 +809,6 @@ private void initializeMessageTypeMappings() {
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error marking notifications as read: " + e.getMessage());
             e.printStackTrace();
-        } finally {
-            try {
-                if (stmt != null) {
-                    stmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -844,27 +819,15 @@ private void initializeMessageTypeMappings() {
                 JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            Connection conn = null;
-            PreparedStatement stmt = null;
-
-            try {
-                conn = MySQL.getConnection();
-                String sql = "DELETE FROM notifocation WHERE id = ?";
-                stmt = conn.prepareStatement(sql);
+            String sql = "DELETE FROM notifocation WHERE id = ?";
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, notificationId);
                 stmt.executeUpdate();
                 loadNotifications();
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Error deleting notification: " + e.getMessage());
                 e.printStackTrace();
-            } finally {
-                try {
-                    if (stmt != null) {
-                        stmt.close();
-                    }
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
             }
         }
     }
@@ -877,27 +840,15 @@ private void initializeMessageTypeMappings() {
                 JOptionPane.WARNING_MESSAGE);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            Connection conn = null;
-            PreparedStatement stmt = null;
-
-            try {
-                conn = MySQL.getConnection();
-                String sql = "DELETE FROM notifocation";
-                stmt = conn.prepareStatement(sql);
+            String sql = "DELETE FROM notifocation";
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
                 int deleted = stmt.executeUpdate();
                 loadNotifications();
                 JOptionPane.showMessageDialog(this, deleted + " notification(s) deleted");
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Error deleting notifications: " + e.getMessage());
                 e.printStackTrace();
-            } finally {
-                try {
-                    if (stmt != null) {
-                        stmt.close();
-                    }
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
             }
         }
     }
@@ -921,16 +872,10 @@ private void initializeMessageTypeMappings() {
     }
 
     private void updateUnreadCount() {
-        Connection conn = null;
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-
-        try {
-            conn = MySQL.getConnection();
-            // FIXED: Count notifications where is_read = 1 (unread)
-            String sql = "SELECT COUNT(*) as unread_count FROM notifocation WHERE is_read = 1";
-            stmt = conn.prepareStatement(sql);
-            rs = stmt.executeQuery();
+        String sql = "SELECT COUNT(*) as unread_count FROM notifocation WHERE is_read = 1";
+        try (Connection conn = DB.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
 
             if (rs.next()) {
                 int unreadCount = rs.getInt("unread_count");
@@ -939,17 +884,6 @@ private void initializeMessageTypeMappings() {
 
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (stmt != null) {
-                    stmt.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 

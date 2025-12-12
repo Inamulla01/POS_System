@@ -1,18 +1,20 @@
 package lk.com.pos.privateclasses;
 
 import javax.swing.*;
-import java.awt.event.KeyEvent;
+import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
- * Centralized keyboard shortcut manager to prevent conflicts
- * and provide consistent shortcuts across the POS system
+ * Enhanced keyboard shortcut manager with visual feedback
+ * Version 4.0 - Fixed payment conflicts and discount shortcuts
  */
 public class KeyboardShortcutManager {
     
     private static KeyboardShortcutManager instance;
-    private Map<String, ShortcutInfo> shortcuts = new HashMap<>();
+    private Map<String, ShortcutInfo> shortcuts = new LinkedHashMap<>();
+    private JLabel statusIndicator;
     
     public static KeyboardShortcutManager getInstance() {
         if (instance == null) {
@@ -26,133 +28,305 @@ public class KeyboardShortcutManager {
     }
     
     private void initializeShortcuts() {
-        // GLOBAL SHORTCUTS (work anywhere)
-        addShortcut("SEARCH_PRODUCTS", "F2", "Search products");
-        addShortcut("FOCUS_CART", "F3", "Focus cart");
-        addShortcut("COMPLETE_SALE", "F9", "Complete sale");
-        addShortcut("CLEAR_CART", "F8", "Clear cart");
+        // =====================================================
+        // ESSENTIAL SHORTCUTS (Most Important)
+        // =====================================================
         
-        // PAYMENT SHORTCUTS
-        addShortcut("CASH_PAYMENT", "F4", "Cash payment");
-        addShortcut("CARD_PAYMENT", "F5", "Card payment");
-        addShortcut("CREDIT_PAYMENT", "F6", "Credit payment");
-        addShortcut("CHEQUE_PAYMENT", "F7", "Cheque payment");
+        addShortcut("HELP", "F1", "Show this help guide anytime", "Essential", "🔍");
+        addShortcut("SEARCH_FOCUS", "F2", "Focus product search bar", "Essential", "🔍");
+        addShortcut("CART_FOCUS", "F3", "Jump to cart (if has items)", "Essential", "🛒");
         
-        // TRANSACTION SHORTCUTS
-        addShortcut("DISCOUNT", "F10", "Apply discount");
-        addShortcut("HOLD_BILL", "F11", "Hold bill");
-        addShortcut("SWITCH_INVOICE", "F12", "Switch invoice");
-        addShortcut("EXCHANGE", "Ctrl+E", "Exchange/Return");
+        // =====================================================
+        // PAYMENT METHODS (F Keys Only - No Arrow Conflicts!)
+        // =====================================================
         
-        // NAVIGATION SHORTCUTS (context-aware)
-        addShortcut("ADD_PRODUCT", "Enter or Space", "Add selected product");
-        addShortcut("INCREASE_QTY", "+", "Increase quantity");
-        addShortcut("DECREASE_QTY", "-", "Decrease quantity");
-        addShortcut("DELETE_ITEM", "Delete", "Delete selected item");
-        addShortcut("NAVIGATE_UP", "↑", "Navigate up");
-        addShortcut("NAVIGATE_DOWN", "↓", "Navigate down");
-        addShortcut("NAVIGATE_LEFT", "←", "Navigate left");
-        addShortcut("NAVIGATE_RIGHT", "→", "Navigate right");
+        addShortcut("CASH", "F4", "Select Cash Payment", "Payment", "💵");
+        addShortcut("CARD", "F5", "Select Card Payment", "Payment", "💳");
+        addShortcut("CREDIT", "F6", "Select Credit Payment", "Payment", "📝");
+        addShortcut("CHEQUE", "F7", "Select Cheque Payment", "Payment", "🏦");
         
-        // QUICK ACCESS
-        addShortcut("FIRST_ITEM", "Home", "Jump to first item");
-        addShortcut("LAST_ITEM", "End", "Jump to last item");
-        addShortcut("PAGE_UP", "Page Up", "Jump up 5 items");
-        addShortcut("PAGE_DOWN", "Page Down", "Jump down 5 items");
+        // =====================================================
+        // TRANSACTION ACTIONS
+        // =====================================================
         
-        // ESCAPE
-        addShortcut("CANCEL", "Esc", "Cancel/Clear search");
+        addShortcut("CLEAR", "F8", "Clear entire cart", "Transaction", "🗑️");
+        addShortcut("COMPLETE", "F9 / Alt+Enter", "Complete sale", "Transaction", "✅");
+        addShortcut("GLOBAL_DISCOUNT", "F10 / Alt+D", "Apply discount to entire cart", "Transaction", "💰");
+        addShortcut("HOLD", "F11 / Alt+H", "Hold bill for later", "Transaction", "⏸️");
+        addShortcut("SWITCH", "F12 / Alt+S", "Switch to held invoice", "Transaction", "🔄");
+        addShortcut("EXCHANGE", "Ctrl+E / Alt+E", "Process exchange/return", "Transaction", "🔁");
         
-        // SRI LANKAN SPECIFIC SHORTCUTS
-        addShortcut("CUSTOMER_LOYALTY", "Ctrl+L", "Customer loyalty points");
-        addShortcut("QUICK_PRICE", "Ctrl+P", "Quick price override");
-        addShortcut("STOCK_CHECK", "Ctrl+S", "Check stock levels");
-        addShortcut("VOID_ITEM", "Ctrl+V", "Void selected item");
-        addShortcut("REPRINT_BILL", "Ctrl+R", "Reprint last bill");
-        addShortcut("TOGGLE_VAT", "Ctrl+T", "Toggle VAT inclusive/exclusive");
+        // =====================================================
+        // PRODUCT NAVIGATION (Arrow Keys - No Modifiers!)
+        // =====================================================
+        
+        addShortcut("NAV_PRODUCTS", "Arrow Keys ↑↓←→", "Browse products (plain arrows only!)", "Navigation", "🧭");
+        addShortcut("ADD_PRODUCT", "Enter / Space", "Add selected product to cart", "Navigation", "➕");
+        addShortcut("CLEAR_SEARCH", "Esc", "Clear search and return to all products", "Navigation", "❎");
+        addShortcut("HOME_END", "Home / End", "Jump to first/last product", "Navigation", "⏩");
+        addShortcut("PAGE_JUMP", "PgUp / PgDn", "Jump 5 products up/down", "Navigation", "📄");
+        
+        // =====================================================
+        // CART ITEM NAVIGATION (Alt + Arrows)
+        // =====================================================
+        
+        addShortcut("CART_NAV", "Alt + ↑ / ↓", "Navigate cart items (works anywhere!)", "Cart Nav", "🛒");
+        addShortcut("CART_SEARCH", "Ctrl + F", "Search items in cart", "Cart Nav", "🔎");
+        
+        // =====================================================
+        // CART ITEM EDITING (Must Select Item First!)
+        // =====================================================
+        
+        addShortcut("EDIT_QTY", "Alt + Q", "Edit quantity of selected cart item", "Cart Edit", "🔢");
+        addShortcut("ITEM_DISCOUNT", "Alt + R / Ctrl + D", "Edit discount of selected item", "Cart Edit", "💲");
+        addShortcut("ZERO_DISCOUNT", "Shift + D", "Quick remove discount from item", "Cart Edit", "🚫");
+        addShortcut("INCREASE_QTY", "+ (Plus)", "Increase quantity (+1) of focused item", "Cart Edit", "⬆️");
+        addShortcut("DECREASE_QTY", "- (Minus)", "Decrease quantity (-1) of focused item", "Cart Edit", "⬇️");
+        addShortcut("DELETE_ITEM", "Alt + X / Delete", "Remove selected item from cart", "Cart Edit", "❌");
+        
+        // =====================================================
+        // QUICK ACTIONS
+        // =====================================================
+        
+        addShortcut("CREDIT_PAY", "Alt + P", "Open credit payment dialog", "Quick", "💳");
+        addShortcut("PRODUCT_COUNT", "Ctrl + Q", "Show product/cart statistics", "Quick", "📊");
     }
     
-    private void addShortcut(String id, String keys, String description) {
-        shortcuts.put(id, new ShortcutInfo(id, keys, description));
+    private void addShortcut(String id, String keys, String description, String category, String icon) {
+        shortcuts.put(id, new ShortcutInfo(id, keys, description, category, icon));
     }
     
+    /**
+     * Get comprehensive help with better visual hierarchy
+     */
     public String getShortcutHelp() {
         StringBuilder help = new StringBuilder();
-        help.append("<html><body style='font-family: Nunito, sans-serif; padding: 10px;'>");
-        help.append("<h2 style='color: #1CB5BB; margin-bottom: 15px;'>⌨️ Keyboard Shortcuts</h2>");
+        help.append("<html><body style='font-family: Segoe UI, Nunito, sans-serif; padding: 20px; background: #f5f7fa;'>");
         
-        help.append("<h3 style='color: #333; margin-top: 15px;'>🔍 Search & Navigation</h3>");
-        help.append("<table cellpadding='5' style='width: 100%;'>");
-        help.append("<tr><td><b>F2</b></td><td>Search products</td></tr>");
-        help.append("<tr><td><b>F3</b></td><td>Focus cart panel</td></tr>");
-        help.append("<tr><td><b>Arrow Keys</b></td><td>Navigate products/cart items</td></tr>");
-        help.append("<tr><td><b>Enter/Space</b></td><td>Add selected product to cart</td></tr>");
-        help.append("<tr><td><b>Esc</b></td><td>Clear search / Return to products</td></tr>");
-        help.append("<tr><td><b>Home/End</b></td><td>Jump to first/last product</td></tr>");
-        help.append("<tr><td><b>Page Up/Down</b></td><td>Jump 5 products</td></tr>");
+        // Header
+        help.append("<div style='text-align: center; margin-bottom: 25px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white;'>");
+        help.append("<h1 style='margin: 0; font-size: 28px;'>⌨️ Keyboard Shortcuts Guide</h1>");
+        help.append("<p style='margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;'>Lightning-fast cashier operations made easy</p>");
+        help.append("</div>");
+        
+        // Quick Start Guide
+        help.append("<div style='margin-bottom: 25px; padding: 15px; background: #fff3cd; border-left: 5px solid #ffc107; border-radius: 5px;'>");
+        help.append("<h3 style='margin: 0 0 10px 0; color: #856404;'>⚡ Quick Start (5 Steps)</h3>");
+        help.append("<ol style='margin: 0; padding-left: 20px; line-height: 2.2; font-size: 14px;'>");
+        help.append("<li><b>Press F2</b> → Search products (type name/scan barcode)</li>");
+        help.append("<li><b>Arrow Keys ↑↓←→</b> → Browse products</li>");
+        help.append("<li><b>Enter</b> → Add product to cart</li>");
+        help.append("<li><b>F4-F7</b> → Select payment method (Cash/Card/Credit/Cheque)</li>");
+        help.append("<li><b>F9</b> → Complete sale!</li>");
+        help.append("</ol>");
+        help.append("</div>");
+        
+        // IMPORTANT: Arrow Keys Notice
+        help.append("<div style='margin-bottom: 25px; padding: 15px; background: #d4edda; border-left: 5px solid #28a745; border-radius: 5px;'>");
+        help.append("<h3 style='margin: 0 0 10px 0; color: #155724;'>✅ FIXED: Arrow Keys Now Work Correctly!</h3>");
+        help.append("<ul style='margin: 0; padding-left: 20px; line-height: 2; font-size: 14px;'>");
+        help.append("<li><b>Plain Arrow Keys ↑↓←→</b> = Navigate PRODUCTS only</li>");
+        help.append("<li><b>Alt + ↑↓</b> = Navigate CART ITEMS</li>");
+        help.append("<li><b>Payment methods won't interfere</b> with arrow navigation</li>");
+        help.append("</ul>");
+        help.append("</div>");
+        
+        // Categorized shortcuts
+        String[][] categories = {
+            {"Essential", "#4CAF50"},
+            {"Payment", "#2196F3"},
+            {"Transaction", "#FF9800"},
+            {"Navigation", "#9C27B0"},
+            {"Cart Nav", "#E91E63"},
+            {"Cart Edit", "#F44336"},
+            {"Quick", "#607D8B"}
+        };
+        
+        for (String[] cat : categories) {
+            String category = cat[0];
+            String color = cat[1];
+            
+            help.append("<div style='margin-bottom: 20px;'>");
+            help.append("<h3 style='color: ").append(color).append("; margin: 15px 0 10px 0; padding: 8px; background: white; border-radius: 5px; border-left: 5px solid ").append(color).append(";'>");
+            help.append(getCategoryTitle(category));
+            help.append("</h3>");
+            help.append("<table cellpadding='0' cellspacing='0' style='width: 100%; border-collapse: separate; border-spacing: 0 5px;'>");
+            
+            for (ShortcutInfo info : shortcuts.values()) {
+                if (info.category.equals(category)) {
+                    help.append("<tr style='background: white;'>")
+                        .append("<td style='padding: 12px 15px; border-radius: 5px 0 0 5px; width: 35%;'><span style='font-size: 18px;'>").append(info.icon).append("</span> <b style='color: ").append(color).append("; font-size: 13px;'>")
+                        .append(info.keys)
+                        .append("</b></td>")
+                        .append("<td style='padding: 12px 15px; border-radius: 0 5px 5px 0; color: #555; font-size: 13px;'>")
+                        .append(info.description)
+                        .append("</td></tr>");
+                }
+            }
+            help.append("</table>");
+            help.append("</div>");
+        }
+        
+        // DISCOUNT WORKFLOW Guide
+        help.append("<div style='margin-top: 25px; padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; color: white;'>");
+        help.append("<h3 style='margin: 0 0 15px 0;'>💰 Discount Workflow (Step by Step)</h3>");
+        help.append("<table style='width: 100%; color: white;' cellpadding='8'>");
+        help.append("<tr><td style='background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 5px;'>");
+        help.append("<b>1. Global Discount</b> (entire cart)<br>");
+        help.append("→ Press <b>F10</b> or <b>Alt+D</b> → Opens discount dialog");
+        help.append("</td></tr>");
+        help.append("<tr><td style='background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 5px;'>");
+        help.append("<b>2. Item Discount</b> (individual products)<br>");
+        help.append("→ Press <b>Alt+↑/↓</b> to select cart item<br>");
+        help.append("→ Press <b>Alt+R</b> or <b>Ctrl+D</b> → Edit discount field<br>");
+        help.append("→ Type amount → Press <b>Enter</b>");
+        help.append("</td></tr>");
+        help.append("<tr><td style='background: rgba(0,0,0,0.2); border-radius: 5px;'>");
+        help.append("<b>3. Quick Remove Discount</b><br>");
+        help.append("→ Select item (<b>Alt+↑/↓</b>)<br>");
+        help.append("→ Press <b>Shift+D</b> → Instant zero discount");
+        help.append("</td></tr>");
         help.append("</table>");
+        help.append("</div>");
         
-        help.append("<h3 style='color: #333; margin-top: 15px;'>💰 Payment Methods</h3>");
-        help.append("<table cellpadding='5' style='width: 100%;'>");
-        help.append("<tr><td><b>F4</b></td><td>Cash Payment</td></tr>");
-        help.append("<tr><td><b>F5</b></td><td>Card Payment</td></tr>");
-        help.append("<tr><td><b>F6</b></td><td>Credit Payment</td></tr>");
-        help.append("<tr><td><b>F7</b></td><td>Cheque Payment</td></tr>");
-        help.append("<tr><td><b>F9</b></td><td>Complete Sale</td></tr>");
+        // Pro Tips
+        help.append("<div style='margin-top: 25px; padding: 20px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border-radius: 10px; color: white;'>");
+        help.append("<h3 style='margin: 0 0 15px 0;'>💡 Pro Tips & Tricks</h3>");
+        help.append("<ul style='margin: 0; padding-left: 20px; line-height: 2.2;'>");
+        help.append("<li><b>Arrow Keys Confusion?</b> Plain arrows = products, Alt+arrows = cart</li>");
+        help.append("<li><b>Payment Methods:</b> F4-F7 select payment, arrows won't change them anymore!</li>");
+        help.append("<li><b>Fast Editing:</b> Alt+Q (quantity), Alt+R (discount) - instant focus</li>");
+        help.append("<li><b>Barcode Speed:</b> Scan → Enter → Added! No manual clicking needed</li>");
+        help.append("<li><b>Cart Full?</b> Alt+↑/↓ to navigate, +/- to adjust, Alt+X to remove</li>");
+        help.append("<li><b>Lost Focus?</b> Press F2 (product search) or F3 (cart) to refocus</li>");
+        help.append("</ul>");
+        help.append("</div>");
+        
+        // Common Issues Fixed
+        help.append("<div style='margin-top: 25px; padding: 20px; background: #e3f2fd; border-left: 5px solid #2196F3; border-radius: 5px;'>");
+        help.append("<h3 style='margin: 0 0 15px 0; color: #1565c0;'>🔧 Common Issues FIXED</h3>");
+        help.append("<table style='width: 100%; color: #1565c0;' cellpadding='8'>");
+        help.append("<tr><td style='background: white; border-radius: 5px; margin-bottom: 5px;'>");
+        help.append("❌ <b>OLD:</b> Arrow keys changed payment method<br>");
+        help.append("✅ <b>NOW:</b> Arrows only navigate products. Use F4-F7 for payment!");
+        help.append("</td></tr>");
+        help.append("<tr><td style='background: white; border-radius: 5px; margin-bottom: 5px;'>");
+        help.append("❌ <b>OLD:</b> Discount shortcuts didn't work<br>");
+        help.append("✅ <b>NOW:</b> Alt+R, Ctrl+D, Shift+D all work perfectly!");
+        help.append("</td></tr>");
+        help.append("<tr><td style='background: white; border-radius: 5px;'>");
+        help.append("❌ <b>OLD:</b> Confusing navigation between cart & products<br>");
+        help.append("✅ <b>NOW:</b> Plain arrows = products, Alt+arrows = cart. Simple!");
+        help.append("</td></tr>");
         help.append("</table>");
+        help.append("</div>");
         
-        help.append("<h3 style='color: #333; margin-top: 15px;'>🛒 Cart Actions</h3>");
-        help.append("<table cellpadding='5' style='width: 100%;'>");
-        help.append("<tr><td><b>+</b></td><td>Increase quantity</td></tr>");
-        help.append("<tr><td><b>-</b></td><td>Decrease quantity</td></tr>");
-        help.append("<tr><td><b>Delete</b></td><td>Remove selected item</td></tr>");
-        help.append("<tr><td><b>F8</b></td><td>Clear entire cart</td></tr>");
-        help.append("</table>");
-        
-        help.append("<h3 style='color: #333; margin-top: 15px;'>📋 Transactions</h3>");
-        help.append("<table cellpadding='5' style='width: 100%;'>");
-        help.append("<tr><td><b>F10</b></td><td>Apply discount</td></tr>");
-        help.append("<tr><td><b>F11</b></td><td>Hold bill</td></tr>");
-        help.append("<tr><td><b>F12</b></td><td>Switch invoice</td></tr>");
-        help.append("<tr><td><b>Ctrl+E</b></td><td>Exchange/Return</td></tr>");
-        help.append("</table>");
-        
-        help.append("<h3 style='color: #333; margin-top: 15px;'>🇱🇰 Local Features</h3>");
-        help.append("<table cellpadding='5' style='width: 100%;'>");
-        help.append("<tr><td><b>Ctrl+V</b></td><td>Void item</td></tr>");
-        help.append("<tr><td><b>Ctrl+R</b></td><td>Reprint bill</td></tr>");
-        help.append("<tr><td><b>Ctrl+T</b></td><td>Toggle VAT display</td></tr>");
-        help.append("<tr><td><b>Ctrl+L</b></td><td>Loyalty customer lookup</td></tr>");
-        help.append("<tr><td><b>Ctrl+P</b></td><td>Quick price override</td></tr>");
-        help.append("<tr><td><b>Ctrl+S</b></td><td>Check stock levels</td></tr>");
-        help.append("</table>");
-        
-        help.append("<div style='margin-top: 20px; padding: 10px; background: #E8F4F5; border-radius: 5px;'>");
-        help.append("<b>💡 Tip:</b> Press <b>F1</b> anytime to see this help");
+        // Footer
+        help.append("<div style='margin-top: 20px; text-align: center; padding: 15px; background: white; border-radius: 5px;'>");
+        help.append("<p style='color: #666; font-size: 12px; margin: 0;'>");
+        help.append("<b>Press F1</b> anytime to view this help | <b>Version:</b> 4.0 User-Friendly Enhanced");
+        help.append("</p>");
         help.append("</div>");
         
         help.append("</body></html>");
         return help.toString();
     }
     
+    private String getCategoryTitle(String category) {
+        switch(category) {
+            case "Essential": return "🔑 Essential Controls";
+            case "Payment": return "💰 Payment Methods (F Keys)";
+            case "Transaction": return "📋 Transaction Actions";
+            case "Navigation": return "🧭 Product Navigation (Plain Arrows)";
+            case "Cart Nav": return "🛒 Cart Navigation (Alt+Arrows)";
+            case "Cart Edit": return "✏️ Cart Item Editing";
+            case "Quick": return "⚡ Quick Actions";
+            default: return category;
+        }
+    }
+    
+    /**
+     * Show help dialog with improved styling
+     */
     public void showHelp(JComponent parent) {
+        JEditorPane editorPane = new JEditorPane("text/html", getShortcutHelp());
+        editorPane.setEditable(false);
+        editorPane.setCaretPosition(0);
+        editorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true);
+        
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(750, 650));
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
         JOptionPane.showMessageDialog(
             SwingUtilities.getWindowAncestor(parent),
-            getShortcutHelp(),
-            "Keyboard Shortcuts",
-            JOptionPane.INFORMATION_MESSAGE
+            scrollPane,
+            "⌨️ Keyboard Shortcuts - Press F1 Anytime",
+            JOptionPane.PLAIN_MESSAGE
         );
     }
     
-    private static class ShortcutInfo {
-        String id;
-        String keys;
-        String description;
+    /**
+     * Create a status indicator label for visual feedback
+     */
+    public JLabel createStatusIndicator() {
+        statusIndicator = new JLabel("🔍 Product Mode - Use Arrow Keys");
+        statusIndicator.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        statusIndicator.setForeground(new Color(102, 102, 102));
+        statusIndicator.setOpaque(true);
+        statusIndicator.setBackground(new Color(230, 245, 255));
+        statusIndicator.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(28, 181, 187), 2),
+            BorderFactory.createEmptyBorder(8, 15, 8, 15)
+        ));
+        statusIndicator.setHorizontalAlignment(SwingConstants.CENTER);
+        return statusIndicator;
+    }
+    
+    /**
+     * Update status indicator
+     */
+    public void updateStatus(String mode, String hint) {
+        if (statusIndicator != null) {
+            String icon = mode.contains("Product") ? "🔍" : "🛒";
+            statusIndicator.setText(icon + " " + mode + " - " + hint);
+            
+            Color bgColor = mode.contains("Product") ? 
+                new Color(230, 245, 255) : new Color(255, 240, 245);
+            statusIndicator.setBackground(bgColor);
+        }
+    }
+    
+    public ShortcutInfo getShortcut(String id) {
+        return shortcuts.get(id);
+    }
+    
+    public Map<String, ShortcutInfo> getAllShortcuts() {
+        return new HashMap<>(shortcuts);
+    }
+    
+    /**
+     * Shortcut information with icon
+     */
+    public static class ShortcutInfo {
+        public final String id;
+        public final String keys;
+        public final String description;
+        public final String category;
+        public final String icon;
         
-        ShortcutInfo(String id, String keys, String description) {
+        ShortcutInfo(String id, String keys, String description, String category, String icon) {
             this.id = id;
             this.keys = keys;
             this.description = description;
+            this.category = category;
+            this.icon = icon;
+        }
+        
+        @Override
+        public String toString() {
+            return icon + " " + keys + " - " + description;
         }
     }
 }

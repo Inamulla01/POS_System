@@ -9,7 +9,8 @@ import java.util.List;
 public class CartStockDAO {
     
     public CartStockDTO getAvailableStock(int productId, String batchNo) throws SQLException {
-        String query = "SELECT s.stock_id, s.product_id, s.batch_no, s.qty, s.selling_price, s.cost_price " +
+        // Changed cost_price to last_price to match your database schema
+        String query = "SELECT s.stock_id, s.product_id, s.batch_no, s.qty, s.selling_price, s.last_price " +
                       "FROM stock s " +
                       "WHERE s.product_id = ? AND s.batch_no = ? AND s.qty > 0";
         
@@ -21,7 +22,7 @@ public class CartStockDAO {
                     rs.getString("batch_no"),
                     rs.getInt("qty"),
                     rs.getDouble("selling_price"),
-                    rs.getDouble("cost_price")
+                    rs.getDouble("last_price")  // Changed from cost_price
                 );
             }
             return null;
@@ -29,7 +30,8 @@ public class CartStockDAO {
     }
     
     public List<CartStockDTO> getAvailableStockByProduct(int productId) throws SQLException {
-        String query = "SELECT s.stock_id, s.product_id, s.batch_no, s.qty, s.selling_price, s.cost_price " +
+        // Changed cost_price to last_price to match your database schema
+        String query = "SELECT s.stock_id, s.product_id, s.batch_no, s.qty, s.selling_price, s.last_price " +
                       "FROM stock s " +
                       "WHERE s.product_id = ? AND s.qty > 0 " +
                       "ORDER BY s.batch_no ASC";
@@ -43,7 +45,7 @@ public class CartStockDAO {
                     rs.getString("batch_no"),
                     rs.getInt("qty"),
                     rs.getDouble("selling_price"),
-                    rs.getDouble("cost_price")
+                    rs.getDouble("last_price")  // Changed from cost_price
                 ));
             }
             return stocks;

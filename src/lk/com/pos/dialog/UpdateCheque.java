@@ -12,6 +12,7 @@ import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,11 +21,11 @@ import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.connection.DB.ResultSetHandler;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -110,35 +111,40 @@ public class UpdateCheque extends javax.swing.JDialog {
                     + "JOIN credit_customer cc ON ch.credit_customer_id = cc.customer_id "
                     + "WHERE ch.cheque_id = ?";
 
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setInt(1, chequeId);
-            ResultSet rs = pst.executeQuery();
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                
+                pst.setInt(1, chequeId);
+                
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        // Populate form fields
+                        txtChequeNo.setText(rs.getString("cheque_no"));
+                        dateChequeDate.setDate(rs.getDate("cheque_date"));
+                        txtBankName.setText(rs.getString("bank_name"));
+                        txtBranch.setText(rs.getString("branch"));
 
-            if (rs.next()) {
-                // Populate form fields
-                txtChequeNo.setText(rs.getString("cheque_no"));
-                dateChequeDate.setDate(rs.getDate("cheque_date"));
-                txtBankName.setText(rs.getString("bank_name"));
-                txtBranch.setText(rs.getString("branch"));
+                        // Load and set the amount
+                        double amount = rs.getDouble("amount");
+                        txtAmount.setText(String.valueOf(amount));
 
-                // Load and set the amount
-                double amount = rs.getDouble("amount");
-                txtAmount.setText(String.valueOf(amount));
+                        this.originalSalesId = rs.getInt("sales_id");
+                        this.customerId = rs.getInt("credit_customer_id");
 
-                this.originalSalesId = rs.getInt("sales_id");
-                this.customerId = rs.getInt("credit_customer_id");
+                        String customerName = rs.getString("customer_name");
 
-                String customerName = rs.getString("customer_name");
+                        // Find and select the customer in the combo box
+                        selectCustomerInCombo(customerName);
 
-                // Find and select the customer in the combo box
-                selectCustomerInCombo(customerName);
+                        // Load customer credit details
+                        loadCustomerCreditDetails(this.customerId);
 
-                // Load customer credit details
-                loadCustomerCreditDetails(this.customerId);
-
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Cheque not found!");
-                dispose();
+                    } else {
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Cheque not found!");
+                        dispose();
+                    }
+                }
             }
 
         } catch (Exception e) {
@@ -687,19 +693,38 @@ public class UpdateCheque extends javax.swing.JDialog {
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
-            ResultSet rs = MySQL.executeSearch(sql);
+            // Using the new DB class with executeQuerySafe
+            java.util.List<java.util.Map<String, Object>> results = DB.executeQuerySafe(sql, new ResultSetHandler<java.util.List<java.util.Map<String, Object>>>() {
+                @Override
+                public java.util.List<java.util.Map<String, Object>> handle(ResultSet rs) throws SQLException {
+                    java.util.List<java.util.Map<String, Object>> list = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        java.util.Map<String, Object> row = new java.util.HashMap<>();
+                        row.put("customer_id", rs.getInt("customer_id"));
+                        row.put("customer_name", rs.getString("customer_name"));
+                        row.put("total_credit", rs.getDouble("total_credit"));
+                        row.put("total_paid", rs.getDouble("total_paid"));
+                        row.put("remaining_amount", rs.getDouble("remaining_amount"));
+                        row.put("latest_due_date", rs.getDate("latest_due_date"));
+                        row.put("active_cheques", rs.getInt("active_cheques"));
+                        list.add(row);
+                    }
+                    return list;
+                }
+            });
+
             Vector<String> customers = new Vector<>();
             customers.add("Select Customer");
 
             int count = 0;
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double remainingAmount = rs.getDouble("remaining_amount");
-                Date latestDueDate = rs.getDate("latest_due_date");
-                int activeCheques = rs.getInt("active_cheques");
+            for (java.util.Map<String, Object> row : results) {
+                int customerId = (Integer) row.get("customer_id");
+                String customerName = (String) row.get("customer_name");
+                double totalCredit = (Double) row.get("total_credit");
+                double totalPaid = (Double) row.get("total_paid");
+                double remainingAmount = (Double) row.get("remaining_amount");
+                Date latestDueDate = (Date) row.get("latest_due_date");
+                int activeCheques = (Integer) row.get("active_cheques");
 
                 String displayText;
                 SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
@@ -752,15 +777,20 @@ public class UpdateCheque extends javax.swing.JDialog {
                     + "WHERE cc.customer_id = ? "
                     + "GROUP BY cc.customer_id";
 
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                this.totalCredit = rs.getDouble("total_credit");
-                this.totalPaid = rs.getDouble("total_paid");
-                this.dueAmount = rs.getDouble("remaining_amount");
-                this.latestDueDate = rs.getDate("latest_due_date");
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                
+                pst.setInt(1, customerId);
+                
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        this.totalCredit = rs.getDouble("total_credit");
+                        this.totalPaid = rs.getDouble("total_paid");
+                        this.dueAmount = rs.getDouble("remaining_amount");
+                        this.latestDueDate = rs.getDate("latest_due_date");
+                    }
+                }
             }
 
         } catch (Exception e) {
@@ -853,9 +883,6 @@ public class UpdateCheque extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-
         try {
             isUpdating = true;
 
@@ -880,56 +907,44 @@ public class UpdateCheque extends javax.swing.JDialog {
                 return;
             }
 
-            conn = MySQL.getConnection();
-            conn.setAutoCommit(false);
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection()) {
+                conn.setAutoCommit(false);
 
-            String query = "UPDATE cheque SET cheque_no = ?, cheque_date = ?, credit_customer_id = ?, bank_name = ?, branch = ?, amount = ? WHERE cheque_id = ?";
+                String query = "UPDATE cheque SET cheque_no = ?, cheque_date = ?, credit_customer_id = ?, bank_name = ?, branch = ?, amount = ? WHERE cheque_id = ?";
 
-            pst = conn.prepareStatement(query);
-            pst.setString(1, chequeNo);
-            pst.setDate(2, new java.sql.Date(chequeDate.getTime()));
-            pst.setInt(3, newCustomerId);
-            pst.setString(4, bankName);
-            pst.setString(5, branch);
-            pst.setDouble(6, amount);
-            pst.setInt(7, chequeId);
+                try (PreparedStatement pst = conn.prepareStatement(query)) {
+                    pst.setString(1, chequeNo);
+                    pst.setDate(2, new java.sql.Date(chequeDate.getTime()));
+                    pst.setInt(3, newCustomerId);
+                    pst.setString(4, bankName);
+                    pst.setString(5, branch);
+                    pst.setDouble(6, amount);
+                    pst.setInt(7, chequeId);
 
-            int rowsAffected = pst.executeUpdate();
+                    int rowsAffected = pst.executeUpdate();
 
-            if (rowsAffected > 0) {
-                createChequeUpdateNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
-                conn.commit();
+                    if (rowsAffected > 0) {
+                        createChequeUpdateNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
+                        conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Cheque updated successfully!");
-                dispose();
+                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Cheque updated successfully!");
+                        dispose();
 
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update cheque!");
+                    } else {
+                        conn.rollback();
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update cheque!");
+                    }
+                } catch (SQLException e) {
+                    conn.rollback();
+                    throw e;
+                }
             }
 
         } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-                rollbackEx.printStackTrace();
-            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating cheque: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
             isUpdating = false;
         }
     }
@@ -937,13 +952,19 @@ public class UpdateCheque extends javax.swing.JDialog {
     private boolean isDuplicateChequeNo(String chequeNo, int excludeChequeId) {
         try {
             String sql = "SELECT COUNT(*) FROM cheque WHERE cheque_no = ? AND cheque_id != ?";
-            PreparedStatement pst = MySQL.getConnection().prepareStatement(sql);
-            pst.setString(1, chequeNo);
-            pst.setInt(2, excludeChequeId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
+            
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                
+                pst.setString(1, chequeNo);
+                pst.setInt(2, excludeChequeId);
+                
+                try (ResultSet rs = pst.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getInt(1) > 0;
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1003,16 +1024,7 @@ public class UpdateCheque extends javax.swing.JDialog {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            DB.closeQuietly(pstMassage, pstNotification);
         }
     }
 

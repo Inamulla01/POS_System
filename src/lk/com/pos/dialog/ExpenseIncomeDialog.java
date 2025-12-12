@@ -18,6 +18,7 @@ import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -33,7 +34,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.connection.DB.ResultSetHandler;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -1029,13 +1031,24 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
 
             String sql = "SELECT expenses_type_id, expenses_type FROM expenses_type ORDER BY expenses_type";
 
-            ResultSet rs = MySQL.executeSearch(sql);
+            // Using the new DB class with executeQuerySafe to avoid connection leaks
+            List<Map<String, Object>> results = DB.executeQuerySafe(sql, (rs) -> {
+                List<Map<String, Object>> list = new ArrayList<>();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("expenses_type_id", rs.getInt("expenses_type_id"));
+                    row.put("expenses_type", rs.getString("expenses_type"));
+                    list.add(row);
+                }
+                return list;
+            });
+
             Vector<String> expenseTypes = new Vector<>();
             expenseTypes.add("Select Expense Type");
 
-            while (rs.next()) {
-                int expensesTypeId = rs.getInt("expenses_type_id");
-                String expensesType = rs.getString("expenses_type");
+            for (Map<String, Object> row : results) {
+                int expensesTypeId = (Integer) row.get("expenses_type_id");
+                String expensesType = (String) row.get("expenses_type");
 
                 expenseTypes.add(expensesType);
                 expensesTypeIdMap.put(expensesType, expensesTypeId);
@@ -1055,13 +1068,24 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
 
             String sql = "SELECT income_type_id, income_type FROM income_type ORDER BY income_type";
 
-            ResultSet rs = MySQL.executeSearch(sql);
+            // Using the new DB class with executeQuerySafe to avoid connection leaks
+            List<Map<String, Object>> results = DB.executeQuerySafe(sql, (rs) -> {
+                List<Map<String, Object>> list = new ArrayList<>();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("income_type_id", rs.getInt("income_type_id"));
+                    row.put("income_type", rs.getString("income_type"));
+                    list.add(row);
+                }
+                return list;
+            });
+
             Vector<String> incomeTypes = new Vector<>();
             incomeTypes.add("Select Income Type");
 
-            while (rs.next()) {
-                int incomeTypeId = rs.getInt("income_type_id");
-                String incomeType = rs.getString("income_type");
+            for (Map<String, Object> row : results) {
+                int incomeTypeId = (Integer) row.get("income_type_id");
+                String incomeType = (String) row.get("income_type");
 
                 incomeTypes.add(incomeType);
                 incomeTypeIdMap.put(incomeType, incomeTypeId);
@@ -1166,9 +1190,6 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-
         try {
             isExpenseSaving = true;
 
@@ -1180,55 +1201,43 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             String description = jTextArea1.getText().trim();
             int statusId = jRadioButton1.isSelected() ? 1 : 2; // 1=Paid, 2=Unpaid
 
-            conn = MySQL.getConnection();
-            conn.setAutoCommit(false);
+            // Using try-with-resources with the new DB class
+            try (Connection conn = DB.getConnection()) {
+                conn.setAutoCommit(false);
 
-            String query = "INSERT INTO expenses (date, amount, expenses_type_id, e_status_id, time, description) VALUES (?, ?, ?, ?, ?, ?)";
+                String query = "INSERT INTO expenses (date, amount, expenses_type_id, e_status_id, time, description) VALUES (?, ?, ?, ?, ?, ?)";
 
-            pst = conn.prepareStatement(query);
-            pst.setDate(1, date);
-            pst.setDouble(2, amount);
-            pst.setInt(3, expensesTypeId);
-            pst.setInt(4, statusId);
-            pst.setTime(5, time);
-            pst.setString(6, description.isEmpty() ? null : description);
+                try (PreparedStatement pst = conn.prepareStatement(query)) {
+                    pst.setDate(1, date);
+                    pst.setDouble(2, amount);
+                    pst.setInt(3, expensesTypeId);
+                    pst.setInt(4, statusId);
+                    pst.setTime(5, time);
+                    pst.setString(6, description.isEmpty() ? null : description);
 
-            int rowsAffected = pst.executeUpdate();
+                    int rowsAffected = pst.executeUpdate();
 
-            if (rowsAffected > 0) {
-                createExpenseNotification(selectedExpensesType, amount, conn);
-                conn.commit();
+                    if (rowsAffected > 0) {
+                        createExpenseNotification(selectedExpensesType, amount, conn);
+                        conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Expense added successfully!");
+                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Expense added successfully!");
 
-                // Ask if user wants to add another expense
-                askToAddAnother("expense");
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add expense!");
+                        // Ask if user wants to add another expense
+                        askToAddAnother("expense");
+                    } else {
+                        conn.rollback();
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add expense!");
+                    }
+                } catch (SQLException e) {
+                    conn.rollback();
+                    throw e;
+                }
             }
 
         } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-                // Silent rollback failure
-            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving expense: " + e.getMessage());
         } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing failure
-            }
             isExpenseSaving = false;
         }
     }
@@ -1242,9 +1251,6 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-
         try {
             isIncomeSaving = true;
 
@@ -1256,55 +1262,43 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
             String description = jTextArea2.getText().trim();
             int statusId = jRadioButton3.isSelected() ? 1 : 2; // 1=Paid, 2=Unpaid
 
-            conn = MySQL.getConnection();
-            conn.setAutoCommit(false);
+            // Using try-with-resources with the new DB class
+            try (Connection conn = DB.getConnection()) {
+                conn.setAutoCommit(false);
 
-            String query = "INSERT INTO income (amount, date, time, description, income_type_id, status_id) VALUES (?, ?, ?, ?, ?, ?)";
+                String query = "INSERT INTO income (amount, date, time, description, income_type_id, status_id) VALUES (?, ?, ?, ?, ?, ?)";
 
-            pst = conn.prepareStatement(query);
-            pst.setDouble(1, amount);
-            pst.setDate(2, date);
-            pst.setTime(3, time);
-            pst.setString(4, description.isEmpty() ? null : description);
-            pst.setInt(5, incomeTypeId);
-            pst.setInt(6, statusId);
+                try (PreparedStatement pst = conn.prepareStatement(query)) {
+                    pst.setDouble(1, amount);
+                    pst.setDate(2, date);
+                    pst.setTime(3, time);
+                    pst.setString(4, description.isEmpty() ? null : description);
+                    pst.setInt(5, incomeTypeId);
+                    pst.setInt(6, statusId);
 
-            int rowsAffected = pst.executeUpdate();
+                    int rowsAffected = pst.executeUpdate();
 
-            if (rowsAffected > 0) {
-                createIncomeNotification(selectedIncomeType, amount, conn);
-                conn.commit();
+                    if (rowsAffected > 0) {
+                        createIncomeNotification(selectedIncomeType, amount, conn);
+                        conn.commit();
 
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Income added successfully!");
+                        Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Income added successfully!");
 
-                // Ask if user wants to add another income
-                askToAddAnother("income");
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add income!");
+                        // Ask if user wants to add another income
+                        askToAddAnother("income");
+                    } else {
+                        conn.rollback();
+                        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add income!");
+                    }
+                } catch (SQLException e) {
+                    conn.rollback();
+                    throw e;
+                }
             }
 
         } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-                // Silent rollback failure
-            }
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving income: " + e.getMessage());
         } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing failure
-            }
             isIncomeSaving = false;
         }
     }
@@ -1450,16 +1444,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
         } catch (Exception e) {
             // Silent notification creation failure
         } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing failure
-            }
+            DB.closeQuietly(pstMassage, pstNotification);
         }
     }
 
@@ -1509,16 +1494,7 @@ public class ExpenseIncomeDialog extends javax.swing.JDialog {
         } catch (Exception e) {
             // Silent notification creation failure
         } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-                // Silent resource closing failure
-            }
+            DB.closeQuietly(pstMassage, pstNotification);
         }
     }
 

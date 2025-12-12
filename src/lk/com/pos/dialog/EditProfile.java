@@ -3,7 +3,7 @@ package lk.com.pos.dialog;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.validation.Validater;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB; // Changed from MySQL to DB
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
@@ -15,7 +15,10 @@ import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.Vector;
 import javax.swing.*;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
@@ -53,7 +56,6 @@ public class EditProfile extends javax.swing.JDialog {
         try {
             // Load SVG icons for eye open and closed with gray color
             eyeOpenIcon = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 25, 25);
-
             eyeClosedIcon = new FlatSVGIcon("lk/com/pos/icon/eye-closed.svg", 25, 25);
 
             // Set initial icons
@@ -559,7 +561,6 @@ public class EditProfile extends javax.swing.JDialog {
                 break;
         }
     }
-// Replace your current button navigation methods with these:
 
     private void handleRightArrow(java.awt.Component source) {
         if (source == userNameField) {
@@ -899,44 +900,53 @@ public class EditProfile extends javax.swing.JDialog {
     // ---------------- LOAD USER DATA ----------------
     private void loadUserData() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT u.name, u.password, r.role_name FROM user u "
-                    + "INNER JOIN role r ON u.role_id = r.role_id WHERE u.user_id = " + currentUserId);
+            String query = "SELECT u.name, u.password, r.role_name FROM user u "
+                    + "INNER JOIN role r ON u.role_id = r.role_id WHERE u.user_id = ?";
+            
+            DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    currentUsername = rs.getString("name");
+                    userNameField.setText(currentUsername);
 
-            if (rs.next()) {
-                currentUsername = rs.getString("name");
-                userNameField.setText(currentUsername);
-
-                // Set the role in combo box
-                String userRole = rs.getString("role_name");
-                for (int i = 0; i < userRoleCombo.getItemCount(); i++) {
-                    if (userRoleCombo.getItemAt(i).equals(userRole)) {
-                        userRoleCombo.setSelectedIndex(i);
-                        break;
+                    // Set the role in combo box
+                    String userRole = rs.getString("role_name");
+                    for (int i = 0; i < userRoleCombo.getItemCount(); i++) {
+                        if (userRoleCombo.getItemAt(i).equals(userRole)) {
+                            userRoleCombo.setSelectedIndex(i);
+                            break;
+                        }
                     }
+                } else {
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                            "User data not found!");
+                    dispose();
                 }
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "User data not found!");
-                this.dispose();
-            }
+                return null;
+            }, currentUserId);
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading user data: " + e.getMessage());
-            this.dispose();
+            dispose();
         }
     }
 
     // ---------------- DATABASE & VALIDATION ----------------
     private void loadUserRoles() {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT * FROM role");
-            Vector<String> userRoles = new Vector<>();
-            userRoles.add("Select User Role");
-            while (rs.next()) {
-                userRoles.add(rs.getString("role_name"));
-            }
-            DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(userRoles);
-            userRoleCombo.setModel(dcm);
+            String query = "SELECT * FROM role";
+            
+            DB.executeQuerySafe(query, rs -> {
+                Vector<String> userRoles = new Vector<>();
+                userRoles.add("Select User Role");
+                while (rs.next()) {
+                    userRoles.add(rs.getString("role_name"));
+                }
+                DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(userRoles);
+                userRoleCombo.setModel(dcm);
+                return null;
+            });
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading user roles: " + e.getMessage());
@@ -974,10 +984,15 @@ public class EditProfile extends javax.swing.JDialog {
 
     private int getRoleId(String roleName) {
         try {
-            ResultSet rs = MySQL.executeSearch("SELECT role_id FROM role WHERE role_name='" + roleName + "'");
-            if (rs.next()) {
-                return rs.getInt("role_id");
-            }
+            String query = "SELECT role_id FROM role WHERE role_name = ?";
+            
+            return DB.executeQuerySafe(query, rs -> {
+                if (rs.next()) {
+                    return rs.getInt("role_id");
+                }
+                return -1;
+            }, roleName);
+
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error getting role ID: " + e.getMessage());
@@ -1005,171 +1020,173 @@ public class EditProfile extends javax.swing.JDialog {
         }
     }
 
-private void updateUser() {
-    java.sql.Connection conn = null;
-    java.sql.PreparedStatement pst = null;
-    
-    try {
-        String newPassword = new String(newPasswordField.getPassword());
-        String roleName = userRoleCombo.getSelectedItem().toString();
-        int roleId = getRoleId(roleName);
-
-        if (roleId == -1) {
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Invalid role selected!");
-            return;
-        }
-
-        // Get database connection
-        conn = MySQL.getConnection();
+    private void updateUser() {
+        Connection conn = null;
+        PreparedStatement pst = null;
         
-        // Start transaction
-        conn.setAutoCommit(false);
-        
-        String sql;
-        boolean passwordChanged = false;
-        
-        if (!newPassword.isEmpty() && newPasswordField.isVisible()) {
-            // Update password and role
-            String hashedPassword = hashPassword(newPassword);
-            sql = "UPDATE user SET password = ?, role_id = ? WHERE user_id = ?";
-            pst = conn.prepareStatement(sql);
-            pst.setString(1, hashedPassword);
-            pst.setInt(2, roleId);
-            pst.setInt(3, currentUserId);
-            passwordChanged = true;
-        } else {
-            // Update only role
-            sql = "UPDATE user SET role_id = ? WHERE user_id = ?";
-            pst = conn.prepareStatement(sql);
-            pst.setInt(1, roleId);
-            pst.setInt(2, currentUserId);
-        }
-
-        int rowsAffected = pst.executeUpdate();
-
-        if (rowsAffected > 0) {
-            // Create notification for profile update
-            createProfileUpdateNotification(passwordChanged, roleName, conn);
-            
-            // Commit transaction
-            conn.commit();
-            
-            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                    "Profile updated successfully!");
-            this.dispose();
-        } else {
-            conn.rollback();
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Failed to update profile!");
-        }
-
-    } catch (Exception e) {
         try {
-            if (conn != null) {
+            String newPassword = new String(newPasswordField.getPassword());
+            String roleName = userRoleCombo.getSelectedItem().toString();
+            int roleId = getRoleId(roleName);
+
+            if (roleId == -1) {
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Invalid role selected!");
+                return;
+            }
+
+            // Get database connection
+            conn = DB.getConnection();
+            
+            // Start transaction
+            conn.setAutoCommit(false);
+            
+            String sql;
+            boolean passwordChanged = false;
+            
+            if (!newPassword.isEmpty() && newPasswordField.isVisible()) {
+                // Update password and role
+                String hashedPassword = hashPassword(newPassword);
+                sql = "UPDATE user SET password = ?, role_id = ? WHERE user_id = ?";
+                pst = conn.prepareStatement(sql);
+                pst.setString(1, hashedPassword);
+                pst.setInt(2, roleId);
+                pst.setInt(3, currentUserId);
+                passwordChanged = true;
+            } else {
+                // Update only role
+                sql = "UPDATE user SET role_id = ? WHERE user_id = ?";
+                pst = conn.prepareStatement(sql);
+                pst.setInt(1, roleId);
+                pst.setInt(2, currentUserId);
+            }
+
+            int rowsAffected = pst.executeUpdate();
+
+            if (rowsAffected > 0) {
+                // Create notification for profile update
+                createProfileUpdateNotification(passwordChanged, roleName, conn);
+                
+                // Commit transaction
+                conn.commit();
+                
+                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                        "Profile updated successfully!");
+                dispose();
+            } else {
                 conn.rollback();
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Failed to update profile!");
             }
-        } catch (Exception rollbackEx) {
-            // Silent rollback failure
-        }
-        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                "Error updating profile: " + e.getMessage());
-    } finally {
-        // Close resources
-        try {
-            if (pst != null) pst.close();
-            if (conn != null) {
-                conn.setAutoCommit(true);
-                conn.close();
-            }
+
         } catch (Exception e) {
-            // Silent resource closing failure
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception rollbackEx) {
+                // Silent rollback failure
+            }
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Error updating profile: " + e.getMessage());
+        } finally {
+            // Close resources
+            try {
+                if (pst != null) pst.close();
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception e) {
+                // Silent resource closing failure
+            }
         }
     }
-}
 
-private void createProfileUpdateNotification(boolean passwordChanged, String newRole, java.sql.Connection conn) {
-    java.sql.PreparedStatement pstMassage = null;
-    java.sql.PreparedStatement pstNotification = null;
-    
-    try {
-        // Get old role for comparison
-        String oldRole = "";
-        java.sql.PreparedStatement pstOldRole = conn.prepareStatement("SELECT r.role_name FROM user u JOIN role r ON u.role_id = r.role_id WHERE u.user_id = ?");
-        pstOldRole.setInt(1, currentUserId);
-        java.sql.ResultSet rs = pstOldRole.executeQuery();
-        if (rs.next()) {
-            oldRole = rs.getString("role_name");
-        }
-        pstOldRole.close();
+    private void createProfileUpdateNotification(boolean passwordChanged, String newRole, Connection conn) {
+        PreparedStatement pstMassage = null;
+        PreparedStatement pstNotification = null;
         
-        // Create the message based on what was changed
-        String messageText;
-        if (passwordChanged && !oldRole.equals(newRole)) {
-            messageText = String.format("Profile updated for %s: Password changed and role changed from %s to %s", 
-                                      currentUsername, oldRole, newRole);
-        } else if (passwordChanged) {
-            messageText = String.format("Profile updated for %s: Password changed", currentUsername);
-        } else if (!oldRole.equals(newRole)) {
-            messageText = String.format("Profile updated for %s: Role changed from %s to %s", 
-                                      currentUsername, oldRole, newRole);
-        } else {
-            messageText = String.format("Profile updated for %s: No significant changes detected", currentUsername);
-        }
-        
-        // Check if this exact message already exists to avoid duplicates
-        String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-        pstMassage = conn.prepareStatement(checkSql);
-        pstMassage.setString(1, messageText);
-        rs = pstMassage.executeQuery();
-        
-        int massageId;
-        if (rs.next() && rs.getInt(1) > 0) {
-            // Message already exists, get its ID
-            String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-            pstMassage.close();
-            pstMassage = conn.prepareStatement(getSql);
-            pstMassage.setString(1, messageText);
-            rs = pstMassage.executeQuery();
-            rs.next();
-            massageId = rs.getInt(1);
-        } else {
-            // Insert new message
-            pstMassage.close();
-            String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-            pstMassage = conn.prepareStatement(insertMassageSql, java.sql.PreparedStatement.RETURN_GENERATED_KEYS);
-            pstMassage.setString(1, messageText);
-            pstMassage.executeUpdate();
+        try {
+            // Get old role for comparison
+            String oldRole = "";
+            String oldRoleQuery = "SELECT r.role_name FROM user u JOIN role r ON u.role_id = r.role_id WHERE u.user_id = ?";
             
-            // Get the generated massage_id
-            rs = pstMassage.getGeneratedKeys();
-            if (rs.next()) {
+            oldRole = DB.executeQuerySafe(oldRoleQuery, rs -> {
+                if (rs.next()) {
+                    return rs.getString("role_name");
+                }
+                return "";
+            }, currentUserId);
+
+            // Create the message based on what was changed
+            String messageText;
+            if (passwordChanged && !oldRole.equals(newRole)) {
+                messageText = String.format("Profile updated for %s: Password changed and role changed from %s to %s", 
+                                          currentUsername, oldRole, newRole);
+            } else if (passwordChanged) {
+                messageText = String.format("Profile updated for %s: Password changed", currentUsername);
+            } else if (!oldRole.equals(newRole)) {
+                messageText = String.format("Profile updated for %s: Role changed from %s to %s", 
+                                          currentUsername, oldRole, newRole);
+            } else {
+                messageText = String.format("Profile updated for %s: No significant changes detected", currentUsername);
+            }
+            
+            // Check if this exact message already exists to avoid duplicates
+            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+            pstMassage = conn.prepareStatement(checkSql);
+            pstMassage.setString(1, messageText);
+            ResultSet rs = pstMassage.executeQuery();
+            
+            int massageId;
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Message already exists, get its ID
+                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                pstMassage.close();
+                pstMassage = conn.prepareStatement(getSql);
+                pstMassage.setString(1, messageText);
+                rs = pstMassage.executeQuery();
+                rs.next();
                 massageId = rs.getInt(1);
             } else {
-                throw new java.sql.SQLException("Failed to get generated massage ID");
+                // Insert new message
+                pstMassage.close();
+                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstMassage.setString(1, messageText);
+                pstMassage.executeUpdate();
+                
+                // Get the generated massage_id
+                rs = pstMassage.getGeneratedKeys();
+                if (rs.next()) {
+                    massageId = rs.getInt(1);
+                } else {
+                    throw new java.sql.SQLException("Failed to get generated massage ID");
+                }
+            }
+            
+            // Insert notification (msg_type_id 22 = 'Edit Profile' from your msg_type table)
+            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+            pstNotification = conn.prepareStatement(notificationSql);
+            pstNotification.setInt(1, 1); // is_read = 1 (unread)
+            pstNotification.setInt(2, 22); // msg_type_id 22 = 'Edit Profile'
+            pstNotification.setInt(3, massageId);
+            pstNotification.executeUpdate();
+            
+        } catch (Exception e) {
+            // Silent notification creation failure
+        } finally {
+            // Close resources
+            try {
+                if (pstMassage != null) pstMassage.close();
+                if (pstNotification != null) pstNotification.close();
+            } catch (Exception e) {
+                // Silent resource closing failure
             }
         }
-        
-        // Insert notification (msg_type_id 22 = 'Edit Profile' from your msg_type table)
-        String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-        pstNotification = conn.prepareStatement(notificationSql);
-        pstNotification.setInt(1, 1); // is_read = 1 (unread)
-        pstNotification.setInt(2, 22); // msg_type_id 22 = 'Edit Profile'
-        pstNotification.setInt(3, massageId);
-        pstNotification.executeUpdate();
-        
-    } catch (Exception e) {
-        // Silent notification creation failure
-    } finally {
-        // Close resources
-        try {
-            if (pstMassage != null) pstMassage.close();
-            if (pstNotification != null) pstNotification.close();
-        } catch (Exception e) {
-            // Silent resource closing failure
-        }
     }
-}
+
     private void clearForm() {
         newPasswordField.setText("");
         confirmPasswordField.setText("");

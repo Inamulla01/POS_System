@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JDialog.java to edit this template
- */
 package lk.com.pos.dialog;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -18,7 +14,6 @@ import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -29,11 +24,10 @@ import java.util.Vector;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -633,45 +627,30 @@ public class UpdateExpenses extends javax.swing.JDialog {
     }
 
     private void loadExpensesTypeCombo() {
-        Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet rs = null;
-
         try {
             expensesTypeIdMap.clear();
 
             String sql = "SELECT expenses_type_id, expenses_type FROM expenses_type ORDER BY expenses_type";
-            conn = MySQL.getConnection();
-            pst = conn.prepareStatement(sql);
-            rs = pst.executeQuery();
+            
+            DB.executeQuerySafe(sql, rs -> {
+                Vector<String> expensesTypes = new Vector<>();
+                expensesTypes.add("Select Expenses Type");
 
-            Vector<String> expensesTypes = new Vector<>();
-            expensesTypes.add("Select Expenses Type");
+                while (rs.next()) {
+                    int expensesTypeId = rs.getInt("expenses_type_id");
+                    String expensesType = rs.getString("expenses_type");
 
-            while (rs.next()) {
-                int expensesTypeId = rs.getInt("expenses_type_id");
-                String expensesType = rs.getString("expenses_type");
+                    expensesTypes.add(expensesType);
+                    expensesTypeIdMap.put(expensesType, expensesTypeId);
+                }
 
-                expensesTypes.add(expensesType);
-                expensesTypeIdMap.put(expensesType, expensesTypeId);
-            }
-
-            comboExpensesType.setModel(new javax.swing.DefaultComboBoxModel<>(expensesTypes));
+                comboExpensesType.setModel(new javax.swing.DefaultComboBoxModel<>(expensesTypes));
+                return null;
+            });
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading expenses types: " + e.getMessage());
-        } finally {
-            // Close resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException e) {
-            }
         }
     }
 
@@ -682,80 +661,63 @@ public class UpdateExpenses extends javax.swing.JDialog {
             return;
         }
 
-        Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet rs = null;
-
         try {
             String sql = "SELECT e.date, e.amount, e.expenses_type_id, e.e_status_id, e.time, e.description, et.expenses_type "
                     + "FROM expenses e "
                     + "JOIN expenses_type et ON e.expenses_type_id = et.expenses_type_id "
                     + "WHERE e.expenses_id = ?";
 
-            conn = MySQL.getConnection();
-            pst = conn.prepareStatement(sql);
-            pst.setInt(1, expensesId);
-            rs = pst.executeQuery();
+            DB.executeQuerySafe(sql, rs -> {
+                if (rs.next()) {
+                    // Load data into form fields
+                    double amount = rs.getDouble("amount");
+                    java.sql.Date date = rs.getDate("date");
+                    java.sql.Time time = rs.getTime("time");
+                    String description = rs.getString("description");
+                    int expensesTypeId = rs.getInt("expenses_type_id");
+                    int statusId = rs.getInt("e_status_id");
+                    String expensesType = rs.getString("expenses_type");
 
-            if (rs.next()) {
-                // Load data into form fields
-                double amount = rs.getDouble("amount");
-                java.sql.Date date = rs.getDate("date");
-                java.sql.Time time = rs.getTime("time");
-                String description = rs.getString("description");
-                int expensesTypeId = rs.getInt("expenses_type_id");
-                int statusId = rs.getInt("e_status_id");
-                String expensesType = rs.getString("expenses_type");
+                    // Set form fields
+                    txtAmount.setText(String.valueOf(amount));
+                    paymentDate.setDate(date);
 
-                // Set form fields
-                txtAmount.setText(String.valueOf(amount));
-                paymentDate.setDate(date);
-
-                // Set time
-                if (time != null) {
-                    timePicker1.setTime(time.toLocalTime());
-                }
-
-                // Set description
-                if (description != null) {
-                    jTextArea1.setText(description);
-                }
-
-                // Set expenses type
-                for (int i = 0; i < comboExpensesType.getItemCount(); i++) {
-                    if (comboExpensesType.getItemAt(i).equals(expensesType)) {
-                        comboExpensesType.setSelectedIndex(i);
-                        break;
+                    // Set time
+                    if (time != null) {
+                        timePicker1.setTime(time.toLocalTime());
                     }
-                }
 
-                // Set status
-                if (statusId == 1) {
-                    jRadioButton1.setSelected(true);
+                    // Set description
+                    if (description != null) {
+                        jTextArea1.setText(description);
+                    }
+
+                    // Set expenses type
+                    for (int i = 0; i < comboExpensesType.getItemCount(); i++) {
+                        if (comboExpensesType.getItemAt(i).equals(expensesType)) {
+                            comboExpensesType.setSelectedIndex(i);
+                            break;
+                        }
+                    }
+
+                    // Set status
+                    if (statusId == 1) {
+                        jRadioButton1.setSelected(true);
+                    } else {
+                        jRadioButton2.setSelected(true);
+                    }
+
                 } else {
-                    jRadioButton2.setSelected(true);
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Expenses record not found");
+                    dispose();
                 }
-
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Expenses record not found");
-                dispose();
-            }
+                return null;
+            }, expensesId);
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading expenses data: " + e.getMessage());
             dispose();
-        } finally {
-            // Close resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException e) {
-            }
         }
     }
 
@@ -810,7 +772,6 @@ public class UpdateExpenses extends javax.swing.JDialog {
         }
 
         Connection conn = null;
-        PreparedStatement pst = null;
 
         try {
             isSaving = true;
@@ -823,38 +784,34 @@ public class UpdateExpenses extends javax.swing.JDialog {
             String description = jTextArea1.getText().trim();
             int statusId = jRadioButton1.isSelected() ? 1 : 2; // 1=Paid, 2=Unpaid
 
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
 
             String query = "UPDATE expenses SET date = ?, amount = ?, expenses_type_id = ?, e_status_id = ?, time = ?, description = ? WHERE expenses_id = ?";
 
-            pst = conn.prepareStatement(query);
-            pst.setDate(1, date);
-            pst.setDouble(2, amount);
-            pst.setInt(3, expensesTypeId);
-            pst.setInt(4, statusId);
-            pst.setTime(5, time);
-            pst.setString(6, description.isEmpty() ? null : description);
-            pst.setInt(7, expensesId);
+            try (PreparedStatement pst = conn.prepareStatement(query)) {
+                pst.setDate(1, date);
+                pst.setDouble(2, amount);
+                pst.setInt(3, expensesTypeId);
+                pst.setInt(4, statusId);
+                pst.setTime(5, time);
+                pst.setString(6, description.isEmpty() ? null : description);
+                pst.setInt(7, expensesId);
 
-            int rowsAffected = pst.executeUpdate();
+                int rowsAffected = pst.executeUpdate();
 
-            if (rowsAffected > 0) {
-                createExpenseNotification(selectedExpensesType, amount);
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Expenses updated successfully!");
-                dispose();
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update expenses!");
+                if (rowsAffected > 0) {
+                    createExpenseNotification(selectedExpensesType, amount);
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Expenses updated successfully!");
+                    dispose();
+                } else {
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to update expenses!");
+                }
             }
 
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error updating expenses: " + e.getMessage());
         } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-            } catch (Exception e) {
-            }
+            DB.closeQuietly(conn);
             isSaving = false;
         }
     }
@@ -868,7 +825,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
         try {
             String messageText = String.format("Expenses updated | Type: %s | Amount: Rs %.2f", expensesType, amount);
 
-            conn = MySQL.getConnection();
+            conn = DB.getConnection();
 
             // Check if message already exists
             String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
@@ -909,18 +866,7 @@ public class UpdateExpenses extends javax.swing.JDialog {
 
         } catch (Exception e) {
         } finally {
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
-            }
+            DB.closeQuietly(rs, pstMassage, pstNotification, conn);
         }
     }
 

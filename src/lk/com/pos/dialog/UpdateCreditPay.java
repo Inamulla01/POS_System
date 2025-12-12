@@ -12,6 +12,7 @@ import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,10 +21,11 @@ import java.util.Vector;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
+import lk.com.pos.connection.DB.ResultSetHandler;
 import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
 import raven.toast.Notifications;
 
@@ -594,22 +596,41 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     + "HAVING remaining_amount > 0 "
                     + "ORDER BY cc.customer_name";
 
-            ResultSet rs = MySQL.executeSearch(sql);
+            // Using the new DB class with executeQuerySafe
+            java.util.List<java.util.Map<String, Object>> results = DB.executeQuerySafe(sql, new ResultSetHandler<java.util.List<java.util.Map<String, Object>>>() {
+                @Override
+                public java.util.List<java.util.Map<String, Object>> handle(ResultSet rs) throws SQLException {
+                    java.util.List<java.util.Map<String, Object>> list = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        java.util.Map<String, Object> row = new java.util.HashMap<>();
+                        row.put("customer_id", rs.getInt("customer_id"));
+                        row.put("customer_name", rs.getString("customer_name"));
+                        row.put("total_credit", rs.getDouble("total_credit"));
+                        row.put("total_paid", rs.getDouble("total_paid"));
+                        row.put("remaining_amount", rs.getDouble("remaining_amount"));
+                        row.put("discount", rs.getDouble("discount"));
+                        row.put("discount_type", rs.getString("discount_type"));
+                        list.add(row);
+                    }
+                    return list;
+                }
+            });
+
             Vector<String> creditCustomers = new Vector<>();
             creditCustomers.add("Select Credit Customer");
 
             int count = 0;
-            while (rs.next()) {
-                int customerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double remaining = rs.getDouble("remaining_amount");
-                double discount = rs.getDouble("discount");
-                String discountType = rs.getString("discount_type");
+            for (java.util.Map<String, Object> row : results) {
+                int customerId = (Integer) row.get("customer_id");
+                String customerName = (String) row.get("customer_name");
+                double totalCredit = (Double) row.get("total_credit");
+                double totalPaid = (Double) row.get("total_paid");
+                double remaining = (Double) row.get("remaining_amount");
+                double discount = (Double) row.get("discount");
+                String discountType = (String) row.get("discount_type");
 
                 String displayText;
-                if (discountType != null && !rs.wasNull()) {
+                if (discountType != null) {
                     if ("percentage".equals(discountType)) {
                         double discountedAmount = remaining - (remaining * discount / 100);
                         displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
@@ -656,36 +677,38 @@ public class UpdateCreditPay extends javax.swing.JDialog {
                     + "WHERE cd.credit_id = ? "
                     + "ORDER BY d.discount_id DESC LIMIT 1";
 
-            Connection conn = MySQL.getConnection();
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, customerId);
-            ResultSet rs = pst.executeQuery();
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection();
+                 PreparedStatement pst = conn.prepareStatement(sql)) {
+                
+                pst.setInt(1, customerId);
+                
+                try (ResultSet rs = pst.executeQuery()) {
+                    hasDiscount = false;
+                    discountAmount = 0.0;
+                    discountPercentage = 0.0;
 
-            hasDiscount = false;
-            discountAmount = 0.0;
-            discountPercentage = 0.0;
+                    if (rs.next()) {
+                        double discountValue = rs.getDouble("discount");
+                        String discountType = rs.getString("discount_type");
+                        hasDiscount = true;
 
-            if (rs.next()) {
-                double discountValue = rs.getDouble("discount");
-                String discountType = rs.getString("discount_type");
-                hasDiscount = true;
+                        if ("percentage".equals(discountType)) {
+                            discountPercentage = discountValue;
+                            discountAmount = originalRemainingAmount * (discountPercentage / 100);
+                        } else if ("fixed amount".equals(discountType)) {
+                            discountAmount = discountValue;
+                            discountPercentage = (discountAmount / originalRemainingAmount) * 100;
+                        }
 
-                if ("percentage".equals(discountType)) {
-                    discountPercentage = discountValue;
-                    discountAmount = originalRemainingAmount * (discountPercentage / 100);
-                } else if ("fixed amount".equals(discountType)) {
-                    discountAmount = discountValue;
-                    discountPercentage = (discountAmount / originalRemainingAmount) * 100;
+                        updateDiscountLabel();
+                    } else {
+                        discountAmountLabel.setText("No Discount Available");
+                        discountAmountLabel.setForeground(Color.GRAY);
+                    }
                 }
-
-                updateDiscountLabel();
-            } else {
-                discountAmountLabel.setText("No Discount Available");
-                discountAmountLabel.setForeground(Color.GRAY);
             }
 
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading discount: " + e.getMessage());
@@ -768,120 +791,122 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
     private void loadCreditPayData() {
         try {
-            Connection conn = MySQL.getConnection();
+            // Using the new DB class with try-with-resources
+            try (Connection conn = DB.getConnection()) {
 
-            // Fixed SQL query with proper joins
-            String sql = "SELECT cp.*, cc.customer_id, cc.customer_name, "
-                    + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
-                    + "COALESCE(SUM(cp2.credit_pay_amount), 0) as total_paid, "
-                    + "cp.credit_pay_amount as current_payment "
-                    + "FROM credit_pay cp "
-                    + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
-                    + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
-                    + "LEFT JOIN credit_pay cp2 ON cc.customer_id = cp2.credit_customer_id "
-                    + "WHERE cp.credit_pay_id = ? "
-                    + "GROUP BY cp.credit_pay_id, cc.customer_id, cc.customer_name, cp.credit_pay_amount";
+                // Fixed SQL query with proper joins
+                String sql = "SELECT cp.*, cc.customer_id, cc.customer_name, "
+                        + "COALESCE(SUM(c.credit_amout), 0) as total_credit, "
+                        + "COALESCE(SUM(cp2.credit_pay_amount), 0) as total_paid, "
+                        + "cp.credit_pay_amount as current_payment "
+                        + "FROM credit_pay cp "
+                        + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
+                        + "LEFT JOIN credit c ON cc.customer_id = c.credit_customer_id "
+                        + "LEFT JOIN credit_pay cp2 ON cc.customer_id = cp2.credit_customer_id "
+                        + "WHERE cp.credit_pay_id = ? "
+                        + "GROUP BY cp.credit_pay_id, cc.customer_id, cc.customer_name, cp.credit_pay_amount";
 
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, creditPayId);
-            ResultSet rs = pst.executeQuery();
+                try (PreparedStatement pst = conn.prepareStatement(sql)) {
+                    pst.setInt(1, creditPayId);
+                    
+                    try (ResultSet rs = pst.executeQuery()) {
+                        if (rs.next()) {
+                            // Store customer ID from the record
+                            creditCustomerId = rs.getInt("customer_id");
+                            String customerName = rs.getString("customer_name");
+                            double totalCredit = rs.getDouble("total_credit");
+                            double totalPaid = rs.getDouble("total_paid");
+                            double currentPayment = rs.getDouble("current_payment");
 
-            if (rs.next()) {
-                // Store customer ID from the record
-                creditCustomerId = rs.getInt("customer_id");
-                String customerName = rs.getString("customer_name");
-                double totalCredit = rs.getDouble("total_credit");
-                double totalPaid = rs.getDouble("total_paid");
-                double currentPayment = rs.getDouble("current_payment");
+                            // Calculate remaining amount
+                            // Remaining = Total credit - Total paid + Current payment (since we're editing current payment)
+                            originalRemainingAmount = (totalCredit - totalPaid) + currentPayment;
+                            remainingAmount = originalRemainingAmount;
 
-                // Calculate remaining amount
-                // Remaining = Total credit - Total paid + Current payment (since we're editing current payment)
-                originalRemainingAmount = (totalCredit - totalPaid) + currentPayment;
-                remainingAmount = originalRemainingAmount;
+                            // Load discount for customer
+                            loadCustomerDiscount(creditCustomerId);
 
-                // Load discount for customer
-                loadCustomerDiscount(creditCustomerId);
+                            // Apply discount to remaining amount if exists
+                            if (hasDiscount) {
+                                remainingAmount = originalRemainingAmount - discountAmount;
+                                if (remainingAmount < 0) {
+                                    remainingAmount = 0;
+                                }
+                            }
 
-                // Apply discount to remaining amount if exists
-                if (hasDiscount) {
-                    remainingAmount = originalRemainingAmount - discountAmount;
-                    if (remainingAmount < 0) {
-                        remainingAmount = 0;
-                    }
-                }
+                            // Create display text for the combo box
+                            String displayText;
+                            if (hasDiscount) {
+                                if (discountPercentage > 0) {
+                                    displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
+                                            customerName, totalCredit, totalPaid - currentPayment, originalRemainingAmount, 
+                                            discountPercentage, remainingAmount);
+                                } else {
+                                    displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: Rs.%.2f -> Pay: %.2f)",
+                                            customerName, totalCredit, totalPaid - currentPayment, originalRemainingAmount, 
+                                            discountAmount, remainingAmount);
+                                }
+                            } else {
+                                displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
+                                        customerName, totalCredit, totalPaid - currentPayment, remainingAmount);
+                            }
 
-                // Create display text for the combo box
-                String displayText;
-                if (hasDiscount) {
-                    if (discountPercentage > 0) {
-                        displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: %.1f%% -> Pay: %.2f)",
-                                customerName, totalCredit, totalPaid - currentPayment, originalRemainingAmount, 
-                                discountPercentage, remainingAmount);
-                    } else {
-                        displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f (Disc: Rs.%.2f -> Pay: %.2f)",
-                                customerName, totalCredit, totalPaid - currentPayment, originalRemainingAmount, 
-                                discountAmount, remainingAmount);
-                    }
-                } else {
-                    displayText = String.format("%s - Total: %.2f, Paid: %.2f, Due: %.2f",
-                            customerName, totalCredit, totalPaid - currentPayment, remainingAmount);
-                }
+                            // Find and select this customer in the combo box
+                            boolean found = false;
+                            for (int i = 0; i < creditCombo.getItemCount(); i++) {
+                                String item = creditCombo.getItemAt(i);
+                                if (item.equals(displayText)) {
+                                    creditCombo.setSelectedIndex(i);
+                                    found = true;
+                                    break;
+                                }
+                            }
 
-                // Find and select this customer in the combo box
-                boolean found = false;
-                for (int i = 0; i < creditCombo.getItemCount(); i++) {
-                    String item = creditCombo.getItemAt(i);
-                    if (item.equals(displayText)) {
-                        creditCombo.setSelectedIndex(i);
-                        found = true;
-                        break;
-                    }
-                }
+                            if (!found) {
+                                // If not found by exact text, find by customer ID
+                                for (int i = 0; i < creditCombo.getItemCount(); i++) {
+                                    String item = creditCombo.getItemAt(i);
+                                    Integer itemCustomerId = creditCustomerIdMap.get(item);
+                                    if (itemCustomerId != null && itemCustomerId == creditCustomerId) {
+                                        creditCombo.setSelectedIndex(i);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
 
-                if (!found) {
-                    // If not found by exact text, find by customer ID
-                    for (int i = 0; i < creditCombo.getItemCount(); i++) {
-                        String item = creditCombo.getItemAt(i);
-                        Integer itemCustomerId = creditCustomerIdMap.get(item);
-                        if (itemCustomerId != null && itemCustomerId == creditCustomerId) {
-                            creditCombo.setSelectedIndex(i);
-                            found = true;
-                            break;
+                            if (!found) {
+                                // If still not found, just select the first customer (if available)
+                                if (creditCombo.getItemCount() > 1) {
+                                    creditCombo.setSelectedIndex(1);
+                                }
+                            }
+
+                            // Set payment date
+                            Date paymentDate = rs.getTimestamp("credit_pay_date");
+                            givenDate.setDate(paymentDate);
+
+                            // Set amount
+                            address.setText(String.format("%.2f", currentPayment));
+
+                            // Update remaining amount label and tooltip
+                            updateRemainingAmountLabel();
+                            updateDiscountLabel();
+                            
+                            String tooltipText = "Type payment amount (max: " + String.format("%.2f", remainingAmount) + ") and press ENTER to move to next field";
+                            if (hasDiscount) {
+                                tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
+                            }
+                            address.setToolTipText(tooltipText);
+
+                        } else {
+                            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                                    "Credit payment record not found!");
                         }
                     }
                 }
-
-                if (!found) {
-                    // If still not found, just select the first customer (if available)
-                    if (creditCombo.getItemCount() > 1) {
-                        creditCombo.setSelectedIndex(1);
-                    }
-                }
-
-                // Set payment date
-                Date paymentDate = rs.getTimestamp("credit_pay_date");
-                givenDate.setDate(paymentDate);
-
-                // Set amount
-                address.setText(String.format("%.2f", currentPayment));
-
-                // Update remaining amount label and tooltip
-                updateRemainingAmountLabel();
-                updateDiscountLabel();
-                
-                String tooltipText = "Type payment amount (max: " + String.format("%.2f", remainingAmount) + ") and press ENTER to move to next field";
-                if (hasDiscount) {
-                    tooltipText += "\nDiscount applied: " + discountPercentage + "% (Rs. " + discountAmount + ")";
-                }
-                address.setToolTipText(tooltipText);
-
-            } else {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Credit payment record not found!");
             }
 
-            rs.close();
-            pst.close();
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error loading credit payment data: " + e.getMessage());
@@ -987,136 +1012,117 @@ public class UpdateCreditPay extends javax.swing.JDialog {
 
             double amount = Double.parseDouble(address.getText().trim());
 
-            conn = MySQL.getConnection();
-            conn.setAutoCommit(false); // Start transaction
+            // Using the new DB class with try-with-resources
+            try (Connection dbConn = DB.getConnection()) {
+                conn = dbConn; // For compatibility with existing code
+                conn.setAutoCommit(false); // Start transaction
 
-            // 1. Get customer information for notification message
-            String customerSql = "SELECT cc.customer_name, cp.credit_pay_amount as old_amount "
-                    + "FROM credit_pay cp "
-                    + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
-                    + "WHERE cp.credit_pay_id = ?";
-            pstGetCustomerInfo = conn.prepareStatement(customerSql);
-            pstGetCustomerInfo.setInt(1, creditPayId);
-            rs = pstGetCustomerInfo.executeQuery();
+                // 1. Get customer information for notification message
+                String customerSql = "SELECT cc.customer_name, cp.credit_pay_amount as old_amount "
+                        + "FROM credit_pay cp "
+                        + "JOIN credit_customer cc ON cp.credit_customer_id = cc.customer_id "
+                        + "WHERE cp.credit_pay_id = ?";
+                pstGetCustomerInfo = conn.prepareStatement(customerSql);
+                pstGetCustomerInfo.setInt(1, creditPayId);
+                rs = pstGetCustomerInfo.executeQuery();
 
-            String customerName = "Unknown Customer";
-            double oldAmount = 0.0;
-
-            if (rs.next()) {
-                customerName = rs.getString("customer_name");
-                oldAmount = rs.getDouble("old_amount");
-            }
-            rs.close();
-            pstGetCustomerInfo.close();
-
-            // 2. Update the credit payment
-            String updateSql = "UPDATE credit_pay SET credit_pay_date = ?, credit_pay_amount = ?, credit_customer_id = ? "
-                    + "WHERE credit_pay_id = ?";
-            pstUpdate = conn.prepareStatement(updateSql);
-            pstUpdate.setString(1, paymentDateStr);
-            pstUpdate.setDouble(2, amount);
-            pstUpdate.setInt(3, selectedCustomerId);
-            pstUpdate.setInt(4, creditPayId);
-
-            int rowsAffected = pstUpdate.executeUpdate();
-
-            if (rowsAffected > 0) {
-                // 3. Create notification message with discount information
-                String messageText;
-                if (hasDiscount) {
-                    messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f (Discount: Rs.%.2f)",
-                            customerName, oldAmount, amount, discountAmount);
-                } else {
-                    messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f",
-                            customerName, oldAmount, amount);
-                }
-
-                // Check if message already exists in massage table
-                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstCheckMessage = conn.prepareStatement(checkMessageSql);
-                pstCheckMessage.setString(1, messageText);
-                rs = pstCheckMessage.executeQuery();
-
-                int messageId;
+                String customerName = "Unknown Customer";
+                double oldAmount = 0.0;
 
                 if (rs.next()) {
-                    // Message already exists, get the existing massage_id
-                    messageId = rs.getInt("massage_id");
-                } else {
-                    // Message doesn't exist, insert new message
-                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                    pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                    pstInsertMessage.setString(1, messageText);
-                    pstInsertMessage.executeUpdate();
+                    customerName = rs.getString("customer_name");
+                    oldAmount = rs.getDouble("old_amount");
+                }
+                rs.close();
+                pstGetCustomerInfo.close();
 
-                    // Get the generated message ID
-                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        messageId = generatedKeys.getInt(1);
+                // 2. Update the credit payment
+                String updateSql = "UPDATE credit_pay SET credit_pay_date = ?, credit_pay_amount = ?, credit_customer_id = ? "
+                        + "WHERE credit_pay_id = ?";
+                pstUpdate = conn.prepareStatement(updateSql);
+                pstUpdate.setString(1, paymentDateStr);
+                pstUpdate.setDouble(2, amount);
+                pstUpdate.setInt(3, selectedCustomerId);
+                pstUpdate.setInt(4, creditPayId);
+
+                int rowsAffected = pstUpdate.executeUpdate();
+
+                if (rowsAffected > 0) {
+                    // 3. Create notification message with discount information
+                    String messageText;
+                    if (hasDiscount) {
+                        messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f (Discount: Rs.%.2f)",
+                                customerName, oldAmount, amount, discountAmount);
                     } else {
-                        throw new Exception("Failed to get generated message ID");
+                        messageText = String.format("Credit payment updated for %s: Rs.%.2f → Rs.%.2f",
+                                customerName, oldAmount, amount);
                     }
-                    generatedKeys.close();
-                }
 
-                // 4. Insert notification (msg_type_id 18 for "Edit Credit Pay")
-                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 18, ?)";
-                pstInsertNotification = conn.prepareStatement(notificationSql);
-                pstInsertNotification.setInt(1, messageId);
-                pstInsertNotification.executeUpdate();
+                    // Check if message already exists in massage table
+                    String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+                    pstCheckMessage = conn.prepareStatement(checkMessageSql);
+                    pstCheckMessage.setString(1, messageText);
+                    rs = pstCheckMessage.executeQuery();
 
-                // Commit transaction
-                conn.commit();
+                    int messageId;
 
-                String successMessage = String.format("Credit payment updated successfully! Amount: Rs. %.2f", amount);
-                if (hasDiscount) {
-                    successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
-                }
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
-                dispose(); // Close the dialog after successful update
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                        "Failed to update credit payment!");
-            }
+                    if (rs.next()) {
+                        // Message already exists, get the existing massage_id
+                        messageId = rs.getInt("massage_id");
+                    } else {
+                        // Message doesn't exist, insert new message
+                        String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                        pstInsertMessage = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                        pstInsertMessage.setString(1, messageText);
+                        pstInsertMessage.executeUpdate();
 
-        } catch (Exception e) {
-            try {
-                if (conn != null) {
+                        // Get the generated message ID
+                        ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                        if (generatedKeys.next()) {
+                            messageId = generatedKeys.getInt(1);
+                        } else {
+                            throw new Exception("Failed to get generated message ID");
+                        }
+                        generatedKeys.close();
+                    }
+
+                    // 4. Insert notification (msg_type_id 18 for "Edit Credit Pay")
+                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 18, ?)";
+                    pstInsertNotification = conn.prepareStatement(notificationSql);
+                    pstInsertNotification.setInt(1, messageId);
+                    pstInsertNotification.executeUpdate();
+
+                    // Commit transaction
+                    conn.commit();
+
+                    String successMessage = String.format("Credit payment updated successfully! Amount: Rs. %.2f", amount);
+                    if (hasDiscount) {
+                        successMessage += String.format("\nDiscount applied: Rs. %.2f (%.2f%%)", discountAmount, discountPercentage);
+                    }
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+                    dispose(); // Close the dialog after successful update
+                } else {
                     conn.rollback();
+                    Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                            "Failed to update credit payment!");
                 }
-            } catch (Exception ex) {
-            }
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
-                    "Error updating credit payment: " + e.getMessage());
-        } finally {
-            // Close all resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pstUpdate != null) {
-                    pstUpdate.close();
-                }
-                if (pstGetCustomerInfo != null) {
-                    pstGetCustomerInfo.close();
-                }
-                if (pstCheckMessage != null) {
-                    pstCheckMessage.close();
-                }
-                if (pstInsertMessage != null) {
-                    pstInsertMessage.close();
-                }
-                if (pstInsertNotification != null) {
-                    pstInsertNotification.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
+
             } catch (Exception e) {
+                try {
+                    if (conn != null) {
+                        conn.rollback();
+                    }
+                } catch (Exception ex) {
+                }
+                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                        "Error updating credit payment: " + e.getMessage());
+            } finally {
+                // Close all resources
+                DB.closeQuietly(rs, pstUpdate, pstGetCustomerInfo, pstCheckMessage, pstInsertMessage, pstInsertNotification);
+                // Always reset the flag
+                isUpdating = false;
             }
-            // Always reset the flag
+        } finally {
             isUpdating = false;
         }
     }

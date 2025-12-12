@@ -1,6 +1,6 @@
 package lk.com.pos.dialog;
 
-import lk.com.pos.connection.MySQL;
+import lk.com.pos.connection.DB;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -274,22 +274,16 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
     private void loadSupplierData() {
         try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT * FROM suppliers WHERE suppliers_id = ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setInt(1, supplierId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next()) {
-                jTextField1.setText(rs.getString("suppliers_name"));
-                jTextField2.setText(rs.getString("suppliers_mobile"));
-                jTextField3.setText(rs.getString("suppliers_address"));
-                companyfield.setText(rs.getString("Company"));
-                jTextField4.setText(rs.getString("suppliers_reg_no"));
-            }
-
-            rs.close();
-            pst.close();
+            DB.executeQuerySafe("SELECT * FROM suppliers WHERE suppliers_id = ?", (ResultSet rs) -> {
+                if (rs.next()) {
+                    jTextField1.setText(rs.getString("suppliers_name"));
+                    jTextField2.setText(rs.getString("suppliers_mobile"));
+                    jTextField3.setText(rs.getString("suppliers_address"));
+                    companyfield.setText(rs.getString("Company"));
+                    jTextField4.setText(rs.getString("suppliers_reg_no"));
+                }
+                return null;
+            }, supplierId);
         } catch (Exception e) {
             // Exception handling without print statements
         }
@@ -308,44 +302,36 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
     private boolean isSupplierNameExists(String name) {
         try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM suppliers WHERE suppliers_name = ? AND suppliers_id != ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, name);
-            pst.setInt(2, supplierId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
-                return true;
-            }
-
-            rs.close();
-            pst.close();
+            return DB.executeQuerySafe(
+                "SELECT COUNT(*) FROM suppliers WHERE suppliers_name = ? AND suppliers_id != ?", 
+                (ResultSet rs) -> {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return true;
+                    }
+                    return false;
+                },
+                name, supplierId
+            );
         } catch (Exception e) {
-            // Exception handling without print statements
+            return false;
         }
-        return false;
     }
 
     private boolean isRegistrationNumberExists(String regNo) {
         try {
-            Connection conn = MySQL.getConnection();
-            String sql = "SELECT COUNT(*) FROM suppliers WHERE suppliers_reg_no = ? AND suppliers_id != ?";
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, regNo);
-            pst.setInt(2, supplierId);
-            ResultSet rs = pst.executeQuery();
-
-            if (rs.next() && rs.getInt(1) > 0) {
-                return true;
-            }
-
-            rs.close();
-            pst.close();
+            return DB.executeQuerySafe(
+                "SELECT COUNT(*) FROM suppliers WHERE suppliers_reg_no = ? AND suppliers_id != ?", 
+                (ResultSet rs) -> {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return true;
+                    }
+                    return false;
+                },
+                regNo, supplierId
+            );
         } catch (Exception e) {
-            // Exception handling without print statements
+            return false;
         }
-        return false;
     }
 
     // ---------------- KEYBOARD NAVIGATION SETUP ----------------
@@ -549,18 +535,10 @@ public class UpdateSupplier extends javax.swing.JDialog {
         }
 
         try {
-            Connection conn = MySQL.getConnection();
+            // Use the new DB class for update
             String sql = "UPDATE suppliers SET suppliers_name = ?, suppliers_mobile = ?, suppliers_address = ?, Company = ?, suppliers_reg_no = ? WHERE suppliers_id = ?";
-
-            PreparedStatement pst = conn.prepareStatement(sql);
-            pst.setString(1, name);
-            pst.setString(2, mobile);
-            pst.setString(3, address);
-            pst.setString(4, company);
-            pst.setString(5, regNo);
-            pst.setInt(6, supplierId);
-
-            int rowsAffected = pst.executeUpdate();
+            
+            int rowsAffected = DB.executeUpdate(sql, name, mobile, address, company, regNo, supplierId);
 
             if (rowsAffected > 0) {
                 // Add notification for supplier update
@@ -568,8 +546,6 @@ public class UpdateSupplier extends javax.swing.JDialog {
 
                 this.dispose(); // Close the dialog after successful update
             }
-
-            pst.close();
 
         } catch (Exception e) {
             // Exception handling without print statements
@@ -579,46 +555,31 @@ public class UpdateSupplier extends javax.swing.JDialog {
     // Add this new method for handling notifications
     private void addSupplierUpdateNotification(String supplierName) {
         try {
-            Connection conn = MySQL.getConnection();
-
             // Check if message already exists in messages table
             String checkMessageSql = "SELECT message_id FROM messages WHERE message_text = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkMessageSql);
             String messageText = "Supplier '" + supplierName + "' has been updated in the system.";
-            checkStmt.setString(1, messageText);
+            
+            String existingMessageId = DB.executeQuerySafe(checkMessageSql, (ResultSet rs) -> {
+                if (rs.next()) {
+                    return rs.getString("message_id");
+                }
+                return null;
+            }, messageText);
 
-            ResultSet rs = checkStmt.executeQuery();
             int messageId;
-
-            if (rs.next()) {
+            
+            if (existingMessageId != null) {
                 // Message already exists, get its ID
-                messageId = rs.getInt("message_id");
+                messageId = Integer.parseInt(existingMessageId);
             } else {
                 // Message doesn't exist, insert new message
                 String insertMessageSql = "INSERT INTO messages (message_text, message_type, created_date) VALUES (?, 'supplier_update', NOW())";
-                PreparedStatement insertStmt = conn.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                insertStmt.setString(1, messageText);
-                insertStmt.executeUpdate();
-
-                // Get the generated message ID
-                ResultSet generatedKeys = insertStmt.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    messageId = generatedKeys.getInt(1);
-                } else {
-                    throw new Exception("Creating message failed, no ID obtained.");
-                }
-                insertStmt.close();
+                messageId = DB.insertAndGetId(insertMessageSql, messageText, "supplier_update");
             }
-
-            rs.close();
-            checkStmt.close();
 
             // Insert notification with the message ID
             String insertNotificationSql = "INSERT INTO notifications (message_id, notification_date, is_read) VALUES (?, NOW(), 0)";
-            PreparedStatement notificationStmt = conn.prepareStatement(insertNotificationSql);
-            notificationStmt.setInt(1, messageId);
-            notificationStmt.executeUpdate();
-            notificationStmt.close();
+            DB.executeUpdate(insertNotificationSql, messageId);
 
         } catch (Exception e) {
             // Exception handling without print statements

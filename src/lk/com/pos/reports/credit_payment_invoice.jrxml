@@ -18,7 +18,7 @@
 	<parameter name="PREV_BALANCE" class="java.lang.Double"/>
 	<parameter name="PAY_RECEIVED" class="java.lang.Double"/>
 	<parameter name="DISC_ALLOWED" class="java.lang.Double"/>
-	<parameter name="NEW_OUTSTANDING" class="java.lang.String"/>
+	<parameter name="NEW_OUTSTANDING" class="java.lang.Double"/>
 	<parameter name="PAYMENT_TYPE" class="java.lang.String"/>
 	<parameter name="CUSTOMER_NIC" class="java.lang.String"/>
 	<parameter name="OPENING_HOURS" class="java.lang.String"/>

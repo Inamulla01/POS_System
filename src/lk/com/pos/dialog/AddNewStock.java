@@ -665,15 +665,15 @@ public class AddNewStock extends javax.swing.JDialog {
     private void loadProductCombo() {
         try {
             Vector<String> products = DB.executeQuerySafe(
-                "SELECT product_id, product_name FROM product",
-                (ResultSet rs) -> {
-                    Vector<String> list = new Vector<>();
-                    list.add("Select Product");
-                    while (rs.next()) {
-                        list.add(rs.getString("product_name"));
+                    "SELECT product_id, product_name FROM product",
+                    (ResultSet rs) -> {
+                        Vector<String> list = new Vector<>();
+                        list.add("Select Product");
+                        while (rs.next()) {
+                            list.add(rs.getString("product_name"));
+                        }
+                        return list;
                     }
-                    return list;
-                }
             );
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(products);
             productNameCombo.setModel(dcm);
@@ -686,15 +686,15 @@ public class AddNewStock extends javax.swing.JDialog {
     private void loadSupplierCombo() {
         try {
             Vector<String> suppliers = DB.executeQuerySafe(
-                "SELECT suppliers_id, suppliers_name FROM suppliers",
-                (ResultSet rs) -> {
-                    Vector<String> list = new Vector<>();
-                    list.add("Select Supplier");
-                    while (rs.next()) {
-                        list.add(rs.getString("suppliers_name"));
+                    "SELECT suppliers_id, suppliers_name FROM suppliers",
+                    (ResultSet rs) -> {
+                        Vector<String> list = new Vector<>();
+                        list.add("Select Supplier");
+                        while (rs.next()) {
+                            list.add(rs.getString("suppliers_name"));
+                        }
+                        return list;
                     }
-                    return list;
-                }
             );
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(suppliers);
             SupplierCombo.setModel(dcm);
@@ -731,9 +731,9 @@ public class AddNewStock extends javax.swing.JDialog {
     private boolean isBatchNumberExists(String batchNo) {
         try {
             Boolean exists = DB.executeQuerySafe(
-                "SELECT batch_no FROM stock WHERE batch_no = ?",
-                (ResultSet rs) -> rs.next(),
-                batchNo
+                    "SELECT batch_no FROM stock WHERE batch_no = ?",
+                    (ResultSet rs) -> rs.next(),
+                    batchNo
             );
             return exists;
         } catch (SQLException e) {
@@ -1043,7 +1043,12 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void openAddNewProduct() {
         try {
-            AddNewProduct dialog = new AddNewProduct((JFrame) getParent(), true);
+            // FIXED: Get the parent Window instead of casting to JFrame
+            java.awt.Window parentWindow = javax.swing.SwingUtilities.getWindowAncestor(this);
+            AddNewProduct dialog = new AddNewProduct(
+                    (java.awt.Frame) parentWindow,
+                    true
+            );
             dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
 
@@ -1060,7 +1065,12 @@ public class AddNewStock extends javax.swing.JDialog {
 
     private void openAddNewSupplier() {
         try {
-            AddSupplier dialog = new AddSupplier((JFrame) getParent(), true);
+            // FIXED: Get the parent Window instead of casting to JFrame
+            java.awt.Window parentWindow = javax.swing.SwingUtilities.getWindowAncestor(this);
+            AddSupplier dialog = new AddSupplier(
+                    (java.awt.Frame) parentWindow,
+                    true
+            );
             dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
 
@@ -1188,14 +1198,14 @@ public class AddNewStock extends javax.swing.JDialog {
     private int getProductId(String productName) {
         try {
             Integer productId = DB.executeQuerySafe(
-                "SELECT product_id FROM product WHERE product_name = ?",
-                (ResultSet rs) -> {
-                    if (rs.next()) {
-                        return rs.getInt("product_id");
-                    }
-                    return -1;
-                },
-                productName
+                    "SELECT product_id FROM product WHERE product_name = ?",
+                    (ResultSet rs) -> {
+                        if (rs.next()) {
+                            return rs.getInt("product_id");
+                        }
+                        return -1;
+                    },
+                    productName
             );
             return productId;
         } catch (SQLException e) {
@@ -1206,14 +1216,14 @@ public class AddNewStock extends javax.swing.JDialog {
     private int getSupplierId(String supplierName) {
         try {
             Integer supplierId = DB.executeQuerySafe(
-                "SELECT suppliers_id FROM suppliers WHERE suppliers_name = ?",
-                (ResultSet rs) -> {
-                    if (rs.next()) {
-                        return rs.getInt("suppliers_id");
-                    }
-                    return -1;
-                },
-                supplierName
+                    "SELECT suppliers_id FROM suppliers WHERE suppliers_name = ?",
+                    (ResultSet rs) -> {
+                        if (rs.next()) {
+                            return rs.getInt("suppliers_id");
+                        }
+                        return -1;
+                    },
+                    supplierName
             );
             return supplierId;
         } catch (SQLException e) {
@@ -1230,7 +1240,7 @@ public class AddNewStock extends javax.swing.JDialog {
         PreparedStatement pstmt = null;
         PreparedStatement msgStmt = null;
         PreparedStatement notifStmt = null;
-        
+
         try {
             int productId = getProductId(productNameCombo.getSelectedItem().toString());
             int supplierId = getSupplierId(SupplierCombo.getSelectedItem().toString());
@@ -1255,14 +1265,14 @@ public class AddNewStock extends javax.swing.JDialog {
 
             // Get connection from pool
             conn = DB.getConnection();
-            
+
             // Start transaction
             conn.setAutoCommit(false);
-            
+
             // Insert stock
             String stockQuery = "INSERT INTO stock (batch_no, expriy_date, manufacture_date, qty, selling_price, last_price, purchase_price, product_id, suppliers_id, date_time) "
                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
+
             pstmt = conn.prepareStatement(stockQuery);
             pstmt.setString(1, batchNo);
             pstmt.setString(2, expiryDateStr);
@@ -1274,19 +1284,19 @@ public class AddNewStock extends javax.swing.JDialog {
             pstmt.setInt(8, productId);
             pstmt.setInt(9, supplierId);
             pstmt.setString(10, currentDateTime);
-            
+
             pstmt.executeUpdate();
-            
+
             // Create the notification message
-            String message = "New stock added: " + productNameCombo.getSelectedItem().toString() + 
-                            " (Batch: " + batchNo + ", Qty: " + quantity + ")";
-            
+            String message = "New stock added: " + productNameCombo.getSelectedItem().toString()
+                    + " (Batch: " + batchNo + ", Qty: " + quantity + ")";
+
             // Insert into massage table
             String insertMessageQuery = "INSERT INTO massage (massage) VALUES (?)";
             msgStmt = conn.prepareStatement(insertMessageQuery, Statement.RETURN_GENERATED_KEYS);
             msgStmt.setString(1, message);
             msgStmt.executeUpdate();
-            
+
             // Get the generated message ID
             int messageId = 0;
             try (ResultSet generatedKeys = msgStmt.getGeneratedKeys()) {
@@ -1294,7 +1304,7 @@ public class AddNewStock extends javax.swing.JDialog {
                     messageId = generatedKeys.getInt(1);
                 }
             }
-            
+
             // Insert into notification table
             // msg_type_id 9 corresponds to 'Add New Stock' based on your msg_type table
             String insertNotificationQuery = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) "
@@ -1302,13 +1312,13 @@ public class AddNewStock extends javax.swing.JDialog {
             notifStmt = conn.prepareStatement(insertNotificationQuery);
             notifStmt.setInt(1, messageId);
             notifStmt.executeUpdate();
-            
+
             // Commit transaction
             conn.commit();
-            
+
             clearForm();
             Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Stock added successfully!");
-            
+
         } catch (Exception e) {
             // Rollback transaction in case of error
             if (conn != null) {
@@ -1345,6 +1355,7 @@ public class AddNewStock extends javax.swing.JDialog {
         expriyDate.setDate(null);
         productNameCombo.requestFocus();
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

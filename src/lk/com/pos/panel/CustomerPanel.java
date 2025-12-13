@@ -3128,7 +3128,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jButton8ActionPerformed
 
     private void addNewCoustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCoustomerBtnActionPerformed
-        AddNewCustomer addNewCustomer = new AddNewCustomer(null, true);
+AddNewCustomer addNewCustomer = new AddNewCustomer(null, true);
         addNewCustomer.setLocationRelativeTo(null);
         addNewCustomer.setVisible(true);
         performSearch();

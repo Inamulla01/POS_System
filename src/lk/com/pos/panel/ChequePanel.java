@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
+import lk.com.pos.dialog.AddCheque;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -2495,6 +2496,7 @@ public class ChequePanel extends javax.swing.JPanel {
             return insets;
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -3044,7 +3046,10 @@ public class ChequePanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jTextField1ActionPerformed
 
     private void addNewCoustomerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewCoustomerBtnActionPerformed
-
+        AddCheque addCheque = new AddCheque(null, true);
+        addCheque.setLocationRelativeTo(this);
+        addCheque.setVisible(true);
+        performSearch();
     }//GEN-LAST:event_addNewCoustomerBtnActionPerformed
 
     private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
@@ -3052,7 +3057,7 @@ public class ChequePanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jButton8ActionPerformed
 
     private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed
-  openChequeReport();
+        openChequeReport();
     }//GEN-LAST:event_customerReportBtnActionPerformed
 
 

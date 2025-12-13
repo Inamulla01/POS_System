@@ -17,13 +17,13 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
-import lk.com.pos.connection.MySQL;
 import lk.com.pos.util.AppIconUtil;
 import raven.toast.Notifications;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import lk.com.pos.session.Session;
 import java.awt.event.KeyEvent;
+import lk.com.pos.connection.DB;
 
 public class LogIn extends javax.swing.JFrame {
 
@@ -565,117 +565,99 @@ public class LogIn extends javax.swing.JFrame {
     }//GEN-LAST:event_userNameActionPerformed
 
     private void loginBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginBtnActionPerformed
-        String username = userName.getText().trim();
-        String passwordText = String.valueOf(this.password.getPassword()).trim();
+    String username = userName.getText().trim();
+    String passwordText = String.valueOf(this.password.getPassword()).trim();
 
-        if (username.isEmpty() || passwordText.isEmpty()) {
-            Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
-            return;
-        }
+    if (username.isEmpty() || passwordText.isEmpty()) {
+        Notifications.getInstance().show(Notifications.Type.INFO, Notifications.Location.TOP_RIGHT, "Please fill all fields!");
+        return;
+    }
 
-        Connection con = null;
-        PreparedStatement pst = null;
-        ResultSet rs = null;
-        PreparedStatement pstCheckMessage = null;
-        PreparedStatement pstInsertMessage = null;
-        PreparedStatement pstNotification = null;
+    Connection con = null;
+    PreparedStatement pst = null;
+    ResultSet rs = null;
+    PreparedStatement pstCheckMessage = null;
+    PreparedStatement pstInsertMessage = null;
+    PreparedStatement pstNotification = null;
 
-        try {
-            // Hash the password before comparing
-            String hashedPassword = hashPassword(passwordText);
+    try {
+        // Hash the password before comparing
+        String hashedPassword = hashPassword(passwordText);
 
-            con = MySQL.getConnection();
-            String sql = "SELECT u.user_id, u.name, r.role_name "
-                    + "FROM user u "
-                    + "INNER JOIN role r ON u.role_id = r.role_id "
-                    + "WHERE u.name = ? AND u.password = ?";
-            pst = con.prepareStatement(sql);
-            pst.setString(1, username);
-            pst.setString(2, hashedPassword); // Use hashed password
-            rs = pst.executeQuery();
+        // Use the new DB class to get connection
+        con = DB.getConnection();
+        String sql = "SELECT u.user_id, u.name, r.role_name "
+                + "FROM user u "
+                + "INNER JOIN role r ON u.role_id = r.role_id "
+                + "WHERE u.name = ? AND u.password = ?";
+        pst = con.prepareStatement(sql);
+        pst.setString(1, username);
+        pst.setString(2, hashedPassword); // Use hashed password
+        rs = pst.executeQuery();
 
-            if (rs.next()) {
-                int userId = rs.getInt("user_id");
-                String roleName = rs.getString("role_name");
-                String userName = rs.getString("name");
+        if (rs.next()) {
+            int userId = rs.getInt("user_id");
+            String roleName = rs.getString("role_name");
+            String userName = rs.getString("name");
 
-                // Store session data
-                Session.getInstance().setSession(userId, roleName);
+            // Store session data
+            Session.getInstance().setSession(userId, roleName);
 
-                // Create login success message with username and role
-                String loginMessage = userName + "(" + roleName + ") logged in successfully";
-                int massageId = 0;
+            // Create login success message with username and role
+            String loginMessage = userName + "(" + roleName + ") logged in successfully";
+            int massageId = 0;
 
-                // Check if message already exists
-                String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstCheckMessage = con.prepareStatement(checkMessageSql);
-                pstCheckMessage.setString(1, loginMessage);
-                ResultSet rsMessage = pstCheckMessage.executeQuery();
+            // Check if message already exists
+            String checkMessageSql = "SELECT massage_id FROM massage WHERE massage = ?";
+            pstCheckMessage = con.prepareStatement(checkMessageSql);
+            pstCheckMessage.setString(1, loginMessage);
+            ResultSet rsMessage = pstCheckMessage.executeQuery();
 
-                if (rsMessage.next()) {
-                    // Message exists, get the existing massage_id
-                    massageId = rsMessage.getInt("massage_id");
-                } else {
-                    // Message doesn't exist, insert new message
-                    String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
-                    pstInsertMessage = con.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                    pstInsertMessage.setString(1, loginMessage);
-                    pstInsertMessage.executeUpdate();
-
-                    // Get the generated massage_id
-                    ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
-                    if (generatedKeys.next()) {
-                        massageId = generatedKeys.getInt(1);
-                    }
-                    generatedKeys.close();
-                }
-                rsMessage.close();
-
-                // Insert into notification table
-                if (massageId > 0) {
-                    String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, ?)";
-                    pstNotification = con.prepareStatement(notificationSql);
-                    pstNotification.setInt(1, massageId);
-                    pstNotification.executeUpdate();
-                }
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successful");
-
-                this.dispose();
-                new HomeScreen().setVisible(true);
-
+            if (rsMessage.next()) {
+                // Message exists, get the existing massage_id
+                massageId = rsMessage.getInt("massage_id");
             } else {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
+                // Message doesn't exist, insert new message
+                String insertMessageSql = "INSERT INTO massage (massage) VALUES (?)";
+                pstInsertMessage = con.prepareStatement(insertMessageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                pstInsertMessage.setString(1, loginMessage);
+                pstInsertMessage.executeUpdate();
+
+                // Get the generated massage_id
+                ResultSet generatedKeys = pstInsertMessage.getGeneratedKeys();
+                if (generatedKeys.next()) {
+                    massageId = generatedKeys.getInt(1);
+                }
+                generatedKeys.close();
+            }
+            rsMessage.close();
+
+            // Insert into notification table
+            if (massageId > 0) {
+                String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (1, NOW(), 3, ?)";
+                pstNotification = con.prepareStatement(notificationSql);
+                pstNotification.setInt(1, massageId);
+                pstNotification.executeUpdate();
             }
 
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Unexpected error: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        } finally {
-            // Close all resources
-            try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (pst != null) {
-                    pst.close();
-                }
-                if (pstCheckMessage != null) {
-                    pstCheckMessage.close();
-                }
-                if (pstInsertMessage != null) {
-                    pstInsertMessage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-                // DON'T close the connection here to keep it in pool
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, "Login Successful");
+
+            this.dispose();
+            new HomeScreen().setVisible(true);
+
+        } else {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Invalid Username or Password");
         }
+
+    } catch (SQLException e) {
+        JOptionPane.showMessageDialog(this,
+                "Unexpected error: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+    } finally {
+        // Close all resources using the new DB class method
+        DB.closeQuietly(rs, pst, pstCheckMessage, pstInsertMessage, pstNotification, con);
+    }
 
     }//GEN-LAST:event_loginBtnActionPerformed
 

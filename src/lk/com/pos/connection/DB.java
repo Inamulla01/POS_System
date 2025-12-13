@@ -16,9 +16,9 @@ public class DB {
     private static final String DB_HOST     = "localhost"; 
     private static final String DB_PORT     = "3306";
     private static final String DB_USER     = "root";
+
     private static final String DB_PASS     = "Inamulla2005#";
-    // =====================================================================
-    
+
     // Performance tuning (optimized for POS system)
     private static final int MAX_POOL_SIZE  = 20;   // Max connections
     private static final int MIN_IDLE       = 5;    // Always keep 5 ready

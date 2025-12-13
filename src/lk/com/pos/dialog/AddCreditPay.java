@@ -1369,7 +1369,7 @@ public class AddCreditPay extends javax.swing.JDialog {
             // ---------- 5) Prepare Jasper params (names match your JRXML) ----------
             Map<String, Object> params = new HashMap<>();
             params.put("B_NAME", customerName);               // or your business name param — change if needed
-            params.put("B_DETAILS", "");                      // optional business details
+            params.put("B_DETAILS", "356/1,Main Street,Matale 066 433 54200 | 072 444 4320");                      // optional business details
             params.put("CREDIT_PAYMENT_INVOICE_NO", barcode); // jrxml expects this param (barcode shown in code128)
             params.put("STAFF", "INAAMUL HASAN"); // or static "INAAMUL HASAN"
             params.put("CUSTOMER", customerName);

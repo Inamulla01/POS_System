@@ -821,10 +821,8 @@ public class AddCheque extends javax.swing.JDialog {
                     + "GROUP BY cc.customer_id, cc.customer_name "
                     + "ORDER BY cc.customer_name";
 
-            try (Connection conn = DB.getConnection();
-                 PreparedStatement pst = conn.prepareStatement(sql);
-                 ResultSet rs = pst.executeQuery()) {
-                
+            try (Connection conn = DB.getConnection(); PreparedStatement pst = conn.prepareStatement(sql); ResultSet rs = pst.executeQuery()) {
+
                 Vector<String> customers = new Vector<>();
                 customers.add("Select Customer");
 
@@ -891,8 +889,7 @@ public class AddCheque extends javax.swing.JDialog {
                     + "WHERE cc.customer_id = ? "
                     + "GROUP BY cc.customer_id";
 
-            try (Connection conn = DB.getConnection();
-                 PreparedStatement pst = conn.prepareStatement(sql)) {
+            try (Connection conn = DB.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
                 pst.setInt(1, customerId);
                 try (ResultSet rs = pst.executeQuery()) {
                     if (rs.next()) {
@@ -1102,8 +1099,7 @@ public class AddCheque extends javax.swing.JDialog {
     private boolean isDuplicateChequeNo(String chequeNo) {
         try {
             String sql = "SELECT COUNT(*) FROM cheque WHERE cheque_no = ?";
-            try (Connection conn = DB.getConnection();
-                 PreparedStatement pst = conn.prepareStatement(sql)) {
+            try (Connection conn = DB.getConnection(); PreparedStatement pst = conn.prepareStatement(sql)) {
                 pst.setString(1, chequeNo);
                 try (ResultSet rs = pst.executeQuery()) {
                     if (rs.next()) {
@@ -1194,30 +1190,58 @@ public class AddCheque extends javax.swing.JDialog {
     }
 
     private void openAddNewCustomer() {
+
         try {
-            AddNewCustomer dialog = new AddNewCustomer((JFrame) getParent(), true);
-            dialog.setLocationRelativeTo(this);
-            dialog.setVisible(true);
+            // Get the parent window (Frame) properly
+            java.awt.Window parentWindow = SwingUtilities.getWindowAncestor(this);
 
-            if (dialog.isCustomerSaved()) {
-                int newCustomerId = dialog.getSavedCustomerId();
-                String newCustomerName = dialog.getSavedCustomerName();
+            if (parentWindow instanceof JFrame) {
+                AddNewCustomer dialog = new AddNewCustomer((JFrame) parentWindow, true);
+                dialog.setLocationRelativeTo(this);
+                dialog.setVisible(true);
 
-                loadCustomerCombo();
+                if (dialog.isCustomerSaved()) {
+                    int newCustomerId = dialog.getSavedCustomerId();
+                    String newCustomerName = dialog.getSavedCustomerName();
 
-                String displayText = customerDisplayMap.get(newCustomerId);
-                if (displayText != null) {
-                    comboCustomer.setSelectedItem(displayText);
+                    loadCustomerCombo();
+
+                    String displayText = customerDisplayMap.get(newCustomerId);
+                    if (displayText != null) {
+                        comboCustomer.setSelectedItem(displayText);
+                    }
+
+                    comboCustomer.requestFocus();
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                            "New customer '" + newCustomerName + "' added and selected!");
                 }
+            } else {
+                // Fallback: if parent is not a JFrame, use null parent
+                AddNewCustomer dialog = new AddNewCustomer(null, true);
+                dialog.setLocationRelativeTo(this);
+                dialog.setVisible(true);
 
-                comboCustomer.requestFocus();
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
-                        "New customer '" + newCustomerName + "' added and selected!");
+                if (dialog.isCustomerSaved()) {
+                    int newCustomerId = dialog.getSavedCustomerId();
+                    String newCustomerName = dialog.getSavedCustomerName();
+
+                    loadCustomerCombo();
+
+                    String displayText = customerDisplayMap.get(newCustomerId);
+                    if (displayText != null) {
+                        comboCustomer.setSelectedItem(displayText);
+                    }
+
+                    comboCustomer.requestFocus();
+                    Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT,
+                            "New customer '" + newCustomerName + "' added and selected!");
+                }
             }
         } catch (Exception e) {
             Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
                     "Error opening customer dialog: " + e.getMessage());
         }
+
     }
 
     private void setupFocusTraversal() {
@@ -1252,6 +1276,7 @@ public class AddCheque extends javax.swing.JDialog {
         txtAmount = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+        setTitle("Add New Cheque Payment");
 
         jPanel2.setBackground(new java.awt.Color(255, 255, 255));
 

@@ -48,6 +48,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import lk.com.pos.dialog.AddNewLossStock;
 import net.sf.jasperreports.engine.JRDataSource;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperCompileManager;
@@ -77,7 +78,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
     // DAO instance
     private StockLossDAO stockLossDAO;
-    
+
     // Date & Number Formatting
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
@@ -87,6 +88,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
     // UI Constants - Colors (same as before)
     private static final class Colors {
+
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
         static final Color TEAL_HOVER = new Color(60, 200, 206);
         static final Color BORDER_DEFAULT = new Color(230, 230, 230);
@@ -131,6 +133,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
     // UI Constants - Dimensions (same as before)
     private static final class Dimensions {
+
         static final Dimension CARD_SIZE = new Dimension(420, 420);
         static final Dimension CARD_MAX_SIZE = new Dimension(420, 420);
         static final Dimension CARD_MIN_SIZE = new Dimension(380, 420);
@@ -146,6 +149,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
     // UI Constants - Fonts (same as before)
     private static final class Fonts {
+
         static final java.awt.Font HEADER = new java.awt.Font("Nunito ExtraBold", 1, 20);
         static final java.awt.Font SECTION_TITLE = new java.awt.Font("Nunito ExtraBold", 1, 11);
         static final java.awt.Font BADGE = new java.awt.Font("Nunito ExtraBold", 1, 11);
@@ -161,6 +165,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
     // UI Constants - Strings (same as before)
     private static final class Strings {
+
         static final String SEARCH_PLACEHOLDER = "Search by Product Name, Invoice, or Batch No";
         static final String NO_RECORDS = "No stock loss records found";
         static final String LOADING_MESSAGE = "Loading stock losses...";
@@ -173,6 +178,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
     // Business Constants (same as before)
     private static final class Business {
+
         static final double HIGH_LOSS_THRESHOLD = 10000.0;
         static final double MEDIUM_LOSS_THRESHOLD = 5000.0;
         static final long REFRESH_COOLDOWN_MS = 1000;
@@ -198,7 +204,7 @@ public class StockLossPanel extends javax.swing.JPanel {
     public StockLossPanel() {
         // Initialize DAO
         stockLossDAO = new StockLossDAO();
-        
+
         initComponents();
         initializeUI();
         createPositionIndicator();
@@ -327,7 +333,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
         lostReportBtn.setToolTipText("Generate Stock Loss Report (Ctrl+R)");
         addNewLostBtn.setToolTipText("Add New Stock Loss (Ctrl+N)");
-        
+
         // Add action listener for report button
         lostReportBtn.addActionListener(e -> showExportOptions());
     }
@@ -878,7 +884,7 @@ public class StockLossPanel extends javax.swing.JPanel {
         if (keyCode == KeyEvent.VK_SLASH && modifiers == 0) {
             return false;
         }
-        
+
         return jTextField1.hasFocus()
                 && keyCode != KeyEvent.VK_ESCAPE
                 && keyCode != KeyEvent.VK_ENTER
@@ -1702,22 +1708,22 @@ public class StockLossPanel extends javax.swing.JPanel {
         // Header with product name and edit button
         contentPanel.add(createHeaderSection(data.getStockLossId(), data.getProductName()));
         contentPanel.add(Box.createVerticalStrut(15));
-        
+
         // Loss details header with reason badge on the right
         contentPanel.add(createDetailsSectionHeader(data.getReason()));
         contentPanel.add(Box.createVerticalStrut(10));
-        
+
         // Details grid (batch, invoice, price, qty, user, date)
         contentPanel.add(createDetailsGrid(data.getBatchNo(), data.getInvoiceNo(), data.getSellingPrice(),
                 data.getQty(), data.getUserName(), displayDate));
         contentPanel.add(Box.createVerticalStrut(20));
-        
+
         // Loss amount at the bottom
         contentPanel.add(createLossAmountPanel(data.getLossAmount()));
 
         return contentPanel;
     }
-    
+
     private JPanel createHeaderSection(int lossId, String productName) {
         JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setOpaque(false);
@@ -1827,7 +1833,6 @@ public class StockLossPanel extends javax.swing.JPanel {
         return badge;
     }
 
-    
     private JPanel createDetailsSectionHeader(String reason) {
         JPanel detailsHeaderPanel = new JPanel(new BorderLayout());
         detailsHeaderPanel.setOpaque(false);
@@ -1956,15 +1961,15 @@ public class StockLossPanel extends javax.swing.JPanel {
 
         // Get the stock loss data from DAO
         StockLossDTO stockLoss = stockLossDAO.getStockLossById(lossId);
-        
+
         if (stockLoss != null) {
             JOptionPane.showMessageDialog(this,
-                    "Edit Stock Loss - ID: " + lossId + 
-                    "\nProduct: " + stockLoss.getProductName() +
-                    "\nReason: " + stockLoss.getReason() +
-                    "\nQuantity: " + stockLoss.getQty() +
-                    "\nLoss Amount: Rs." + String.format("%.2f", stockLoss.getLossAmount()) +
-                    "\n\nThis would open an edit dialog for the stock loss record.",
+                    "Edit Stock Loss - ID: " + lossId
+                    + "\nProduct: " + stockLoss.getProductName()
+                    + "\nReason: " + stockLoss.getReason()
+                    + "\nQuantity: " + stockLoss.getQty()
+                    + "\nLoss Amount: Rs." + String.format("%.2f", stockLoss.getLossAmount())
+                    + "\n\nThis would open an edit dialog for the stock loss record.",
                     "Edit Stock Loss",
                     JOptionPane.INFORMATION_MESSAGE);
         } else {
@@ -2049,10 +2054,10 @@ public class StockLossPanel extends javax.swing.JPanel {
             List<StockLossDTO> stockLosses = stockLossDAO.getAllStockLosses(searchText, timePeriod, reasonFilter);
 
             if (stockLosses.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "No stock loss records found for the selected filters.",
-                    "No Data", 
-                    JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "No stock loss records found for the selected filters.",
+                        "No Data",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -2063,7 +2068,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
             for (StockLossDTO loss : stockLosses) {
                 Map<String, Object> row = new HashMap<>();
-                
+
                 // Match the exact field names from the JRXML
                 row.put("productName", loss.getProductName());
                 row.put("batchNo", loss.getBatchNo());
@@ -2072,7 +2077,7 @@ public class StockLossPanel extends javax.swing.JPanel {
                 row.put("lossDate", DATE_FORMAT.format(loss.getStockLossDate()));
                 row.put("lossAmount", "Rs." + String.format("%.2f", loss.getLossAmount()));
                 row.put("reason", loss.getReason());
-                
+
                 reportData.add(row);
 
                 // Calculate totals
@@ -2088,14 +2093,14 @@ public class StockLossPanel extends javax.swing.JPanel {
             parameters.put("totalLossAmount", "Rs." + String.format("%.2f", totalLossAmount));
             parameters.put("totalQuantity", String.valueOf(totalQuantity));
             parameters.put("filterInfo", getStockLossFilterInfo(searchText, timePeriod, reasonFilter));
-            
+
             // Set default font parameters
             parameters.put("REPORT_FONT", "Arial");
             parameters.put("REPORT_PDF_FONT", "Helvetica");
 
             // Load the JRXML template from classpath
             InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/stockLossReport.jrxml");
-            
+
             if (jrxmlStream == null) {
                 // Try alternative path
                 jrxmlStream = getClass().getClassLoader().getResourceAsStream("lk/com/pos/reports/stockLossReport.jrxml");
@@ -2125,7 +2130,7 @@ public class StockLossPanel extends javax.swing.JPanel {
 
         } catch (JRException e) {
             e.printStackTrace();
-            
+
             // Try with simplified font settings
             try {
                 generateStockLossReportWithSimpleFont();
@@ -2217,17 +2222,17 @@ public class StockLossPanel extends javax.swing.JPanel {
      */
     private String getStockLossFilterInfo(String searchText, String timePeriod, String reasonFilter) {
         StringBuilder filter = new StringBuilder();
-        
+
         if (!searchText.isEmpty()) {
             filter.append("Search: '").append(searchText).append("' | ");
         }
-        
+
         filter.append("Time Period: ").append(timePeriod);
-        
+
         if (!reasonFilter.equals("All Reasons")) {
             filter.append(" | Reason: ").append(reasonFilter);
         }
-        
+
         return filter.toString();
     }
 
@@ -2263,10 +2268,10 @@ public class StockLossPanel extends javax.swing.JPanel {
             List<StockLossDTO> stockLosses = stockLossDAO.getAllStockLosses(searchText, timePeriod, reasonFilter);
 
             if (stockLosses.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "No stock loss records found for the selected filters.",
-                    "No Data", 
-                    JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "No stock loss records found for the selected filters.",
+                        "No Data",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -2377,6 +2382,7 @@ public class StockLossPanel extends javax.swing.JPanel {
                     JOptionPane.ERROR_MESSAGE);
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2821,11 +2827,14 @@ public class StockLossPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jTextField1ActionPerformed
 
     private void addNewLostBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addNewLostBtnActionPerformed
-
+        AddNewLossStock addNewLossStock = new AddNewLossStock(null, true);
+        addNewLossStock.setLocationRelativeTo(null);
+        addNewLossStock.setVisible(true);
+        performSearch();
     }//GEN-LAST:event_addNewLostBtnActionPerformed
 
     private void lostReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lostReportBtnActionPerformed
-        
+
     }//GEN-LAST:event_lostReportBtnActionPerformed
 
     private void sortByDaysActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sortByDaysActionPerformed

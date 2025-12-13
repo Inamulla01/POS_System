@@ -741,7 +741,7 @@ public class AddNewProduct extends javax.swing.JDialog {
                 }
                 return result;
             });
-            
+
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(categories);
             categoryCombo.setModel(dcm);
         } catch (Exception e) {
@@ -760,7 +760,7 @@ public class AddNewProduct extends javax.swing.JDialog {
                 }
                 return result;
             });
-            
+
             DefaultComboBoxModel<String> dcm = new DefaultComboBoxModel<>(brands);
             brandCombo.setModel(dcm);
         } catch (Exception e) {
@@ -896,14 +896,14 @@ public class AddNewProduct extends javax.swing.JDialog {
 
             // Check if product with same name and brand already exists
             Integer existingProductId = DB.executeQuerySafe(
-                "SELECT product_id FROM product WHERE product_name = ? AND brand_id = ?",
-                (rs) -> {
-                    if (rs.next()) {
-                        return rs.getInt("product_id");
-                    }
-                    return null;
-                },
-                productName, brandId
+                    "SELECT product_id FROM product WHERE product_name = ? AND brand_id = ?",
+                    (rs) -> {
+                        if (rs.next()) {
+                            return rs.getInt("product_id");
+                        }
+                        return null;
+                    },
+                    productName, brandId
             );
 
             if (existingProductId != null) {
@@ -916,14 +916,14 @@ public class AddNewProduct extends javax.swing.JDialog {
 
             // Check if barcode already exists
             Integer existingBarcodeProductId = DB.executeQuerySafe(
-                "SELECT product_id FROM product WHERE barcode = ?",
-                (rs) -> {
-                    if (rs.next()) {
-                        return rs.getInt("product_id");
-                    }
-                    return null;
-                },
-                barcodeInput.getText().trim()
+                    "SELECT product_id FROM product WHERE barcode = ?",
+                    (rs) -> {
+                        if (rs.next()) {
+                            return rs.getInt("product_id");
+                        }
+                        return null;
+                    },
+                    barcodeInput.getText().trim()
             );
 
             if (existingBarcodeProductId != null) {
@@ -936,27 +936,27 @@ public class AddNewProduct extends javax.swing.JDialog {
 
             // Get category ID
             int categoryId = DB.executeQuerySafe(
-                "SELECT category_id FROM category WHERE category_name = ?",
-                (rs) -> {
-                    if (rs.next()) {
-                        return rs.getInt("category_id");
-                    }
-                    return 0;
-                },
-                categoryCombo.getSelectedItem().toString()
+                    "SELECT category_id FROM category WHERE category_name = ?",
+                    (rs) -> {
+                        if (rs.next()) {
+                            return rs.getInt("category_id");
+                        }
+                        return 0;
+                    },
+                    categoryCombo.getSelectedItem().toString()
             );
 
             int statusId = 1;
 
             // Insert the product and get the generated ID
             String insertQuery = "INSERT INTO product (product_name, brand_id, category_id, p_status_id, barcode) VALUES (?, ?, ?, ?, ?)";
-            
-            newProductId = DB.insertAndGetId(insertQuery, 
-                productName, 
-                brandId, 
-                categoryId, 
-                statusId, 
-                barcodeInput.getText().trim()
+
+            newProductId = DB.insertAndGetId(insertQuery,
+                    productName,
+                    brandId,
+                    categoryId,
+                    statusId,
+                    barcodeInput.getText().trim()
             );
 
             if (newProductId > 0) {
@@ -985,7 +985,12 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void openAddNewCategory() {
         try {
-            AddNewCategoryDialog dialog = new AddNewCategoryDialog((JFrame) getParent(), true);
+            // FIXED: Get the parent Window instead of casting to JFrame
+            java.awt.Window parentWindow = javax.swing.SwingUtilities.getWindowAncestor(this);
+            AddNewCategoryDialog dialog = new AddNewCategoryDialog(
+                    (java.awt.Frame) parentWindow,
+                    true
+            );
             dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
 
@@ -1007,7 +1012,12 @@ public class AddNewProduct extends javax.swing.JDialog {
 
     private void openAddNewBrand() {
         try {
-            AddNewBrandDialog dialog = new AddNewBrandDialog((JFrame) getParent(), true);
+            // FIXED: Get the parent Window instead of casting to JFrame
+            java.awt.Window parentWindow = javax.swing.SwingUtilities.getWindowAncestor(this);
+            AddNewBrandDialog dialog = new AddNewBrandDialog(
+                    (java.awt.Frame) parentWindow,
+                    true
+            );
             dialog.setLocationRelativeTo(this);
             dialog.setVisible(true);
 
@@ -1070,6 +1080,7 @@ public class AddNewProduct extends javax.swing.JDialog {
             this.dispose();
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

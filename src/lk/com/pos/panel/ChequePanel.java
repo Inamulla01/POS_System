@@ -8,6 +8,8 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.connection.DB;
 import lk.com.pos.dao.ChequeDAO;
+import lk.com.pos.dialog.AddCheque;
+import lk.com.pos.dialog.ChangStatus;
 import lk.com.pos.dto.ChequeDTO;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,9 +28,11 @@ import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.FlowLayout;
+import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -42,7 +46,6 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
-import lk.com.pos.dialog.AddCheque;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -53,6 +56,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import raven.toast.Notifications;
 
 /**
  * ChequePanel - Displays and manages cheque information with report generation
@@ -1182,65 +1186,35 @@ public class ChequePanel extends javax.swing.JPanel {
 
     private void changeStatus(int chequeId) {
         try {
-            ChequeDAO chequeDAO = new ChequeDAO();
-            ChequeDAO.ChequeStatus currentStatus = chequeDAO.getChequeStatus(chequeId);
-
-            if (currentStatus == null) {
-                JOptionPane.showMessageDialog(this, "Cheque not found!", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
+            // Get the parent frame for the dialog
+            java.awt.Window window = SwingUtilities.getWindowAncestor(this);
+            java.awt.Frame parentFrame = null;
+            
+            if (window instanceof java.awt.Frame) {
+                parentFrame = (java.awt.Frame) window;
+            } else if (window instanceof java.awt.Dialog) {
+                parentFrame = (Frame) ((java.awt.Dialog) window).getOwner();
             }
 
-            String[] options = {"Pending", "Cleared", "Bounced"};
-            JComboBox<String> statusCombo = new JComboBox<>(options);
-            statusCombo.setSelectedItem(currentStatus.getChequeType());
+            // Open the ChangStatus dialog
+            ChangStatus changStatusDialog = new ChangStatus(parentFrame, true, chequeId);
+            changStatusDialog.setLocationRelativeTo(this);
+            changStatusDialog.setVisible(true);
 
-            JPanel panel = new JPanel(new BorderLayout(10, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-            panel.add(new JLabel("Current Status: " + currentStatus.getChequeType()), BorderLayout.NORTH);
-            panel.add(new JLabel("Select New Status:"), BorderLayout.CENTER);
-            panel.add(statusCombo, BorderLayout.SOUTH);
-
-            int result = JOptionPane.showConfirmDialog(
-                    this,
-                    panel,
-                    "Change Cheque Status",
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.PLAIN_MESSAGE
-            );
-
-            if (result == JOptionPane.OK_OPTION) {
-                String newStatus = (String) statusCombo.getSelectedItem();
-
-                if (!newStatus.equals(currentStatus.getChequeType())) {
-                    boolean success = chequeDAO.updateChequeStatus(chequeId, newStatus);
-
-                    if (success) {
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "Cheque status updated successfully!",
-                                "Success",
-                                JOptionPane.INFORMATION_MESSAGE
-                        );
-                        performSearch();
-                    } else {
-                        JOptionPane.showMessageDialog(
-                                this,
-                                "Failed to update cheque status!",
-                                "Error",
-                                JOptionPane.ERROR_MESSAGE
-                        );
-                    }
-                }
+            // Check if status was changed
+            if (changStatusDialog.isStatusChanged()) {
+                // The dialog already updated the database, so we just refresh the display
+                performSearch();
+                
+                // Show position indicator
+                String newStatus = changStatusDialog.getNewStatus();
+                showPositionIndicator("✅ Status changed to '" + newStatus + "'");
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Failed to change status: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT,
+                    "Failed to change status: " + e.getMessage());
         }
     }
 
@@ -2496,6 +2470,7 @@ public class ChequePanel extends javax.swing.JPanel {
             return insets;
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -3057,7 +3032,7 @@ public class ChequePanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jButton8ActionPerformed
 
     private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed
-  openChequeReport();
+        openChequeReport();
     }//GEN-LAST:event_customerReportBtnActionPerformed
 
 

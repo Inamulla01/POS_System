@@ -27,26 +27,29 @@ public class CustomerDAO {
         queryBuilder.append("SELECT * FROM (");
         queryBuilder.append(buildCustomerSubquery());
         
-        // Add search filter
+        // Check if search is valid
         boolean hasSearch = isValidSearchText(searchText);
+        
+        // Add WHERE clause for search INSIDE the subquery (before GROUP BY)
         if (hasSearch) {
             queryBuilder.append(" WHERE (cc.customer_name LIKE ? OR cc.nic LIKE ?) ");
-        }
-        
-        queryBuilder.append(" GROUP BY cc.customer_id, cc.customer_name, cc.customer_phone_no, ");
-        queryBuilder.append("cc.customer_address, cc.nic, cc.date_time, s.status_name ");
-        queryBuilder.append(") AS customer_data WHERE 1=1 ");
-        
-        // Add search parameters
-        if (hasSearch) {
             String searchPattern = "%" + searchText + "%";
             parameters.add(searchPattern);
             parameters.add(searchPattern);
         }
         
-        // Apply status filters
+        queryBuilder.append(" GROUP BY cc.customer_id, cc.customer_name, cc.customer_phone_no, ");
+        queryBuilder.append("cc.customer_address, cc.nic, cc.date_time, s.status_name ");
+        queryBuilder.append(") AS customer_data ");
+        
+        // Apply status filters AFTER the subquery
         String statusFilter = buildStatusFilter(missedDueDateOnly, noDueOnly, dueAmountOnly);
-        queryBuilder.append(statusFilter);
+        
+        if (!statusFilter.isEmpty()) {
+            queryBuilder.append(" WHERE 1=1 ");
+            queryBuilder.append(statusFilter);
+        }
+        
         queryBuilder.append(" ORDER BY customer_id DESC");
         
         String finalQuery = queryBuilder.toString();
@@ -61,9 +64,9 @@ public class CustomerDAO {
                 customerList.add(customer);
                 count++;
                 
-                // Debug log for first 5 customers
-                if (count <= 5) {
-                    log.info("DEBUG Customer " + count + ": ID=" + customer.getCustomerId() 
+                // Log customers found
+                if (count <= 10) {
+                    log.info("Customer " + count + ": ID=" + customer.getCustomerId() 
                             + ", Name=" + customer.getCustomerName() 
                             + ", Credit=" + customer.getTotalCreditAmount() 
                             + ", Paid=" + customer.getTotalPaid() 
@@ -80,7 +83,7 @@ public class CustomerDAO {
     }
 
     /**
-     * Build customer subquery with corrected payment aggregation
+     * Build customer subquery - NO WHERE clause here
      */
     private String buildCustomerSubquery() {
         return "SELECT cc.customer_id, cc.customer_name, cc.customer_phone_no, "
@@ -107,17 +110,20 @@ public class CustomerDAO {
 
     /**
      * Build status filter clause
+     * Modified to handle customers with no credit records better
      */
     private String buildStatusFilter(boolean missedDueDateOnly, boolean noDueOnly, boolean dueAmountOnly) {
         if (missedDueDateOnly) {
             log.info("Applying filter: Missed Due Date (latest_due_date < CURDATE() AND outstanding > 0)");
-            return " AND latest_due_date < CURDATE() AND total_credit_amount > total_paid ";
+            return " AND latest_due_date IS NOT NULL AND latest_due_date < CURDATE() AND total_credit_amount > total_paid ";
         } else if (noDueOnly) {
-            log.info("Applying filter: No Due (total_credit_amount <= total_paid)");
+            log.info("Applying filter: No Due (total_credit_amount <= total_paid OR no credit records)");
+            // Show customers with no outstanding balance OR no credit at all
             return " AND total_credit_amount <= total_paid ";
         } else if (dueAmountOnly) {
-            log.info("Applying filter: Due Amount (total_credit_amount > total_paid)");
-            return " AND total_credit_amount > total_paid ";
+            log.info("Applying filter: Due Amount (total_credit_amount > total_paid AND has credit)");
+            // Only show customers who actually have credit records AND outstanding balance
+            return " AND total_credit_amount > 0 AND total_credit_amount > total_paid ";
         }
         log.info("No filter applied - showing all customers");
         return "";

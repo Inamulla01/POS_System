@@ -1,4 +1,3 @@
-
 package lk.com.pos.dao;
 
 import lk.com.pos.dto.ChequeDTO;

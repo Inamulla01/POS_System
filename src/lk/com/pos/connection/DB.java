@@ -17,7 +17,7 @@ public class DB {
     private static final String DB_PORT     = "3306";
     private static final String DB_USER     = "root";
 
-    private static final String DB_PASS     = "Inamulla2005#";
+    private static final String DB_PASS     = "InAaM@109149";
 
     // Performance tuning (optimized for POS system)
     private static final int MAX_POOL_SIZE  = 20;   // Max connections

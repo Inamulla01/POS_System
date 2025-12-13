@@ -276,4 +276,151 @@ public class CartInvoiceDAO {
             return invoices;
         }, startDate, endDate);
     }
+    public boolean deleteHoldInvoice(int salesId) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DB.getConnection();
+            conn.setAutoCommit(false); // Start transaction
+            
+            // 1. Get all sale items to restore stock
+            List<CartSaleItemDTO> saleItems = getSaleItemsBySaleId(salesId);
+            
+            // 2. Restore stock for each item
+            for (CartSaleItemDTO item : saleItems) {
+                String restoreStockQuery = "UPDATE stock s " +
+                                         "INNER JOIN sale_item si ON s.stock_id = si.stock_id " +
+                                         "SET s.qty = s.qty + si.qty " +
+                                         "WHERE si.sale_item_id = ?";
+                
+                PreparedStatement pst = conn.prepareStatement(restoreStockQuery);
+                pst.setInt(1, item.getSaleItemId());
+                pst.executeUpdate();
+                pst.close();
+            }
+            
+            // 3. Delete sale items
+            String deleteItemsQuery = "DELETE FROM sale_item WHERE sales_id = ?";
+            PreparedStatement pst1 = conn.prepareStatement(deleteItemsQuery);
+            pst1.setInt(1, salesId);
+            pst1.executeUpdate();
+            pst1.close();
+            
+            // 4. Delete the sale record
+            String deleteSaleQuery = "DELETE FROM sales WHERE sales_id = ?";
+            PreparedStatement pst2 = conn.prepareStatement(deleteSaleQuery);
+            pst2.setInt(1, salesId);
+            pst2.executeUpdate();
+            pst2.close();
+            
+            conn.commit(); // Commit transaction
+            return true;
+            
+        } catch (SQLException e) {
+            if (conn != null) {
+                conn.rollback(); // Rollback on error
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+    }
+    
+    /**
+     * Deletes hold invoices older than specified hours
+     *
+     * @param hours Age in hours
+     * @return Number of invoices deleted
+     * @throws SQLException if database error occurs
+     */
+    public int deleteOldHoldInvoices(int hours) throws SQLException {
+        Connection conn = null;
+        try {
+            conn = DB.getConnection();
+            conn.setAutoCommit(false);
+            
+            // Get hold invoices older than specified hours
+            String getOldInvoicesQuery = "SELECT s.sales_id FROM sales s " +
+                                        "INNER JOIN i_status st ON s.status_id = st.status_id " +
+                                        "WHERE st.status_type = 'Hold' " +
+                                        "AND s.datetime < DATE_SUB(NOW(), INTERVAL ? HOUR)";
+            
+            List<Integer> oldInvoiceIds = new ArrayList<>();
+            PreparedStatement pst1 = conn.prepareStatement(getOldInvoicesQuery);
+            pst1.setInt(1, hours);
+            ResultSet rs = pst1.executeQuery();
+            while (rs.next()) {
+                oldInvoiceIds.add(rs.getInt("sales_id"));
+            }
+            rs.close();
+            pst1.close();
+            
+            int deletedCount = 0;
+            
+            // Delete each old invoice
+            for (int invoiceId : oldInvoiceIds) {
+                if (deleteHoldInvoiceTransaction(conn, invoiceId)) {
+                    deletedCount++;
+                }
+            }
+            
+            conn.commit();
+            return deletedCount;
+            
+        } catch (SQLException e) {
+            if (conn != null) {
+                conn.rollback();
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+    }
+    
+    /**
+     * Helper method to delete invoice within transaction
+     */
+    private boolean deleteHoldInvoiceTransaction(Connection conn, int salesId) throws SQLException {
+        try {
+            // 1. Get all sale items to restore stock
+            List<CartSaleItemDTO> saleItems = getSaleItemsBySaleId(salesId);
+            
+            // 2. Restore stock for each item
+            for (CartSaleItemDTO item : saleItems) {
+                String restoreStockQuery = "UPDATE stock s " +
+                                         "INNER JOIN sale_item si ON s.stock_id = si.stock_id " +
+                                         "SET s.qty = s.qty + si.qty " +
+                                         "WHERE si.sale_item_id = ?";
+                
+                PreparedStatement pst = conn.prepareStatement(restoreStockQuery);
+                pst.setInt(1, item.getSaleItemId());
+                pst.executeUpdate();
+                pst.close();
+            }
+            
+            // 3. Delete sale items
+            String deleteItemsQuery = "DELETE FROM sale_item WHERE sales_id = ?";
+            PreparedStatement pst1 = conn.prepareStatement(deleteItemsQuery);
+            pst1.setInt(1, salesId);
+            pst1.executeUpdate();
+            pst1.close();
+            
+            // 4. Delete the sale record
+            String deleteSaleQuery = "DELETE FROM sales WHERE sales_id = ?";
+            PreparedStatement pst2 = conn.prepareStatement(deleteSaleQuery);
+            pst2.setInt(1, salesId);
+            int rowsAffected = pst2.executeUpdate();
+            pst2.close();
+            
+            return rowsAffected > 0;
+            
+        } catch (SQLException e) {
+            throw e;
+        }
+    }
 }

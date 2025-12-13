@@ -4,53 +4,51 @@ import lk.com.pos.dto.CartSaleDTO;
 import lk.com.pos.dto.CartSaleItemDTO;
 import lk.com.pos.connection.DB;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class CartSaleDAO {
     
     public int saveSale(CartSaleDTO sale) throws SQLException {
-    String query = "INSERT INTO sales (invoice_no, datetime, total, user_id, payment_method_id, status_id, discount_id) " +
-                  "VALUES (?, NOW(), ?, ?, ?, ?, ?)";
-    
-    int salesId = DB.insertAndGetId(query, 
-        sale.getInvoiceNo(),
-        sale.getTotal(),
-        sale.getUserId(),
-        sale.getPaymentMethodId(),
-        sale.getStatusId(),
-        sale.getDiscountId()
-    );
-    
-    // ========================================
-    // ADD THIS CODE BLOCK - CRITICAL SAFETY
-    // ========================================
-    if (salesId > 2_000_000_000) { // 93% of max int
-        String warning = String.format(
-            "⚠️ URGENT: Sales ID at %d\n" +
-            "System approaching maximum capacity!\n" +
-            "Contact IT department immediately.\n" +
-            "Max safe value: 2,147,483,647",
-            salesId
+        String query = "INSERT INTO sales (invoice_no, datetime, total, user_id, payment_method_id, status_id, discount_id) " +
+                      "VALUES (?, NOW(), ?, ?, ?, ?, ?)";
+        
+        int salesId = DB.insertAndGetId(query, 
+            sale.getInvoiceNo(),
+            sale.getTotal(),
+            sale.getUserId(),
+            sale.getPaymentMethodId(),
+            sale.getStatusId(),
+            sale.getDiscountId()
         );
         
-        javax.swing.JOptionPane.showMessageDialog(
-            null,
-            warning,
-            "System Capacity Warning",
-            javax.swing.JOptionPane.WARNING_MESSAGE
-        );
-        
-        // Log to file for monitoring
-        try (java.io.FileWriter fw = new java.io.FileWriter("URGENT_SYSTEM_WARNING.txt", true)) {
-            fw.write(new java.util.Date() + ": " + warning + "\n\n");
-        } catch (Exception e) {
-            e.printStackTrace();
+        // Safety check for sales ID approaching maximum
+        if (salesId > 2_000_000_000) {
+            String warning = String.format(
+                "⚠️ URGENT: Sales ID at %d\n" +
+                "System approaching maximum capacity!\n" +
+                "Contact IT department immediately.\n" +
+                "Max safe value: 2,147,483,647",
+                salesId
+            );
+            
+            javax.swing.JOptionPane.showMessageDialog(
+                null,
+                warning,
+                "System Capacity Warning",
+                javax.swing.JOptionPane.WARNING_MESSAGE
+            );
+            
+            // Log to file for monitoring
+            try (java.io.FileWriter fw = new java.io.FileWriter("URGENT_SYSTEM_WARNING.txt", true)) {
+                fw.write(new java.util.Date() + ": " + warning + "\n\n");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
+        
+        return salesId;
     }
-    // ========================================
-    
-    return salesId;
-}
     
     public boolean saveSaleItems(List<CartSaleItemDTO> saleItems) throws SQLException {
         if (saleItems.isEmpty()) return true;
@@ -118,64 +116,60 @@ public class CartSaleDAO {
     }
     
     public String generateInvoiceNumber() throws SQLException {
-    String lastInvoice = getLastInvoiceNumber();
-    
-    // Original logic with safety checks
-    if (lastInvoice != null && lastInvoice.startsWith("INV")) {
-        try {
-            int lastNumber = Integer.parseInt(lastInvoice.substring(3));
-            
-            // ========================================
-            // SAFETY CHECK: Near limit?
-            // ========================================
-            if (lastNumber >= 99990) {
-                // EMERGENCY: Switch to year-based format
-                int year = java.time.Year.now().getValue();
-                return String.format("%d-INV-00001", year);
-            }
-            
-            if (lastNumber >= 99000) {
-                // WARNING: Approaching limit
-                String warning = String.format(
-                    "⚠️ Invoice numbers at %d / 99999\n" +
-                    "Will auto-switch to year format at 99990",
-                    lastNumber
-                );
+        String lastInvoice = getLastInvoiceNumber();
+        
+        if (lastInvoice != null && lastInvoice.startsWith("INV")) {
+            try {
+                int lastNumber = Integer.parseInt(lastInvoice.substring(3));
                 
-                javax.swing.JOptionPane.showMessageDialog(
-                    null,
-                    warning,
-                    "Invoice Number Warning",
-                    javax.swing.JOptionPane.WARNING_MESSAGE
-                );
-            }
-            // ========================================
-            
-            return String.format("INV%05d", lastNumber + 1);
-        } catch (NumberFormatException e) {
-            // Fallback: timestamp-based
-            return "INV" + System.currentTimeMillis();
-        }
-    }
-    
-    // Check if last was year-based format (2025-INV-00001)
-    if (lastInvoice != null && lastInvoice.contains("-INV-")) {
-        String[] parts = lastInvoice.split("-");
-        if (parts.length == 3) {
-            int year = java.time.Year.now().getValue();
-            int lastYear = Integer.parseInt(parts[0]);
-            int lastSeq = Integer.parseInt(parts[2]);
-            
-            if (lastYear == year) {
-                // Same year: increment
-                return String.format("%d-INV-%05d", year, lastSeq + 1);
-            } else {
-                // New year: reset
-                return String.format("%d-INV-00001", year);
+                // Safety check: Near limit?
+                if (lastNumber >= 99990) {
+                    // EMERGENCY: Switch to year-based format
+                    int year = java.time.Year.now().getValue();
+                    return String.format("%d-INV-00001", year);
+                }
+                
+                if (lastNumber >= 99000) {
+                    // WARNING: Approaching limit
+                    String warning = String.format(
+                        "⚠️ Invoice numbers at %d / 99999\n" +
+                        "Will auto-switch to year format at 99990",
+                        lastNumber
+                    );
+                    
+                    javax.swing.JOptionPane.showMessageDialog(
+                        null,
+                        warning,
+                        "Invoice Number Warning",
+                        javax.swing.JOptionPane.WARNING_MESSAGE
+                    );
+                }
+                
+                return String.format("INV%05d", lastNumber + 1);
+            } catch (NumberFormatException e) {
+                // Fallback: timestamp-based
+                return "INV" + System.currentTimeMillis();
             }
         }
+        
+        // Check if last was year-based format (2025-INV-00001)
+        if (lastInvoice != null && lastInvoice.contains("-INV-")) {
+            String[] parts = lastInvoice.split("-");
+            if (parts.length == 3) {
+                int year = java.time.Year.now().getValue();
+                int lastYear = Integer.parseInt(parts[0]);
+                int lastSeq = Integer.parseInt(parts[2]);
+                
+                if (lastYear == year) {
+                    // Same year: increment
+                    return String.format("%d-INV-%05d", year, lastSeq + 1);
+                } else {
+                    // New year: reset
+                    return String.format("%d-INV-00001", year);
+                }
+            }
+        }
+        
+        return "INV00001";
     }
-    
-    return "INV00001";
-}
 }

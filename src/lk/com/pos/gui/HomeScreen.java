@@ -239,7 +239,7 @@ public class HomeScreen extends JFrame {
         }).start();
 
     }
-    
+
     private void performStartupCheck() {
         SwingUtilities.invokeLater(() -> {
             try {
@@ -247,47 +247,46 @@ public class HomeScreen extends JFrame {
                 Connection conn = DB.getConnection();
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM sales");
-                
+
                 if (rs.next()) {
                     int totalSales = rs.getInt(1);
-                    
+
                     // Check if approaching limits
                     if (totalSales > 2_000_000_000) {
                         JOptionPane.showMessageDialog(
-                            this,
-                            "⚠️ CRITICAL: System near capacity!\n" +
-                            "Total sales: " + totalSales + "\n" +
-                            "Please contact IT immediately.",
-                            "System Warning",
-                            JOptionPane.WARNING_MESSAGE
+                                this,
+                                "⚠️ CRITICAL: System near capacity!\n"
+                                + "Total sales: " + totalSales + "\n"
+                                + "Please contact IT immediately.",
+                                "System Warning",
+                                JOptionPane.WARNING_MESSAGE
                         );
                     }
                 }
-                
+
                 rs.close();
                 stmt.close();
                 conn.close();
-                
+
                 System.out.println("✓ System startup check passed");
-                
+
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(
-                    this,
-                    "Cannot connect to database.\n" +
-                    "Please check:\n" +
-                    "• Database server is running\n" +
-                    "• Network connection\n" +
-                    "• Contact IT support\n\n" +
-                    "Error: " + e.getMessage(),
-                    "Database Connection Error",
-                    JOptionPane.ERROR_MESSAGE
+                        this,
+                        "Cannot connect to database.\n"
+                        + "Please check:\n"
+                        + "• Database server is running\n"
+                        + "• Network connection\n"
+                        + "• Contact IT support\n\n"
+                        + "Error: " + e.getMessage(),
+                        "Database Connection Error",
+                        JOptionPane.ERROR_MESSAGE
                 );
-                
+
                 System.err.println("❌ Startup check failed: " + e.getMessage());
             }
         });
     }
-
 
     private void startNotificationScheduler() {
         notificationScheduler = new NotificationScheduler();
@@ -628,19 +627,57 @@ public class HomeScreen extends JFrame {
     }
 
     private void addPOSShortcuts() {
-        addHintRow("F1", "New Sale", "#10B981");
-        addHintRow("F2", "Add Customer", "#1CB5BB");
-        addHintRow("F3", "Apply Discount", "#FCD34D");
-        addHintRow("F4", "Payment", "#A78BFA");
-        addHintRow("F5", "Refresh Products", "#34D399");
-        addHintRow("F6", "Search Product", "#60D5F2");
-        addHintRow("F7", "View Cart", "#FB923C");
+        // =====================================================
+        // ESSENTIAL SHORTCUTS
+        // =====================================================
+        addHintRow("F1", "Help Guide", "#10B981");
+        addHintRow("F2", "Focus Product Search", "#1CB5BB");
+        addHintRow("F3", "Jump to Cart", "#FCD34D");
+
+        // =====================================================
+        // PAYMENT METHODS (F Keys Only)
+        // =====================================================
+        addHintRow("F4", "Cash Payment", "#A78BFA");
+        addHintRow("F5", "Card Payment", "#34D399");
+        addHintRow("F6", "Credit Payment", "#60D5F2");
+        addHintRow("F7", "Cheque Payment", "#FB923C");
+
+        // =====================================================
+        // TRANSACTION ACTIONS
+        // =====================================================
         addHintRow("F8", "Clear Cart", "#EF4444");
-        addHintRow("F9", "Print Receipt", "#6366F1");
-        addHintRow("F10", "Save & Close", "#06B6D4");
-        addHintRow("Ctrl+Q", "Quick Sale", "#10B981");
-        addHintRow("Ctrl+D", "Daily Report", "#1CB5BB");
-        addHintRow("Esc", "Cancel/Back", "#9CA3AF");
+        addHintRow("F9 / Alt+Enter", "Complete Sale", "#6366F1");
+        addHintRow("F10 / Alt+D", "Apply Global Discount", "#06B6D4");
+        addHintRow("F11 / Alt+H", "Hold Bill", "#F59E0B");
+        addHintRow("F12 / Alt+S", "Switch Invoice", "#8B5CF6");
+        addHintRow("Ctrl+E / Alt+E", "Exchange/Return", "#EC4899");
+
+        // =====================================================
+        // PRODUCT NAVIGATION
+        // =====================================================
+        addHintRow("Arrow Keys ↑↓←→", "Browse Products", "#10B981");
+        addHintRow("Enter / Space", "Add Product to Cart", "#1CB5BB");
+        addHintRow("Home / End", "Jump to First/Last Product", "#FCD34D");
+        addHintRow("PgUp / PgDn", "Jump 5 Products", "#A78BFA");
+
+        // =====================================================
+        // CART NAVIGATION & EDITING
+        // =====================================================
+        addHintRow("Alt + ↑ / ↓", "Navigate Cart Items", "#34D399");
+        addHintRow("Ctrl + F", "Search Cart Items", "#60D5F2");
+        addHintRow("Alt + Q", "Edit Quantity", "#FB923C");
+        addHintRow("Alt + R / Ctrl + D", "Edit Item Discount", "#EF4444");
+        addHintRow("Shift + D", "Remove Item Discount", "#6366F1");
+        addHintRow("+ (Plus)", "Increase Quantity", "#06B6D4");
+        addHintRow("- (Minus)", "Decrease Quantity", "#F59E0B");
+        addHintRow("Alt + X / Delete", "Remove Cart Item", "#8B5CF6");
+
+        // =====================================================
+        // QUICK ACTIONS
+        // =====================================================
+        addHintRow("Alt + P", "Open Credit Payment", "#EC4899");
+        addHintRow("Ctrl + Q", "Show Statistics", "#10B981");
+        addHintRow("Esc", "Clear Search / Cancel", "#9CA3AF");
         addHintRow("?", "Toggle Help", "#1CB5BB");
     }
 

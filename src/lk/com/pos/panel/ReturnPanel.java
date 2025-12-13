@@ -1233,22 +1233,9 @@ public class ReturnPanel extends javax.swing.JPanel {
         }));
         sortByReason.setToolTipText("Filter by reason (Shift+1 to Shift+0, Shift+-) - Press ESC to reset");
 
-        // Button styling
-        addProductDialog.setToolTipText("Return Product (Alt+A or Ctrl+N)");
-        addProductDialog.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
-        addProductDialog.setForeground(Color.WHITE);
-        addProductDialog.setBackground(new Color(239, 68, 68));
-        addProductDialog.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        addProductDialog.setFocusPainted(false);
-        addProductDialog.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        returnReportDialogBtn.setToolTipText("Export Options (Ctrl+P or Ctrl+R)");
-        returnReportDialogBtn.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
-        returnReportDialogBtn.setForeground(Color.WHITE);
-        returnReportDialogBtn.setBackground(new Color(220, 38, 38));
-        returnReportDialogBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        returnReportDialogBtn.setFocusPainted(false);
-        returnReportDialogBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // Button styling - UPDATED TO MATCH ProductPanel
+        setupAddReturnButton();
+        setupExportButton();
 
         roundedPanel1.setVisible(false);
 
@@ -1259,6 +1246,192 @@ public class ReturnPanel extends javax.swing.JPanel {
                 "track: #F5F5F5;"
                 + "thumb: #EF4444;"
                 + "width: 8");
+    }
+
+    private void setupAddReturnButton() {
+        addProductDialog.setPreferredSize(new Dimension(47, 47));
+        addProductDialog.setMinimumSize(new Dimension(47, 47));
+        addProductDialog.setMaximumSize(new Dimension(47, 47));
+        
+        // Set initial state - transparent background with border
+        addProductDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        addProductDialog.setForeground(Color.decode("#EF4444"));
+        
+        // Remove text
+        addProductDialog.setText("");
+        
+        // Set border with red color
+        addProductDialog.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#EF4444"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        // Set cursor
+        addProductDialog.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Remove focus painting
+        addProductDialog.setFocusPainted(false);
+        
+        // Set icon with red color
+        try {
+            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 24, 24);
+            // Apply red color filter to the icon
+            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#EF4444")));
+            addProductDialog.setIcon(addIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading exchange icon: " + e.getMessage());
+        }
+        
+        // Set tooltip
+        addProductDialog.setToolTipText("Return Product");
+        
+        // Add hover effects
+        addProductDialog.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addProductDialog.setBackground(Color.decode("#EF4444"));
+                addProductDialog.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#F87171"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    addProductDialog.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading exchange icon: " + e.getMessage());
+                }
+                
+                // Update tooltip to show it's clickable
+                addProductDialog.setToolTipText("Return Product (Alt+A or Ctrl+N)");
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addProductDialog.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                addProductDialog.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#EF4444"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon back to red
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#EF4444")));
+                    addProductDialog.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading exchange icon: " + e.getMessage());
+                }
+                
+                // Reset tooltip
+                addProductDialog.setToolTipText("Return Product");
+            }
+            
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                addProductDialog.setBackground(Color.decode("#DC2626"));
+            }
+            
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                addProductDialog.setBackground(Color.decode("#EF4444"));
+            }
+        });
+    }
+
+    private void setupExportButton() {
+        returnReportDialogBtn.setPreferredSize(new Dimension(47, 47));
+        returnReportDialogBtn.setMinimumSize(new Dimension(47, 47));
+        returnReportDialogBtn.setMaximumSize(new Dimension(47, 47));
+        
+        // Set initial state - transparent background with border
+        returnReportDialogBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        returnReportDialogBtn.setForeground(Color.decode("#10B981"));
+        
+        // Remove text
+        returnReportDialogBtn.setText("");
+        
+        // Set border with green color
+        returnReportDialogBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        // Set cursor
+        returnReportDialogBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Remove focus painting
+        returnReportDialogBtn.setFocusPainted(false);
+        
+        // Set icon with green color
+        try {
+            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+            // Apply green color filter to the icon
+            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+            returnReportDialogBtn.setIcon(printIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading print icon: " + e.getMessage());
+        }
+        
+        // Set tooltip
+        returnReportDialogBtn.setToolTipText("Export Return Report");
+        
+        // Add hover effects
+        returnReportDialogBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                returnReportDialogBtn.setBackground(Color.decode("#10B981"));
+                returnReportDialogBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    returnReportDialogBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+                
+                // Update tooltip to show it's clickable
+                returnReportDialogBtn.setToolTipText("Export Return Report (Ctrl+P or Ctrl+R)");
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                returnReportDialogBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                returnReportDialogBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon back to green
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+                    returnReportDialogBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+                
+                // Reset tooltip
+                returnReportDialogBtn.setToolTipText("Export Return Report");
+            }
+            
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                returnReportDialogBtn.setBackground(Color.decode("#059669"));
+            }
+            
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                returnReportDialogBtn.setBackground(Color.decode("#10B981"));
+            }
+        });
     }
 
     private void clearReturnCards() {
@@ -1951,7 +2124,6 @@ public class ReturnPanel extends javax.swing.JPanel {
             return new Insets(4, 4, 4, 4);
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2014,7 +2186,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 .addGroup(headPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(customerName)
                     .addComponent(invoiceName))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 434, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(paymentTypeBtn)
                 .addGap(18, 18, 18)
                 .addComponent(total, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2066,7 +2238,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 .addGroup(productPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel7)
                     .addComponent(jLabel6))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 585, Short.MAX_VALUE)
                 .addComponent(productprice, javax.swing.GroupLayout.PREFERRED_SIZE, 84, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(24, 24, 24))
         );
@@ -2126,7 +2298,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 .addComponent(date)
                 .addGap(350, 350, 350)
                 .addComponent(jLabel9)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 318, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jLabel12)
                 .addGap(80, 80, 80))
         );
@@ -2151,7 +2323,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 .addGap(17, 17, 17)
                 .addGroup(roundedPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(headPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(middelePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(middelePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(buttomPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(15, 15, 15))
         );
@@ -2229,16 +2401,16 @@ public class ReturnPanel extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 796, Short.MAX_VALUE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 247, Short.MAX_VALUE)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 359, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByDays, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(sortByDays, javax.swing.GroupLayout.PREFERRED_SIZE, 161, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(sortByReason, 0, 0, Short.MAX_VALUE)
+                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, 156, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 146, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(addProductDialog)
-                        .addGap(11, 11, 11)))
+                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, 0)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
@@ -2246,13 +2418,14 @@ public class ReturnPanel extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(sortByReason, javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField1)
-                    .addComponent(sortByDays)
-                    .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(sortByDays, javax.swing.GroupLayout.DEFAULT_SIZE, 51, Short.MAX_VALUE)
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(sortByReason, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(returnReportDialogBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(addProductDialog, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jTextField1, javax.swing.GroupLayout.Alignment.TRAILING))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 403, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 379, Short.MAX_VALUE)
                 .addGap(17, 17, 17))
         );
 

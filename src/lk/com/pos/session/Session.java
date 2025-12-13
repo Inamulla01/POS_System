@@ -31,4 +31,8 @@ public class Session {
         userId = 0;
         roleName = null;
     }
+
+    public int getRoleId() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }

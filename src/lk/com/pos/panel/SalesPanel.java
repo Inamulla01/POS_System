@@ -946,7 +946,7 @@ public class SalesPanel extends javax.swing.JPanel {
         font.setBold(true);
         font.setFontHeightInPoints((short) 16);
         font.setColor(IndexedColors.TEAL.getIndex());
-        style.setFont((org.apache.poi.ss.usermodel.Font) font);
+        style.setFont(font);
         style.setAlignment(HorizontalAlignment.CENTER);
         return style;
     }
@@ -1148,27 +1148,11 @@ public class SalesPanel extends javax.swing.JPanel {
         }));
         sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+0) - Press ESC to reset");
 
-        // Sales Report Button styling
-        salesReportBtn.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
-        salesReportBtn.setForeground(Color.WHITE);
-        salesReportBtn.setBackground(new Color(16, 185, 129));
-        salesReportBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        salesReportBtn.setFocusPainted(false);
-        salesReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        salesReportBtn.setToolTipText("Export Sales Data (Ctrl+P or Ctrl+R)");
-
-        // Add hover effects to sales report button
-        salesReportBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                salesReportBtn.setBackground(new Color(34, 197, 94));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                salesReportBtn.setBackground(new Color(16, 185, 129));
-            }
-        });
+        // Sales Report Button styling - MATCHED TO ReturnPanel's export button
+        setupSalesReportButton();
+        
+        // Print Button styling - NEW: Added similar to ReturnPanel's add button
+        setupPrintButton();
 
         roundedPanel1.setVisible(false);
 
@@ -1192,6 +1176,192 @@ public class SalesPanel extends javax.swing.JPanel {
             ((RoundedPanel) productPanel).setCornerRadius(16);
             ((RoundedPanel) productPanel).setBorderThickness(0);
         }
+    }
+    
+    private void setupSalesReportButton() {
+        salesReportBtn.setPreferredSize(new Dimension(47, 47));
+        salesReportBtn.setMinimumSize(new Dimension(47, 47));
+        salesReportBtn.setMaximumSize(new Dimension(47, 47));
+        
+        // Set initial state - transparent background with border
+        salesReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        salesReportBtn.setForeground(Color.decode("#10B981"));
+        
+        // Remove text
+        salesReportBtn.setText("");
+        
+        // Set border with green color
+        salesReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        // Set cursor
+        salesReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Remove focus painting
+        salesReportBtn.setFocusPainted(false);
+        
+        // Set icon with green color
+        try {
+            FlatSVGIcon reportIcon = new FlatSVGIcon("lk/com/pos/icon/report.svg", 24, 24);
+            // Apply green color filter to the icon
+            reportIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+            salesReportBtn.setIcon(reportIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading report icon: " + e.getMessage());
+        }
+        
+        // Set tooltip
+        salesReportBtn.setToolTipText("Sales Report");
+        
+        // Add hover effects
+        salesReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(Color.decode("#10B981"));
+                salesReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon reportIcon = new FlatSVGIcon("lk/com/pos/icon/report.svg", 24, 24);
+                    reportIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    salesReportBtn.setIcon(reportIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading report icon: " + e.getMessage());
+                }
+                
+                // Update tooltip
+                salesReportBtn.setToolTipText("Sales Report (Ctrl+P or Ctrl+R)");
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                salesReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon back to green
+                try {
+                    FlatSVGIcon reportIcon = new FlatSVGIcon("lk/com/pos/icon/report.svg", 24, 24);
+                    reportIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+                    salesReportBtn.setIcon(reportIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading report icon: " + e.getMessage());
+                }
+                
+                // Reset tooltip
+                salesReportBtn.setToolTipText("Sales Report");
+            }
+            
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(Color.decode("#059669"));
+            }
+            
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(Color.decode("#10B981"));
+            }
+        });
+    }
+    
+    private void setupPrintButton() {
+        salesReportBtn.setPreferredSize(new Dimension(47, 47));
+        salesReportBtn.setMinimumSize(new Dimension(47, 47));
+        salesReportBtn.setMaximumSize(new Dimension(47, 47));
+        
+        // Set initial state - transparent background with border
+        salesReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        salesReportBtn.setForeground(Color.decode("#1CB5BB"));
+        
+        // Remove text
+        salesReportBtn.setText("");
+        
+        // Set border with teal color
+        salesReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#1CB5BB"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+        
+        // Set cursor
+        salesReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Remove focus painting
+        salesReportBtn.setFocusPainted(false);
+        
+        // Set icon with teal color
+        try {
+            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+            // Apply teal color filter to the icon
+            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#1CB5BB")));
+            salesReportBtn.setIcon(printIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading print icon: " + e.getMessage());
+        }
+        
+        // Set tooltip
+        salesReportBtn.setToolTipText("Print Invoice");
+        
+        // Add hover effects
+        salesReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(Color.decode("#1CB5BB"));
+                salesReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    salesReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+                
+                // Update tooltip
+                salesReportBtn.setToolTipText("Print Selected Invoice");
+            }
+            
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                salesReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#1CB5BB"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+                
+                // Change icon back to teal
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#1CB5BB")));
+                    salesReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+                
+                // Reset tooltip
+                salesReportBtn.setToolTipText("Print Invoice");
+            }
+            
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(Color.decode("#0D9488"));
+            }
+            
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                salesReportBtn.setBackground(Color.decode("#1CB5BB"));
+            }
+        });
     }
 
     private void loadSalesData(String searchText, String period) {

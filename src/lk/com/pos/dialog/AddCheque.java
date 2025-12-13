@@ -981,121 +981,105 @@ public class AddCheque extends javax.swing.JDialog {
         return true;
     }
 
-    private void saveCheque() {
-        if (isSaving) {
-            return;
-        }
-
-        if (!validateInputs()) {
-            return;
-        }
-
-        Connection conn = null;
-        PreparedStatement pst = null;
-        PreparedStatement pstCreditPay = null;
-
-        try {
-            isSaving = true;
-
-            String selectedDisplayText = (String) comboCustomer.getSelectedItem();
-            this.customerId = getCustomerId(selectedDisplayText);
-            if (this.customerId == -1) {
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
-                isSaving = false;
-                return;
-            }
-
-            String chequeNo = txtChequeNo.getText().trim();
-            double amount = getChequeAmount();
-            Date chequeDate = dateChequeDate.getDate();
-            String bankName = txtBankName.getText().trim();
-            String branch = txtBranch.getText().trim();
-
-            if (isDuplicateChequeNo(chequeNo)) {
-                Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Cheque number already exists!");
-                txtChequeNo.requestFocus();
-                isSaving = false;
-                return;
-            }
-
-            conn = DB.getConnection();
-            conn.setAutoCommit(false);
-
-            String chequeQuery = "INSERT INTO cheque (cheque_no, cheque_date, sales_id, credit_customer_id, bank_name, branch, amount) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-            pst = conn.prepareStatement(chequeQuery);
-            pst.setString(1, chequeNo);
-            pst.setDate(2, new java.sql.Date(chequeDate.getTime()));
-            if (salesId != -1) {
-                pst.setInt(3, salesId);
-            } else {
-                pst.setNull(3, java.sql.Types.INTEGER);
-            }
-            pst.setInt(4, this.customerId);
-            pst.setString(5, bankName);
-            pst.setString(6, branch);
-            pst.setDouble(7, amount);
-
-            int rowsAffected = pst.executeUpdate();
-
-            if (rowsAffected > 0) {
-                if (salesId == -1) {
-                    String creditPayQuery = "INSERT INTO credit_pay (credit_pay_date, credit_pay_amount, credit_customer_id) "
-                            + "VALUES (NOW(), ?, ?)";
-
-                    pstCreditPay = conn.prepareStatement(creditPayQuery);
-                    pstCreditPay.setDouble(1, amount);
-                    pstCreditPay.setInt(2, this.customerId);
-
-                    int creditPayRows = pstCreditPay.executeUpdate();
-                }
-
-                createChequeNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
-                conn.commit();
-
-                isChequeSaved = true;
-
-                String successMessage = "Cheque added successfully!";
-                if (salesId == -1) {
-                    successMessage += " Credit payment of Rs " + amount + " also recorded!";
-                }
-
-                Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
-
-                dispose();
-
-            } else {
-                conn.rollback();
-                Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add cheque!");
-            }
-
-        } catch (Exception e) {
-            try {
-                if (conn != null) {
-                    conn.rollback();
-                }
-            } catch (Exception rollbackEx) {
-            }
-            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving cheque: " + e.getMessage());
-        } finally {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (pstCreditPay != null) {
-                    pstCreditPay.close();
-                }
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                }
-            } catch (Exception e) {
-            }
-            isSaving = false;
-        }
+private void saveCheque() {
+    if (isSaving) {
+        return;
     }
 
+    if (!validateInputs()) {
+        return;
+    }
+
+    Connection conn = null;
+    PreparedStatement pst = null;
+
+    try {
+        isSaving = true;
+
+        String selectedDisplayText = (String) comboCustomer.getSelectedItem();
+        this.customerId = getCustomerId(selectedDisplayText);
+        if (this.customerId == -1) {
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Invalid customer selected");
+            isSaving = false;
+            return;
+        }
+
+        String chequeNo = txtChequeNo.getText().trim();
+        double amount = getChequeAmount();
+        Date chequeDate = dateChequeDate.getDate();
+        String bankName = txtBankName.getText().trim();
+        String branch = txtBranch.getText().trim();
+
+        if (isDuplicateChequeNo(chequeNo)) {
+            Notifications.getInstance().show(Notifications.Type.WARNING, Notifications.Location.TOP_RIGHT, "Cheque number already exists!");
+            txtChequeNo.requestFocus();
+            isSaving = false;
+            return;
+        }
+
+        conn = DB.getConnection();
+        conn.setAutoCommit(false);
+
+        String chequeQuery = "INSERT INTO cheque (cheque_no, cheque_date, sales_id, credit_customer_id, bank_name, branch, amount) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        pst = conn.prepareStatement(chequeQuery);
+        pst.setString(1, chequeNo);
+        pst.setDate(2, new java.sql.Date(chequeDate.getTime()));
+        if (salesId != -1) {
+            pst.setInt(3, salesId);
+        } else {
+            pst.setNull(3, java.sql.Types.INTEGER);
+        }
+        pst.setInt(4, this.customerId);
+        pst.setString(5, bankName);
+        pst.setString(6, branch);
+        pst.setDouble(7, amount);
+
+        int rowsAffected = pst.executeUpdate();
+
+        if (rowsAffected > 0) {
+            // REMOVED: Credit payment insertion for standalone cheques
+            // Only create notification for the cheque
+            createChequeNotification(selectedDisplayText, chequeNo, amount, chequeDate, bankName, branch, conn);
+            conn.commit();
+
+            isChequeSaved = true;
+
+            String successMessage = "Cheque added successfully!";
+            // REMOVED: The credit payment success message part
+            
+            Notifications.getInstance().show(Notifications.Type.SUCCESS, Notifications.Location.TOP_RIGHT, successMessage);
+
+            dispose();
+
+        } else {
+            conn.rollback();
+            Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Failed to add cheque!");
+        }
+
+    } catch (Exception e) {
+        try {
+            if (conn != null) {
+                conn.rollback();
+            }
+        } catch (Exception rollbackEx) {
+        }
+        Notifications.getInstance().show(Notifications.Type.ERROR, Notifications.Location.TOP_RIGHT, "Error saving cheque: " + e.getMessage());
+    } finally {
+        try {
+            if (pst != null) {
+                pst.close();
+            }
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        } catch (Exception e) {
+        }
+        isSaving = false;
+    }
+}
     private boolean isDuplicateChequeNo(String chequeNo) {
         try {
             String sql = "SELECT COUNT(*) FROM cheque WHERE cheque_no = ?";
@@ -1112,73 +1096,70 @@ public class AddCheque extends javax.swing.JDialog {
         return false;
     }
 
-    private void createChequeNotification(String customerName, String chequeNo, double amount, Date chequeDate, String bankName, String branch, Connection conn) {
-        PreparedStatement pstMassage = null;
-        PreparedStatement pstNotification = null;
+private void createChequeNotification(String customerName, String chequeNo, double amount, Date chequeDate, String bankName, String branch, Connection conn) {
+    PreparedStatement pstMassage = null;
+    PreparedStatement pstNotification = null;
 
-        try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-            String messageText = "New cheque added for " + customerName
-                    + " | Cheque No: " + chequeNo
-                    + " | Amount: Rs " + amount
-                    + " | Date: " + dateFormat.format(chequeDate)
-                    + " | Bank: " + bankName
-                    + " | Branch: " + branch;
+    try {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+        String messageText = "New cheque added for " + customerName
+                + " | Cheque No: " + chequeNo
+                + " | Amount: Rs " + amount
+                + " | Date: " + dateFormat.format(chequeDate)
+                + " | Bank: " + bankName
+                + " | Branch: " + branch;
+        
+        // REMOVED: The credit payment notification part
 
-            if (salesId == -1) {
-                messageText += " | Credit Payment Recorded";
-            }
+        String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
+        pstMassage = conn.prepareStatement(checkSql);
+        pstMassage.setString(1, messageText);
+        ResultSet rs = pstMassage.executeQuery();
 
-            String checkSql = "SELECT COUNT(*) FROM massage WHERE massage = ?";
-            pstMassage = conn.prepareStatement(checkSql);
+        int massageId;
+        if (rs.next() && rs.getInt(1) > 0) {
+            String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
+            pstMassage.close();
+            pstMassage = conn.prepareStatement(getSql);
             pstMassage.setString(1, messageText);
-            ResultSet rs = pstMassage.executeQuery();
+            rs = pstMassage.executeQuery();
+            rs.next();
+            massageId = rs.getInt(1);
+        } else {
+            pstMassage.close();
+            String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
+            pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
+            pstMassage.setString(1, messageText);
+            pstMassage.executeUpdate();
 
-            int massageId;
-            if (rs.next() && rs.getInt(1) > 0) {
-                String getSql = "SELECT massage_id FROM massage WHERE massage = ?";
-                pstMassage.close();
-                pstMassage = conn.prepareStatement(getSql);
-                pstMassage.setString(1, messageText);
-                rs = pstMassage.executeQuery();
-                rs.next();
+            rs = pstMassage.getGeneratedKeys();
+            if (rs.next()) {
                 massageId = rs.getInt(1);
             } else {
-                pstMassage.close();
-                String insertMassageSql = "INSERT INTO massage (massage) VALUES (?)";
-                pstMassage = conn.prepareStatement(insertMassageSql, PreparedStatement.RETURN_GENERATED_KEYS);
-                pstMassage.setString(1, messageText);
-                pstMassage.executeUpdate();
-
-                rs = pstMassage.getGeneratedKeys();
-                if (rs.next()) {
-                    massageId = rs.getInt(1);
-                } else {
-                    throw new Exception("Failed to get generated massage ID");
-                }
-            }
-
-            String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
-            pstNotification = conn.prepareStatement(notificationSql);
-            pstNotification.setInt(1, 1);
-            pstNotification.setInt(2, 30);
-            pstNotification.setInt(3, massageId);
-            pstNotification.executeUpdate();
-
-        } catch (Exception e) {
-        } finally {
-            try {
-                if (pstMassage != null) {
-                    pstMassage.close();
-                }
-                if (pstNotification != null) {
-                    pstNotification.close();
-                }
-            } catch (Exception e) {
+                throw new Exception("Failed to get generated massage ID");
             }
         }
-    }
 
+        String notificationSql = "INSERT INTO notifocation (is_read, create_at, msg_type_id, massage_id) VALUES (?, NOW(), ?, ?)";
+        pstNotification = conn.prepareStatement(notificationSql);
+        pstNotification.setInt(1, 1);
+        pstNotification.setInt(2, 30);
+        pstNotification.setInt(3, massageId);
+        pstNotification.executeUpdate();
+
+    } catch (Exception e) {
+    } finally {
+        try {
+            if (pstMassage != null) {
+                pstMassage.close();
+            }
+            if (pstNotification != null) {
+                pstNotification.close();
+            }
+        } catch (Exception e) {
+        }
+    }
+}
     private void clearForm() {
         comboCustomer.setSelectedIndex(0);
         txtChequeNo.setText("");

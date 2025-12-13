@@ -10,8 +10,32 @@ import lk.com.pos.dialog.UpdateProduct;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import net.sf.jasperreports.engine.JRDataSource;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.view.JasperViewer;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * ProductPanel - Displays and manages product information with keyboard navigation
@@ -22,6 +46,9 @@ import java.util.ArrayList;
  * @version 3.0 - Updated with DAO/DTO pattern
  */
 public class ProductPanel extends javax.swing.JPanel {
+    
+    // Date Formatting
+    private static final SimpleDateFormat REPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
     
     private static final class Colors {
         static final Color TEAL_PRIMARY = new Color(28, 181, 187);
@@ -287,8 +314,8 @@ public class ProductPanel extends javax.swing.JPanel {
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, this::handleEscape);
         
         // Report and Refresh
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::generateProductReport);
-        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::generateProductReport);
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, this::refreshProducts);
         
         // ADDED: Add Product shortcuts
@@ -1576,18 +1603,431 @@ public class ProductPanel extends javax.swing.JPanel {
         }
     }
     
-    private void generateProductReport() {
-        // TODO: Implement your actual report generation logic here.
-        // This could involve fetching data and using a library like JasperReports.
-        System.out.println("Product Report generation triggered.");
-        JOptionPane.showMessageDialog(this,
-                "Product Report generation is not yet implemented.\n"
-                + "You can add your report logic in the 'generateProductReport()' method.",
-                "Feature Under Development",
-                JOptionPane.INFORMATION_MESSAGE);
-        this.requestFocusInWindow();
-    }
+    // ============================================================================
+    // REPORT FUNCTIONALITY
+    // ============================================================================
+    
+    /**
+     * Shows export options dialog
+     */
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
 
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        reportButton.setBackground(new Color(28, 181, 187));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateProductReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        excelButton.setBackground(new Color(16, 185, 129));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportProductToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
+    }
+    
+    /**
+     * Generates product report using JasperReports
+     */
+    private void generateProductReport() {
+        try {
+            // Set font properties to prevent font errors
+            System.setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+            System.setProperty("net.sf.jasperreports.default.font.name", "Arial");
+            System.setProperty("net.sf.jasperreports.default.pdf.font.name", "Helvetica");
+
+            // Get current filters
+            String searchText = productSearchBar.getText().trim();
+            String status = "Active"; // DEFAULT to Active
+            if (inactiveRadioBtn.isSelected()) {
+                status = "Inactive";
+            } else if (activeRadioBtn.isSelected()) {
+                status = "Active";
+            }
+
+            // Fetch product data
+            List<ProductDTO> products = productDAO.getProductsForDisplay(
+                searchText.isEmpty() ? null : searchText, 
+                status
+            );
+
+            if (products.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No products found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create a list of maps for the report data - MATCHING JRXML FIELD NAMES
+            List<Map<String, Object>> reportData = new ArrayList<>();
+            int activeCount = 0;
+            int inactiveCount = 0;
+
+            for (ProductDTO product : products) {
+                Map<String, Object> row = new HashMap<>();
+                
+                // Match the exact field names from the JRXML
+                row.put("productName", product.getProductName());
+                row.put("supplierName", productDAO.getSupplierForProduct(product.getProductId()));
+                row.put("brand", product.getBrandName());
+                row.put("category", product.getCategoryName());
+                row.put("barcodeNo", product.getBarcode());
+                row.put("status", product.getPStatusId() == 1 ? "Active" : "Inactive");
+                
+                reportData.add(row);
+
+                // Count active/inactive
+                if (product.getPStatusId() == 1) {
+                    activeCount++;
+                } else {
+                    inactiveCount++;
+                }
+            }
+
+            // Prepare parameters for the report
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("reportTitle", "Product Report");
+            parameters.put("generatedDate", REPORT_DATE_FORMAT.format(new Date()));
+            parameters.put("totalProducts", products.size());
+            parameters.put("activeProducts", activeCount);
+            parameters.put("inactiveProducts", inactiveCount);
+            parameters.put("filterInfo", getProductFilterInfo(searchText, status));
+            
+            // Set default font parameters
+            parameters.put("REPORT_FONT", "Arial");
+            parameters.put("REPORT_PDF_FONT", "Helvetica");
+
+            // Load the JRXML template from classpath
+            InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/productReport.jrxml");
+            
+            if (jrxmlStream == null) {
+                // Try alternative path
+                jrxmlStream = getClass().getClassLoader().getResourceAsStream("lk/com/pos/reports/productReport.jrxml");
+                if (jrxmlStream == null) {
+                    // Try to load from file system
+                    File jrxmlFile = new File("src/main/resources/lk/com/pos/reports/productReport.jrxml");
+                    if (jrxmlFile.exists()) {
+                        jrxmlStream = new java.io.FileInputStream(jrxmlFile);
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                                "Report template not found. Please ensure productReport.jrxml is in the classpath.",
+                                "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+            }
+
+            // Compile and fill the report
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+            JRDataSource dataSource = new JRBeanCollectionDataSource(reportData);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+
+            // Display the report
+            JasperViewer.viewReport(jasperPrint, false);
+
+            showPositionIndicator("✅ Product report generated successfully");
+
+        } catch (JRException e) {
+            e.printStackTrace();
+            
+            // Try with simplified font settings
+            try {
+                generateProductReportWithSimpleFont();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Error generating report: " + e.getMessage(),
+                        "Report Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error: " + e.getMessage(),
+                    "Report Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
+     * Fallback method for report generation with simple fonts
+     */
+    private void generateProductReportWithSimpleFont() throws Exception {
+        // Create a simple HTML report as fallback
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><title>Product Report</title></head><body>");
+        html.append("<h1>Product Report</h1>");
+        html.append("<p>Generated: ").append(new java.util.Date()).append("</p>");
+
+        // Get current filters
+        String searchText = productSearchBar.getText().trim();
+        String status = "Active"; // DEFAULT to Active
+        if (inactiveRadioBtn.isSelected()) {
+            status = "Inactive";
+        } else if (activeRadioBtn.isSelected()) {
+            status = "Active";
+        }
+
+        // Fetch product data
+        List<ProductDTO> products = productDAO.getProductsForDisplay(
+            searchText.isEmpty() ? null : searchText, 
+            status
+        );
+
+        if (products.isEmpty()) {
+            html.append("<p>No products found.</p>");
+        } else {
+            html.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
+            html.append("<tr><th>Product Name</th><th>Supplier</th><th>Brand</th><th>Category</th><th>Barcode</th><th>Status</th></tr>");
+
+            int activeCount = 0;
+            int inactiveCount = 0;
+
+            for (ProductDTO product : products) {
+                String supplierName = productDAO.getSupplierForProduct(product.getProductId());
+                html.append("<tr>");
+                html.append("<td>").append(product.getProductName()).append("</td>");
+                html.append("<td>").append(supplierName != null ? supplierName : "N/A").append("</td>");
+                html.append("<td>").append(product.getBrandName()).append("</td>");
+                html.append("<td>").append(product.getCategoryName()).append("</td>");
+                html.append("<td>").append(product.getBarcode()).append("</td>");
+                html.append("<td>").append(product.getPStatusId() == 1 ? "Active" : "Inactive").append("</td>");
+                html.append("</tr>");
+
+                // Count active/inactive
+                if (product.getPStatusId() == 1) {
+                    activeCount++;
+                } else {
+                    inactiveCount++;
+                }
+            }
+
+            html.append("</table>");
+            html.append("<p><strong>Total Products: ").append(products.size()).append("</strong></p>");
+            html.append("<p><strong>Active Products: ").append(activeCount).append("</strong></p>");
+            html.append("<p><strong>Inactive Products: ").append(inactiveCount).append("</strong></p>");
+        }
+
+        html.append("</body></html>");
+
+        // Display HTML in a dialog
+        JEditorPane editorPane = new JEditorPane("text/html", html.toString());
+        editorPane.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(800, 600));
+
+        JDialog htmlDialog = new JDialog();
+        htmlDialog.setTitle("Product Report - Simple View");
+        htmlDialog.setModal(true);
+        htmlDialog.add(scrollPane);
+        htmlDialog.pack();
+        htmlDialog.setLocationRelativeTo(this);
+        htmlDialog.setVisible(true);
+
+        showPositionIndicator("✅ Simple product report generated");
+    }
+    
+    /**
+     * Gets filter info for report
+     */
+    private String getProductFilterInfo(String searchText, String status) {
+        StringBuilder filter = new StringBuilder();
+        
+        if (!searchText.isEmpty()) {
+            filter.append("Search: '").append(searchText).append("' | ");
+        }
+        
+        filter.append("Status: ").append(status);
+        
+        return filter.toString();
+    }
+    
+    /**
+     * Exports product data to Excel
+     */
+    private void exportProductToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("product_report.xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!fileToSave.getAbsolutePath().endsWith(".xlsx")) {
+            fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
+        }
+
+        try {
+            // Get current filters
+            String searchText = productSearchBar.getText().trim();
+            String status = "Active"; // DEFAULT to Active
+            if (inactiveRadioBtn.isSelected()) {
+                status = "Inactive";
+            } else if (activeRadioBtn.isSelected()) {
+                status = "Active";
+            }
+
+            // Fetch product data
+            List<ProductDTO> products = productDAO.getProductsForDisplay(
+                searchText.isEmpty() ? null : searchText, 
+                status
+            );
+
+            if (products.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No products found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+         // Create Excel workbook
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Product Report");
+
+            // Create header style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Product Name", "Supplier", "Brand", "Category", "Barcode", "Status"};
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Fill data rows
+            int rowNum = 1;
+            int activeCount = 0;
+            int inactiveCount = 0;
+
+            for (ProductDTO product : products) {
+                String supplierName = productDAO.getSupplierForProduct(product.getProductId());
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0).setCellValue(product.getProductName());
+                row.createCell(1).setCellValue(supplierName != null ? supplierName : "N/A");
+                row.createCell(2).setCellValue(product.getBrandName());
+                row.createCell(3).setCellValue(product.getCategoryName());
+                row.createCell(4).setCellValue(product.getBarcode());
+                row.createCell(5).setCellValue(product.getPStatusId() == 1 ? "Active" : "Inactive");
+
+                // Count active/inactive
+                if (product.getPStatusId() == 1) {
+                    activeCount++;
+                } else {
+                    inactiveCount++;
+                }
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Add summary rows
+            int summaryRowNum = rowNum + 2;
+
+            Row summaryHeader = sheet.createRow(summaryRowNum++);
+            Cell summaryCell = summaryHeader.createCell(0);
+            summaryCell.setCellValue("SUMMARY");
+            summaryCell.setCellStyle(headerStyle);
+
+            Row totalProductsRow = sheet.createRow(summaryRowNum++);
+            totalProductsRow.createCell(0).setCellValue("Total Products:");
+            totalProductsRow.createCell(1).setCellValue(products.size());
+
+            Row activeProductsRow = sheet.createRow(summaryRowNum++);
+            activeProductsRow.createCell(0).setCellValue("Active Products:");
+            activeProductsRow.createCell(1).setCellValue(activeCount);
+
+            Row inactiveProductsRow = sheet.createRow(summaryRowNum++);
+            inactiveProductsRow.createCell(0).setCellValue("Inactive Products:");
+            inactiveProductsRow.createCell(1).setCellValue(inactiveCount);
+
+            Row generatedDateRow = sheet.createRow(summaryRowNum++);
+            generatedDateRow.createCell(0).setCellValue("Generated Date:");
+            generatedDateRow.createCell(1).setCellValue(REPORT_DATE_FORMAT.format(new Date()));
+
+            // Write the output to file
+            try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                workbook.write(outputStream);
+            }
+
+            workbook.close();
+
+            showPositionIndicator("✅ Excel file saved: " + fileToSave.getName());
+
+            // Ask if user wants to open the file
+            int openFile = JOptionPane.showConfirmDialog(this,
+                    "Excel file saved successfully!\nDo you want to open it?",
+                    "Success",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (openFile == JOptionPane.YES_OPTION) {
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop.getDesktop().open(fileToSave);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error exporting to Excel: " + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1920,7 +2360,7 @@ public class ProductPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_activeRadioBtnActionPerformed
 
     private void productReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productReportBtnActionPerformed
-        generateProductReport();
+       showExportOptions();
     }//GEN-LAST:event_productReportBtnActionPerformed
 
 

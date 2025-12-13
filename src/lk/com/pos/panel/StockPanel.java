@@ -33,6 +33,37 @@ import lk.com.pos.dialog.AddNewStock;
 import lk.com.pos.dialog.PrintProductLabel;
 import lk.com.pos.dialog.UpdateProduct;
 import lk.com.pos.dialog.UpdateProductStock;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
+import javax.swing.BoxLayout;
+import javax.swing.JDialog;
+import javax.swing.JEditorPane;
+import javax.swing.JFileChooser;
+import javax.swing.JScrollPane;
+import javax.swing.SwingConstants;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import net.sf.jasperreports.engine.JRDataSource;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.view.JasperViewer;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class StockPanel extends javax.swing.JPanel {
 
@@ -72,6 +103,9 @@ public class StockPanel extends javax.swing.JPanel {
 
     // DAO instance
     private ProductStockDAO productStockDAO;
+    
+    // Report formatting
+    private static final SimpleDateFormat REPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
     public StockPanel() {
         initComponents();
@@ -604,8 +638,8 @@ public class StockPanel extends javax.swing.JPanel {
         // Ctrl+R = Report (semantic: R for Report)
         // Ctrl+P = Report (semantic: P for Print/Report)
         // F5 = Refresh (universal standard)
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, () -> generateStockReport());
-        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, () -> generateStockReport());
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshProducts());
         
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(expiringRadioBtn));
@@ -2010,19 +2044,510 @@ public class StockPanel extends javax.swing.JPanel {
                 }
             }
         });
-    } 
+    }
+    
+    // ============================================================================
+    // REPORT FUNCTIONALITY
+    // ============================================================================
+    
+    /**
+     * Shows export options dialog
+     */
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        reportButton.setBackground(new Color(28, 181, 187));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateStockReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        excelButton.setBackground(new Color(16, 185, 129));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportStockToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
+    }
     
     private void generateStockReport() {
-        // TODO: Implement your actual report generation logic here.
-        // This could involve fetching data and using a library like JasperReports.
-        System.out.println("Stock Report generation triggered.");
-        JOptionPane.showMessageDialog(this, 
-                "Stock Report generation is not yet implemented.\n"
-                + "You can add your report logic in the 'generateStockReport()' method.", 
-                "Feature Under Development", 
-                JOptionPane.INFORMATION_MESSAGE);
-        this.requestFocusInWindow();
+        try {
+            // Set font properties to prevent font errors
+            System.setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+            System.setProperty("net.sf.jasperreports.default.font.name", "Arial");
+            System.setProperty("net.sf.jasperreports.default.pdf.font.name", "Helvetica");
+
+            // Get current filters
+            String productSearch = productSearchBar.getText().trim();
+            String status = "all";
+
+            if (expiringRadioBtn.isSelected()) {
+                status = "Expiring Soon";
+            } else if (lowStockRadioBtn.isSelected()) {
+                status = "Low Stock";
+            } else if (expiredRadioBtn.isSelected()) {
+                status = "Expired";
+            } else if (inactiveRadioBtn.isSelected()) {
+                status = "Inactive";
+            }
+
+            // Get batch counts first
+            productBatchCount = productStockDAO.getBatchCounts();
+            // Get product stock data
+            List<ProductStockDTO> products = productStockDAO.getProductStock(productSearch, status, productBatchCount);
+
+            if (products.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No stock data found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create a list of maps for the report data - MATCHING JRXML FIELD NAMES
+            List<Map<String, Object>> reportData = new ArrayList<>();
+            int totalQuantity = 0;
+            int activeCount = 0;
+            int inactiveCount = 0;
+            int expiringCount = 0;
+            int lowStockCount = 0;
+            int expiredCount = 0;
+
+            for (ProductStockDTO product : products) {
+                Map<String, Object> row = new HashMap<>();
+                
+                // Match the exact field names from the JRXML
+                row.put("product_name", product.getProductName());
+                row.put("quantity", String.valueOf(product.getQty()));
+                row.put("expiryDate", product.getExpiryDate());
+                row.put("batchNo", product.getBatchNo());
+                row.put("barcodeNo", product.getBarcode());
+                row.put("perchasePrice", String.format("Rs. %.2f", product.getPurchasePrice()));
+                row.put("lastPrice", String.format("Rs. %.2f", product.getLastPrice()));
+                row.put("sellingPrice", String.format("Rs. %.2f", product.getSellingPrice()));
+                
+                reportData.add(row);
+
+                // Count statistics
+                totalQuantity += product.getQty();
+                
+                if (product.getPStatusId() == 1) {
+                    activeCount++;
+                    if (product.isExpiringSoon()) expiringCount++;
+                    if (product.isLowStock()) lowStockCount++;
+                    if (product.isExpired()) expiredCount++;
+                } else {
+                    inactiveCount++;
+                }
+            }
+
+            // Prepare parameters for the report
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("reportTitle", "Stock Report");
+            parameters.put("generatedDate", REPORT_DATE_FORMAT.format(new Date()));
+            parameters.put("totalProducts", products.size());
+            parameters.put("totalQuantity", totalQuantity);
+            parameters.put("activeProducts", activeCount);
+            parameters.put("inactiveProducts", inactiveCount);
+            parameters.put("expiringProducts", expiringCount);
+            parameters.put("lowStockProducts", lowStockCount);
+            parameters.put("expiredProducts", expiredCount);
+            parameters.put("filterInfo", getStockFilterInfo(productSearch, status));
+            
+            // Set default font parameters
+            parameters.put("REPORT_FONT", "Arial");
+            parameters.put("REPORT_PDF_FONT", "Helvetica");
+
+            // Load the JRXML template from classpath
+            InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/stockReport.jrxml");
+            
+            if (jrxmlStream == null) {
+                // Try alternative path
+                jrxmlStream = getClass().getClassLoader().getResourceAsStream("lk/com/pos/reports/stockReport.jrxml");
+                if (jrxmlStream == null) {
+                    // Try to load from file system
+                    File jrxmlFile = new File("src/main/resources/lk/com/pos/reports/stockReport.jrxml");
+                    if (jrxmlFile.exists()) {
+                        jrxmlStream = new java.io.FileInputStream(jrxmlFile);
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                                "Report template not found. Please ensure stockReport.jrxml is in the classpath.",
+                                "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+            }
+
+            // Compile and fill the report
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+            JRDataSource dataSource = new JRBeanCollectionDataSource(reportData);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+
+            // Display the report
+            JasperViewer.viewReport(jasperPrint, false);
+
+            showPositionIndicator("✅ Stock report generated successfully");
+
+        } catch (JRException e) {
+            e.printStackTrace();
+            
+            // Try with simplified font settings
+            try {
+                generateStockReportWithSimpleFont();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Error generating report: " + e.getMessage(),
+                        "Report Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error: " + e.getMessage(),
+                    "Report Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
+    
+    /**
+     * Fallback method for report generation with simple fonts
+     */
+    private void generateStockReportWithSimpleFont() throws Exception {
+        // Create a simple HTML report as fallback
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><title>Stock Report</title></head><body>");
+        html.append("<h1>Stock Report</h1>");
+        html.append("<p>Generated: ").append(new java.util.Date()).append("</p>");
+
+        // Get current filters
+        String productSearch = productSearchBar.getText().trim();
+        String status = "all";
+
+        if (expiringRadioBtn.isSelected()) {
+            status = "Expiring Soon";
+        } else if (lowStockRadioBtn.isSelected()) {
+            status = "Low Stock";
+        } else if (expiredRadioBtn.isSelected()) {
+            status = "Expired";
+        } else if (inactiveRadioBtn.isSelected()) {
+            status = "Inactive";
+        }
+
+        // Get batch counts first
+        productBatchCount = productStockDAO.getBatchCounts();
+        // Get product stock data
+        List<ProductStockDTO> products = productStockDAO.getProductStock(productSearch, status, productBatchCount);
+
+        if (products.isEmpty()) {
+            html.append("<p>No stock data found.</p>");
+        } else {
+            html.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
+            html.append("<tr><th>Product Name</th><th>Quantity</th><th>Expiry Date</th><th>Batch No</th><th>Purchase Price</th><th>Last Price</th><th>Selling Price</th></tr>");
+
+            int totalQuantity = 0;
+            int activeCount = 0;
+            int inactiveCount = 0;
+            int expiringCount = 0;
+            int lowStockCount = 0;
+            int expiredCount = 0;
+
+            for (ProductStockDTO product : products) {
+                html.append("<tr>");
+                html.append("<td>").append(product.getProductName()).append("</td>");
+                html.append("<td>").append(product.getQty()).append("</td>");
+                html.append("<td>").append(product.getExpiryDate()).append("</td>");
+                html.append("<td>").append(product.getBatchNo()).append("</td>");
+                html.append("<td>").append(String.format("Rs. %.2f", product.getPurchasePrice())).append("</td>");
+                html.append("<td>").append(String.format("Rs. %.2f", product.getLastPrice())).append("</td>");
+                html.append("<td>").append(String.format("Rs. %.2f", product.getSellingPrice())).append("</td>");
+                html.append("</tr>");
+
+                // Count statistics
+                totalQuantity += product.getQty();
+                
+                if (product.getPStatusId() == 1) {
+                    activeCount++;
+                    if (product.isExpiringSoon()) expiringCount++;
+                    if (product.isLowStock()) lowStockCount++;
+                    if (product.isExpired()) expiredCount++;
+                } else {
+                    inactiveCount++;
+                }
+            }
+
+            html.append("</table>");
+            html.append("<h3>Summary</h3>");
+            html.append("<p><strong>Total Products: ").append(products.size()).append("</strong></p>");
+            html.append("<p><strong>Total Quantity: ").append(totalQuantity).append(" units</strong></p>");
+            html.append("<p><strong>Active Products: ").append(activeCount).append("</strong></p>");
+            html.append("<p><strong>Inactive Products: ").append(inactiveCount).append("</strong></p>");
+            html.append("<p><strong>Expiring Soon: ").append(expiringCount).append("</strong></p>");
+            html.append("<p><strong>Low Stock: ").append(lowStockCount).append("</strong></p>");
+            html.append("<p><strong>Expired: ").append(expiredCount).append("</strong></p>");
+        }
+
+        html.append("</body></html>");
+
+        // Display HTML in a dialog
+        JEditorPane editorPane = new JEditorPane("text/html", html.toString());
+        editorPane.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(1000, 600));
+
+        JDialog htmlDialog = new JDialog();
+        htmlDialog.setTitle("Stock Report - Simple View");
+        htmlDialog.setModal(true);
+        htmlDialog.add(scrollPane);
+        htmlDialog.pack();
+        htmlDialog.setLocationRelativeTo(this);
+        htmlDialog.setVisible(true);
+
+        showPositionIndicator("✅ Simple stock report generated");
+    }
+    
+    /**
+     * Gets filter info for report
+     */
+    private String getStockFilterInfo(String searchText, String status) {
+        StringBuilder filter = new StringBuilder();
+        
+        if (!searchText.isEmpty()) {
+            filter.append("Search: '").append(searchText).append("' | ");
+        }
+        
+        if (!status.equals("all")) {
+            filter.append("Filter: ").append(status);
+        } else {
+            filter.append("Filter: All Products");
+        }
+        
+        return filter.toString();
+    }
+    
+    /**
+     * Exports stock data to Excel
+     */
+    private void exportStockToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("stock_report.xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!fileToSave.getAbsolutePath().endsWith(".xlsx")) {
+            fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
+        }
+
+        try {
+            // Get current filters
+            String productSearch = productSearchBar.getText().trim();
+            String status = "all";
+
+            if (expiringRadioBtn.isSelected()) {
+                status = "Expiring Soon";
+            } else if (lowStockRadioBtn.isSelected()) {
+                status = "Low Stock";
+            } else if (expiredRadioBtn.isSelected()) {
+                status = "Expired";
+            } else if (inactiveRadioBtn.isSelected()) {
+                status = "Inactive";
+            }
+
+            // Get batch counts first
+            productBatchCount = productStockDAO.getBatchCounts();
+            // Get product stock data
+            List<ProductStockDTO> products = productStockDAO.getProductStock(productSearch, status, productBatchCount);
+
+            if (products.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No stock data found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create Excel workbook
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Stock Report");
+
+            // Create header style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Product Name", "Quantity", "Expiry Date", "Batch No", "Barcode", "Purchase Price", "Last Price", "Selling Price", "Supplier", "Brand", "Category", "Status"};
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Fill data rows
+            int rowNum = 1;
+            int totalQuantity = 0;
+            int activeCount = 0;
+            int inactiveCount = 0;
+            int expiringCount = 0;
+            int lowStockCount = 0;
+            int expiredCount = 0;
+
+            for (ProductStockDTO product : products) {
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0).setCellValue(product.getProductName());
+                row.createCell(1).setCellValue(product.getQty());
+                row.createCell(2).setCellValue(product.getExpiryDate());
+                row.createCell(3).setCellValue(product.getBatchNo());
+                row.createCell(4).setCellValue(product.getBarcode());
+                row.createCell(5).setCellValue(product.getPurchasePrice());
+                row.createCell(6).setCellValue(product.getLastPrice());
+                row.createCell(7).setCellValue(product.getSellingPrice());
+                row.createCell(8).setCellValue(product.getSupplierName());
+                row.createCell(9).setCellValue(product.getBrandName());
+                row.createCell(10).setCellValue(product.getCategoryName());
+                row.createCell(11).setCellValue(product.getPStatusId() == 1 ? "Active" : "Inactive");
+
+                // Count statistics
+                totalQuantity += product.getQty();
+                
+                if (product.getPStatusId() == 1) {
+                    activeCount++;
+                    if (product.isExpiringSoon()) expiringCount++;
+                    if (product.isLowStock()) lowStockCount++;
+                    if (product.isExpired()) expiredCount++;
+                } else {
+                    inactiveCount++;
+                }
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Add summary rows
+            int summaryRowNum = rowNum + 2;
+
+            Row summaryHeader = sheet.createRow(summaryRowNum++);
+            Cell summaryCell = summaryHeader.createCell(0);
+            summaryCell.setCellValue("STOCK REPORT SUMMARY");
+            summaryCell.setCellStyle(headerStyle);
+
+            Row totalProductsRow = sheet.createRow(summaryRowNum++);
+            totalProductsRow.createCell(0).setCellValue("Total Products:");
+            totalProductsRow.createCell(1).setCellValue(products.size());
+
+            Row totalQuantityRow = sheet.createRow(summaryRowNum++);
+            totalQuantityRow.createCell(0).setCellValue("Total Quantity:");
+            totalQuantityRow.createCell(1).setCellValue(totalQuantity + " units");
+
+            Row activeProductsRow = sheet.createRow(summaryRowNum++);
+            activeProductsRow.createCell(0).setCellValue("Active Products:");
+            activeProductsRow.createCell(1).setCellValue(activeCount);
+
+            Row inactiveProductsRow = sheet.createRow(summaryRowNum++);
+            inactiveProductsRow.createCell(0).setCellValue("Inactive Products:");
+            inactiveProductsRow.createCell(1).setCellValue(inactiveCount);
+
+            Row expiringProductsRow = sheet.createRow(summaryRowNum++);
+            expiringProductsRow.createCell(0).setCellValue("Expiring Soon:");
+            expiringProductsRow.createCell(1).setCellValue(expiringCount);
+
+            Row lowStockProductsRow = sheet.createRow(summaryRowNum++);
+            lowStockProductsRow.createCell(0).setCellValue("Low Stock:");
+            lowStockProductsRow.createCell(1).setCellValue(lowStockCount);
+
+            Row expiredProductsRow = sheet.createRow(summaryRowNum++);
+            expiredProductsRow.createCell(0).setCellValue("Expired:");
+            expiredProductsRow.createCell(1).setCellValue(expiredCount);
+
+            Row generatedDateRow = sheet.createRow(summaryRowNum++);
+            generatedDateRow.createCell(0).setCellValue("Generated Date:");
+            generatedDateRow.createCell(1).setCellValue(REPORT_DATE_FORMAT.format(new Date()));
+
+            Row filterInfoRow = sheet.createRow(summaryRowNum++);
+            filterInfoRow.createCell(0).setCellValue("Filter Info:");
+            filterInfoRow.createCell(1).setCellValue(getStockFilterInfo(productSearch, status));
+
+            // Write the output to file
+            try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                workbook.write(outputStream);
+            }
+
+            workbook.close();
+
+            showPositionIndicator("✅ Excel file saved: " + fileToSave.getName());
+
+            // Ask if user wants to open the file
+            int openFile = JOptionPane.showConfirmDialog(this,
+                    "Excel file saved successfully!\nDo you want to open it?",
+                    "Success",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (openFile == JOptionPane.YES_OPTION) {
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop.getDesktop().open(fileToSave);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error exporting to Excel: " + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -2581,7 +3106,7 @@ public class StockPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_inactiveRadioBtnActionPerformed
 
     private void stockReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stockReportBtnActionPerformed
-        generateStockReport();
+       showExportOptions();
     }//GEN-LAST:event_stockReportBtnActionPerformed
 
 

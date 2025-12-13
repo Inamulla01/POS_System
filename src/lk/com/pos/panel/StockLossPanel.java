@@ -39,6 +39,32 @@ import javax.swing.JOptionPane;
 import javax.swing.BoxLayout;
 import javax.swing.Box;
 import javax.swing.SwingConstants;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
+import javax.swing.JEditorPane;
+import javax.swing.JScrollPane;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+import net.sf.jasperreports.engine.JRDataSource;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.view.JasperViewer;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * StockLossPanel - Enhanced panel for managing stock losses Features: Time
@@ -57,6 +83,7 @@ public class StockLossPanel extends javax.swing.JPanel {
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
     private static final SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final SimpleDateFormat REPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
     // UI Constants - Colors (same as before)
     private static final class Colors {
@@ -300,6 +327,9 @@ public class StockLossPanel extends javax.swing.JPanel {
 
         lostReportBtn.setToolTipText("Generate Stock Loss Report (Ctrl+R)");
         addNewLostBtn.setToolTipText("Add New Stock Loss (Ctrl+N)");
+        
+        // Add action listener for report button
+        lostReportBtn.addActionListener(e -> showExportOptions());
     }
 
     /**
@@ -1256,7 +1286,7 @@ public class StockLossPanel extends javax.swing.JPanel {
      * Opens loss report
      */
     private void openLossReport() {
-        lostReportBtn.doClick();
+        showExportOptions();
         showPositionIndicator("📊 Opening Stock Loss Report");
     }
 
@@ -1661,32 +1691,33 @@ public class StockLossPanel extends javax.swing.JPanel {
     }
 
     /**
- * Creates card content panel from DTO
- */
-private JPanel createCardContent(StockLossDTO data, String displayDate) {
-    JPanel contentPanel = new JPanel();
-    contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-    contentPanel.setBackground(Colors.CARD_WHITE);
-    contentPanel.setOpaque(false);
+     * Creates card content panel from DTO
+     */
+    private JPanel createCardContent(StockLossDTO data, String displayDate) {
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(Colors.CARD_WHITE);
+        contentPanel.setOpaque(false);
 
-    // Header with product name and edit button
-    contentPanel.add(createHeaderSection(data.getStockLossId(), data.getProductName()));
-    contentPanel.add(Box.createVerticalStrut(15));
-    
-    // Loss details header with reason badge on the right
-    contentPanel.add(createDetailsSectionHeader(data.getReason()));
-    contentPanel.add(Box.createVerticalStrut(10));
-    
-    // Details grid (batch, invoice, price, qty, user, date)
-    contentPanel.add(createDetailsGrid(data.getBatchNo(), data.getInvoiceNo(), data.getSellingPrice(),
-            data.getQty(), data.getUserName(), displayDate));
-    contentPanel.add(Box.createVerticalStrut(20));
-    
-    // Loss amount at the bottom
-    contentPanel.add(createLossAmountPanel(data.getLossAmount()));
+        // Header with product name and edit button
+        contentPanel.add(createHeaderSection(data.getStockLossId(), data.getProductName()));
+        contentPanel.add(Box.createVerticalStrut(15));
+        
+        // Loss details header with reason badge on the right
+        contentPanel.add(createDetailsSectionHeader(data.getReason()));
+        contentPanel.add(Box.createVerticalStrut(10));
+        
+        // Details grid (batch, invoice, price, qty, user, date)
+        contentPanel.add(createDetailsGrid(data.getBatchNo(), data.getInvoiceNo(), data.getSellingPrice(),
+                data.getQty(), data.getUserName(), displayDate));
+        contentPanel.add(Box.createVerticalStrut(20));
+        
+        // Loss amount at the bottom
+        contentPanel.add(createLossAmountPanel(data.getLossAmount()));
 
-    return contentPanel;
-}
+        return contentPanel;
+    }
+    
     private JPanel createHeaderSection(int lossId, String productName) {
         JPanel headerPanel = new JPanel(new BorderLayout(10, 0));
         headerPanel.setOpaque(false);
@@ -1947,46 +1978,405 @@ private JPanel createCardContent(StockLossDTO data, String displayDate) {
     }
 
     /**
-     * Generates stock loss report using DAO
+     * Shows export options dialog
      */
-    private void generateLossReport() {
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        reportButton.setBackground(new Color(28, 181, 187));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateStockLossReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        excelButton.setBackground(new Color(16, 185, 129));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportStockLossToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
+    }
+
+    /**
+     * Generates stock loss report using JasperReports
+     */
+    private void generateStockLossReport() {
         try {
+            // Set font properties to prevent font errors
+            System.setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+            System.setProperty("net.sf.jasperreports.default.font.name", "Arial");
+            System.setProperty("net.sf.jasperreports.default.pdf.font.name", "Helvetica");
+
+            // Get current filters
+            String searchText = jTextField1.getText().trim();
             String timePeriod = (String) sortByDays.getSelectedItem();
             String reasonFilter = (String) sortByReason.getSelectedItem();
+
+            // Fetch stock loss data
+            List<StockLossDTO> stockLosses = stockLossDAO.getAllStockLosses(searchText, timePeriod, reasonFilter);
+
+            if (stockLosses.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No stock loss records found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create a list of maps for the report data - MATCHING JRXML FIELD NAMES
+            List<Map<String, Object>> reportData = new ArrayList<>();
+            double totalLossAmount = 0;
+            int totalQuantity = 0;
+
+            for (StockLossDTO loss : stockLosses) {
+                Map<String, Object> row = new HashMap<>();
+                
+                // Match the exact field names from the JRXML
+                row.put("productName", loss.getProductName());
+                row.put("batchNo", loss.getBatchNo());
+                row.put("quantity", String.valueOf(loss.getQty()));
+                row.put("recordBy", loss.getUserName());
+                row.put("lossDate", DATE_FORMAT.format(loss.getStockLossDate()));
+                row.put("lossAmount", "Rs." + String.format("%.2f", loss.getLossAmount()));
+                row.put("reason", loss.getReason());
+                
+                reportData.add(row);
+
+                // Calculate totals
+                totalLossAmount += loss.getLossAmount();
+                totalQuantity += loss.getQty();
+            }
+
+            // Prepare parameters for the report
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("reportTitle", "Stock Loss Report");
+            parameters.put("generatedDate", REPORT_DATE_FORMAT.format(new Date()));
+            parameters.put("totalRecords", stockLosses.size());
+            parameters.put("totalLossAmount", "Rs." + String.format("%.2f", totalLossAmount));
+            parameters.put("totalQuantity", String.valueOf(totalQuantity));
+            parameters.put("filterInfo", getStockLossFilterInfo(searchText, timePeriod, reasonFilter));
             
-            StringBuilder report = new StringBuilder();
-            report.append("STOCK LOSS REPORT\n");
-            report.append("=================\n");
-            report.append("Time Period: ").append(timePeriod).append("\n");
-            report.append("Reason Filter: ").append(reasonFilter).append("\n");
-            report.append("=================\n\n");
+            // Set default font parameters
+            parameters.put("REPORT_FONT", "Arial");
+            parameters.put("REPORT_PDF_FONT", "Helvetica");
+
+            // Load the JRXML template from classpath
+            InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/stockLossReport.jrxml");
             
-            report.append("(Report generation would use DAO for summary data)\n\n");
-            report.append("Would include:\n");
-            report.append("- Date-wise summary\n");
-            report.append("- Total records\n");
-            report.append("- Total quantity lost\n");
-            report.append("- Total loss amount\n");
-            report.append("- Product-wise breakdown\n");
-            
-            JOptionPane.showMessageDialog(this,
-                    report.toString(),
-                    "Stock Loss Report",
-                    JOptionPane.INFORMATION_MESSAGE);
-            
-        } catch (Exception e) {
-            System.err.println("Error generating report: " + e.getMessage());
+            if (jrxmlStream == null) {
+                // Try alternative path
+                jrxmlStream = getClass().getClassLoader().getResourceAsStream("lk/com/pos/reports/stockLossReport.jrxml");
+                if (jrxmlStream == null) {
+                    // Try to load from file system
+                    File jrxmlFile = new File("src/main/resources/lk/com/pos/reports/stockLossReport.jrxml");
+                    if (jrxmlFile.exists()) {
+                        jrxmlStream = new java.io.FileInputStream(jrxmlFile);
+                    } else {
+                        JOptionPane.showMessageDialog(this,
+                                "Report template not found. Please ensure stockLossReport.jrxml is in the classpath.",
+                                "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+            }
+
+            // Compile and fill the report
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+            JRDataSource dataSource = new JRBeanCollectionDataSource(reportData);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+
+            // Display the report
+            JasperViewer.viewReport(jasperPrint, false);
+
+            showPositionIndicator("✅ Stock loss report generated successfully");
+
+        } catch (JRException e) {
             e.printStackTrace();
             
+            // Try with simplified font settings
+            try {
+                generateStockLossReportWithSimpleFont();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Error generating report: " + e.getMessage(),
+                        "Report Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
             JOptionPane.showMessageDialog(this,
-                    "Failed to generate report. Please try again.\n" + e.getMessage(),
+                    "Error: " + e.getMessage(),
                     "Report Error",
                     JOptionPane.ERROR_MESSAGE);
         }
-        
-        this.requestFocusInWindow();
     }
 
+    /**
+     * Fallback method for report generation with simple fonts
+     */
+    private void generateStockLossReportWithSimpleFont() throws Exception {
+        // Create a simple HTML report as fallback
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><title>Stock Loss Report</title></head><body>");
+        html.append("<h1>Stock Loss Report</h1>");
+        html.append("<p>Generated: ").append(new java.util.Date()).append("</p>");
+
+        // Get current filters
+        String searchText = jTextField1.getText().trim();
+        String timePeriod = (String) sortByDays.getSelectedItem();
+        String reasonFilter = (String) sortByReason.getSelectedItem();
+
+        // Fetch stock loss data
+        List<StockLossDTO> stockLosses = stockLossDAO.getAllStockLosses(searchText, timePeriod, reasonFilter);
+
+        if (stockLosses.isEmpty()) {
+            html.append("<p>No stock loss records found.</p>");
+        } else {
+            html.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
+            html.append("<tr><th>Product Name</th><th>Batch No</th><th>Quantity</th><th>Record By</th><th>Loss Date</th><th>Loss Amount</th><th>Reason</th></tr>");
+
+            double totalLossAmount = 0;
+            int totalQuantity = 0;
+
+            for (StockLossDTO loss : stockLosses) {
+                html.append("<tr>");
+                html.append("<td>").append(loss.getProductName()).append("</td>");
+                html.append("<td>").append(loss.getBatchNo()).append("</td>");
+                html.append("<td>").append(loss.getQty()).append("</td>");
+                html.append("<td>").append(loss.getUserName()).append("</td>");
+                html.append("<td>").append(DATE_FORMAT.format(loss.getStockLossDate())).append("</td>");
+                html.append("<td>").append("Rs." + String.format("%.2f", loss.getLossAmount())).append("</td>");
+                html.append("<td>").append(loss.getReason()).append("</td>");
+                html.append("</tr>");
+
+                // Calculate totals
+                totalLossAmount += loss.getLossAmount();
+                totalQuantity += loss.getQty();
+            }
+
+            html.append("</table>");
+            html.append("<p><strong>Total Records: ").append(stockLosses.size()).append("</strong></p>");
+            html.append("<p><strong>Total Quantity: ").append(totalQuantity).append("</strong></p>");
+            html.append("<p><strong>Total Loss Amount: Rs.").append(String.format("%.2f", totalLossAmount)).append("</strong></p>");
+        }
+
+        html.append("</body></html>");
+
+        // Display HTML in a dialog
+        JEditorPane editorPane = new JEditorPane("text/html", html.toString());
+        editorPane.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(900, 600));
+
+        JDialog htmlDialog = new JDialog();
+        htmlDialog.setTitle("Stock Loss Report - Simple View");
+        htmlDialog.setModal(true);
+        htmlDialog.add(scrollPane);
+        htmlDialog.pack();
+        htmlDialog.setLocationRelativeTo(this);
+        htmlDialog.setVisible(true);
+
+        showPositionIndicator("✅ Simple stock loss report generated");
+    }
+
+    /**
+     * Gets filter info for report
+     */
+    private String getStockLossFilterInfo(String searchText, String timePeriod, String reasonFilter) {
+        StringBuilder filter = new StringBuilder();
+        
+        if (!searchText.isEmpty()) {
+            filter.append("Search: '").append(searchText).append("' | ");
+        }
+        
+        filter.append("Time Period: ").append(timePeriod);
+        
+        if (!reasonFilter.equals("All Reasons")) {
+            filter.append(" | Reason: ").append(reasonFilter);
+        }
+        
+        return filter.toString();
+    }
+
+    /**
+     * Exports stock loss data to Excel
+     */
+    private void exportStockLossToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("stock_loss_report.xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!fileToSave.getAbsolutePath().endsWith(".xlsx")) {
+            fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
+        }
+
+        try {
+            // Get current filters
+            String searchText = jTextField1.getText().trim();
+            String timePeriod = (String) sortByDays.getSelectedItem();
+            String reasonFilter = (String) sortByReason.getSelectedItem();
+
+            // Fetch stock loss data
+            List<StockLossDTO> stockLosses = stockLossDAO.getAllStockLosses(searchText, timePeriod, reasonFilter);
+
+            if (stockLosses.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No stock loss records found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create Excel workbook
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Stock Loss Report");
+
+            // Create header style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Product Name", "Batch No", "Quantity", "Record By", "Loss Date", "Loss Amount", "Reason"};
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Fill data rows
+            int rowNum = 1;
+            double totalLossAmount = 0;
+            int totalQuantity = 0;
+
+            for (StockLossDTO loss : stockLosses) {
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0).setCellValue(loss.getProductName());
+                row.createCell(1).setCellValue(loss.getBatchNo());
+                row.createCell(2).setCellValue(loss.getQty());
+                row.createCell(3).setCellValue(loss.getUserName());
+                row.createCell(4).setCellValue(DATE_FORMAT.format(loss.getStockLossDate()));
+                row.createCell(5).setCellValue("Rs." + String.format("%.2f", loss.getLossAmount()));
+                row.createCell(6).setCellValue(loss.getReason());
+
+                // Calculate totals
+                totalLossAmount += loss.getLossAmount();
+                totalQuantity += loss.getQty();
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Add summary rows
+            int summaryRowNum = rowNum + 2;
+
+            Row summaryHeader = sheet.createRow(summaryRowNum++);
+            Cell summaryCell = summaryHeader.createCell(0);
+            summaryCell.setCellValue("SUMMARY");
+            summaryCell.setCellStyle(headerStyle);
+
+            Row totalRecordsRow = sheet.createRow(summaryRowNum++);
+            totalRecordsRow.createCell(0).setCellValue("Total Records:");
+            totalRecordsRow.createCell(1).setCellValue(stockLosses.size());
+
+            Row totalQuantityRow = sheet.createRow(summaryRowNum++);
+            totalQuantityRow.createCell(0).setCellValue("Total Quantity:");
+            totalQuantityRow.createCell(1).setCellValue(totalQuantity);
+
+            Row totalLossRow = sheet.createRow(summaryRowNum++);
+            totalLossRow.createCell(0).setCellValue("Total Loss Amount:");
+            totalLossRow.createCell(1).setCellValue("Rs." + String.format("%.2f", totalLossAmount));
+
+            Row generatedDateRow = sheet.createRow(summaryRowNum++);
+            generatedDateRow.createCell(0).setCellValue("Generated Date:");
+            generatedDateRow.createCell(1).setCellValue(REPORT_DATE_FORMAT.format(new Date()));
+
+            Row filterInfoRow = sheet.createRow(summaryRowNum++);
+            filterInfoRow.createCell(0).setCellValue("Filters Applied:");
+            filterInfoRow.createCell(1).setCellValue(getStockLossFilterInfo(searchText, timePeriod, reasonFilter));
+
+            // Write the output to file
+            try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                workbook.write(outputStream);
+            }
+
+            workbook.close();
+
+            showPositionIndicator("✅ Excel file saved: " + fileToSave.getName());
+
+            // Ask if user wants to open the file
+            int openFile = JOptionPane.showConfirmDialog(this,
+                    "Excel file saved successfully!\nDo you want to open it?",
+                    "Success",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (openFile == JOptionPane.YES_OPTION) {
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop.getDesktop().open(fileToSave);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error exporting to Excel: " + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2435,7 +2825,7 @@ private JPanel createCardContent(StockLossDTO data, String displayDate) {
     }//GEN-LAST:event_addNewLostBtnActionPerformed
 
     private void lostReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lostReportBtnActionPerformed
-
+        
     }//GEN-LAST:event_lostReportBtnActionPerformed
 
     private void sortByDaysActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sortByDaysActionPerformed

@@ -22,6 +22,25 @@ import lk.com.pos.dto.ReturnDetailsDTO;
 import lk.com.pos.dto.ReturnItemDetailsDTO;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.HashMap;
+import java.util.Map;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import java.awt.Desktop;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ReturnPanel extends javax.swing.JPanel {
 
@@ -29,35 +48,39 @@ public class ReturnPanel extends javax.swing.JPanel {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy, HH:mm:ss");
     private int currentWidth = 0;
     private Timer searchTimer;
-    
+
     // DAO instances
     private ReturnDAO returnDAO = new ReturnDAO();
     private ReturnItemDAO returnItemDAO = new ReturnItemDAO();
-    
+
     // Keyboard navigation
     private List<JPanel> returnCardsList = new ArrayList<>();
     private int currentCardIndex = -1;
     private JPanel currentFocusedCard = null;
-    
+
     private JPanel positionIndicator;
     private JLabel positionLabel;
     private Timer positionTimer;
-    
+
     private JPanel keyboardHintsPanel;
     private boolean hintsVisible = false;
-    
+
     // Refresh cooldown
     private long lastRefreshTime = 0;
     private static final long REFRESH_COOLDOWN = 1000; // 1 second
-    
+
     // Colors
     private static final Color RED_BORDER_SELECTED = new Color(239, 68, 68);
     private static final Color RED_BORDER_HOVER = new Color(248, 113, 113);
     private static final Color DEFAULT_BORDER = new Color(230, 230, 230);
-    
+
     // Formatters
     private DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a");
-    
+
+    // Export constants
+    private static final SimpleDateFormat EXPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+    private static final SimpleDateFormat FILENAME_DATE_FORMAT = new SimpleDateFormat("yyyyMMdd_HHmmss");
+
     public ReturnPanel() {
         initComponents();
         setupPanel();
@@ -67,41 +90,41 @@ public class ReturnPanel extends javax.swing.JPanel {
         setupKeyboardShortcuts();
         loadReturnData("", "All Time", "All Reasons");
         setupEventListeners();
-        
+
         SwingUtilities.invokeLater(() -> {
             this.requestFocusInWindow();
             showKeyboardHints();
         });
     }
-    
+
     private void createPositionIndicator() {
         positionIndicator = new JPanel();
         positionIndicator.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 8));
         positionIndicator.setBackground(new Color(31, 41, 55, 230));
         positionIndicator.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
-            BorderFactory.createEmptyBorder(8, 15, 8, 15)
+                BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
         ));
         positionIndicator.setVisible(false);
-        
+
         positionLabel = new JLabel();
         positionLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
         positionLabel.setForeground(Color.WHITE);
-        
+
         positionIndicator.add(positionLabel);
-        
+
         setLayout(new OverlayLayout(this) {
             @Override
             public void layoutContainer(Container target) {
                 super.layoutContainer(target);
-                
+
                 if (positionIndicator.isVisible()) {
                     Dimension size = positionIndicator.getPreferredSize();
                     int x = (getWidth() - size.width) / 2;
                     int y = 80;
                     positionIndicator.setBounds(x, y, size.width, size.height);
                 }
-                
+
                 if (keyboardHintsPanel != null && keyboardHintsPanel.isVisible()) {
                     Dimension size = keyboardHintsPanel.getPreferredSize();
                     int x = getWidth() - size.width - 20;
@@ -110,7 +133,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         });
-        
+
         add(positionIndicator, Integer.valueOf(1000));
     }
 
@@ -119,27 +142,27 @@ public class ReturnPanel extends javax.swing.JPanel {
         keyboardHintsPanel.setLayout(new BoxLayout(keyboardHintsPanel, BoxLayout.Y_AXIS));
         keyboardHintsPanel.setBackground(new Color(31, 41, 55, 240));
         keyboardHintsPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
-            BorderFactory.createEmptyBorder(15, 20, 15, 20)
+                BorderFactory.createLineBorder(RED_BORDER_SELECTED, 2),
+                BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
         keyboardHintsPanel.setVisible(false);
-        
+
         JLabel title = new JLabel("⌨️ KEYBOARD SHORTCUTS");
         title.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
         title.setForeground(RED_BORDER_SELECTED);
         title.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(title);
-        
+
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-        
+
         addHintRow("↑ ↓", "Navigate returns", "#FFFFFF");
         addHintRow("Ctrl+F", "Search", "#A78BFA");
         addHintRow("F5", "Refresh", "#34D399");
         addHintRow("Alt+A", "Return Product", "#EF4444");
         addHintRow("Ctrl+N", "Return Product", "#EF4444");
-        addHintRow("Ctrl+P", "Return Report", "#10B981");
-        addHintRow("Ctrl+R", "Return Report", "#10B981");
-        
+        addHintRow("Ctrl+P", "Export Options", "#10B981");
+        addHintRow("Ctrl+R", "Export Options", "#10B981");
+
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         JLabel periodTitle = new JLabel("PERIOD FILTERS");
         periodTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
@@ -147,7 +170,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         periodTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(periodTitle);
         keyboardHintsPanel.add(Box.createVerticalStrut(4));
-        
+
         addHintRow("Alt+1", "All Time", "#FB923C");
         addHintRow("Alt+2", "Today", "#FCD34D");
         addHintRow("Alt+3", "Last 7 Days", "#1CB5BB");
@@ -158,7 +181,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Alt+8", "5 Years", "#F472B6");
         addHintRow("Alt+9", "10 Years", "#FBBF24");
         addHintRow("Alt+0", "20 Years", "#9333EA");
-        
+
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         JLabel reasonTitle = new JLabel("🏷️ REASON FILTERS");
         reasonTitle.setFont(new Font("Nunito ExtraBold", Font.BOLD, 11));
@@ -166,7 +189,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         reasonTitle.setAlignmentX(JLabel.LEFT_ALIGNMENT);
         keyboardHintsPanel.add(reasonTitle);
         keyboardHintsPanel.add(Box.createVerticalStrut(4));
-        
+
         addHintRow("Shift+1", "All Reasons", "#9CA3AF");
         addHintRow("Shift+2", "Damaged", "#EF4444");
         addHintRow("Shift+3", "Wrong Item", "#F59E0B");
@@ -178,19 +201,19 @@ public class ReturnPanel extends javax.swing.JPanel {
         addHintRow("Shift+9", "Defective", "#EF4444");
         addHintRow("Shift+0", "Late Delivery", "#60A5FA");
         addHintRow("Shift+-", "Other", "#F472B6");
-        
+
         keyboardHintsPanel.add(Box.createVerticalStrut(8));
         addHintRow("Esc", "Clear All Filters", "#EF4444");
         addHintRow("?", "Toggle Help", "#EF4444");
-        
+
         keyboardHintsPanel.add(Box.createVerticalStrut(10));
-        
+
         JLabel closeHint = new JLabel("Press ? to hide");
         closeHint.setFont(new Font("Nunito SemiBold", Font.ITALIC, 10));
         closeHint.setForeground(Color.decode("#9CA3AF"));
         closeHint.setAlignmentX(JLabel.CENTER_ALIGNMENT);
         keyboardHintsPanel.add(closeHint);
-        
+
         add(keyboardHintsPanel, Integer.valueOf(1001));
     }
 
@@ -199,16 +222,16 @@ public class ReturnPanel extends javax.swing.JPanel {
         row.setOpaque(false);
         row.setAlignmentX(JPanel.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(300, 25));
-        
+
         JLabel keyLabel = new JLabel(key);
         keyLabel.setFont(new Font("Consolas", Font.BOLD, 11));
         keyLabel.setForeground(Color.decode(keyColor));
         keyLabel.setPreferredSize(new Dimension(90, 20));
-        
+
         JLabel descLabel = new JLabel(description);
         descLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
         descLabel.setForeground(Color.decode("#D1D5DB"));
-        
+
         row.add(keyLabel);
         row.add(descLabel);
         keyboardHintsPanel.add(row);
@@ -220,7 +243,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             hintsVisible = true;
             revalidate();
             repaint();
-            
+
             Timer hideTimer = new Timer(5000, e -> {
                 keyboardHintsPanel.setVisible(false);
                 hintsVisible = false;
@@ -242,11 +265,11 @@ public class ReturnPanel extends javax.swing.JPanel {
         positionIndicator.setVisible(true);
         revalidate();
         repaint();
-        
+
         if (positionTimer != null && positionTimer.isRunning()) {
             positionTimer.stop();
         }
-        
+
         positionTimer = new Timer(2000, e -> {
             positionIndicator.setVisible(false);
             revalidate();
@@ -258,15 +281,15 @@ public class ReturnPanel extends javax.swing.JPanel {
 
     private void setupKeyboardShortcuts() {
         this.setFocusable(true);
-        
+
         int condition = JComponent.WHEN_IN_FOCUSED_WINDOW;
-        
+
         // Navigation
         registerKeyAction("UP", KeyEvent.VK_UP, 0, condition, () -> navigateCards(-1));
         registerKeyAction("DOWN", KeyEvent.VK_DOWN, 0, condition, () -> navigateCards(1));
         registerKeyAction("HOME", KeyEvent.VK_HOME, 0, condition, () -> navigateToFirst());
         registerKeyAction("END", KeyEvent.VK_END, 0, condition, () -> navigateToLast());
-        
+
         // Search
         registerKeyAction("CTRL_F", KeyEvent.VK_F, KeyEvent.CTRL_DOWN_MASK, condition, () -> focusSearch());
         registerKeyAction("SLASH", KeyEvent.VK_SLASH, 0, condition, () -> {
@@ -274,18 +297,18 @@ public class ReturnPanel extends javax.swing.JPanel {
                 focusSearch();
             }
         });
-        
+
         // Refresh
         registerKeyAction("F5", KeyEvent.VK_F5, 0, condition, () -> refreshReturns());
-        
+
         // Return Product - ALT+A and CTRL+N
         registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openReturnProductDialog);
         registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnProductDialog);
-        
-        // Return Report - CTRL+P and CTRL+R
-        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openReturnReport);
-        
+
+        // Export Options - UPDATED
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
+
         // Period filters - ALT+1 to ALT+0 (All Time, Today, 7D, 30D, 90D, 1Y, 2Y, 5Y, 10Y, 20Y)
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(0));
         registerKeyAction("ALT_2", KeyEvent.VK_2, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(1));
@@ -297,7 +320,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         registerKeyAction("ALT_8", KeyEvent.VK_8, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(7));
         registerKeyAction("ALT_9", KeyEvent.VK_9, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(8));
         registerKeyAction("ALT_0", KeyEvent.VK_0, KeyEvent.ALT_DOWN_MASK, condition, () -> setPeriod(9));
-        
+
         // Reason filters - ALL 11 REASONS
         registerKeyAction("SHIFT_1", KeyEvent.VK_1, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(0));
         registerKeyAction("SHIFT_2", KeyEvent.VK_2, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(1));
@@ -310,25 +333,25 @@ public class ReturnPanel extends javax.swing.JPanel {
         registerKeyAction("SHIFT_9", KeyEvent.VK_9, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(8));
         registerKeyAction("SHIFT_0", KeyEvent.VK_0, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(9));
         registerKeyAction("SHIFT_MINUS", KeyEvent.VK_MINUS, KeyEvent.SHIFT_DOWN_MASK, condition, () -> setReason(10));
-        
+
         // Escape - Clear all filters
         registerKeyAction("ESCAPE", KeyEvent.VK_ESCAPE, 0, condition, () -> handleEscape());
-        
+
         // Help
         registerKeyAction("SHIFT_SLASH", KeyEvent.VK_SLASH, KeyEvent.SHIFT_DOWN_MASK, condition, () -> showKeyboardHints());
-        
+
         // Search field
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "clearSearch");
         jTextField1.getActionMap().put("clearSearch", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 clearAllFilters();
             }
         });
-        
+
         jTextField1.getInputMap(JComponent.WHEN_FOCUSED).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
+                KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "startNavigation");
         jTextField1.getActionMap().put("startNavigation", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -342,7 +365,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         });
-        
+
         this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentShown(ComponentEvent e) {
@@ -357,10 +380,10 @@ public class ReturnPanel extends javax.swing.JPanel {
         this.getActionMap().put(actionName, new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (jTextField1.hasFocus() && 
-                    keyCode != KeyEvent.VK_ESCAPE && 
-                    modifiers == 0 &&
-                    keyCode != KeyEvent.VK_SLASH) {
+                if (jTextField1.hasFocus()
+                        && keyCode != KeyEvent.VK_ESCAPE
+                        && modifiers == 0
+                        && keyCode != KeyEvent.VK_SLASH) {
                     return;
                 }
                 action.run();
@@ -373,26 +396,26 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("No returns available");
             return;
         }
-        
+
         if (currentCardIndex < 0) {
             currentCardIndex = 0;
             selectCurrentCard();
             scrollToCard(currentCardIndex);
             return;
         }
-        
+
         int newIndex = currentCardIndex + direction;
-        
+
         if (newIndex < 0) {
             showPositionIndicator("Already at the first return");
             return;
         }
-        
+
         if (newIndex >= returnCardsList.size()) {
             showPositionIndicator("Already at the last return");
             return;
         }
-        
+
         deselectCard(currentCardIndex);
         currentCardIndex = newIndex;
         selectCurrentCard();
@@ -404,7 +427,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("No returns available");
             return;
         }
-        
+
         if (currentCardIndex >= 0) {
             deselectCard(currentCardIndex);
         }
@@ -419,7 +442,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("No returns available");
             return;
         }
-        
+
         if (currentCardIndex >= 0) {
             deselectCard(currentCardIndex);
         }
@@ -433,14 +456,14 @@ public class ReturnPanel extends javax.swing.JPanel {
         if (currentCardIndex >= 0 && currentCardIndex < returnCardsList.size()) {
             JPanel card = returnCardsList.get(currentCardIndex);
             card.setBorder(BorderFactory.createCompoundBorder(
-                new RoundBorder(RED_BORDER_SELECTED, 3, 20),
-                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                    new RoundBorder(RED_BORDER_SELECTED, 3, 20),
+                    BorderFactory.createEmptyBorder(2, 2, 2, 2)
             ));
             currentFocusedCard = card;
-            
+
             String invoiceNo = (String) card.getClientProperty("invoiceNo");
-            showPositionIndicator(String.format("Return %d/%d: %s", 
-                currentCardIndex + 1, returnCardsList.size(), invoiceNo));
+            showPositionIndicator(String.format("Return %d/%d: %s",
+                    currentCardIndex + 1, returnCardsList.size(), invoiceNo));
         }
     }
 
@@ -448,23 +471,25 @@ public class ReturnPanel extends javax.swing.JPanel {
         if (index >= 0 && index < returnCardsList.size()) {
             JPanel card = returnCardsList.get(index);
             card.setBorder(BorderFactory.createCompoundBorder(
-                new ShadowBorder(),
-                BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                    new ShadowBorder(),
+                    BorderFactory.createEmptyBorder(2, 2, 2, 2)
             ));
         }
     }
 
     private void scrollToCard(int index) {
-        if (index < 0 || index >= returnCardsList.size()) return;
-        
+        if (index < 0 || index >= returnCardsList.size()) {
+            return;
+        }
+
         SwingUtilities.invokeLater(() -> {
             try {
                 JPanel card = returnCardsList.get(index);
                 Rectangle bounds = card.getBounds();
                 Rectangle visible = jScrollPane1.getViewport().getViewRect();
-                
+
                 int targetY = bounds.y - 20;
-                
+
                 jScrollPane1.getViewport().setViewPosition(new Point(0, Math.max(0, targetY)));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -484,28 +509,28 @@ public class ReturnPanel extends javax.swing.JPanel {
             currentFocusedCard = null;
             currentCardIndex = -1;
             showPositionIndicator("Card deselected");
-        } else if (!jTextField1.getText().isEmpty() || 
-                   sortByDays.getSelectedIndex() != 0 || 
-                   sortByReason.getSelectedIndex() != 0) {
+        } else if (!jTextField1.getText().isEmpty()
+                || sortByDays.getSelectedIndex() != 0
+                || sortByReason.getSelectedIndex() != 0) {
             clearAllFilters();
         }
         this.requestFocusInWindow();
     }
 
     private void clearAllFilters() {
-        boolean wasFiltered = !jTextField1.getText().isEmpty() || 
-                             sortByDays.getSelectedIndex() != 0 || 
-                             sortByReason.getSelectedIndex() != 0;
-        
+        boolean wasFiltered = !jTextField1.getText().isEmpty()
+                || sortByDays.getSelectedIndex() != 0
+                || sortByReason.getSelectedIndex() != 0;
+
         jTextField1.setText("");
         sortByDays.setSelectedIndex(0);
         sortByReason.setSelectedIndex(0);
-        
+
         if (wasFiltered) {
             handleFilter();
             showPositionIndicator("All filters cleared - Showing all returns");
         }
-        
+
         ReturnPanel.this.requestFocusInWindow();
     }
 
@@ -515,7 +540,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             showPositionIndicator("Please wait before refreshing again");
             return;
         }
-        
+
         lastRefreshTime = currentTime;
         handleFilter();
         showPositionIndicator("Return data refreshed");
@@ -528,10 +553,567 @@ public class ReturnPanel extends javax.swing.JPanel {
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
 
-    private void openReturnReport() {
-        returnReportDialogBtn.doClick();
-        showPositionIndicator("Opening Return Report");
-        SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        reportButton.setBackground(new Color(239, 68, 68));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateReturnReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
+        excelButton.setBackground(new Color(220, 38, 38));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportReturnsToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
+        this.requestFocusInWindow();
+    }
+
+    private void generateReturnReport() {
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Generate detailed return report?\n"
+                + "Note: This will create a printable report format.\n\n"
+                + "Click 'Yes' for report, 'No' for Excel export.",
+                "Generate Report",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+
+        if (choice == JOptionPane.YES_OPTION) {
+            showPositionIndicator("⚠️ Report generation feature not yet implemented");
+        } else {
+            exportReturnsToExcel();
+        }
+    }
+
+    private void exportReturnsToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("returns_report_" + FILENAME_DATE_FORMAT.format(new Date()) + ".xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File selectedFile = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!selectedFile.getAbsolutePath().endsWith(".xlsx")) {
+            selectedFile = new File(selectedFile.getAbsolutePath() + ".xlsx");
+        }
+
+        // Create final reference for use in SwingWorker
+        final File finalFileToSave = selectedFile;
+
+        SwingWorker<Void, String> worker = new SwingWorker<Void, String>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                publish("Preparing export...");
+
+                try {
+                    // Get current filters
+                    String searchText = jTextField1.getText().trim();
+                    String selectedPeriod = sortByDays.getSelectedItem().toString();
+                    String selectedReason = sortByReason.getSelectedItem().toString();
+
+                    // Fetch return data
+                    publish("Fetching return data...");
+                    List<ReturnDetailsDTO> returns = returnDAO.getReturnsWithFilters(searchText, selectedPeriod, selectedReason);
+
+                    if (returns.isEmpty()) {
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(ReturnPanel.this,
+                                    "No return data found for the selected filters.",
+                                    "No Data",
+                                    JOptionPane.WARNING_MESSAGE);
+                        });
+                        return null;
+                    }
+
+                    publish("Creating Excel file...");
+                    // Create Excel workbook
+                    Workbook workbook = new XSSFWorkbook();
+
+                    // ============================================
+                    // Sheet 1: Returns Summary
+                    // ============================================
+                    publish("Creating summary sheet...");
+                    Sheet summarySheet = workbook.createSheet("Returns Summary");
+
+                    // Create styles
+                    CellStyle headerStyle = createHeaderStyle(workbook);
+                    CellStyle titleStyle = createTitleStyle(workbook);
+                    CellStyle dataStyle = createDataStyle(workbook);
+                    CellStyle currencyStyle = createCurrencyStyle(workbook);
+                    CellStyle summaryStyle = createSummaryStyle(workbook);
+                    CellStyle dateStyle = createDateStyle(workbook);
+
+                    // Title row
+                    Row titleRow = summarySheet.createRow(0);
+                    Cell titleCell = titleRow.createCell(0);
+                    titleCell.setCellValue("RETURNS REPORT");
+                    titleCell.setCellStyle(titleStyle);
+                    summarySheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 4));
+
+                    // Report info
+                    Row infoRow = summarySheet.createRow(1);
+                    Cell infoCell = infoRow.createCell(0);
+                    infoCell.setCellValue("Generated: " + EXPORT_DATE_FORMAT.format(new Date()));
+                    infoCell.setCellStyle(dataStyle);
+                    summarySheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 4));
+
+                    // Filter info
+                    Row filterRow = summarySheet.createRow(2);
+                    String filterInfo = buildFilterInfo(searchText, selectedPeriod, selectedReason);
+                    Cell filterCell = filterRow.createCell(0);
+                    filterCell.setCellValue(filterInfo);
+                    filterCell.setCellStyle(dataStyle);
+                    summarySheet.addMergedRegion(new CellRangeAddress(2, 2, 0, 4));
+
+                    // Empty row
+                    summarySheet.createRow(3);
+
+                    // Summary header
+                    Row summaryHeaderRow = summarySheet.createRow(4);
+                    String[] summaryHeaders = {"Metric", "Value", "Details"};
+                    for (int i = 0; i < summaryHeaders.length; i++) {
+                        Cell cell = summaryHeaderRow.createCell(i);
+                        cell.setCellValue(summaryHeaders[i]);
+                        cell.setCellStyle(headerStyle);
+                    }
+
+                    // Calculate summary statistics
+                    publish("Calculating statistics...");
+                    Map<String, Object> summaryStats = calculateReturnSummaryStats(returns);
+
+                    // Summary data
+                    int summaryRowNum = 5;
+                    summaryRowNum = addSummaryRow(summarySheet, summaryRowNum, "Total Returns",
+                            String.valueOf(summaryStats.get("totalReturns")), "", summaryStyle, dataStyle);
+                    summaryRowNum = addSummaryRow(summarySheet, summaryRowNum, "Total Return Amount",
+                            String.format("Rs. %.2f", summaryStats.get("totalReturnAmount")), "Gross return amount", summaryStyle, currencyStyle);
+                    summaryRowNum = addSummaryRow(summarySheet, summaryRowNum, "Total Discounts",
+                            String.format("Rs. %.2f", summaryStats.get("totalDiscount")), "Return discounts", summaryStyle, currencyStyle);
+                    summaryRowNum = addSummaryRow(summarySheet, summaryRowNum, "Net Return Amount",
+                            String.format("Rs. %.2f", summaryStats.get("netReturnAmount")), "After all discounts", summaryStyle, currencyStyle);
+                    summaryRowNum = addSummaryRow(summarySheet, summaryRowNum, "Average Return Value",
+                            String.format("Rs. %.2f", summaryStats.get("avgReturn")), "Per return average", summaryStyle, currencyStyle);
+
+                    // Reason summary
+                    summaryRowNum++;
+                    Row reasonHeaderRow = summarySheet.createRow(summaryRowNum++);
+                    Cell reasonHeaderCell = reasonHeaderRow.createCell(0);
+                    reasonHeaderCell.setCellValue("Return Reasons Breakdown");
+                    reasonHeaderCell.setCellStyle(headerStyle);
+                    summarySheet.addMergedRegion(new CellRangeAddress(reasonHeaderRow.getRowNum(), reasonHeaderRow.getRowNum(), 0, 2));
+
+                    Map<String, Integer> returnReasons = (Map<String, Integer>) summaryStats.get("returnReasons");
+                    for (Map.Entry<String, Integer> entry : returnReasons.entrySet()) {
+                        summaryRowNum = addSummaryRow(summarySheet, summaryRowNum, entry.getKey(),
+                                entry.getValue() + " returns", "", dataStyle, dataStyle);
+                    }
+
+                    // Auto-size columns
+                    for (int i = 0; i < 3; i++) {
+                        summarySheet.autoSizeColumn(i);
+                    }
+
+                    // ============================================
+                    // Sheet 2: Detailed Returns
+                    // ============================================
+                    publish("Creating detailed returns sheet...");
+                    Sheet detailSheet = workbook.createSheet("Returns Details");
+
+                    // Detailed header row
+                    Row detailHeaderRow = detailSheet.createRow(0);
+                    String[] detailHeaders = {
+                        "Return ID", "Invoice No", "Date & Time", "Customer", "Payment Method",
+                        "Processed By", "Status", "Return Reason", "Return Amount", "Discount",
+                        "Original Total", "Items Count"
+                    };
+
+                    for (int i = 0; i < detailHeaders.length; i++) {
+                        Cell cell = detailHeaderRow.createCell(i);
+                        cell.setCellValue(detailHeaders[i]);
+                        cell.setCellStyle(headerStyle);
+                    }
+
+                    // Fill data rows
+                    int rowNum = 1;
+                    for (ReturnDetailsDTO returnData : returns) {
+                        publish("Processing return " + returnData.getInvoiceNo() + "...");
+                        Row row = detailSheet.createRow(rowNum++);
+
+                        // Return ID
+                        row.createCell(0).setCellValue(returnData.getReturnId());
+
+                        // Invoice No
+                        row.createCell(1).setCellValue(returnData.getInvoiceNo());
+
+                        // Date & Time
+                        Cell dateCell = row.createCell(2);
+                        if (returnData.getReturnDate() != null) {
+                            dateCell.setCellValue(returnData.getReturnDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+                        } else {
+                            dateCell.setCellValue("N/A");
+                        }
+                        dateCell.setCellStyle(dateStyle);
+
+                        // Customer
+                        row.createCell(3).setCellValue(returnData.getCustomerName() != null ? returnData.getCustomerName() : "Walk-in Customer");
+
+                        // Payment Method
+                        row.createCell(4).setCellValue(returnData.getPaymentMethod());
+
+                        // Processed By
+                        row.createCell(5).setCellValue(returnData.getProcessedBy());
+
+                        // Status
+                        row.createCell(6).setCellValue(returnData.getStatusName());
+
+                        // Return Reason
+                        row.createCell(7).setCellValue(returnData.getReturnReason());
+
+                        // Return Amount
+                        Cell returnAmtCell = row.createCell(8);
+                        returnAmtCell.setCellValue(returnData.getReturnAmount());
+                        returnAmtCell.setCellStyle(currencyStyle);
+
+                        // Discount
+                        Cell discountCell = row.createCell(9);
+                        discountCell.setCellValue(returnData.getDiscountPrice());
+                        discountCell.setCellStyle(currencyStyle);
+
+                        // Original Total
+                        Cell originalCell = row.createCell(10);
+                        originalCell.setCellValue(returnData.getOriginalTotal());
+                        originalCell.setCellStyle(currencyStyle);
+
+                        // Items Count
+                        List<ReturnItemDetailsDTO> items = returnItemDAO.getReturnItemDetails(returnData.getReturnId());
+                        row.createCell(11).setCellValue(items.size());
+                    }
+
+                    // Auto-size columns
+                    for (int i = 0; i < detailHeaders.length; i++) {
+                        detailSheet.autoSizeColumn(i);
+                    }
+
+                    // ============================================
+                    // Sheet 3: Return Items Details
+                    // ============================================
+                    publish("Creating return items details sheet...");
+                    Sheet itemsSheet = workbook.createSheet("Return Items Details");
+
+                    // Items header row
+                    Row itemsHeaderRow = itemsSheet.createRow(0);
+                    String[] itemHeaders = {
+                        "Return ID", "Invoice No", "Product Name", "Quantity", "Unit Price",
+                        "Item Discount", "Total Discount", "Net Price", "Line Total", "Batch No"
+                    };
+
+                    for (int i = 0; i < itemHeaders.length; i++) {
+                        Cell cell = itemsHeaderRow.createCell(i);
+                        cell.setCellValue(itemHeaders[i]);
+                        cell.setCellStyle(headerStyle);
+                    }
+
+                    // Fill items data
+                    int itemRowNum = 1;
+                    for (ReturnDetailsDTO returnData : returns) {
+                        List<ReturnItemDetailsDTO> items = returnItemDAO.getReturnItemDetails(returnData.getReturnId());
+
+                        for (ReturnItemDetailsDTO item : items) {
+                            Row row = itemsSheet.createRow(itemRowNum++);
+
+                            // Return ID
+                            row.createCell(0).setCellValue(returnData.getReturnId());
+
+                            // Invoice No
+                            row.createCell(1).setCellValue(returnData.getInvoiceNo());
+
+                            // Product Name
+                            row.createCell(2).setCellValue(item.getProductName());
+
+                            // Quantity
+                            row.createCell(3).setCellValue(Double.parseDouble(item.getQty()));
+
+                            // Unit Price
+                            Cell priceCell = row.createCell(4);
+                            priceCell.setCellValue(item.getPrice());
+                            priceCell.setCellStyle(currencyStyle);
+
+                            // Item Discount
+                            Cell discCell = row.createCell(5);
+                            discCell.setCellValue(item.getDiscountPrice());
+                            discCell.setCellStyle(currencyStyle);
+
+                            // Total Discount (item discount * quantity)
+                            Cell totalDiscCell = row.createCell(6);
+                            double quantity = Double.parseDouble(item.getQty());
+                            totalDiscCell.setCellValue(item.getDiscountPrice() * quantity);
+                            totalDiscCell.setCellStyle(currencyStyle);
+
+                            // Net Price (unit price - item discount)
+                            Cell netPriceCell = row.createCell(7);
+                            netPriceCell.setCellValue(item.getPrice() - item.getDiscountPrice());
+                            netPriceCell.setCellStyle(currencyStyle);
+
+                            // Line Total
+                            Cell lineTotalCell = row.createCell(8);
+                            lineTotalCell.setCellValue(item.getTotal());
+                            lineTotalCell.setCellStyle(currencyStyle);
+
+                            // Batch No
+                            row.createCell(9).setCellValue(item.getBatchNo() != null ? item.getBatchNo() : "");
+                        }
+                    }
+
+                    // Auto-size columns for items sheet
+                    for (int i = 0; i < itemHeaders.length; i++) {
+                        itemsSheet.autoSizeColumn(i);
+                    }
+
+                    // Write the output to file
+                    publish("Saving file...");
+                    try (FileOutputStream outputStream = new FileOutputStream(finalFileToSave)) {
+                        workbook.write(outputStream);
+                    }
+
+                    workbook.close();
+
+                    publish("✅ Export completed successfully!");
+
+                    // Show success message
+                    SwingUtilities.invokeLater(() -> {
+                        showPositionIndicator("✅ Excel file saved: " + finalFileToSave.getName());
+
+                        int openFile = JOptionPane.showConfirmDialog(ReturnPanel.this,
+                                "Excel file saved successfully!\nFile: " + finalFileToSave.getName()
+                                + "\n\nDo you want to open the file?",
+                                "Export Successful",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.INFORMATION_MESSAGE);
+
+                        if (openFile == JOptionPane.YES_OPTION) {
+                            if (Desktop.isDesktopSupported()) {
+                                try {
+                                    Desktop.getDesktop().open(finalFileToSave);
+                                } catch (Exception ex) {
+                                    JOptionPane.showMessageDialog(ReturnPanel.this,
+                                            "Cannot open file automatically. Please open it manually.",
+                                            "Info",
+                                            JOptionPane.INFORMATION_MESSAGE);
+                                }
+                            }
+                        }
+                    });
+
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() -> {
+                        e.printStackTrace();
+                        JOptionPane.showMessageDialog(ReturnPanel.this,
+                                "Error exporting to Excel: " + e.getMessage(),
+                                "Export Error",
+                                JOptionPane.ERROR_MESSAGE);
+                    });
+                }
+                return null;
+            }
+
+            @Override
+            protected void process(List<String> chunks) {
+                for (String message : chunks) {
+                    showPositionIndicator(message);
+                }
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+                } catch (Exception e) {
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    private CellStyle createHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.RED.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+        font.setFontHeightInPoints((short) 12);
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+
+    private CellStyle createTitleStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 16);
+        font.setColor(IndexedColors.RED.getIndex());
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        return style;
+    }
+
+    private CellStyle createDataStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private CellStyle createCurrencyStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00"));
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private CellStyle createSummaryStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.CORAL.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private CellStyle createDateStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setDataFormat(workbook.createDataFormat().getFormat("dd/mm/yyyy hh:mm"));
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private String buildFilterInfo(String searchText, String selectedPeriod, String selectedReason) {
+        StringBuilder filter = new StringBuilder();
+        filter.append("Period: ").append(selectedPeriod);
+
+        if (!selectedReason.equals("All Reasons")) {
+            filter.append(" | Reason: ").append(selectedReason);
+        }
+
+        if (!searchText.isEmpty()) {
+            filter.append(" | Search: '").append(searchText).append("'");
+        }
+
+        return filter.toString();
+    }
+
+    private Map<String, Object> calculateReturnSummaryStats(List<ReturnDetailsDTO> returns) {
+        Map<String, Object> stats = new HashMap<>();
+
+        int totalReturns = returns.size();
+        double totalReturnAmount = 0;
+        double totalDiscount = 0;
+        Map<String, Integer> returnReasons = new HashMap<>();
+
+        for (ReturnDetailsDTO returnData : returns) {
+            totalReturnAmount += returnData.getReturnAmount();
+            totalDiscount += returnData.getDiscountPrice();
+
+            String reason = returnData.getReturnReason();
+            returnReasons.put(reason, returnReasons.getOrDefault(reason, 0) + 1);
+        }
+
+        double netReturnAmount = totalReturnAmount - totalDiscount;
+        double avgReturn = totalReturns > 0 ? totalReturnAmount / totalReturns : 0;
+
+        stats.put("totalReturns", totalReturns);
+        stats.put("totalReturnAmount", totalReturnAmount);
+        stats.put("totalDiscount", totalDiscount);
+        stats.put("netReturnAmount", netReturnAmount);
+        stats.put("avgReturn", avgReturn);
+        stats.put("returnReasons", returnReasons);
+
+        return stats;
+    }
+
+    private int addSummaryRow(Sheet sheet, int rowNum, String label, String value, String details,
+            CellStyle labelStyle, CellStyle valueStyle) {
+        Row row = sheet.createRow(rowNum);
+
+        Cell labelCell = row.createCell(0);
+        labelCell.setCellValue(label);
+        labelCell.setCellStyle(labelStyle);
+
+        Cell valueCell = row.createCell(1);
+        valueCell.setCellValue(value);
+        valueCell.setCellStyle(valueStyle);
+
+        if (!details.isEmpty()) {
+            Cell detailsCell = row.createCell(2);
+            detailsCell.setCellValue(details);
+            detailsCell.setCellStyle(valueStyle);
+        }
+
+        return rowNum + 1;
     }
 
     private void setPeriod(int index) {
@@ -551,7 +1133,7 @@ public class ReturnPanel extends javax.swing.JPanel {
             this.requestFocusInWindow();
         }
     }
-    
+
     private void setupEventListeners() {
         this.addComponentListener(new ComponentAdapter() {
             @Override
@@ -563,10 +1145,10 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         });
-        
+
         searchTimer = new Timer(300, e -> handleSearch());
         searchTimer.setRepeats(false);
-        
+
         jTextField1.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void changedUpdate(javax.swing.event.DocumentEvent e) {
                 searchTimer.restart();
@@ -580,37 +1162,37 @@ public class ReturnPanel extends javax.swing.JPanel {
                 searchTimer.restart();
             }
         });
-        
+
         sortByDays.addActionListener(e -> {
             handleFilter();
             this.requestFocusInWindow();
         });
-        
+
         sortByReason.addActionListener(e -> {
             handleFilter();
             this.requestFocusInWindow();
         });
     }
-    
+
     private void handleSearch() {
         String searchText = jTextField1.getText().trim();
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         String selectedReason = sortByReason.getSelectedItem().toString();
         loadReturnData(searchText, selectedPeriod, selectedReason);
     }
-    
+
     private void handleFilter() {
         String searchText = jTextField1.getText().trim();
         String selectedPeriod = sortByDays.getSelectedItem().toString();
         String selectedReason = sortByReason.getSelectedItem().toString();
         loadReturnData(searchText, selectedPeriod, selectedReason);
     }
-    
+
     private void setupPanel() {
         jPanel2.setLayout(new BorderLayout());
         jPanel2.setBackground(new Color(248, 250, 252));
     }
-    
+
     private void adjustLayoutForWidth(int width) {
         if (width < 900) {
             jTextField1.setPreferredSize(new Dimension(width - 40, 50));
@@ -625,38 +1207,51 @@ public class ReturnPanel extends javax.swing.JPanel {
         revalidate();
         repaint();
     }
-    
+
     private void customizeComponents() {
         // Enhanced search field with FlatLaf styling
         jTextField1.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search by invoice number...");
-        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,             
+        jTextField1.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
                 new FlatSVGIcon("lk/com/pos/icon/search.svg", 16, 16));
         jTextField1.setToolTipText("Search returns (Ctrl+F or /) - Press ESC to clear all filters");
         jTextField1.setForeground(Color.GRAY);
-        
-        // Enhanced combo boxes with FlatLaf styling - UPDATED WITH 20 YEARS
+
+        // Enhanced combo boxes with FlatLaf styling
         sortByDays.setForeground(Color.GRAY);
         sortByDays.setModel(new DefaultComboBoxModel<>(new String[]{
-            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", 
+            "All Time", "Today", "Last 7 Days", "Last 30 Days", "Last 90 Days",
             "1 Year", "2 Years", "5 Years", "10 Years", "20 Years"
         }));
         sortByDays.setToolTipText("Filter by period (Alt+1 to Alt+0) - Press ESC to reset");
-        
+
         sortByReason.setForeground(Color.GRAY);
         sortByReason.setModel(new DefaultComboBoxModel<>(new String[]{
-            "All Reasons", "Damaged product", "Wrong item delivered", 
+            "All Reasons", "Damaged product", "Wrong item delivered",
             "Customer changed mind", "Expired product", "Incorrect size",
             "Product malfunction", "Packaging issue", "Defective item",
             "Late delivery", "Other"
         }));
         sortByReason.setToolTipText("Filter by reason (Shift+1 to Shift+0, Shift+-) - Press ESC to reset");
-        
-        // Button tooltips
+
+        // Button styling
         addProductDialog.setToolTipText("Return Product (Alt+A or Ctrl+N)");
-        returnReportDialogBtn.setToolTipText("Generate Return Report (Ctrl+P or Ctrl+R)");
-        
+        addProductDialog.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        addProductDialog.setForeground(Color.WHITE);
+        addProductDialog.setBackground(new Color(239, 68, 68));
+        addProductDialog.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        addProductDialog.setFocusPainted(false);
+        addProductDialog.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        returnReportDialogBtn.setToolTipText("Export Options (Ctrl+P or Ctrl+R)");
+        returnReportDialogBtn.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        returnReportDialogBtn.setForeground(Color.WHITE);
+        returnReportDialogBtn.setBackground(new Color(220, 38, 38));
+        returnReportDialogBtn.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        returnReportDialogBtn.setFocusPainted(false);
+        returnReportDialogBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
         roundedPanel1.setVisible(false);
-        
+
         // Enhanced scroll pane
         jScrollPane1.setBorder(null);
         jScrollPane1.getVerticalScrollBar().setUnitIncrement(20);
@@ -665,7 +1260,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 + "thumb: #EF4444;"
                 + "width: 8");
     }
-    
+
     private void clearReturnCards() {
         for (JPanel card : returnCardsList) {
             for (MouseListener ml : card.getMouseListeners()) {
@@ -676,27 +1271,27 @@ public class ReturnPanel extends javax.swing.JPanel {
         currentCardIndex = -1;
         currentFocusedCard = null;
     }
-    
+
     private void loadReturnData(String searchText, String period, String reason) {
         period = period.replace("", "").replace("", "")
-                      .replace("", "").replace("", "").replace("", "");
+                .replace("", "").replace("", "").replace("", "");
         reason = reason.replace("️", "").replace("", "").replace("", "")
-                      .replace("", "").replace("", "").replace("", "")
-                      .replace("", "").replace("", "").replace("", "")
-                      .replace("", "").replace("️", "");
-        
+                .replace("", "").replace("", "").replace("", "")
+                .replace("", "").replace("", "").replace("", "")
+                .replace("", "").replace("️", "");
+
         clearReturnCards();
-        
+
         String finalPeriod = period;
         String finalReason = reason;
         String finalSearchText = searchText;
-        
+
         SwingWorker<List<ReturnDetailsDTO>, Void> worker = new SwingWorker<>() {
             @Override
             protected List<ReturnDetailsDTO> doInBackground() throws Exception {
                 return returnDAO.getReturnsWithFilters(finalSearchText, finalPeriod, finalReason);
             }
-            
+
             @Override
             protected void done() {
                 try {
@@ -713,7 +1308,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
             }
         };
-        
+
         worker.execute();
     }
 
@@ -723,9 +1318,9 @@ public class ReturnPanel extends javax.swing.JPanel {
         returnsContainer.setBackground(new Color(248, 250, 252));
         returnsContainer.setOpaque(false);
         returnsContainer.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
+
         clearReturnCards();
-        
+
         if (returns.isEmpty()) {
             returnsContainer.add(createNoDataPanel());
         } else {
@@ -737,7 +1332,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                 returnCardsList.add(returnCard);
             }
         }
-        
+
         jPanel2.removeAll();
         JPanel wrapperPanel = new JPanel(new BorderLayout());
         wrapperPanel.setBackground(new Color(248, 250, 252));
@@ -746,35 +1341,35 @@ public class ReturnPanel extends javax.swing.JPanel {
         jPanel2.revalidate();
         jPanel2.repaint();
     }
-    
+
     private JPanel createNoDataPanel() {
         JPanel noDataPanel = new JPanel();
         noDataPanel.setLayout(new BoxLayout(noDataPanel, BoxLayout.Y_AXIS));
         noDataPanel.setBackground(new Color(248, 250, 252));
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 60)));
-        
+
         JLabel iconLabel = new JLabel("");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 64));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(iconLabel);
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 20)));
-        
+
         JLabel noDataLabel = new JLabel("No return records found");
         noDataLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 20));
         noDataLabel.setForeground(new Color(71, 85, 105));
         noDataLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(noDataLabel);
-        
+
         JLabel hintLabel = new JLabel("Try adjusting your search or filters to see more results");
         hintLabel.setFont(new Font("Nunito", Font.PLAIN, 15));
         hintLabel.setForeground(new Color(148, 163, 184));
         hintLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         noDataPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         noDataPanel.add(hintLabel);
-        
+
         return noDataPanel;
     }
-    
+
     private JPanel createErrorPanel(Exception e) {
         RoundedPanel errorPanel = new RoundedPanel();
         errorPanel.setBackgroundColor(new Color(254, 242, 242));
@@ -784,28 +1379,28 @@ public class ReturnPanel extends javax.swing.JPanel {
         errorPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
         errorPanel.setMaximumSize(new Dimension(500, 250));
         errorPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
+
         JLabel iconLabel = new JLabel("⚠️");
         iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(iconLabel);
         errorPanel.add(Box.createRigidArea(new Dimension(0, 16)));
-        
+
         JLabel errorLabel = new JLabel("Oops! Something went wrong");
         errorLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
         errorLabel.setForeground(new Color(220, 38, 38));
         errorLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(errorLabel);
-        
-        JLabel errorDetails = new JLabel("<html><div style='text-align: center;'>" + 
-                                        "We couldn't load the return data.<br>" +
-                                        "Please check your connection and try again.</div></html>");
+
+        JLabel errorDetails = new JLabel("<html><div style='text-align: center;'>"
+                + "We couldn't load the return data.<br>"
+                + "Please check your connection and try again.</div></html>");
         errorDetails.setFont(new Font("Nunito", Font.PLAIN, 14));
         errorDetails.setForeground(new Color(185, 28, 28));
         errorDetails.setAlignmentX(Component.CENTER_ALIGNMENT);
         errorPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         errorPanel.add(errorDetails);
-        
+
         JButton retryButton = new JButton("Retry");
         retryButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 14));
         retryButton.setForeground(Color.WHITE);
@@ -817,17 +1412,17 @@ public class ReturnPanel extends javax.swing.JPanel {
         retryButton.addActionListener(ev -> loadReturnData("", "All Time", "All Reasons"));
         errorPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         errorPanel.add(retryButton);
-        
+
         JPanel container = new JPanel();
         container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
         container.setBackground(new Color(248, 250, 252));
         container.add(Box.createVerticalGlue());
         container.add(errorPanel);
         container.add(Box.createVerticalGlue());
-        
+
         return container;
     }
-    
+
     private JPanel createReturnCard(ReturnDetailsDTO data) {
         RoundedPanel cardPanel = new RoundedPanel();
         cardPanel.setLayout(new BorderLayout(0, 0));
@@ -835,10 +1430,10 @@ public class ReturnPanel extends javax.swing.JPanel {
         cardPanel.setCornerRadius(20);
         cardPanel.setBorderThickness(0);
         cardPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-        
+
         cardPanel.setBorder(BorderFactory.createCompoundBorder(
-            new ShadowBorder(),
-            BorderFactory.createEmptyBorder(2, 2, 2, 2)
+                new ShadowBorder(),
+                BorderFactory.createEmptyBorder(2, 2, 2, 2)
         ));
 
         JPanel contentPanel = new JPanel(new BorderLayout(0, 0)) {
@@ -860,18 +1455,18 @@ public class ReturnPanel extends javax.swing.JPanel {
         contentPanel.setOpaque(false);
 
         JPanel headerPanel = createReturnHeader(
-            data.getInvoiceNo(), 
-            data.getCustomerName(), 
-            data.getPaymentMethod(), 
-            data.getReturnAmount(), 
-            data.getStatusName()
+                data.getInvoiceNo(),
+                data.getCustomerName(),
+                data.getPaymentMethod(),
+                data.getReturnAmount(),
+                data.getStatusName()
         );
         JPanel itemsPanel = createReturnItemsPanel(data.getReturnId());
         JPanel footerPanel = createReturnFooter(
-            data.getReturnDate(), 
-            data.getReturnReason(), 
-            data.getDiscountPrice(), 
-            data.getProcessedBy()
+                data.getReturnDate(),
+                data.getReturnReason(),
+                data.getDiscountPrice(),
+                data.getProcessedBy()
         );
 
         headerPanel.setOpaque(false);
@@ -886,18 +1481,19 @@ public class ReturnPanel extends javax.swing.JPanel {
 
         cardPanel.addMouseListener(new MouseAdapter() {
             private Timer hoverTimer;
-            
+
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (cardPanel != currentFocusedCard) {
                     hoverTimer = new Timer(10, new ActionListener() {
                         float alpha = 0f;
+
                         @Override
                         public void actionPerformed(ActionEvent evt) {
                             alpha += 0.1f;
                             if (alpha >= 1f) {
                                 alpha = 1f;
-                                ((Timer)evt.getSource()).stop();
+                                ((Timer) evt.getSource()).stop();
                             }
                             Color baseColor = new Color(245, 247, 250);
                             cardPanel.setBackground(baseColor);
@@ -909,10 +1505,12 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
                 cardPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
             }
-            
+
             @Override
             public void mouseExited(MouseEvent e) {
-                if (hoverTimer != null) hoverTimer.stop();
+                if (hoverTimer != null) {
+                    hoverTimer.stop();
+                }
                 if (cardPanel != currentFocusedCard) {
                     cardPanel.setBackground(Color.WHITE);
                     contentPanel.setBackground(Color.WHITE);
@@ -920,21 +1518,21 @@ public class ReturnPanel extends javax.swing.JPanel {
                 }
                 cardPanel.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             }
-            
+
             @Override
             public void mousePressed(MouseEvent e) {
                 cardPanel.setBackground(new Color(241, 245, 249));
                 contentPanel.setBackground(new Color(241, 245, 249));
                 cardPanel.repaint();
             }
-            
+
             @Override
             public void mouseReleased(MouseEvent e) {
                 cardPanel.setBackground(new Color(248, 250, 252));
                 contentPanel.setBackground(new Color(248, 250, 252));
                 cardPanel.repaint();
             }
-            
+
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (currentFocusedCard != null && currentFocusedCard != cardPanel) {
@@ -943,7 +1541,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                         deselectCard(oldIndex);
                     }
                 }
-                
+
                 currentCardIndex = returnCardsList.indexOf(cardPanel);
                 selectCurrentCard();
                 ReturnPanel.this.requestFocusInWindow();
@@ -953,8 +1551,8 @@ public class ReturnPanel extends javax.swing.JPanel {
         return cardPanel;
     }
 
-    private JPanel createReturnHeader(String invoiceNo, String customerName, String paymentMethod, 
-                                     double returnAmount, String statusName) {
+    private JPanel createReturnHeader(String invoiceNo, String customerName, String paymentMethod,
+            double returnAmount, String statusName) {
         JPanel headerPanel = new JPanel();
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
         headerPanel.setOpaque(false);
@@ -993,7 +1591,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
         rightPanel.setOpaque(false);
         rightPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-        
+
         JLabel totalLabel = new JLabel(String.format("Rs.%.2f", returnAmount));
         totalLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 24));
         totalLabel.setForeground(new Color(239, 68, 68));
@@ -1014,7 +1612,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         iconLabel.setMinimumSize(new Dimension(40, 40));
         iconLabel.setMaximumSize(new Dimension(40, 40));
         iconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 12));
-        
+
         try {
             FlatSVGIcon icon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 28, 28);
             icon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.RED));
@@ -1037,12 +1635,12 @@ public class ReturnPanel extends javax.swing.JPanel {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
-        
+
         JLabel itemsHeader = new JLabel("RETURNED ITEMS");
         itemsHeader.setFont(new Font("Nunito ExtraBold", Font.BOLD, 12));
         itemsHeader.setForeground(new Color(71, 85, 105));
         itemsHeader.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
-        
+
         headerPanel.add(itemsHeader, BorderLayout.WEST);
 
         RoundedPanel itemsContainer = new RoundedPanel();
@@ -1063,7 +1661,7 @@ public class ReturnPanel extends javax.swing.JPanel {
     private void loadReturnItems(JPanel itemsListPanel, int returnId) {
         try {
             List<ReturnItemDetailsDTO> items = returnItemDAO.getReturnItemDetails(returnId);
-            
+
             if (items.isEmpty()) {
                 JLabel noItemsLabel = new JLabel("No items in this return");
                 noItemsLabel.setFont(new Font("Nunito SemiBold", Font.ITALIC, 13));
@@ -1075,7 +1673,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                     ReturnItemDetailsDTO item = items.get(i);
                     JPanel itemCard = createReturnItemCard(item);
                     itemsListPanel.add(itemCard);
-                    
+
                     if (i < items.size() - 1) {
                         JSeparator separator = new JSeparator();
                         separator.setForeground(new Color(229, 231, 235));
@@ -1085,7 +1683,7 @@ public class ReturnPanel extends javax.swing.JPanel {
                     }
                 }
             }
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             JLabel errorLabel = new JLabel("Error loading items");
@@ -1145,7 +1743,7 @@ public class ReturnPanel extends javax.swing.JPanel {
         leftPanel.add(productLabel);
         leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         leftPanel.add(detailsPanel);
-        
+
         if (extraInfoPanel.getComponentCount() > 0) {
             leftPanel.add(Box.createRigidArea(new Dimension(0, 4)));
             leftPanel.add(extraInfoPanel);
@@ -1161,8 +1759,8 @@ public class ReturnPanel extends javax.swing.JPanel {
         return itemPanel;
     }
 
-    private JPanel createReturnFooter(LocalDateTime returnDate, String returnReason, 
-                                     double discountPrice, String processedBy) {
+    private JPanel createReturnFooter(LocalDateTime returnDate, String returnReason,
+            double discountPrice, String processedBy) {
         JPanel footerPanel = new JPanel();
         footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
         footerPanel.setOpaque(false);
@@ -1176,32 +1774,32 @@ public class ReturnPanel extends javax.swing.JPanel {
         reasonPanel.setBorderThickness(0);
         reasonPanel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
         reasonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
-        
+
         JLabel reasonIcon = new JLabel(getReasonEmoji(returnReason));
         reasonIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
         reasonIcon.setVerticalAlignment(SwingConstants.TOP);
-        
+
         JPanel reasonTextPanel = new JPanel();
         reasonTextPanel.setLayout(new BoxLayout(reasonTextPanel, BoxLayout.Y_AXIS));
         reasonTextPanel.setOpaque(false);
-        
+
         JLabel reasonLabel = new JLabel("RETURN REASON");
         reasonLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 10));
         reasonLabel.setForeground(new Color(146, 64, 14));
         reasonLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         JLabel reasonValue = new JLabel(returnReason != null ? returnReason : "Not specified");
         reasonValue.setFont(new Font("Nunito SemiBold", Font.PLAIN, 14));
         reasonValue.setForeground(new Color(71, 85, 105));
         reasonValue.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         reasonTextPanel.add(reasonLabel);
         reasonTextPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         reasonTextPanel.add(reasonValue);
-        
+
         reasonPanel.add(reasonIcon, BorderLayout.WEST);
         reasonPanel.add(reasonTextPanel, BorderLayout.CENTER);
-        
+
         footerPanel.add(reasonPanel);
         footerPanel.add(Box.createRigidArea(new Dimension(0, 16)));
 
@@ -1214,15 +1812,15 @@ public class ReturnPanel extends javax.swing.JPanel {
         datePanel.setLayout(new BoxLayout(datePanel, BoxLayout.X_AXIS));
         datePanel.setOpaque(false);
         datePanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-        
+
         JLabel dateIcon = new JLabel("📅");
         dateIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
         dateIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-        
+
         JLabel dateLabel = new JLabel(formatDateTime(returnDate));
         dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         dateLabel.setForeground(new Color(100, 116, 139));
-        
+
         datePanel.add(dateIcon);
         datePanel.add(dateLabel);
 
@@ -1230,19 +1828,19 @@ public class ReturnPanel extends javax.swing.JPanel {
         processedByPanel.setLayout(new BoxLayout(processedByPanel, BoxLayout.X_AXIS));
         processedByPanel.setOpaque(false);
         processedByPanel.setAlignmentY(Component.CENTER_ALIGNMENT);
-        
+
         JLabel userIcon = new JLabel("👤");
         userIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
         userIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
-        
+
         JLabel processedText = new JLabel("Processed by: ");
         processedText.setFont(new Font("Nunito SemiBold", Font.PLAIN, 13));
         processedText.setForeground(new Color(100, 116, 139));
-        
+
         JLabel processedValue = new JLabel(processedBy != null ? processedBy : "Unknown");
         processedValue.setFont(new Font("Nunito ExtraBold", Font.BOLD, 13));
         processedValue.setForeground(new Color(30, 41, 59));
-        
+
         processedByPanel.add(userIcon);
         processedByPanel.add(processedText);
         processedByPanel.add(processedValue);
@@ -1257,78 +1855,103 @@ public class ReturnPanel extends javax.swing.JPanel {
     }
 
     private String getReasonEmoji(String reason) {
-        if (reason == null) return "️";
+        if (reason == null) {
+            return "️";
+        }
         String r = reason.toLowerCase();
-        if (r.contains("damaged")) return "️";
-        if (r.contains("wrong")) return "";
-        if (r.contains("changed mind")) return "";
-        if (r.contains("expired")) return "";
-        if (r.contains("size")) return "";
-        if (r.contains("malfunction")) return "";
-        if (r.contains("packaging")) return "";
-        if (r.contains("defective")) return "";
-        if (r.contains("late") || r.contains("delivery")) return "";
+        if (r.contains("damaged")) {
+            return "️";
+        }
+        if (r.contains("wrong")) {
+            return "";
+        }
+        if (r.contains("changed mind")) {
+            return "";
+        }
+        if (r.contains("expired")) {
+            return "";
+        }
+        if (r.contains("size")) {
+            return "";
+        }
+        if (r.contains("malfunction")) {
+            return "";
+        }
+        if (r.contains("packaging")) {
+            return "";
+        }
+        if (r.contains("defective")) {
+            return "";
+        }
+        if (r.contains("late") || r.contains("delivery")) {
+            return "";
+        }
         return "ℹ️";
     }
 
     private String formatDateTime(LocalDateTime datetime) {
-        if (datetime == null) return "Unknown Date";
+        if (datetime == null) {
+            return "Unknown Date";
+        }
         try {
             return datetime.format(displayFormatter);
         } catch (Exception e) {
             return datetime.toString();
         }
     }
-    
+
     // Custom border classes
     static class RoundBorder extends AbstractBorder {
+
         private Color color;
         private int thickness;
         private int radius;
-        
+
         RoundBorder(Color color, int thickness, int radius) {
             this.color = color;
             this.thickness = thickness;
             this.radius = radius;
         }
-        
+
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setColor(color);
             g2d.setStroke(new BasicStroke(thickness));
-            g2d.drawRoundRect(x + thickness/2, y + thickness/2, 
-                             width - thickness, height - thickness, 
-                             radius, radius);
+            g2d.drawRoundRect(x + thickness / 2, y + thickness / 2,
+                    width - thickness, height - thickness,
+                    radius, radius);
             g2d.dispose();
         }
-        
+
         @Override
         public Insets getBorderInsets(Component c) {
             return new Insets(thickness, thickness, thickness, thickness);
         }
     }
-    
+
     static class ShadowBorder extends AbstractBorder {
+
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            
+
             for (int i = 0; i < 4; i++) {
                 g2d.setColor(new Color(0, 0, 0, 5 - i));
-                g2d.drawRoundRect(x + i, y + i, width - 2*i - 1, height - 2*i - 1, 20, 20);
+                g2d.drawRoundRect(x + i, y + i, width - 2 * i - 1, height - 2 * i - 1, 20, 20);
             }
-            
+
             g2d.dispose();
         }
-        
+
         @Override
         public Insets getBorderInsets(Component c) {
             return new Insets(4, 4, 4, 4);
         }
     }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -1658,11 +2281,11 @@ public class ReturnPanel extends javax.swing.JPanel {
         exchangeProductProductDialog.setLocationRelativeTo(null);
         exchangeProductProductDialog.setVisible(true);
         handleFilter();
-        
+
     }//GEN-LAST:event_addProductDialogActionPerformed
 
     private void returnReportDialogBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_returnReportDialogBtnActionPerformed
-        // TODO add your handling code here:
+        showExportOptions();
     }//GEN-LAST:event_returnReportDialogBtnActionPerformed
 
 

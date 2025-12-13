@@ -1,5 +1,11 @@
 package lk.com.pos.panel;
 
+import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.view.JasperViewer;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.dao.CustomerDAO;
@@ -22,9 +28,15 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -38,19 +50,27 @@ import javax.swing.SwingWorker;
 import javax.swing.JOptionPane;
 import javax.swing.BoxLayout;
 import javax.swing.Box;
+import javax.swing.JDialog;
+import javax.swing.JEditorPane;
+import javax.swing.JFileChooser;
+import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
+import javax.swing.border.AbstractBorder;
 import lk.com.pos.dialog.AddNewCustomer;
 import lk.com.pos.dialog.CreditView;
 import lk.com.pos.dialog.UpdateCustomer;
+import java.io.InputStream;
 
 /**
  * CustomerPanel - Displays and manages customer information with credit details
- * Features: Search, filters, keyboard navigation, credit tracking
- * 
- * Updated to use CustomerDAO and CustomerDTO with new database connection
+ * Features: Search, filters, keyboard navigation, credit tracking, report
+ * generation
+ *
+ * Updated to use CustomerDAO and CustomerDTO with new database connection Added
+ * report and export functionality exactly like ChequePanel
  *
  * @author Your Name
- * @version 3.0
+ * @version 4.0
  */
 public class CustomerPanel extends javax.swing.JPanel {
 
@@ -58,6 +78,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
+    private static final SimpleDateFormat REPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy");
 
     // UI Constants - Colors
     private static final class Colors {
@@ -178,30 +199,30 @@ public class CustomerPanel extends javax.swing.JPanel {
     private CustomerDAO customerDAO;
 
     public CustomerPanel() {
-    initComponents();
-    initializeUI();
-    createPositionIndicator();
-    createKeyboardHintsPanel();
-    createLoadingPanel();
-    setupKeyboardShortcuts();
-    
-    // Initialize DAO with error handling
-    try {
-        customerDAO = new CustomerDAO();
-        loadCustomers();
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this,
-            "Failed to initialize database connection: " + e.getMessage(),
-            "Database Error",
-            JOptionPane.ERROR_MESSAGE);
-        System.err.println("Database initialization error: " + e.getMessage());
-    }
+        initComponents();
+        initializeUI();
+        createPositionIndicator();
+        createKeyboardHintsPanel();
+        createLoadingPanel();
+        setupKeyboardShortcuts();
 
-    SwingUtilities.invokeLater(() -> {
-        this.requestFocusInWindow();
-        showKeyboardHints();
-    });
-}
+        // Initialize DAO with error handling
+        try {
+            customerDAO = new CustomerDAO();
+            loadCustomers();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Failed to initialize database connection: " + e.getMessage(),
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
+            System.err.println("Database initialization error: " + e.getMessage());
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            this.requestFocusInWindow();
+            showKeyboardHints();
+        });
+    }
 
     /**
      * Initializes UI components and settings
@@ -279,6 +300,192 @@ public class CustomerPanel extends javax.swing.JPanel {
         // Remove text from buttons
         addNewCoustomerBtn.setText("");
         customerReportBtn.setText("");
+    }
+
+    private void setupAddNewCustomerButton() {
+        addNewCoustomerBtn.setPreferredSize(new Dimension(47, 47));
+        addNewCoustomerBtn.setMinimumSize(new Dimension(47, 47));
+        addNewCoustomerBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        addNewCoustomerBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        addNewCoustomerBtn.setForeground(Colors.TEAL_PRIMARY);
+
+        // Remove text
+        addNewCoustomerBtn.setText("");
+
+        // Set border with teal color
+        addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        addNewCoustomerBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        addNewCoustomerBtn.setFocusPainted(false);
+
+        // Set icon with teal color
+        try {
+            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+            // Apply teal color filter to the icon
+            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
+            addNewCoustomerBtn.setIcon(addIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading add icon: " + e.getMessage());
+        }
+
+        // Set tooltip
+        addNewCoustomerBtn.setToolTipText("Add New Customer");
+
+        // Add hover effects
+        addNewCoustomerBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY);
+                addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Colors.TEAL_HOVER, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    addNewCoustomerBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show it's clickable
+                addNewCoustomerBtn.setToolTipText("Add New Customer (Ctrl+N or Alt+A)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to teal
+                try {
+                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
+                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
+                    addNewCoustomerBtn.setIcon(addIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading add icon: " + e.getMessage());
+                }
+
+                // Reset tooltip
+                addNewCoustomerBtn.setToolTipText("Add New Customer");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY.darker());
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY);
+            }
+        });
+    }
+
+    private void setupExportButton() {
+        customerReportBtn.setPreferredSize(new Dimension(47, 47));
+        customerReportBtn.setMinimumSize(new Dimension(47, 47));
+        customerReportBtn.setMaximumSize(new Dimension(47, 47));
+
+        // Set initial state - transparent background with border
+        customerReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+        customerReportBtn.setForeground(Color.decode("#10B981"));
+
+        // Remove text
+        customerReportBtn.setText("");
+
+        // Set border with green color
+        customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        // Set cursor
+        customerReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Remove focus painting
+        customerReportBtn.setFocusPainted(false);
+
+        // Set icon with green color
+        try {
+            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+            // Apply green color filter to the icon
+            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+            customerReportBtn.setIcon(printIcon);
+        } catch (Exception e) {
+            System.err.println("Error loading print icon: " + e.getMessage());
+        }
+
+        // Set tooltip
+        customerReportBtn.setToolTipText("Export Customer Report");
+
+        // Add hover effects
+        customerReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(Color.decode("#10B981"));
+                customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon to white on hover
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
+                    customerReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Update tooltip to show it's clickable
+                customerReportBtn.setToolTipText("Export Customer Report (Ctrl+R or Ctrl+P)");
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
+                customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
+                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                ));
+
+                // Change icon back to green
+                try {
+                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
+                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
+                    customerReportBtn.setIcon(printIcon);
+                } catch (Exception e) {
+                    System.err.println("Error loading print icon: " + e.getMessage());
+                }
+
+                // Reset tooltip
+                customerReportBtn.setToolTipText("Export Customer Report");
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(Color.decode("#059669"));
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                customerReportBtn.setBackground(Color.decode("#10B981"));
+            }
+        });
     }
 
     /**
@@ -1069,8 +1276,8 @@ public class CustomerPanel extends javax.swing.JPanel {
      * Opens customer report
      */
     private void openCustomerReport() {
-        customerReportBtn.doClick();
-        showPositionIndicator("📊 Opening Customer Report");
+        showExportOptions();
+        showPositionIndicator("📊 Opening Customer Report Options");
     }
 
     /**
@@ -1104,6 +1311,440 @@ public class CustomerPanel extends javax.swing.JPanel {
         }
         performSearch();
         this.requestFocusInWindow();
+    }
+
+    /**
+     * Shows export options dialog
+     */
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        reportButton.setBackground(new Color(28, 181, 187));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateCustomerReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        excelButton.setBackground(new Color(16, 185, 129));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportCustomerToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
+    }
+
+    /**
+     * Generates customer report using JasperReports
+     */
+    private void generateCustomerReport() {
+        try {
+            // Set font properties to prevent font errors
+            System.setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+            System.setProperty("net.sf.jasperreports.default.font.name", "Arial");
+            System.setProperty("net.sf.jasperreports.default.pdf.font.name", "Helvetica");
+
+            // Get current filters
+            String searchText = getSearchText();
+            boolean missedDueDateOnly = jRadioButton1.isSelected();
+            boolean noDueOnly = jRadioButton2.isSelected();
+            boolean dueAmountOnly = jRadioButton4.isSelected();
+
+            // Fetch customer data
+            List<CustomerDTO> customers = customerDAO.searchCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+
+            if (customers.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No customers found for the selected filters.",
+                        "No Data", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create a list of maps for the report data - MATCHING JRXML FIELD NAMES
+            List<Map<String, Object>> reportData = new ArrayList<>();
+            double totalCredit = 0;
+            double totalPaid = 0;
+            double totalOutstanding = 0;
+
+            for (CustomerDTO customer : customers) {
+                Map<String, Object> row = new HashMap<>();
+                
+                // Match the exact field names from the JRXML
+                row.put("nicNo", customer.getNic() != null ? customer.getNic() : "N/A");
+                row.put("name", customer.getCustomerName());
+                row.put("address", customer.getAddress() != null ? customer.getAddress() : "N/A");
+                row.put("dueDate", customer.getLatestDueDate() != null ? 
+                        formatReportDate(customer.getLatestDueDate()) : "N/A");
+                row.put("phoneNo", formatPhoneNumber(customer.getPhone()));
+                row.put("amountDue", formatAmount(customer.getTotalCreditAmount()));
+                row.put("outStanding", formatAmount(customer.getTotalCreditAmount() - customer.getTotalPaid()));
+                
+                reportData.add(row);
+
+                // Calculate totals
+                totalCredit += customer.getTotalCreditAmount();
+                totalPaid += customer.getTotalPaid();
+                totalOutstanding += (customer.getTotalCreditAmount() - customer.getTotalPaid());
+            }
+
+            // Prepare parameters for the report
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("reportTitle", "Customer Report");
+            parameters.put("generatedDate", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+            parameters.put("totalCustomers", customers.size());
+            parameters.put("totalCredit", formatAmount(totalCredit));
+            parameters.put("totalPaid", formatAmount(totalPaid));
+            parameters.put("totalOutstanding", formatAmount(totalOutstanding));
+            parameters.put("filterInfo", getCustomerFilterInfo(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly));
+            
+            // Set default font parameters
+            parameters.put("REPORT_FONT", "Arial");
+            parameters.put("REPORT_PDF_FONT", "Helvetica");
+
+            // Load the JRXML template from classpath
+            InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/customerReport.jrxml");
+            
+            if (jrxmlStream == null) {
+                // Try alternative path
+                jrxmlStream = getClass().getClassLoader().getResourceAsStream("lk/com/pos/reports/customerReport.jrxml");
+                if (jrxmlStream == null) {
+                    JOptionPane.showMessageDialog(this,
+                            "Report template not found. Please ensure customerReport.jrxml is in the classpath.",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
+            // Compile and fill the report
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+            JRDataSource dataSource = new JRBeanCollectionDataSource(reportData);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+
+            // Display the report
+            JasperViewer.viewReport(jasperPrint, false);
+
+            showPositionIndicator("✅ Customer report generated successfully");
+
+        } catch (JRException e) {
+            e.printStackTrace();
+            
+            // Try with simplified font settings
+            try {
+                generateCustomerReportWithSimpleFont();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Error generating report: " + e.getMessage(),
+                        "Report Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error: " + e.getMessage(),
+                    "Report Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Fallback method for report generation with simple fonts
+     */
+    private void generateCustomerReportWithSimpleFont() throws Exception {
+        JOptionPane.showMessageDialog(this,
+                "Creating a simple report with default fonts...",
+                "Info",
+                JOptionPane.INFORMATION_MESSAGE);
+
+        // Create a simple HTML report as fallback
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><title>Customer Report</title></head><body>");
+        html.append("<h1>Customer Report</h1>");
+        html.append("<p>Generated: ").append(new java.util.Date()).append("</p>");
+
+        // Get current filters
+        String searchText = getSearchText();
+        boolean missedDueDateOnly = jRadioButton1.isSelected();
+        boolean noDueOnly = jRadioButton2.isSelected();
+        boolean dueAmountOnly = jRadioButton4.isSelected();
+
+        // Fetch customer data
+        List<CustomerDTO> customers = customerDAO.searchCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+
+        if (customers.isEmpty()) {
+            html.append("<p>No customers found.</p>");
+        } else {
+            html.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
+            html.append("<tr><th>Name</th><th>Phone</th><th>NIC</th><th>Due Date</th><th>Address</th><th>Amount Due</th><th>Outstanding</th></tr>");
+
+            double totalCredit = 0;
+            double totalPaid = 0;
+            double totalOutstanding = 0;
+
+            for (CustomerDTO customer : customers) {
+                double outstanding = customer.getTotalCreditAmount() - customer.getTotalPaid();
+                html.append("<tr>");
+                html.append("<td>").append(customer.getCustomerName()).append("</td>");
+                html.append("<td>").append(formatPhoneNumber(customer.getPhone())).append("</td>");
+                html.append("<td>").append(customer.getNic()).append("</td>");
+                html.append("<td>").append(formatReportDate(customer.getLatestDueDate())).append("</td>");
+                html.append("<td>").append(customer.getAddress() != null ? customer.getAddress() : "N/A").append("</td>");
+                html.append("<td>").append(formatAmount(customer.getTotalCreditAmount())).append("</td>");
+                html.append("<td>").append(formatAmount(outstanding)).append("</td>");
+                html.append("</tr>");
+
+                totalCredit += customer.getTotalCreditAmount();
+                totalPaid += customer.getTotalPaid();
+                totalOutstanding += outstanding;
+            }
+
+            html.append("</table>");
+            html.append("<p><strong>Total Customers: ").append(customers.size()).append("</strong></p>");
+            html.append("<p><strong>Total Credit Amount: ").append(formatAmount(totalCredit)).append("</strong></p>");
+            html.append("<p><strong>Total Paid: ").append(formatAmount(totalPaid)).append("</strong></p>");
+            html.append("<p><strong>Total Outstanding: ").append(formatAmount(totalOutstanding)).append("</strong></p>");
+        }
+
+        html.append("</body></html>");
+
+        // Display HTML in a dialog
+        JEditorPane editorPane = new JEditorPane("text/html", html.toString());
+        editorPane.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(800, 600));
+
+        JDialog htmlDialog = new JDialog();
+        htmlDialog.setTitle("Customer Report - Simple View");
+        htmlDialog.setModal(true);
+        htmlDialog.add(scrollPane);
+        htmlDialog.pack();
+        htmlDialog.setLocationRelativeTo(this);
+        htmlDialog.setVisible(true);
+
+        showPositionIndicator("✅ Simple customer report generated");
+    }
+
+    /**
+     * Formats date for report
+     */
+    private String formatReportDate(Date date) {
+        if (date == null) {
+            return "N/A";
+        }
+        try {
+            return new SimpleDateFormat("dd/MM/yyyy").format(date);
+        } catch (Exception e) {
+            return "Invalid Date";
+        }
+    }
+
+    /**
+     * Formats amount for display
+     */
+    private String formatAmount(double amount) {
+        return String.format("Rs. %.2f", amount);
+    }
+
+    /**
+     * Gets filter info for report
+     */
+    private String getCustomerFilterInfo(String searchText, boolean missedDueDateOnly,
+            boolean noDueOnly, boolean dueAmountOnly) {
+        StringBuilder filter = new StringBuilder();
+        
+        if (!searchText.isEmpty()) {
+            filter.append("Search: '").append(searchText).append("' | ");
+        }
+        
+        if (missedDueDateOnly) {
+            filter.append("Filter: Missed Due Date");
+        } else if (noDueOnly) {
+            filter.append("Filter: No Due");
+        } else if (dueAmountOnly) {
+            filter.append("Filter: Due Amount");
+        } else {
+            filter.append("Filter: All Customers");
+        }
+        
+        return filter.toString();
+    }
+
+    /**
+     * Exports customer data to Excel
+     */
+    private void exportCustomerToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("customer_report.xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!fileToSave.getAbsolutePath().endsWith(".xlsx")) {
+            fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
+        }
+
+        try {
+            // Get current filters
+            String searchText = getSearchText();
+            boolean missedDueDateOnly = jRadioButton1.isSelected();
+            boolean noDueOnly = jRadioButton2.isSelected();
+            boolean dueAmountOnly = jRadioButton4.isSelected();
+
+            // Fetch customer data
+            List<CustomerDTO> customers = customerDAO.searchCustomers(searchText, missedDueDateOnly, noDueOnly, dueAmountOnly);
+
+            if (customers.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No customers found for the selected filters.",
+                        "No Data", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create Excel workbook
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Customer Report");
+
+            // Create header style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Name", "Phone No", "NIC No", "Due Date",
+                "Address", "Amount Due", "Paid Amount", "Outstanding", "Status"};
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Fill data rows
+            int rowNum = 1;
+            double totalCredit = 0;
+            double totalPaid = 0;
+            double totalOutstanding = 0;
+
+            for (CustomerDTO customer : customers) {
+                double outstanding = customer.getTotalCreditAmount() - customer.getTotalPaid();
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0).setCellValue(customer.getCustomerName());
+                row.createCell(1).setCellValue(formatPhoneNumber(customer.getPhone()));
+                row.createCell(2).setCellValue(customer.getNic());
+                row.createCell(3).setCellValue(formatReportDate(customer.getLatestDueDate()));
+                row.createCell(4).setCellValue(customer.getAddress() != null ? customer.getAddress() : "N/A");
+                row.createCell(5).setCellValue(customer.getTotalCreditAmount());
+                row.createCell(6).setCellValue(customer.getTotalPaid());
+                row.createCell(7).setCellValue(outstanding);
+                row.createCell(8).setCellValue(customer.getStatus());
+
+                // Update totals
+                totalCredit += customer.getTotalCreditAmount();
+                totalPaid += customer.getTotalPaid();
+                totalOutstanding += outstanding;
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Add summary rows
+            int summaryRowNum = rowNum + 2;
+
+            Row summaryHeader = sheet.createRow(summaryRowNum++);
+            Cell summaryCell = summaryHeader.createCell(0);
+            summaryCell.setCellValue("SUMMARY");
+            summaryCell.setCellStyle(headerStyle);
+
+            Row totalCustomersRow = sheet.createRow(summaryRowNum++);
+            totalCustomersRow.createCell(0).setCellValue("Total Customers:");
+            totalCustomersRow.createCell(1).setCellValue(customers.size());
+
+            Row totalCreditRow = sheet.createRow(summaryRowNum++);
+            totalCreditRow.createCell(0).setCellValue("Total Credit Amount:");
+            totalCreditRow.createCell(1).setCellValue(totalCredit);
+
+            Row totalPaidRow = sheet.createRow(summaryRowNum++);
+            totalPaidRow.createCell(0).setCellValue("Total Paid Amount:");
+            totalPaidRow.createCell(1).setCellValue(totalPaid);
+
+            Row totalOutstandingRow = sheet.createRow(summaryRowNum++);
+            totalOutstandingRow.createCell(0).setCellValue("Total Outstanding:");
+            totalOutstandingRow.createCell(1).setCellValue(totalOutstanding);
+
+            // Write the output to file
+            try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                workbook.write(outputStream);
+            }
+
+            workbook.close();
+
+            showPositionIndicator("✅ Excel file saved: " + fileToSave.getName());
+
+            // Ask if user wants to open the file
+            int openFile = JOptionPane.showConfirmDialog(this,
+                    "Excel file saved successfully!\nDo you want to open it?",
+                    "Success",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (openFile == JOptionPane.YES_OPTION) {
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop.getDesktop().open(fileToSave);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error exporting to Excel: " + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**
@@ -1340,7 +1981,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     /**
      * Custom Rounded Border Class
      */
-    class RoundedBorder extends javax.swing.border.AbstractBorder {
+    class RoundedBorder extends AbstractBorder {
 
         private final Color color;
         private final int thickness;
@@ -1843,192 +2484,6 @@ public class CustomerPanel extends javax.swing.JPanel {
         return btn;
     }
 
-    private void setupAddNewCustomerButton() {
-        addNewCoustomerBtn.setPreferredSize(new Dimension(47, 47));
-        addNewCoustomerBtn.setMinimumSize(new Dimension(47, 47));
-        addNewCoustomerBtn.setMaximumSize(new Dimension(47, 47));
-
-        // Set initial state - transparent background with border
-        addNewCoustomerBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
-        addNewCoustomerBtn.setForeground(Colors.TEAL_PRIMARY);
-
-        // Remove text
-        addNewCoustomerBtn.setText("");
-
-        // Set border with teal color
-        addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        // Set cursor
-        addNewCoustomerBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Remove focus painting
-        addNewCoustomerBtn.setFocusPainted(false);
-
-        // Set icon with teal color
-        try {
-            FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-            // Apply teal color filter to the icon
-            addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
-            addNewCoustomerBtn.setIcon(addIcon);
-        } catch (Exception e) {
-            System.err.println("Error loading add icon: " + e.getMessage());
-        }
-
-        // Set tooltip
-        addNewCoustomerBtn.setToolTipText("Add New Customer");
-
-        // Add hover effects
-        addNewCoustomerBtn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY);
-                addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Colors.TEAL_HOVER, 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon to white on hover
-                try {
-                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
-                    addNewCoustomerBtn.setIcon(addIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading add icon: " + e.getMessage());
-                }
-
-                // Update tooltip to show it's clickable
-                addNewCoustomerBtn.setToolTipText("Add New Customer (Ctrl+N or Alt+A)");
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                addNewCoustomerBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
-                addNewCoustomerBtn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Colors.TEAL_PRIMARY, 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon back to teal
-                try {
-                    FlatSVGIcon addIcon = new FlatSVGIcon("lk/com/pos/icon/add.svg", 24, 24);
-                    addIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Colors.TEAL_PRIMARY));
-                    addNewCoustomerBtn.setIcon(addIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading add icon: " + e.getMessage());
-                }
-
-                // Reset tooltip
-                addNewCoustomerBtn.setToolTipText("Add New Customer");
-            }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY.darker());
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                addNewCoustomerBtn.setBackground(Colors.TEAL_PRIMARY);
-            }
-        });
-    }
-
-    private void setupExportButton() {
-        customerReportBtn.setPreferredSize(new Dimension(47, 47));
-        customerReportBtn.setMinimumSize(new Dimension(47, 47));
-        customerReportBtn.setMaximumSize(new Dimension(47, 47));
-
-        // Set initial state - transparent background with border
-        customerReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
-        customerReportBtn.setForeground(Color.decode("#10B981"));
-
-        // Remove text
-        customerReportBtn.setText("");
-
-        // Set border with green color
-        customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        // Set cursor
-        customerReportBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Remove focus painting
-        customerReportBtn.setFocusPainted(false);
-
-        // Set icon with green color
-        try {
-            FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-            // Apply green color filter to the icon
-            printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
-            customerReportBtn.setIcon(printIcon);
-        } catch (Exception e) {
-            System.err.println("Error loading print icon: " + e.getMessage());
-        }
-
-        // Set tooltip
-        customerReportBtn.setToolTipText("Export Customer Report");
-
-        // Add hover effects
-        customerReportBtn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                customerReportBtn.setBackground(Color.decode("#10B981"));
-                customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Color.decode("#34D399"), 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon to white on hover
-                try {
-                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.WHITE));
-                    customerReportBtn.setIcon(printIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading print icon: " + e.getMessage());
-                }
-
-                // Update tooltip to show it's clickable
-                customerReportBtn.setToolTipText("Export Customer Report (Ctrl+R or Ctrl+P)");
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                customerReportBtn.setBackground(new Color(0, 0, 0, 0)); // Transparent
-                customerReportBtn.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(Color.decode("#10B981"), 2),
-                        BorderFactory.createEmptyBorder(10, 10, 10, 10)
-                ));
-
-                // Change icon back to green
-                try {
-                    FlatSVGIcon printIcon = new FlatSVGIcon("lk/com/pos/icon/printer.svg", 24, 24);
-                    printIcon.setColorFilter(new FlatSVGIcon.ColorFilter(color -> Color.decode("#10B981")));
-                    customerReportBtn.setIcon(printIcon);
-                } catch (Exception e) {
-                    System.err.println("Error loading print icon: " + e.getMessage());
-                }
-
-                // Reset tooltip
-                customerReportBtn.setToolTipText("Export Customer Report");
-            }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                customerReportBtn.setBackground(Color.decode("#059669"));
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                customerReportBtn.setBackground(Color.decode("#10B981"));
-            }
-        });
-    }
-
     /**
      * Creates payment panels
      */
@@ -2143,9 +2598,12 @@ public class CustomerPanel extends javax.swing.JPanel {
             return;
         }
 
-        UpdateCustomer updateCustomer = new UpdateCustomer(null, true, customerId);
-        updateCustomer.setLocationRelativeTo(null);
-        updateCustomer.setVisible(true);
+        // Call your UpdateCustomer dialog here
+        // UpdateCustomer updateCustomer = new UpdateCustomer(null, true, customerId);
+        // updateCustomer.setLocationRelativeTo(null);
+        // updateCustomer.setVisible(true);
+        JOptionPane.showMessageDialog(this, "Edit Customer ID: " + customerId,
+                "Edit Customer", JOptionPane.INFORMATION_MESSAGE);
         performSearch();
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
@@ -2159,24 +2617,14 @@ public class CustomerPanel extends javax.swing.JPanel {
             return;
         }
 
-        CreditView creditView = new CreditView(null, true, customerId);
-        creditView.setLocationRelativeTo(null);
-        creditView.setVisible(true);
+        // Call your CreditView dialog here
+        // CreditView creditView = new CreditView(null, true, customerId);
+        // creditView.setLocationRelativeTo(null);
+        // creditView.setVisible(true);
+        JOptionPane.showMessageDialog(this, "View Credit Details for Customer ID: " + customerId,
+                "Credit Details", JOptionPane.INFORMATION_MESSAGE);
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
-
-    private void generateCustomerReport() {
-        // TODO: Implement your actual report generation logic here.
-        // This could involve fetching data and using a library like JasperReports.
-        System.out.println("Customer Report generation triggered.");
-        JOptionPane.showMessageDialog(this,
-                "Customer Report generation is not yet implemented.\n"
-                + "You can add your report logic in the 'generateCustomerReport()' method.",
-                "Feature Under Development",
-                JOptionPane.INFORMATION_MESSAGE);
-        this.requestFocusInWindow();
-    }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2688,7 +3136,7 @@ public class CustomerPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_addNewCoustomerBtnActionPerformed
 
     private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed
-        generateCustomerReport();
+        showExportOptions();
     }//GEN-LAST:event_customerReportBtnActionPerformed
 
 

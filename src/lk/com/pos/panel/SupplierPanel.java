@@ -43,6 +43,36 @@ import lk.com.pos.dialog.AddSupplier;
 import lk.com.pos.dialog.UpdateSupplier;
 import lk.com.pos.privateclasses.RoundedPanel;
 
+// Add these imports at the top of the file (after the existing imports)
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import javax.swing.JDialog;
+import javax.swing.JEditorPane;
+import javax.swing.JFileChooser;
+import javax.swing.JScrollPane;
+import net.sf.jasperreports.engine.JRDataSource;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.view.JasperViewer;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 /**
  * SupplierPanel - Displays and manages supplier information with credit tracking
  * Features: Search, filters, keyboard navigation, payment tracking, deactivate/reactivate
@@ -157,6 +187,9 @@ public class SupplierPanel extends javax.swing.JPanel {
         static final int STATUS_ACTIVE_ID = 1;
         static final int STATUS_INACTIVE_ID = 2;
     }
+
+    // Report Constants
+    private static final SimpleDateFormat REPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
     // Keyboard Navigation
     private RoundedPanel currentFocusedCard = null;
@@ -720,9 +753,9 @@ public class SupplierPanel extends javax.swing.JPanel {
         registerKeyAction("CTRL_N", KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK, condition, this::openAddSupplier);
         registerKeyAction("ALT_A", KeyEvent.VK_A, KeyEvent.ALT_DOWN_MASK, condition, this::openAddSupplier);
         
-        // Supplier Report
-        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::openSupplierReport);
-        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::openSupplierReport);
+        // Supplier Report - UPDATED to show export options
+        registerKeyAction("CTRL_R", KeyEvent.VK_R, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
+        registerKeyAction("CTRL_P", KeyEvent.VK_P, KeyEvent.CTRL_DOWN_MASK, condition, this::showExportOptions);
         
         // Quick filters - Alt+1 = Due Amount, Alt+2 = No Due, Alt+3 = Active, Alt+4 = Inactive
         registerKeyAction("ALT_1", KeyEvent.VK_1, KeyEvent.ALT_DOWN_MASK, condition, () -> toggleRadioButton(jRadioButton4));
@@ -1110,9 +1143,9 @@ public class SupplierPanel extends javax.swing.JPanel {
         SwingUtilities.invokeLater(() -> this.requestFocusInWindow());
     }
     
+    // UPDATED: Open export options instead of directly generating report
     private void openSupplierReport() {
-        supplierReportBtn.doClick();
-        showPositionIndicator("📊 Opening Supplier Report");
+        showExportOptions();
     }
     
     private void toggleRadioButton(javax.swing.JRadioButton radioBtn) {
@@ -1996,17 +2029,526 @@ public class SupplierPanel extends javax.swing.JPanel {
                 JOptionPane.INFORMATION_MESSAGE);
     }
     
-    private void generateSupplierReport() {
-        // TODO: Implement your actual report generation logic here.
-        // This could involve fetching data and using a library like JasperReports.
-        System.out.println("Supplier Report generation triggered.");
-        JOptionPane.showMessageDialog(this, 
-                "Supplier Report generation is not yet implemented.\n"
-                + "You can add your report logic in the 'generateSupplierReport()' method.", 
-                "Feature Under Development", 
-                JOptionPane.INFORMATION_MESSAGE);
+    // ============================================================================
+    // REPORT FUNCTIONALITY
+    // ============================================================================
+    
+    /**
+     * Shows export options dialog (similar to StockPanel)
+     */
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        reportButton.setBackground(new Color(28, 181, 187));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateSupplierReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        excelButton.setBackground(new Color(16, 185, 129));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportSuppliersToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
         this.requestFocusInWindow();
     }
+    
+    /**
+     * Generates supplier report using JasperReports
+     */
+    private void generateSupplierReport() {
+        try {
+            // Set font properties to prevent font errors
+            System.setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+            System.setProperty("net.sf.jasperreports.default.font.name", "Arial");
+            System.setProperty("net.sf.jasperreports.default.pdf.font.name", "Helvetica");
+
+            // Get current filters
+            String searchText = getSearchText();
+            String status = getStatusFilter();
+            String dueStatus = getDueFilter();
+            
+            // Fetch suppliers with current filters
+            List<SupplierDTO> suppliers = supplierDAO.getAllSuppliers(searchText, status, dueStatus);
+
+            if (suppliers.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No supplier data found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create a list of maps for the report data - MATCHING JRXML FIELD NAMES
+            List<Map<String, Object>> reportData = new ArrayList<>();
+            int activeCount = 0;
+            int inactiveCount = 0;
+            int dueCount = 0;
+            int noDueCount = 0;
+            double totalCredit = 0;
+            double totalPaid = 0;
+            double totalOutstanding = 0;
+
+            for (SupplierDTO supplier : suppliers) {
+                Map<String, Object> row = new HashMap<>();
+                
+                // Match the exact field names from the JRXML (from the provided JRXML code)
+                row.put("companyName", supplier.getCompany() != null ? supplier.getCompany() : "N/A");
+                row.put("name", supplier.getSupplierName() != null ? supplier.getSupplierName() : "N/A");
+                row.put("phoneNo", supplier.getMobile() != null ? supplier.getMobile() : "N/A");
+                row.put("registorNo", supplier.getRegNo() != null ? supplier.getRegNo() : "N/A");
+                row.put("address", supplier.getAddress() != null ? supplier.getAddress() : "N/A");
+                row.put("amountDue", String.format("Rs. %.2f", supplier.getCreditAmount()));
+                row.put("outStanding", String.format("Rs. %.2f", supplier.getOutstandingAmount()));
+                
+                reportData.add(row);
+
+                // Count statistics
+                if (supplier.getPStatusId() == Business.STATUS_ACTIVE_ID) {
+                    activeCount++;
+                } else {
+                    inactiveCount++;
+                }
+                
+                if (supplier.getOutstandingAmount() > 0) {
+                    dueCount++;
+                } else {
+                    noDueCount++;
+                }
+                
+                totalCredit += supplier.getCreditAmount();
+                totalPaid += supplier.getPaidAmount();
+                totalOutstanding += supplier.getOutstandingAmount();
+            }
+
+            // Prepare parameters for the report
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("reportTitle", "Supplier Report");
+            parameters.put("generatedDate", REPORT_DATE_FORMAT.format(new Date()));
+            parameters.put("totalSuppliers", suppliers.size());
+            parameters.put("activeSuppliers", activeCount);
+            parameters.put("inactiveSuppliers", inactiveCount);
+            parameters.put("dueSuppliers", dueCount);
+            parameters.put("noDueSuppliers", noDueCount);
+            parameters.put("totalCredit", String.format("Rs. %.2f", totalCredit));
+            parameters.put("totalPaid", String.format("Rs. %.2f", totalPaid));
+            parameters.put("totalOutstanding", String.format("Rs. %.2f", totalOutstanding));
+            parameters.put("filterInfo", getSupplierFilterInfo(searchText, status, dueStatus));
+            
+            // Set default font parameters
+            parameters.put("REPORT_FONT", "Arial");
+            parameters.put("REPORT_PDF_FONT", "Helvetica");
+
+            // Load the JRXML template from classpath
+            InputStream jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/supplierReport.jrxml");
+            
+            if (jrxmlStream == null) {
+                // Try alternative path
+                jrxmlStream = getClass().getClassLoader().getResourceAsStream("lk/com/pos/reports/supplierReport.jrxml");
+                if (jrxmlStream == null) {
+                    // Try to load from file system
+                    File jrxmlFile = new File("src/main/resources/lk/com/pos/reports/supplierReport.jrxml");
+                    if (jrxmlFile.exists()) {
+                        jrxmlStream = new java.io.FileInputStream(jrxmlFile);
+                    } else {
+                        // Use the provided JRXML code directly
+                        generateSupplierReportWithSimpleView(suppliers);
+                        return;
+                    }
+                }
+            }
+
+            // Compile and fill the report
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+            JRDataSource dataSource = new JRBeanCollectionDataSource(reportData);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+
+            // Display the report
+            JasperViewer.viewReport(jasperPrint, false);
+
+            showPositionIndicator("✅ Supplier report generated successfully");
+
+        } catch (JRException e) {
+            e.printStackTrace();
+            
+            // Try with simplified font settings
+            try {
+                // Get current filters
+                String searchText = getSearchText();
+                String status = getStatusFilter();
+                String dueStatus = getDueFilter();
+                
+                // Fetch suppliers
+                List<SupplierDTO> suppliers = supplierDAO.getAllSuppliers(searchText, status, dueStatus);
+                generateSupplierReportWithSimpleView(suppliers);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Error generating report: " + e.getMessage(),
+                        "Report Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error: " + e.getMessage(),
+                    "Report Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
+     * Fallback method for report generation with simple HTML view
+     */
+    private void generateSupplierReportWithSimpleView(List<SupplierDTO> suppliers) throws Exception {
+        // Create a simple HTML report as fallback
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><title>Supplier Report</title>");
+        html.append("<style>");
+        html.append("body { font-family: Arial, sans-serif; margin: 20px; }");
+        html.append("h1 { color: #1CB5BB; }");
+        html.append("table { border-collapse: collapse; width: 100%; margin-top: 20px; }");
+        html.append("th { background-color: #1CB5BB; color: white; padding: 10px; text-align: left; }");
+        html.append("td { border: 1px solid #ddd; padding: 8px; }");
+        html.append("tr:nth-child(even) { background-color: #f2f2f2; }");
+        html.append(".summary { background-color: #e8f4f8; padding: 15px; margin: 20px 0; border-radius: 5px; }");
+        html.append("</style></head><body>");
+        
+        html.append("<h1>Supplier Report</h1>");
+        html.append("<p>Generated: ").append(REPORT_DATE_FORMAT.format(new Date())).append("</p>");
+
+        if (suppliers.isEmpty()) {
+            html.append("<p>No supplier data found.</p>");
+        } else {
+            html.append("<table>");
+            html.append("<tr><th>Company Name</th><th>Supplier Name</th><th>Phone No</th><th>Register No</th><th>Address</th><th>Amount Due</th><th>Outstanding</th></tr>");
+
+            int activeCount = 0;
+            int inactiveCount = 0;
+            int dueCount = 0;
+            int noDueCount = 0;
+            double totalCredit = 0;
+            double totalPaid = 0;
+            double totalOutstanding = 0;
+
+            for (SupplierDTO supplier : suppliers) {
+                html.append("<tr>");
+                html.append("<td>").append(supplier.getCompany() != null ? supplier.getCompany() : "N/A").append("</td>");
+                html.append("<td>").append(supplier.getSupplierName() != null ? supplier.getSupplierName() : "N/A").append("</td>");
+                html.append("<td>").append(supplier.getMobile() != null ? supplier.getMobile() : "N/A").append("</td>");
+                html.append("<td>").append(supplier.getRegNo() != null ? supplier.getRegNo() : "N/A").append("</td>");
+                html.append("<td>").append(supplier.getAddress() != null ? supplier.getAddress() : "N/A").append("</td>");
+                html.append("<td>").append(String.format("Rs. %.2f", supplier.getCreditAmount())).append("</td>");
+                html.append("<td>").append(String.format("Rs. %.2f", supplier.getOutstandingAmount())).append("</td>");
+                html.append("</tr>");
+
+                // Count statistics
+                if (supplier.getPStatusId() == Business.STATUS_ACTIVE_ID) {
+                    activeCount++;
+                } else {
+                    inactiveCount++;
+                }
+                
+                if (supplier.getOutstandingAmount() > 0) {
+                    dueCount++;
+                } else {
+                    noDueCount++;
+                }
+                
+                totalCredit += supplier.getCreditAmount();
+                totalPaid += supplier.getPaidAmount();
+                totalOutstanding += supplier.getOutstandingAmount();
+            }
+
+            html.append("</table>");
+            
+            // Add summary section
+            html.append("<div class='summary'>");
+            html.append("<h3>Summary</h3>");
+            html.append("<p><strong>Total Suppliers: ").append(suppliers.size()).append("</strong></p>");
+            html.append("<p><strong>Active Suppliers: ").append(activeCount).append("</strong></p>");
+            html.append("<p><strong>Inactive Suppliers: ").append(inactiveCount).append("</strong></p>");
+            html.append("<p><strong>Suppliers with Due: ").append(dueCount).append("</strong></p>");
+            html.append("<p><strong>Suppliers with No Due: ").append(noDueCount).append("</strong></p>");
+            html.append("<p><strong>Total Credit Amount: ").append(String.format("Rs. %.2f", totalCredit)).append("</strong></p>");
+            html.append("<p><strong>Total Paid Amount: ").append(String.format("Rs. %.2f", totalPaid)).append("</strong></p>");
+            html.append("<p><strong>Total Outstanding: ").append(String.format("Rs. %.2f", totalOutstanding)).append("</strong></p>");
+            
+            // Add filter info
+            String searchText = getSearchText();
+            String status = getStatusFilter();
+            String dueStatus = getDueFilter();
+            html.append("<p><strong>Filter Info: ").append(getSupplierFilterInfo(searchText, status, dueStatus)).append("</strong></p>");
+            html.append("</div>");
+        }
+
+        html.append("</body></html>");
+
+        // Display HTML in a dialog
+        JEditorPane editorPane = new JEditorPane("text/html", html.toString());
+        editorPane.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(1000, 600));
+
+        JDialog htmlDialog = new JDialog();
+        htmlDialog.setTitle("Supplier Report - Simple View");
+        htmlDialog.setModal(true);
+        htmlDialog.add(scrollPane);
+        htmlDialog.pack();
+        htmlDialog.setLocationRelativeTo(this);
+        htmlDialog.setVisible(true);
+
+        showPositionIndicator("✅ Simple supplier report generated");
+    }
+    
+    /**
+     * Gets filter info for report
+     */
+    private String getSupplierFilterInfo(String searchText, String status, String dueStatus) {
+        StringBuilder filter = new StringBuilder();
+        
+        if (!searchText.isEmpty()) {
+            filter.append("Search: '").append(searchText).append("' | ");
+        }
+        
+        if (!status.equals(Strings.STATUS_ALL)) {
+            filter.append("Status: ").append(status);
+        } else {
+            filter.append("Status: All");
+        }
+        
+        if (!dueStatus.equals(Strings.STATUS_ALL)) {
+            if (dueStatus.equals(Strings.DUE_HAS_DUE)) {
+                filter.append(" | Due: Has Due");
+            } else if (dueStatus.equals(Strings.DUE_NO_DUE)) {
+                filter.append(" | Due: No Due");
+            }
+        }
+        
+        return filter.toString();
+    }
+    
+    /**
+     * Exports supplier data to Excel
+     */
+    private void exportSuppliersToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("supplier_report.xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!fileToSave.getAbsolutePath().endsWith(".xlsx")) {
+            fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
+        }
+
+        try {
+            // Get current filters
+            String searchText = getSearchText();
+            String status = getStatusFilter();
+            String dueStatus = getDueFilter();
+            
+            // Fetch suppliers with current filters
+            List<SupplierDTO> suppliers = supplierDAO.getAllSuppliers(searchText, status, dueStatus);
+
+            if (suppliers.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No supplier data found for the selected filters.",
+                    "No Data", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create Excel workbook
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Supplier Report");
+
+            // Create header style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Create header row (matching JRXML fields)
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Company Name", "Supplier Name", "Phone No", "Register No", "Address", "Amount Due", "Outstanding", "Status", "Paid Amount", "Credit Amount"};
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Fill data rows
+            int rowNum = 1;
+            int activeCount = 0;
+            int inactiveCount = 0;
+            int dueCount = 0;
+            int noDueCount = 0;
+            double totalCredit = 0;
+            double totalPaid = 0;
+            double totalOutstanding = 0;
+
+            for (SupplierDTO supplier : suppliers) {
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0).setCellValue(supplier.getCompany() != null ? supplier.getCompany() : "N/A");
+                row.createCell(1).setCellValue(supplier.getSupplierName() != null ? supplier.getSupplierName() : "N/A");
+                row.createCell(2).setCellValue(supplier.getMobile() != null ? supplier.getMobile() : "N/A");
+                row.createCell(3).setCellValue(supplier.getRegNo() != null ? supplier.getRegNo() : "N/A");
+                row.createCell(4).setCellValue(supplier.getAddress() != null ? supplier.getAddress() : "N/A");
+                row.createCell(5).setCellValue(supplier.getCreditAmount());
+                row.createCell(6).setCellValue(supplier.getOutstandingAmount());
+                row.createCell(7).setCellValue(supplier.getPStatusId() == Business.STATUS_ACTIVE_ID ? "Active" : "Inactive");
+                row.createCell(8).setCellValue(supplier.getPaidAmount());
+                row.createCell(9).setCellValue(supplier.getCreditAmount());
+
+                // Count statistics
+                if (supplier.getPStatusId() == Business.STATUS_ACTIVE_ID) {
+                    activeCount++;
+                } else {
+                    inactiveCount++;
+                }
+                
+                if (supplier.getOutstandingAmount() > 0) {
+                    dueCount++;
+                } else {
+                    noDueCount++;
+                }
+                
+                totalCredit += supplier.getCreditAmount();
+                totalPaid += supplier.getPaidAmount();
+                totalOutstanding += supplier.getOutstandingAmount();
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Add summary rows
+            int summaryRowNum = rowNum + 2;
+
+            Row summaryHeader = sheet.createRow(summaryRowNum++);
+            Cell summaryCell = summaryHeader.createCell(0);
+            summaryCell.setCellValue("SUPPLIER REPORT SUMMARY");
+            summaryCell.setCellStyle(headerStyle);
+
+            Row totalSuppliersRow = sheet.createRow(summaryRowNum++);
+            totalSuppliersRow.createCell(0).setCellValue("Total Suppliers:");
+            totalSuppliersRow.createCell(1).setCellValue(suppliers.size());
+
+            Row activeSuppliersRow = sheet.createRow(summaryRowNum++);
+            activeSuppliersRow.createCell(0).setCellValue("Active Suppliers:");
+            activeSuppliersRow.createCell(1).setCellValue(activeCount);
+
+            Row inactiveSuppliersRow = sheet.createRow(summaryRowNum++);
+            inactiveSuppliersRow.createCell(0).setCellValue("Inactive Suppliers:");
+            inactiveSuppliersRow.createCell(1).setCellValue(inactiveCount);
+
+            Row dueSuppliersRow = sheet.createRow(summaryRowNum++);
+            dueSuppliersRow.createCell(0).setCellValue("Suppliers with Due:");
+            dueSuppliersRow.createCell(1).setCellValue(dueCount);
+
+            Row noDueSuppliersRow = sheet.createRow(summaryRowNum++);
+            noDueSuppliersRow.createCell(0).setCellValue("Suppliers with No Due:");
+            noDueSuppliersRow.createCell(1).setCellValue(noDueCount);
+
+            Row totalCreditRow = sheet.createRow(summaryRowNum++);
+            totalCreditRow.createCell(0).setCellValue("Total Credit Amount:");
+            totalCreditRow.createCell(1).setCellValue(String.format("Rs. %.2f", totalCredit));
+
+            Row totalPaidRow = sheet.createRow(summaryRowNum++);
+            totalPaidRow.createCell(0).setCellValue("Total Paid Amount:");
+            totalPaidRow.createCell(1).setCellValue(String.format("Rs. %.2f", totalPaid));
+
+            Row totalOutstandingRow = sheet.createRow(summaryRowNum++);
+            totalOutstandingRow.createCell(0).setCellValue("Total Outstanding:");
+            totalOutstandingRow.createCell(1).setCellValue(String.format("Rs. %.2f", totalOutstanding));
+
+            Row generatedDateRow = sheet.createRow(summaryRowNum++);
+            generatedDateRow.createCell(0).setCellValue("Generated Date:");
+            generatedDateRow.createCell(1).setCellValue(REPORT_DATE_FORMAT.format(new Date()));
+
+            Row filterInfoRow = sheet.createRow(summaryRowNum++);
+            filterInfoRow.createCell(0).setCellValue("Filter Info:");
+            filterInfoRow.createCell(1).setCellValue(getSupplierFilterInfo(searchText, status, dueStatus));
+
+            // Write the output to file
+            try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                workbook.write(outputStream);
+            }
+
+            workbook.close();
+
+            showPositionIndicator("✅ Excel file saved: " + fileToSave.getName());
+
+            // Ask if user wants to open the file
+            int openFile = JOptionPane.showConfirmDialog(this,
+                    "Excel file saved successfully!\nDo you want to open it?",
+                    "Success",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (openFile == JOptionPane.YES_OPTION) {
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop.getDesktop().open(fileToSave);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error exporting to Excel: " + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2451,7 +2993,7 @@ public class SupplierPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_addSupplierBtnActionPerformed
 
     private void supplierReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_supplierReportBtnActionPerformed
-        generateSupplierReport();
+       showExportOptions();
     }//GEN-LAST:event_supplierReportBtnActionPerformed
 
 

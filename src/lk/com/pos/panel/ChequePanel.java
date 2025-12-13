@@ -1,5 +1,9 @@
 package lk.com.pos.panel;
 
+import net.sf.jasperreports.engine.*;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.view.JasperViewer;
+
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import lk.com.pos.connection.DB;
@@ -26,18 +30,31 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
- * ChequePanel - Displays and manages cheque information Features: Search,
- * filters, keyboard navigation, status management
- *
- * @author Your Name
- * @version 2.0
+ * ChequePanel - Displays and manages cheque information with report generation
  */
 public class ChequePanel extends javax.swing.JPanel {
 
@@ -45,6 +62,7 @@ public class ChequePanel extends javax.swing.JPanel {
     private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     private static final SimpleDateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat("MMM dd, yyyy");
+    private static final SimpleDateFormat REPORT_DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy");
 
     // UI Constants - Colors
     private static final class Colors {
@@ -1123,8 +1141,8 @@ public class ChequePanel extends javax.swing.JPanel {
     }
 
     private void openChequeReport() {
-        customerReportBtn.doClick();
-        showPositionIndicator("📊 Opening Cheque Report");
+        showExportOptions();
+        showPositionIndicator("📊 Opening Cheque Report Options");
     }
 
     private void openAddChequeDialog() {
@@ -1152,12 +1170,11 @@ public class ChequePanel extends javax.swing.JPanel {
     }
 
     // =====================================================================
-    // 🚀 UPDATED DATABASE METHODS USING DAO PATTERN
+    // 🚀 DATABASE METHODS USING DAO PATTERN
     // =====================================================================
-
     private List<ChequeDTO> fetchChequesFromDatabase(String searchText, boolean bouncedOnly,
             boolean clearedOnly, boolean pendingOnly) throws Exception {
-        
+
         ChequeDAO chequeDAO = new ChequeDAO();
         return chequeDAO.getCheques(searchText, bouncedOnly, clearedOnly, pendingOnly);
     }
@@ -1166,7 +1183,7 @@ public class ChequePanel extends javax.swing.JPanel {
         try {
             ChequeDAO chequeDAO = new ChequeDAO();
             ChequeDAO.ChequeStatus currentStatus = chequeDAO.getChequeStatus(chequeId);
-            
+
             if (currentStatus == null) {
                 JOptionPane.showMessageDialog(this, "Cheque not found!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -1195,7 +1212,7 @@ public class ChequePanel extends javax.swing.JPanel {
 
                 if (!newStatus.equals(currentStatus.getChequeType())) {
                     boolean success = chequeDAO.updateChequeStatus(chequeId, newStatus);
-                    
+
                     if (success) {
                         JOptionPane.showMessageDialog(
                                 this,
@@ -1291,7 +1308,6 @@ public class ChequePanel extends javax.swing.JPanel {
     // =====================================================================
     // 🎨 UI METHODS - UPDATED TO USE ChequeDTO
     // =====================================================================
-
     private lk.com.pos.privateclasses.RoundedPanel createChequeCard(ChequeDTO data) {
         String displayGivenDate = formatDate(data.getGivenDate());
         String displayChequeDate = formatDate(data.getChequeDate());
@@ -2044,6 +2060,402 @@ public class ChequePanel extends javax.swing.JPanel {
         });
     }
 
+    // =====================================================================
+    // 📊 REPORT GENERATION METHODS - FIXED FONT ISSUE
+    // =====================================================================
+    private void showExportOptions() {
+        JDialog dialog = new JDialog();
+        dialog.setTitle("Export Options");
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setModal(true);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(2, 1, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JButton reportButton = new JButton("Generate Report");
+        reportButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        reportButton.setBackground(new Color(28, 181, 187));
+        reportButton.setForeground(Color.WHITE);
+        reportButton.addActionListener(e -> {
+            dialog.dispose();
+            generateChequeReport();
+        });
+
+        JButton excelButton = new JButton("Export to Excel");
+        excelButton.setFont(new java.awt.Font("Nunito SemiBold", 1, 14));
+        excelButton.setBackground(new Color(16, 185, 129));
+        excelButton.setForeground(Color.WHITE);
+        excelButton.addActionListener(e -> {
+            dialog.dispose();
+            exportChequeToExcel();
+        });
+
+        buttonPanel.add(reportButton);
+        buttonPanel.add(excelButton);
+
+        JLabel titleLabel = new JLabel("Select Export Format", SwingConstants.CENTER);
+        titleLabel.setFont(new java.awt.Font("Nunito ExtraBold", 1, 16));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
+
+        dialog.add(titleLabel, BorderLayout.NORTH);
+        dialog.add(buttonPanel, BorderLayout.CENTER);
+
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                showPositionIndicator("Export cancelled");
+            }
+        });
+
+        dialog.setVisible(true);
+    }
+
+    private void generateChequeReport() {
+        try {
+            // Set font properties to prevent font errors
+            System.setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+            System.setProperty("net.sf.jasperreports.default.font.name", "Arial");
+            System.setProperty("net.sf.jasperreports.default.pdf.font.name", "Helvetica");
+
+            // Get current filters
+            String searchText = getSearchText();
+            boolean bouncedOnly = jRadioButton1.isSelected();
+            boolean clearedOnly = jRadioButton2.isSelected();
+            boolean pendingOnly = jRadioButton4.isSelected();
+
+            // Fetch cheque data
+            List<ChequeDTO> cheques = fetchChequesFromDatabase(searchText, bouncedOnly, clearedOnly, pendingOnly);
+
+            if (cheques.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No cheques found for the selected filters.",
+                        "No Data", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create a list of maps for the report data
+            List<Map<String, Object>> reportData = new ArrayList<>();
+            for (ChequeDTO cheque : cheques) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("name", cheque.getCustomerName());
+                row.put("phoneNo", cheque.getPhone());
+                row.put("invoiceNo", cheque.getInvoiceNo() != null ? cheque.getInvoiceNo() : "N/A");
+                row.put("chequeNo", cheque.getChequeNo());
+                row.put("givenDate", formatReportDate(cheque.getGivenDate()));
+                row.put("chequeDate", formatReportDate(cheque.getChequeDate()));
+                row.put("amount", formatAmount(cheque.getChequeAmount()));
+                row.put("status", cheque.getChequeType());
+                reportData.add(row);
+            }
+
+            // Prepare parameters
+            HashMap<String, Object> parameters = new HashMap<>();
+            parameters.put("reportTitle", "Cheque Report");
+            parameters.put("generatedDate", new java.util.Date().toString());
+            parameters.put("filterInfo", getFilterInfo(searchText, bouncedOnly, clearedOnly, pendingOnly));
+            parameters.put("totalCheques", cheques.size());
+            parameters.put("totalAmount", calculateTotalAmount(cheques));
+
+            // Set default font parameters
+            parameters.put("REPORT_FONT", "Arial");
+            parameters.put("REPORT_PDF_FONT", "Helvetica");
+
+            // Load and compile the report
+            InputStream jrxmlStream = getClass().getClassLoader()
+                    .getResourceAsStream("lk/com/pos/reports/chequeReport.jrxml");
+
+            if (jrxmlStream == null) {
+                // Try alternative path
+                jrxmlStream = getClass().getResourceAsStream("/lk/com/pos/reports/chequeReport.jrxml");
+                if (jrxmlStream == null) {
+                    JOptionPane.showMessageDialog(this,
+                            "Report template not found at lk/com/pos/reports/chequeReport.jrxml",
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
+            JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlStream);
+
+            // Create data source from list of maps
+            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(reportData);
+
+            // Fill and display report
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+
+            // Display report
+            JasperViewer.viewReport(jasperPrint, false);
+
+            showPositionIndicator("✅ Report generated successfully");
+
+        } catch (JRException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Font")) {
+                // Try with simplified font settings
+                try {
+                    generateReportWithSimpleFont();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(this,
+                            "Font error: Please install Arial font on your system.\n" + e.getMessage(),
+                            "Font Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this,
+                        "Error generating report: " + e.getMessage(),
+                        "Report Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error: " + e.getMessage(),
+                    "Report Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void generateReportWithSimpleFont() throws Exception {
+        // Alternative method that creates a simple report without font dependencies
+        JOptionPane.showMessageDialog(this,
+                "Creating a simple report with default fonts...",
+                "Info",
+                JOptionPane.INFORMATION_MESSAGE);
+
+        // Create a simple HTML report as fallback
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><title>Cheque Report</title></head><body>");
+        html.append("<h1>Cheque Report</h1>");
+        html.append("<p>Generated: ").append(new java.util.Date()).append("</p>");
+
+        // Get current filters
+        String searchText = getSearchText();
+        boolean bouncedOnly = jRadioButton1.isSelected();
+        boolean clearedOnly = jRadioButton2.isSelected();
+        boolean pendingOnly = jRadioButton4.isSelected();
+
+        // Fetch cheque data
+        List<ChequeDTO> cheques = fetchChequesFromDatabase(searchText, bouncedOnly, clearedOnly, pendingOnly);
+
+        if (cheques.isEmpty()) {
+            html.append("<p>No cheques found.</p>");
+        } else {
+            html.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>");
+            html.append("<tr><th>Name</th><th>Phone</th><th>Invoice No</th><th>Cheque No</th><th>Given Date</th><th>Cheque Date</th><th>Amount</th><th>Status</th></tr>");
+
+            double totalAmount = 0;
+            for (ChequeDTO cheque : cheques) {
+                html.append("<tr>");
+                html.append("<td>").append(cheque.getCustomerName()).append("</td>");
+                html.append("<td>").append(cheque.getPhone()).append("</td>");
+                html.append("<td>").append(cheque.getInvoiceNo() != null ? cheque.getInvoiceNo() : "N/A").append("</td>");
+                html.append("<td>").append(cheque.getChequeNo()).append("</td>");
+                html.append("<td>").append(formatReportDate(cheque.getGivenDate())).append("</td>");
+                html.append("<td>").append(formatReportDate(cheque.getChequeDate())).append("</td>");
+                html.append("<td>").append(formatAmount(cheque.getChequeAmount())).append("</td>");
+                html.append("<td>").append(cheque.getChequeType()).append("</td>");
+                html.append("</tr>");
+
+                totalAmount += cheque.getChequeAmount();
+            }
+
+            html.append("</table>");
+            html.append("<p><strong>Total Cheques: ").append(cheques.size()).append("</strong></p>");
+            html.append("<p><strong>Total Amount: ").append(formatAmount(totalAmount)).append("</strong></p>");
+        }
+
+        html.append("</body></html>");
+
+        // Display HTML in a dialog
+        JEditorPane editorPane = new JEditorPane("text/html", html.toString());
+        editorPane.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(editorPane);
+        scrollPane.setPreferredSize(new Dimension(800, 600));
+
+        JDialog htmlDialog = new JDialog();
+        htmlDialog.setTitle("Cheque Report - Simple View");
+        htmlDialog.setModal(true);
+        htmlDialog.add(scrollPane);
+        htmlDialog.pack();
+        htmlDialog.setLocationRelativeTo(this);
+        htmlDialog.setVisible(true);
+
+        showPositionIndicator("✅ Simple report generated");
+    }
+
+    private void exportChequeToExcel() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Excel File");
+        fileChooser.setSelectedFile(new File("cheque_report.xlsx"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            showPositionIndicator("Export cancelled");
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+
+        // Ensure .xlsx extension
+        if (!fileToSave.getAbsolutePath().endsWith(".xlsx")) {
+            fileToSave = new File(fileToSave.getAbsolutePath() + ".xlsx");
+        }
+
+        try {
+            // Get current filters
+            String searchText = getSearchText();
+            boolean bouncedOnly = jRadioButton1.isSelected();
+            boolean clearedOnly = jRadioButton2.isSelected();
+            boolean pendingOnly = jRadioButton4.isSelected();
+
+            // Fetch cheque data
+            List<ChequeDTO> cheques = fetchChequesFromDatabase(searchText, bouncedOnly, clearedOnly, pendingOnly);
+
+            if (cheques.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No cheques found for the selected filters.",
+                        "No Data", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // Create Excel workbook
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Cheque Report");
+
+            // Create header style
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            // Create header row
+            Row headerRow = sheet.createRow(0);
+            String[] headers = {"Name", "Phone No", "Invoice No", "Cheque No",
+                "Given Date", "Cheque Date", "Amount", "Status"};
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Fill data rows
+            int rowNum = 1;
+            for (ChequeDTO cheque : cheques) {
+                Row row = sheet.createRow(rowNum++);
+
+                row.createCell(0).setCellValue(cheque.getCustomerName());
+                row.createCell(1).setCellValue(cheque.getPhone());
+                row.createCell(2).setCellValue(cheque.getInvoiceNo() != null ? cheque.getInvoiceNo() : "N/A");
+                row.createCell(3).setCellValue(cheque.getChequeNo());
+                row.createCell(4).setCellValue(formatReportDate(cheque.getGivenDate()));
+                row.createCell(5).setCellValue(formatReportDate(cheque.getChequeDate()));
+                row.createCell(6).setCellValue(cheque.getChequeAmount());
+                row.createCell(7).setCellValue(cheque.getChequeType());
+            }
+
+            // Auto-size columns
+            for (int i = 0; i < headers.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            // Add summary row
+            Row summaryRow = sheet.createRow(rowNum + 1);
+            Cell summaryCell = summaryRow.createCell(0);
+            summaryCell.setCellValue("Summary:");
+            summaryCell.setCellStyle(headerStyle);
+
+            Row totalRow = sheet.createRow(rowNum + 2);
+            totalRow.createCell(0).setCellValue("Total Cheques:");
+            totalRow.createCell(1).setCellValue(cheques.size());
+
+            Row amountRow = sheet.createRow(rowNum + 3);
+            amountRow.createCell(0).setCellValue("Total Amount:");
+            amountRow.createCell(1).setCellValue(calculateTotalAmount(cheques));
+
+            // Write the output to file
+            try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                workbook.write(outputStream);
+            }
+
+            workbook.close();
+
+            showPositionIndicator("✅ Excel file saved: " + fileToSave.getName());
+
+            // Ask if user wants to open the file
+            int openFile = JOptionPane.showConfirmDialog(this,
+                    "Excel file saved successfully!\nDo you want to open it?",
+                    "Success",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (openFile == JOptionPane.YES_OPTION) {
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop.getDesktop().open(fileToSave);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                    "Error exporting to Excel: " + e.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String formatReportDate(String date) {
+        if (date == null || date.isEmpty()) {
+            return "N/A";
+        }
+        try {
+            SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd");
+            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy");
+            return outputFormat.format(inputFormat.parse(date));
+        } catch (Exception e) {
+            return date;
+        }
+    }
+
+    private String formatAmount(double amount) {
+        return String.format("Rs.%.2f", amount);
+    }
+
+    private String getFilterInfo(String searchText, boolean bouncedOnly,
+            boolean clearedOnly, boolean pendingOnly) {
+        StringBuilder filter = new StringBuilder("Filters: ");
+
+        if (!searchText.isEmpty()) {
+            filter.append("Search: '").append(searchText).append("', ");
+        }
+
+        if (bouncedOnly) {
+            filter.append("Bounced Cheques, ");
+        } else if (clearedOnly) {
+            filter.append("Cleared Cheques, ");
+        } else if (pendingOnly) {
+            filter.append("Pending Cheques, ");
+        } else {
+            filter.append("All Cheques, ");
+        }
+
+        return filter.toString().replaceAll(", $", "");
+    }
+
+    private double calculateTotalAmount(List<ChequeDTO> cheques) {
+        double total = 0;
+        for (ChequeDTO cheque : cheques) {
+            total += cheque.getChequeAmount();
+        }
+        return total;
+    }
+
     class RoundedBorder extends AbstractBorder {
 
         private final Color color;
@@ -2083,7 +2495,6 @@ public class ChequePanel extends javax.swing.JPanel {
             return insets;
         }
     }
-
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -2641,7 +3052,7 @@ public class ChequePanel extends javax.swing.JPanel {
     }//GEN-LAST:event_jButton8ActionPerformed
 
     private void customerReportBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_customerReportBtnActionPerformed
-
+  openChequeReport();
     }//GEN-LAST:event_customerReportBtnActionPerformed
 
 

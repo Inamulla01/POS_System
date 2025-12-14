@@ -87,19 +87,22 @@ import lk.com.pos.utils.UserFriendlyMessages;
 
 public class PosCartPanel extends javax.swing.JPanel {
 
-    private java.util.List<Invoice> recentInvoices = new ArrayList<>();
-    private javax.swing.JDialog notificationDialog;
-    private Invoice selectedInvoice;
-    private boolean invoiceSelected = false;
-    private java.util.List<JPanel> invoiceCardsList = new ArrayList<>();
-    private int currentFocusedIndex = -1;
-
     private static final Color TEAL_COLOR = new Color(28, 181, 187);
     private static final Color TEXT_GRAY = new Color(102, 102, 102);
     private static final Color CARD_BG = new Color(255, 255, 255);
     private static final Color BORDER_COLOR = new Color(230, 230, 230);
     private static final Color ERROR_COLOR = new Color(255, 102, 102);
     private static final Color SUCCESS_COLOR = new Color(102, 204, 102);
+
+// Add this line for consistent button sizing
+    private static final Dimension BUTTON_SIZE = new Dimension(90, 30);
+
+    private java.util.List<Invoice> recentInvoices = new ArrayList<>();
+    private javax.swing.JDialog notificationDialog;
+    private Invoice selectedInvoice;
+    private boolean invoiceSelected = false;
+    private java.util.List<JPanel> invoiceCardsList = new ArrayList<>();
+    private int currentFocusedIndex = -1;
 
     private List<RoundedPanel> cartItemPanels = new ArrayList<>();
     private int currentFocusedCartItemIndex = -1;
@@ -379,93 +382,93 @@ public class PosCartPanel extends javax.swing.JPanel {
     }
 
     private JPanel createInvoiceCard(Invoice invoice, int index) {
-        JPanel card = new JPanel(new BorderLayout(10, 0));
+        JPanel card = new JPanel(new BorderLayout());
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0xE8ECF1), 1),
-                BorderFactory.createEmptyBorder(16, 20, 16, 20)
+                BorderFactory.createLineBorder(new Color(0xE0E0E0), 1),
+                BorderFactory.createEmptyBorder(12, 16, 12, 16)
         ));
         card.setBackground(Color.WHITE);
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        card.setMaximumSize(new Dimension(460, 100));
 
-        // FIX: Set fixed preferred and maximum sizes
-        int cardWidth = 450; // Fixed width to prevent horizontal scroll
-        int cardHeight = 110; // Fixed height
-        card.setPreferredSize(new Dimension(cardWidth, cardHeight));
-        card.setMaximumSize(new Dimension(cardWidth, cardHeight));
-        card.setMinimumSize(new Dimension(cardWidth, cardHeight));
-
-        // Left content panel
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Color.WHITE);
-        contentPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        contentPanel.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 
-        // Top row: Invoice number and status badge
         JPanel topInfoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         topInfoPanel.setBackground(Color.WHITE);
-        // FIX: Prevent horizontal expansion
-        topInfoPanel.setMaximumSize(new Dimension(300, 30));
-        topInfoPanel.setPreferredSize(new Dimension(300, 30));
 
         JLabel invoiceLabel = new JLabel(invoice.getInvoiceNo());
-        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 16));
-        invoiceLabel.setForeground(new Color(0x1A1A2E));
+        invoiceLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
+        invoiceLabel.setForeground(new Color(0x333333));
 
-        // Status badge with rounded corners
-        JPanel statusBadge = createStatusBadge(invoice.getStatus());
+        JLabel statusLabel = new JLabel("(" + invoice.getStatus() + ")");
+        statusLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 12));
+        Color statusColor;
+        switch (invoice.getStatus().toLowerCase()) {
+            case "completed":
+                statusColor = new Color(0x4CAF50);
+                break;
+            case "hold":
+                statusColor = new Color(0xFF9800);
+                break;
+            case "pending":
+                statusColor = new Color(0x2196F3);
+                break;
+            default:
+                statusColor = new Color(0x666666);
+        }
+        statusLabel.setForeground(statusColor);
 
         topInfoPanel.add(invoiceLabel);
-        topInfoPanel.add(Box.createRigidArea(new Dimension(12, 0)));
-        topInfoPanel.add(statusBadge);
+        topInfoPanel.add(Box.createRigidArea(new Dimension(8, 0)));
+        topInfoPanel.add(statusLabel);
 
-        // Date label with icon
-        JPanel datePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        datePanel.setBackground(Color.WHITE);
-        // FIX: Prevent horizontal expansion
-        datePanel.setMaximumSize(new Dimension(300, 20));
-        datePanel.setPreferredSize(new Dimension(300, 20));
+        JLabel dateLabel = new JLabel(invoice.getDate().toString());
+        dateLabel.setFont(new Font("Nunito SemiBold", Font.PLAIN, 11));
+        dateLabel.setForeground(new Color(0x999999));
 
-        JLabel dateLabel = new JLabel("📅 " + invoice.getDate().toString());
-        dateLabel.setFont(new Font("Nunito", Font.PLAIN, 12));
-        dateLabel.setForeground(new Color(0x6B7280));
-        datePanel.add(dateLabel);
-
-        // Amount label with currency styling
-        JLabel amountLabel = new JLabel("Rs. " + String.format("%,.2f", invoice.getTotal()));
-        amountLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 18));
+        JLabel amountLabel = new JLabel("Rs. " + String.format("%.2f", invoice.getTotal()));
+        amountLabel.setFont(new Font("Nunito ExtraBold", Font.BOLD, 14));
         amountLabel.setForeground(new Color(0x1CB5BB));
 
         contentPanel.add(topInfoPanel);
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        contentPanel.add(datePanel);
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        contentPanel.add(dateLabel);
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 2)));
         contentPanel.add(amountLabel);
 
         String buttonText = getButtonTextBasedOnStatus(invoice.getStatus());
 
-        // Right button panel with proper sizing
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        // Create button panel with FlowLayout.RIGHT
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         buttonPanel.setOpaque(false);
-        // FIX: Use fixed width for button panel
-        buttonPanel.setPreferredSize(new Dimension(180, 36));
-        buttonPanel.setMaximumSize(new Dimension(180, 36));
-        buttonPanel.setMinimumSize(new Dimension(180, 36));
 
-        // Add delete button for hold invoices
+        // CREATE DELETE BUTTON FIRST (now it will be on the left)
         if ("Hold".equalsIgnoreCase(invoice.getStatus())) {
+            // Create delete button with RED SVG icon
             JButton deleteButton = createDeleteButton(invoice);
             buttonPanel.add(deleteButton);
+            buttonPanel.add(Box.createRigidArea(new Dimension(5, 0)));
         }
 
-        // Main action button (styled like delete button)
-        JButton actionButton = createActionButton(buttonText, invoice);
+        // Now create main action button (Switch/View)
+        GradientActionButton actionButton = new GradientActionButton(buttonText, invoice);
+        actionButton.addActionListener(e -> {
+            if (notificationDialog != null) {
+                notificationDialog.setVisible(false);
+                notificationDialog.dispose();
+            }
+            handleInvoiceAction(invoice, buttonText);
+        });
 
+        // Add main action button to the RIGHT of delete button
         buttonPanel.add(actionButton);
 
         Color[] buttonColors = getButtonColors(buttonText);
         Color borderColor = buttonColors[0];
 
-        // Hover effects
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -481,15 +484,14 @@ public class PosCartPanel extends javax.swing.JPanel {
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (currentFocusedIndex != index) {
-                    card.setBackground(new Color(0xF7F9FC));
+                    card.setBackground(new Color(0xF8F9FA));
                     card.setBorder(BorderFactory.createCompoundBorder(
                             BorderFactory.createLineBorder(borderColor, 2),
-                            BorderFactory.createEmptyBorder(15, 19, 15, 19)
+                            BorderFactory.createEmptyBorder(11, 15, 11, 15)
                     ));
-                    contentPanel.setBackground(new Color(0xF7F9FC));
-                    topInfoPanel.setBackground(new Color(0xF7F9FC));
-                    datePanel.setBackground(new Color(0xF7F9FC));
-                    buttonPanel.setBackground(new Color(0xF7F9FC));
+                    contentPanel.setBackground(new Color(0xF8F9FA));
+                    topInfoPanel.setBackground(new Color(0xF8F9FA));
+                    buttonPanel.setBackground(new Color(0xF8F9FA));
                 }
             }
 
@@ -498,12 +500,11 @@ public class PosCartPanel extends javax.swing.JPanel {
                 if (currentFocusedIndex != index) {
                     card.setBackground(Color.WHITE);
                     card.setBorder(BorderFactory.createCompoundBorder(
-                            BorderFactory.createLineBorder(new Color(0xE8ECF1), 1),
-                            BorderFactory.createEmptyBorder(16, 20, 16, 20)
+                            BorderFactory.createLineBorder(new Color(0xE0E0E0), 1),
+                            BorderFactory.createEmptyBorder(12, 16, 12, 16)
                     ));
                     contentPanel.setBackground(Color.WHITE);
                     topInfoPanel.setBackground(Color.WHITE);
-                    datePanel.setBackground(Color.WHITE);
                     buttonPanel.setBackground(Color.WHITE);
                 }
             }
@@ -511,98 +512,65 @@ public class PosCartPanel extends javax.swing.JPanel {
 
         card.add(contentPanel, BorderLayout.CENTER);
         card.add(buttonPanel, BorderLayout.EAST);
-
-        // FIX: Prevent the card itself from expanding
-        card.setMaximumSize(new Dimension(cardWidth, cardHeight));
         return card;
     }
+// Create a styled delete button with RED SVG icon
 
-// Create status badge with rounded corners and colors
-    private JPanel createStatusBadge(String status) {
-        JPanel badge = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                Color bgColor;
-                switch (status.toLowerCase()) {
-                    case "completed":
-                        bgColor = new Color(0xD1FAE5);
-                        break;
-                    case "hold":
-                        bgColor = new Color(0xFEF3C7);
-                        break;
-                    case "pending":
-                        bgColor = new Color(0xDBEAFE);
-                        break;
-                    default:
-                        bgColor = new Color(0xF3F4F6);
-                }
-
-                g2.setColor(bgColor);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
-                g2.dispose();
-                super.paintComponent(g);
-            }
-        };
-
-        badge.setOpaque(false);
-        badge.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 3));
-
-        JLabel statusLabel = new JLabel(status);
-        statusLabel.setFont(new Font("Nunito SemiBold", Font.BOLD, 11));
-
-        Color textColor;
-        switch (status.toLowerCase()) {
-            case "completed":
-                textColor = new Color(0x065F46);
-                break;
-            case "hold":
-                textColor = new Color(0x92400E);
-                break;
-            case "pending":
-                textColor = new Color(0x1E40AF);
-                break;
-            default:
-                textColor = new Color(0x374151);
-        }
-        statusLabel.setForeground(textColor);
-
-        badge.add(statusLabel);
-        badge.setPreferredSize(new Dimension(85, 24));
-        badge.setMaximumSize(new Dimension(85, 24));
-
-        return badge;
-    }
-
-// Create beautiful delete button
     private JButton createDeleteButton(Invoice invoice) {
         JButton deleteButton = new JButton("Delete");
         deleteButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 12));
         deleteButton.setFocusPainted(false);
-        deleteButton.setBorderPainted(false);
+        deleteButton.setBorderPainted(true);
         deleteButton.setContentAreaFilled(false);
         deleteButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        // FIX: Make button slightly smaller
-        deleteButton.setPreferredSize(new Dimension(85, 36));
-        deleteButton.setMaximumSize(new Dimension(85, 36));
-        deleteButton.setMinimumSize(new Dimension(85, 36));
-        deleteButton.setToolTipText("Delete this hold invoice");
+        deleteButton.setPreferredSize(new Dimension(90, 30));
+        deleteButton.setToolTipText("Delete this hold invoice (Press Delete key when focused)");
 
-        // Set SVG icon
+        // Set RED SVG icon by default
         try {
             FlatSVGIcon deleteIcon = new FlatSVGIcon("lk/com/pos/icon/delete.svg", 16, 16);
-            deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+            // Set the icon color filter to RED by default
+            deleteIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0))); // RED color
             deleteButton.setIcon(deleteIcon);
-            deleteButton.setIconTextGap(6);
+            deleteButton.setText(" Delete");
         } catch (Exception e) {
-            deleteButton.setText("🗑 Delete");
+            // Fallback if icon not found
+            deleteButton.setText("Delete");
         }
 
-        deleteButton.setForeground(Color.WHITE);
+        // Set gradient colors for delete button - RED theme
+        Color deleteTopColor = new Color(220, 53, 69); // Red color for top
+        Color deleteBottomColor = new Color(200, 35, 51); // Darker red for bottom
 
-        // Custom paint for gradient and rounded corners
+        deleteButton.setBorder(BorderFactory.createLineBorder(deleteTopColor, 2));
+        deleteButton.setForeground(deleteTopColor);
+
+        // Add hover effects
+        deleteButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                deleteButton.setForeground(Color.WHITE);
+                // Change icon color to white on hover
+                FlatSVGIcon icon = (FlatSVGIcon) deleteButton.getIcon();
+                if (icon != null) {
+                    icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                    deleteButton.repaint();
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                deleteButton.setForeground(deleteTopColor);
+                // Change icon color back to red
+                FlatSVGIcon icon = (FlatSVGIcon) deleteButton.getIcon();
+                if (icon != null) {
+                    icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> new Color(220, 0, 0)));
+                    deleteButton.repaint();
+                }
+            }
+        });
+
+        // Custom paint for gradient effect
         deleteButton.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
@@ -613,25 +581,14 @@ public class PosCartPanel extends javax.swing.JPanel {
                 int width = button.getWidth();
                 int height = button.getHeight();
 
-                Color topColor = new Color(220, 53, 69);
-                Color bottomColor = new Color(200, 35, 51);
-
-                if (button.getModel().isPressed()) {
-                    topColor = new Color(190, 40, 55);
-                    bottomColor = new Color(170, 25, 41);
-                } else if (button.getModel().isRollover()) {
-                    topColor = new Color(230, 60, 75);
-                    bottomColor = new Color(210, 45, 60);
-                }
-
-                GradientPaint gradient = new GradientPaint(0, 0, topColor, 0, height, bottomColor);
-                g2.setPaint(gradient);
-                g2.fillRoundRect(0, 0, width, height, 8, 8);
-
-                // Add subtle shadow on hover
                 if (button.getModel().isRollover()) {
-                    g2.setColor(new Color(0, 0, 0, 20));
-                    g2.fillRoundRect(0, height - 2, width, 2, 8, 8);
+                    // Gradient background on hover
+                    GradientPaint gradient = new GradientPaint(
+                            0, 0, deleteTopColor,
+                            width, 0, deleteBottomColor
+                    );
+                    g2.setPaint(gradient);
+                    g2.fillRoundRect(0, 0, width, height, 8, 8);
                 }
 
                 g2.dispose();
@@ -648,108 +605,6 @@ public class PosCartPanel extends javax.swing.JPanel {
         });
 
         return deleteButton;
-    }
-
-// Create beautiful action button (View/Switch) matching delete button style
-    private JButton createActionButton(String buttonText, Invoice invoice) {
-        JButton actionButton = new JButton(buttonText);
-        actionButton.setFont(new Font("Nunito SemiBold", Font.BOLD, 12));
-        actionButton.setFocusPainted(false);
-        actionButton.setBorderPainted(false);
-        actionButton.setContentAreaFilled(false);
-        actionButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        // FIX: Make button slightly smaller
-        actionButton.setPreferredSize(new Dimension(85, 36));
-        actionButton.setMaximumSize(new Dimension(85, 36));
-        actionButton.setMinimumSize(new Dimension(85, 36));
-
-        // Set icon based on button text
-        try {
-            if (buttonText.equalsIgnoreCase("View")) {
-                FlatSVGIcon viewIcon = new FlatSVGIcon("lk/com/pos/icon/eye-open.svg", 16, 16);
-                viewIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                actionButton.setIcon(viewIcon);
-                actionButton.setIconTextGap(6);
-            } else if (buttonText.equalsIgnoreCase("Switch")) {
-                FlatSVGIcon switchIcon = new FlatSVGIcon("lk/com/pos/icon/switch.svg", 16, 16);
-                switchIcon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                actionButton.setIcon(switchIcon);
-                actionButton.setIconTextGap(6);
-            }
-        } catch (Exception e) {
-            // Fallback to emoji if icon not found
-            if (buttonText.equalsIgnoreCase("View")) {
-                actionButton.setText("👁 View");
-            } else {
-                actionButton.setText("↔ Switch");
-            }
-        }
-
-        actionButton.setForeground(Color.WHITE);
-
-        // Get colors based on button type
-        Color topColor, bottomColor;
-        if (buttonText.equalsIgnoreCase("Switch")) {
-            topColor = new Color(255, 193, 7);  // Yellow for Switch
-            bottomColor = new Color(255, 160, 0);
-        } else {
-            topColor = new Color(76, 175, 80);  // Green for View
-            bottomColor = new Color(56, 142, 60);
-        }
-
-        // Custom paint for gradient and rounded corners
-        actionButton.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
-            @Override
-            public void paint(Graphics g, JComponent c) {
-                JButton button = (JButton) c;
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                int width = button.getWidth();
-                int height = button.getHeight();
-
-                Color currentTopColor = topColor;
-                Color currentBottomColor = bottomColor;
-
-                if (button.getModel().isPressed()) {
-                    currentTopColor = topColor.darker();
-                    currentBottomColor = bottomColor.darker();
-                } else if (button.getModel().isRollover()) {
-                    currentTopColor = brighten(topColor, 1.1f);
-                    currentBottomColor = brighten(bottomColor, 1.1f);
-                }
-
-                GradientPaint gradient = new GradientPaint(0, 0, currentTopColor, 0, height, currentBottomColor);
-                g2.setPaint(gradient);
-                g2.fillRoundRect(0, 0, width, height, 8, 8);
-
-                // Add subtle shadow on hover
-                if (button.getModel().isRollover()) {
-                    g2.setColor(new Color(0, 0, 0, 20));
-                    g2.fillRoundRect(0, height - 2, width, 2, 8, 8);
-                }
-
-                g2.dispose();
-                super.paint(g, c);
-            }
-
-            private Color brighten(Color color, float factor) {
-                int r = Math.min(255, (int) (color.getRed() * factor));
-                int g = Math.min(255, (int) (color.getGreen() * factor));
-                int b = Math.min(255, (int) (color.getBlue() * factor));
-                return new Color(r, g, b);
-            }
-        });
-
-        actionButton.addActionListener(e -> {
-            if (notificationDialog != null) {
-                notificationDialog.setVisible(false);
-                notificationDialog.dispose();
-            }
-            handleInvoiceAction(invoice, buttonText);
-        });
-
-        return actionButton;
     }
 
     // Add this new method to handle delete action:
@@ -4304,15 +4159,15 @@ public class PosCartPanel extends javax.swing.JPanel {
         Color topColor, bottomColor;
         switch (buttonText) {
             case "Switch":
-                topColor = new Color(255, 193, 7);
-                bottomColor = new Color(255, 152, 0);
+                topColor = new Color(255, 193, 7);    // Bright yellow for Switch
+                bottomColor = new Color(255, 152, 0); // Orange-yellow
                 break;
             case "View":
-                topColor = new Color(105, 240, 174);
-                bottomColor = new Color(76, 175, 80);
+                topColor = new Color(76, 175, 80);    // Bright green for View
+                bottomColor = new Color(56, 142, 60); // Darker green
                 break;
             case "Open":
-                topColor = new Color(100, 181, 246);
+                topColor = new Color(33, 150, 243);   // Bright blue for Open
                 bottomColor = new Color(30, 136, 229);
                 break;
             default:
@@ -4670,17 +4525,50 @@ public class PosCartPanel extends javax.swing.JPanel {
             setBorderPainted(true);
             setContentAreaFilled(false);
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            setPreferredSize(new Dimension(100, 15));
+
+            // Set same size as delete button (90x30)
+            setPreferredSize(new Dimension(90, 30));
+
             Color[] colors = getButtonColors(getText());
             setBorder(BorderFactory.createLineBorder(colors[0], 2));
             setForeground(colors[0]);
+
+            // Setup icon with proper spacing
             setupButtonIcon();
+
+            // Set text with proper spacing based on button type
+            String buttonText = getText();
+            String displayText;
+            switch (buttonText) {
+                case "Switch":
+                    displayText = " Switch";
+                    break;
+                case "View":
+                    displayText = " View";
+                    break;
+                case "Open":
+                    displayText = " Open";
+                    break;
+                default:
+                    displayText = " " + buttonText;
+            }
+            setText(displayText);
+
+            // Set icon text gap for better visual spacing
+            setIconTextGap(5);
+
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent e) {
                     isHovered = true;
                     setForeground(Color.WHITE);
-                    repaint();
+
+                    // Change icon color to white on hover
+                    FlatSVGIcon icon = (FlatSVGIcon) getIcon();
+                    if (icon != null) {
+                        icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
+                        repaint();
+                    }
                 }
 
                 @Override
@@ -4688,7 +4576,13 @@ public class PosCartPanel extends javax.swing.JPanel {
                     isHovered = false;
                     Color[] colors = getButtonColors(getText());
                     setForeground(colors[0]);
-                    repaint();
+
+                    // Change icon color back to original
+                    FlatSVGIcon icon = (FlatSVGIcon) getIcon();
+                    if (icon != null) {
+                        icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> colors[0]));
+                        repaint();
+                    }
                 }
             });
         }
@@ -4696,6 +4590,9 @@ public class PosCartPanel extends javax.swing.JPanel {
         private void setupButtonIcon() {
             String buttonText = getText();
             String iconPath;
+            setPreferredSize(BUTTON_SIZE);
+
+            // Determine which icon to use based on button text
             switch (buttonText) {
                 case "Switch":
                     iconPath = "lk/com/pos/icon/exchange.svg";
@@ -4710,25 +4607,18 @@ public class PosCartPanel extends javax.swing.JPanel {
                     iconPath = "lk/com/pos/icon/exchange.svg";
                     break;
             }
+
             try {
-                FlatSVGIcon icon = new FlatSVGIcon("lk/com/pos/icon/exchange.svg", 16, 16);
+                FlatSVGIcon icon = new FlatSVGIcon(iconPath, 16, 16);
                 final Color[] colors = getButtonColors(getText());
+                // Set initial icon color based on button type
                 icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> colors[0]));
                 setIcon(icon);
-                addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseEntered(MouseEvent e) {
-                        icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> Color.WHITE));
-                        repaint();
-                    }
 
-                    @Override
-                    public void mouseExited(MouseEvent e) {
-                        icon.setColorFilter(new FlatSVGIcon.ColorFilter(c -> colors[0]));
-                        repaint();
-                    }
-                });
             } catch (Exception e) {
+                // If icon loading fails, just show text without icon
+                System.err.println("Icon not found or error loading: " + iconPath);
+                setIcon(null);
             }
         }
 
